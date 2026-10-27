@@ -29,12 +29,34 @@ export const IMAGERY = {
     credit: "NSW Spatial Services imagery ((c) Department of Customer Service NSW)",
     maxZoom: 21,
   },
+  wa: {
+    // Landgate's free Locate mosaic. An ImageServer with no tile cache, so each
+    // web map tile is asked for by its Web Mercator box ({bbox}).
+    label: "Landgate WA (Locate)",
+    template: "https://services.slip.wa.gov.au/public/rest/services/SLIP_Public_Services/Locate/ImageServer/exportImage"
+      + "?bbox={bbox}&bboxSR=3857&imageSR=3857&size=256,256&format=jpg&interpolation=RSP_BilinearInterpolation&f=image",
+    credit: "Locate mosaic (c) Western Australian Land Information Authority (Landgate), personal use",
+    maxZoom: 20,
+  },
 } as const;
 
 export type ImagerySource = keyof typeof IMAGERY;
 
+const WORLD_M = 40075016.68557849;
+
+/** A web map tile's Web Mercator box as "xmin,ymin,xmax,ymax". */
+export function tileBbox(z: number, x: number, y: number): string {
+  const size = WORLD_M / 2 ** z;
+  const x0 = x * size - WORLD_M / 2, y1 = WORLD_M / 2 - y * size;
+  return [x0, y1 - size, x0 + size, y1].map((v) => v.toFixed(3)).join(",");
+}
+
 export const tileUrl = (src: ImagerySource, z: number, x: number, y: number) =>
-  IMAGERY[src].template.replace("{z}", String(z)).replace("{y}", String(y)).replace("{x}", String(x));
+  IMAGERY[src].template
+    .replace("{z}", String(z))
+    .replace("{y}", String(y))
+    .replace("{x}", String(x))
+    .replace("{bbox}", () => tileBbox(z, x, y));
 
 /**
  * Sources to try, best first, for a place. The state services are much
@@ -77,6 +99,7 @@ export function imageryChain(at: LngLat, pick: "auto" | ImagerySource = "auto"):
   const chain: ImagerySource[] = [];
   if (lat > -29.3 && lat < -9 && lng > 137.9 && lng < 154) chain.push("qld");
   if (lat < -28.1 && lat > -37.6 && lng > 140.9 && lng < 154) chain.push("nsw");
+  if (lat < -13.5 && lat > -35.4 && lng > 112.8 && lng < 129.1) chain.push("wa");
   return [...chain, "esri"];
 }
 
@@ -170,6 +193,16 @@ const STATE_DEMS = {
     label: "Vic",
     box: [140.9, -39.3, 150.1, -33.9],
   },
+  wa: {
+    // Geoscience Australia's 5 m LiDAR DEM (WA zone 50), cut to the area this
+    // fork covers and served with the app as Terrarium PNG tiles at zoom 15
+    // (about 4 m a pixel here). Made by scripts/dem/make_wa_tiles.py.
+    url: `${import.meta.env?.BASE_URL ?? "/"}dem/wa`,
+    credit: "Elevation: Digital Elevation Model of Australia derived from LiDAR 5 m grid (c) Commonwealth of Australia (Geoscience Australia), CC BY 4.0",
+    label: "WA 5 m",
+    // The tiled area: Busselton, Vasse, Broadwater and the coast either side.
+    box: [115.2, -33.74, 115.48, -33.58],
+  },
 } as const;
 type LercModule = typeof import("lerc");
 let lerc: Promise<LercModule> | null = null;
@@ -229,7 +262,20 @@ async function stateDemTiles(src: DemSource, z: number, list: { x: number; y: nu
       return undefined;
     }
   };
-  if (src === "vic") {
+  if (src === "wa") {
+    // Static zoom 15 tiles: finer zooms are cut from their parent, as for Vic.
+    const zw = Math.min(z, 15), up = z - zw;
+    const parents = new Map<string, Promise<Float32Array | null | undefined>>();
+    for (const { x, y } of list) {
+      jobs.push(async () => {
+        const px = x >> up, py = y >> up, pk = `${px},${py}`;
+        if (!parents.has(pk)) parents.set(pk, attempt(() => terrariumHeights(`${STATE_DEMS.wa.url}/${zw}/${px}/${py}.png`)));
+        const parent = await parents.get(pk);
+        const h = parent ? (up ? upsample(parent, x - (px << up), y - (py << up), up) : parent) : null;
+        out.set(`${x},${y}`, h && h.some(usable) ? h : null);
+      });
+    }
+  } else if (src === "vic") {
     // The cache only reliably goes to zoom 15 (the data is 10 m anyway): finer tiles are cut from their zoom 15 parent.
     const zv = Math.min(z, 15), up = z - zv;
     const parents = new Map<string, Promise<Float32Array | null | undefined>>();
@@ -270,6 +316,25 @@ async function stateDemTiles(src: DemSource, z: number, list: { x: number; y: nu
   }
   // A few requests at a time.
   for (let k = 0; k < jobs.length; k += 4) await Promise.all(jobs.slice(k, k + 4).map((j) => j()));
+  return out;
+}
+
+/** Heights from one Terrarium-encoded PNG tile; null where the tile is missing (outside the cut area). */
+async function terrariumHeights(url: string): Promise<Float32Array | null> {
+  const res = await fetch(url, { signal: AbortSignal.timeout(20000) });
+  if (res.status >= 500) throw new Error(`HTTP ${res.status}`);
+  if (!res.ok || !(res.headers.get("content-type") ?? "").includes("png")) return null;
+  const bmp = await createImageBitmap(await res.blob(), { colorSpaceConversion: "none", premultiplyAlpha: "none" });
+  return decodeTerrarium(pixels(bmp));
+}
+
+/** Terrarium RGB to metres; fully transparent pixels (no data) are NaN. */
+export function decodeTerrarium(rgba: Uint8ClampedArray | Uint8Array): Float32Array {
+  const out = new Float32Array(rgba.length / 4);
+  for (let i = 0; i < out.length; i++) {
+    const r = rgba[i * 4], g = rgba[i * 4 + 1], b = rgba[i * 4 + 2], a = rgba[i * 4 + 3];
+    out[i] = a === 0 ? NaN : r * 256 + g + b / 256 - 32768;
+  }
   return out;
 }
 
