@@ -2,6 +2,7 @@
 // through `DataSources`, so the same pipeline runs in the browser (real
 // tiles) and in Node tests (synthetic terrain).
 
+import { buildPaths, footPathTexture, sharedPathTexture, type PathLine } from "./paths";
 import { pickSpecies, treeSpeciesAtlas } from "./treeSprites";
 import { GROUND_LAYERS, GROUND_TILE_METRES, groundMask, type GroundDetail, type GroundLayer } from "./ground";
 import { extConfigIni } from "./cspConfig";
@@ -70,6 +71,8 @@ export interface DataSources {
   roadClassAt?(p: LngLat): string | undefined;
   /** Asphalt width at a point from map data, metres. */
   widthAt?(p: LngLat): number | undefined;
+  /** Footpaths and shared paths (OSM), already classified. */
+  paths?: { pts: LngLat[]; kind: PathLine["kind"] }[];
   /** Tiled ground detail textures for ksMultilayer terrain (lawn, rough, sand, litter); null to keep plain photo terrain. */
   groundDetails?(): Promise<Record<GroundLayer, GroundDetail> | null>;
   /** Credit line for the imagery source(s), written into the README; read after imagery is fetched. */
@@ -750,6 +753,28 @@ export async function buildTrack(
     return ringHeight(rb, innerRadius(rb)) + 0.55;
   };
   const shrubs = islandTrees.length ? buildTrees(islandTrees, islandGround, "ISLANDTREES") : [];
+
+  // Footpaths and the red shared path, clear of the road, the streets and the rings.
+  const pathMeshes = opts.paths && sources.paths?.length
+    ? buildPaths(
+      sources.paths.map((l) => ({ kind: l.kind, pts: l.pts.map((p) => proj.toLocal(p)) })),
+      ground,
+      (x, y, half) => {
+        const n = index.nearest(x, y, 30);
+        // Clear of the asphalt plus gutter and kerb (~0.5 m); paths often run right behind the kerb.
+        if (n && n.dist < index.at(n).width / 2 + 0.5 + half) return false;
+        return streetIndex.clearance(x, y) > half + 0.3 && !inRoundabout(plan, x, y, half + 2);
+      },
+      (x, y) => !!index.nearest(x, y, opts.corridor - 5),
+    )
+    : [];
+  if (pathMeshes.length) {
+    textures.push({ name: "path_shared.png", data: sharedPathTexture() }, { name: "path_foot.png", data: footPathTexture() });
+    materials.push(
+      material("path_shared", "path_shared.png", { ambient: 0.45, diffuse: 0.45, specular: 0.05, exp: 10 }),
+      material("path_foot", "path_foot.png", { ambient: 0.45, diffuse: 0.45, specular: 0.05, exp: 10 }),
+    );
+  }
   const ringWalls = plan.roundabouts.map((rb, k) => buildRingWall(rb, k, opts, ground)).filter((w): w is Kn5Node & { kind: "mesh" } => !!w);
 
   const osmRails = opts.guardRails ? (sources.osm?.guardRails ?? []).map((l) => l.map((p) => proj.toLocal(p))) : [];
@@ -806,6 +831,7 @@ export async function buildTrack(
       group("TREES", trees),
       group("RAILS", [...rails.rails, ...rails.posts]),
       group("GUIDEPOSTS", posts),
+      group("PATHS", pathMeshes),
       group("BUILDINGS", houses),
       ...trackObjects(plan, opts),
     ]),

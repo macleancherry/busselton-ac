@@ -1,3 +1,4 @@
+import { pathKind } from "../core/paths";
 import { GROUND_LAYERS, type GroundDetail, type GroundLayer } from "../core/ground";
 import "leaflet/dist/leaflet.css";
 import "./style.css";
@@ -483,6 +484,13 @@ $("build").onclick = async () => {
       raster: (proj, path, reach) => loadRouteRaster(proj, path, reach, chain, 20, (d, t) => setProgress(`Tracing the road in the aerial photos (${Math.round((d / t) * 100)}%)`)),
       roadClassAt: tiles ? roadClassLookup(tiles.roads, current.coords[0][1]) : undefined,
       groundDetails: loadGroundDetails,
+      paths: tiles
+        ? tiles.roads.filter((r) => r.cls === "path" && r.brunnel !== "bridge" && r.brunnel !== "tunnel")
+          .flatMap((r) => {
+            const kind = pathKind(r.subclass, r.bicycle);
+            return kind ? [{ pts: r.pts, kind }] : [];
+          })
+        : undefined,
       imageryCredit: () => [...[...usedImagery].map((k) => IMAGERY[k].credit), ...[...usedDem].map((k) => DEM_CREDIT[k])].join("; "),
     }, placeMeta, report);
 

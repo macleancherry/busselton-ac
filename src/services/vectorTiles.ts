@@ -30,6 +30,10 @@ export interface TileBuilding {
 export interface TileRoad {
   pts: LngLat[];
   cls: string;
+  /** OpenMapTiles subclass (for paths: cycleway, footway, path, ...). */
+  subclass?: string;
+  /** OSM bicycle access on paths (yes, designated, ...). */
+  bicycle?: string;
   surface?: string;
   /** "bridge" or "tunnel" when the road is grade separated. */
   brunnel?: string;
@@ -130,7 +134,9 @@ export async function fetchTileFeatures(bbox: [number, number, number, number]):
           const cls = String(f.properties.class ?? "");
           const surface = f.properties.surface !== undefined ? String(f.properties.surface) : undefined;
           const brunnel = f.properties.brunnel !== undefined ? String(f.properties.brunnel) : undefined;
-          for (const line of f.loadGeometry()) roads.push({ pts: line.map((p) => toLngLat(p, tl.extent)), cls, surface, brunnel });
+          const subclass = f.properties.subclass !== undefined ? String(f.properties.subclass) : undefined;
+          const bicycle = f.properties.bicycle !== undefined ? String(f.properties.bicycle) : undefined;
+          for (const line of f.loadGeometry()) roads.push({ pts: line.map((p) => toLngLat(p, tl.extent)), cls, surface, brunnel, subclass, bicycle });
         }
         const nl = tile.layers.transportation_name;
         for (let i = 0; nl && i < nl.length; i++) {

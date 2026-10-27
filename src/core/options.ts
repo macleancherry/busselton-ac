@@ -66,6 +66,8 @@ export interface BuildOptions {
    * ground stays sharp at eye height. Needs DataSources.groundDetails.
    */
   groundDetail: boolean;
+  /** Footpaths and shared paths from OpenStreetMap (red asphalt where bikes share them, concrete otherwise). */
+  paths: boolean;
   /** Upper bound on tree count, for frame rate. */
   maxTrees: number;
   /** Guard rails at drop-offs and where OSM maps them. */
@@ -130,6 +132,7 @@ export const DEFAULT_OPTIONS: BuildOptions = {
   horizonZoom: 16,
   trees: 1,
   groundDetail: true,
+  paths: true,
   maxTrees: 12000,
   guardRails: true,
   guidePosts: true,
