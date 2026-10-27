@@ -60,6 +60,12 @@ export interface BuildOptions {
   horizonZoom: number;
   /** Trees from aerial imagery: 0 off, 1 normal, 2 dense. */
   trees: number;
+  /**
+   * Terrain uses ksMultilayer: the aerial photo for colour, times tiled detail
+   * textures (lawn, rough grass, sand, leaf litter) masked from the photo, so the
+   * ground stays sharp at eye height. Needs DataSources.groundDetails.
+   */
+  groundDetail: boolean;
   /** Upper bound on tree count, for frame rate. */
   maxTrees: number;
   /** Guard rails at drop-offs and where OSM maps them. */
@@ -123,6 +129,7 @@ export const DEFAULT_OPTIONS: BuildOptions = {
   horizon: 1500,
   horizonZoom: 16,
   trees: 1,
+  groundDetail: true,
   maxTrees: 12000,
   guardRails: true,
   guidePosts: true,

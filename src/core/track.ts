@@ -2,6 +2,7 @@
 // through `DataSources`, so the same pipeline runs in the browser (real
 // tiles) and in Node tests (synthetic terrain).
 
+import { GROUND_LAYERS, GROUND_TILE_METRES, groundMask, type GroundDetail, type GroundLayer } from "./ground";
 import { extConfigIni } from "./cspConfig";
 import { buildAiLine } from "./aiLine";
 import { BACKDROP_CHUNK, backdropHeight, buildBackdropChunk, planBackdrop } from "./backdrop";
@@ -20,6 +21,7 @@ import { buildRoadMeshes, buildWalls, type RoadMaterialFn } from "./roadMesh";
 import { buildKerbReturns, buildKerbs, KERB_BACK, kerbEvidence, planKerbs, STRIP_EXTRA, stripPhotoTexture, type StripMaterialFn } from "./kerbs";
 import { photoRoadTexture } from "./photoSurface";
 import { encodeDdsDxt1 } from "./dds";
+import { encodePng } from "./png";
 import { buildMarkings, type DiscreteMark } from "./markings";
 import { buildTerrainChunk, makeTerrainFn, planTerrainChunks, type TerrainChunk } from "./terrain";
 import { FACADES, paintTexture, sealTexture, type SealKind, facadeTexture, grassTexture, concreteTexture, postTexture, railTexture, ROOF_COLOURS, roofTexture, solidTexture, treeAtlas, vergeTexture } from "./textures";
@@ -67,6 +69,8 @@ export interface DataSources {
   roadClassAt?(p: LngLat): string | undefined;
   /** Asphalt width at a point from map data, metres. */
   widthAt?(p: LngLat): number | undefined;
+  /** Tiled ground detail textures for ksMultilayer terrain (lawn, rough, sand, litter); null to keep plain photo terrain. */
+  groundDetails?(): Promise<Record<GroundLayer, GroundDetail> | null>;
   /** Credit line for the imagery source(s), written into the README; read after imagery is fetched. */
   imageryCredit?: string | (() => string);
 }
@@ -226,6 +230,32 @@ function material(name: string, texture: string, light: { ambient: number; diffu
   };
 }
 
+/** A photo material turned ksMultilayer: the photo times masked, tiled ground detail (see ground.ts). */
+function multilayerMaterial(photo: Kn5Material, mask: string, chunkMetres: number): Kn5Material {
+  // Terrain UVs run 0..1 across a chunk, so a detail's UV scale is repeats per chunk.
+  const mult = (layer: GroundLayer) => chunkMetres / GROUND_TILE_METRES[layer];
+  return {
+    ...photo,
+    shader: "ksMultilayer",
+    properties: [
+      ...photo.properties,
+      { name: "magicMult", a: 2 },
+      { name: "multR", a: mult("lawn") },
+      { name: "multG", a: mult("rough") },
+      { name: "multB", a: mult("sand") },
+      { name: "multA", a: mult("litter") },
+    ],
+    textures: {
+      txDiffuse: photo.textures.txDiffuse,
+      txMask: mask,
+      txDetailR: "ground_lawn.dds",
+      txDetailG: "ground_rough.dds",
+      txDetailB: "ground_sand.dds",
+      txDetailA: "ground_litter.dds",
+    },
+  };
+}
+
 function countGeometry(node: Kn5Node): { v: number; t: number } {
   if (node.kind === "mesh") return { v: node.positions.length / 3, t: node.indices.length / 3 };
   return node.children.map(countGeometry).reduce((a, b) => ({ v: a.v + b.v, t: a.t + b.t }), { v: 0, t: 0 });
@@ -334,6 +364,14 @@ export async function buildTrack(
   const photos: Parameters<typeof chunkPhotoSampler>[0] = [];
 
   const textured = new Set<string>();
+  // Tiled ground detail for ksMultilayer terrain, shared by every chunk.
+  const details = opts.groundDetail && sources.groundDetails && opts.imageryZoom > 0 ? await sources.groundDetails() : null;
+  if (details) {
+    for (const layer of GROUND_LAYERS) {
+      const d = details[layer];
+      textures.push({ name: `ground_${layer}.dds`, data: encodeDdsDxt1(d.rgba, d.width, d.height) });
+    }
+  }
   if (sources.imagery && opts.imageryZoom > 0) {
     const jobs = [
       ...chunks.map((c) => ({ chunk: c, zoom: opts.imageryZoom, size: opts.textureSize, prefix: "terrain" })),
@@ -346,7 +384,14 @@ export async function buildTrack(
       const tex = `${job.prefix}_${job.chunk.key}.${img.ext}`;
       textures.push({ name: tex, data: img.data });
       // Aerial photos carry their own light and shadow, so lean on ambient.
-      materials.push(material(`${job.prefix}_${job.chunk.key}`, tex, { ambient: 0.6, diffuse: 0.2, specular: 0, exp: 1 }));
+      const photoMat = material(`${job.prefix}_${job.chunk.key}`, tex, { ambient: 0.6, diffuse: 0.2, specular: 0, exp: 1 });
+      if (details && img.rgba && job.prefix === "terrain") {
+        const maskName = `${job.prefix}_${job.chunk.key}_mask.png`;
+        textures.push({ name: maskName, data: encodePng(groundMask(img.rgba, job.size, 256), 256, 256) });
+        materials.push(multilayerMaterial(photoMat, maskName, job.chunk.maxX - job.chunk.minX));
+      } else {
+        materials.push(photoMat);
+      }
       textured.add(job.chunk.key);
       if (img.rgba && job.prefix === "terrain") {
         treeSpots.push(...treeSpotsFromImagery(img.rgba, job.size, job.chunk, opts.trees));

@@ -1,3 +1,4 @@
+import { GROUND_LAYERS, type GroundDetail, type GroundLayer } from "../core/ground";
 import "leaflet/dist/leaflet.css";
 import "./style.css";
 import L from "leaflet";
@@ -481,6 +482,7 @@ $("build").onclick = async () => {
       renderArt,
       raster: (proj, path, reach) => loadRouteRaster(proj, path, reach, chain, 20, (d, t) => setProgress(`Tracing the road in the aerial photos (${Math.round((d / t) * 100)}%)`)),
       roadClassAt: tiles ? roadClassLookup(tiles.roads, current.coords[0][1]) : undefined,
+      groundDetails: loadGroundDetails,
       imageryCredit: () => [...[...usedImagery].map((k) => IMAGERY[k].credit), ...[...usedDem].map((k) => DEM_CREDIT[k])].join("; "),
     }, placeMeta, report);
 
@@ -517,6 +519,25 @@ $("build").onclick = async () => {
     updateBuildButton();
   }
 };
+
+/** The tiled ground textures shipped in public/textures/ground (see scripts/textures/make_ground_details.py). */
+let groundCache: Promise<Record<GroundLayer, GroundDetail> | null> | null = null;
+function loadGroundDetails(): Promise<Record<GroundLayer, GroundDetail> | null> {
+  groundCache ??= Promise.all(GROUND_LAYERS.map(async (layer) => {
+    const res = await fetch(`${import.meta.env.BASE_URL}textures/ground/${layer}.jpg`);
+    if (!res.ok) throw new Error(`ground texture ${layer}: HTTP ${res.status}`);
+    const bmp = await createImageBitmap(await res.blob());
+    const c = new OffscreenCanvas(bmp.width, bmp.height).getContext("2d", { willReadFrequently: true })!;
+    c.drawImage(bmp, 0, 0);
+    return [layer, { rgba: c.getImageData(0, 0, bmp.width, bmp.height).data, width: bmp.width, height: bmp.height }] as const;
+  }))
+    .then((pairs) => Object.fromEntries(pairs) as Record<GroundLayer, GroundDetail>)
+    .catch((e) => {
+      console.warn("ground textures unavailable, using plain photo terrain:", e);
+      return null;
+    });
+  return groundCache;
+}
 
 function showStats(r: TrackResult, widthFallback: boolean, usedImagery: Set<ImagerySource>, usedDem: Set<DemSource>): void {
   const s = r.stats;

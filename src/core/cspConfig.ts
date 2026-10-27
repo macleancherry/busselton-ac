@@ -64,16 +64,19 @@ export function extConfigIni(plan: RoadPlan, opts: CspOptions): string {
       `GRASS_MATERIALS = ${grass.join(", ")}`,
       `OCCLUDING_MATERIALS = ${occluding.join(", ")}`,
       "ORIGINAL_GRASS_MATERIALS =",
-      // The ground is an aerial photo: only spawn on clearly green, mid-bright pixels
-      // (lawns, verges), not roofs, sand or dry paddocks.
-      "MASK_MAIN_THRESHOLD = 0.35",
-      "MASK_RED_THRESHOLD = 0.05",
-      "MASK_MIN_LUMINANCE = 0.03",
-      "MASK_MAX_LUMINANCE = 0.45",
-      "MASK_BLUR = 1",
-      "SHAPE_SIZE = 0.8",
-      "SHAPE_TIDY = 0.6",
-      "SHAPE_CUT = 0.6",
+      // The ground's colour is an aerial photo. Western Australian verges are
+      // straw for half the year, so spawn on yellow-green as well as green
+      // (MASK_RED_THRESHOLD shifts the target toward yellow), on mid-bright
+      // pixels only: not white sand or roofs, not dark shade or bitumen.
+      "MASK_MAIN_THRESHOLD = 0.12",
+      "MASK_RED_THRESHOLD = 0.3",
+      "MASK_MIN_LUMINANCE = 0.06",
+      "MASK_MAX_LUMINANCE = 0.55",
+      "MASK_BLUR = 2",
+      // Rougher and less mown than a race track's grass.
+      "SHAPE_SIZE = 1.0",
+      "SHAPE_TIDY = 0.35",
+      "SHAPE_CUT = 0.35",
       "SHAPE_WIDTH = 1.0",
       "",
     );
