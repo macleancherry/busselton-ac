@@ -25,6 +25,15 @@ To install, drag the zip onto Content Manager, or unzip it into `assettocorsa/co
 - **CSP config.** Each build includes `extension/ext_config.ini`: Grass FX on grassed ground (kept off roads and footpaths) and warm street lights at night along built-up stretches. Needs Custom Shaders Patch.
 - **U-turn guard.** The builder warns when a pin makes the route double back, and the check fails the build.
 - **Smooth town roads.** Fixes for the step behind kerbs and the dip at roundabout entries, plus options for flat ground (`terrainUnderRoad`, a finer `terrainStep`, banking off). `scripts/check/surface_check.py` measures bumps, tilt and edge steps along the driving line.
+- **Ground up close.** Terrain uses AC's `ksMultilayer` shader: the aerial photo for colour, with tiled lawn, dry grass, sand and mulch detail (CC0, ambientCG) mixed by a mask read off the same photo. Grass FX is tuned for straw-coloured WA verges.
+- **Local trees.** Four procedurally drawn species: she-oaks and Norfolk pines on the foreshore, peppermints in town, tuarts out of town.
+- **Paths.** The red shared path (dashed white centreline) and concrete footpaths, from OpenStreetMap.
+- **WA houses.** Hip and gable roofs with eaves and soffits, face brick (red and cream), render and weatherboard walls with aluminium windows, a panel-lift garage on the street side, and two storeys where OSM has `building:levels`.
+- **Lots.** Colorbond side and back fences, limestone or brick front walls or a hedge (or nothing), a driveway gap at the garage, and a garden bed with shrubs.
+- **Street lights.** Poles with outreach arms on built-up stretches, kept off junction mouths, with the CSP night lights in the lanterns.
+- **The bay and the jetty.** A water surface over the sea (OSM coastline) with the seabed dropped under it, and piers and jetties as timber decks on piles with handrails, including the 1.8 km Busselton Jetty.
+- **Horizon tree lines.** Canopy read off the far aerial photo, out to 1 km, as cheap unshadowed sprites.
+- **Renders.** `SHOTS=0.1,0.5` (lap fractions, or `lng:lat:lookLng:lookLat:height`) makes the headless build save driver's-eye views from the preview.
 - **Private routes.** Anything in `routes/private/` stays out of git.
 
 ## Sent upstream
@@ -107,6 +116,7 @@ If you change the box, update `STATE_DEMS.wa.box` in `src/services/tiles.ts` to 
 | Aerial photos (fallback) | Esri World Imagery | Personal use |
 | Roads, buildings, names | OpenStreetMap, via OpenFreeMap | ODbL |
 | Signs and poles (optional) | Mapillary | CC BY-SA, don't publish tracks with it |
+| Ground detail textures | ambientCG | CC0 |
 
 Fine for racing with your mates. Don't publish or sell tracks built with the aerial photos or Mapillary data. For a version you could share publicly, set imagery to Off and leave Mapillary out.
 
@@ -114,11 +124,10 @@ Fine for racing with your mates. Don't publish or sell tracks built with the aer
 
 The full plan, from capture to Blender to LAN racing, is in the project PRD. Next up:
 
-1. Ground that looks like ground up close: tiled grass, dry grass, sand and mulch textures (`ksMultilayer`) laid out from the aerial photo, and Grass FX tuned for dry Australian grass.
-2. Local trees: she-oaks and Norfolk pines on the foreshore, peppermints in town.
-3. The red cycle path along the foreshore, from OpenStreetMap.
-4. Drive the loop with a camera and GPS, then upload to Mapillary for real signs.
-5. Local detail in Blender: landmarks and proper houses.
+1. Check the new ground, houses, sea and jetty in game and tune from what feels wrong.
+2. Terrain level of detail: it's two thirds of the triangles; fine grid near the road, coarser behind.
+3. Drive the loop with a camera and GPS, then upload to Mapillary for real signs.
+4. Local detail in Blender: landmarks (the jetty's Interpretive Centre and Observatory, the foreshore buildings).
 
 ## Credit
 
