@@ -437,7 +437,8 @@ $("build").onclick = async () => {
   preview?.dispose();
   preview = null;
 
-  const opts = readOptions();
+  // Build options the UI has no control for (set by the headless build from a route file).
+  const opts = { ...readOptions(), ...((window as unknown as { __buildOptions?: Partial<BuildOptions> }).__buildOptions ?? {}) };
   const chunkImages = new Map<string, OffscreenCanvas>();
   const usedImagery = new Set<ImagerySource>();
   const usedDem = new Set<DemSource>();

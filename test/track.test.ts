@@ -44,6 +44,7 @@ describe("buildTrack (synthetic terrain)", async () => {
       "test_hairpin/ai/fast_lane.ai",
       "test_hairpin/data/map.ini",
       "test_hairpin/data/surfaces.ini",
+      "test_hairpin/extension/ext_config.ini",
       "test_hairpin/map.png",
       "test_hairpin/test_hairpin.kn5",
       "test_hairpin/ui/outline.png",
@@ -54,6 +55,15 @@ describe("buildTrack (synthetic terrain)", async () => {
     expect(ui.name).toBe("Test Hairpin");
     expect(Number(ui.length)).toBeGreaterThan(2000);
     expect(ui.geotags[0]).toMatch(/ S$/);
+  });
+
+  it("writes a CSP config with Grass FX that keeps grass off the road", () => {
+    const ini = new TextDecoder().decode(result.files["test_hairpin/extension/ext_config.ini"]);
+    const grass = ini.match(/^GRASS_MATERIALS = (.*)$/m)?.[1].split(", ") ?? [];
+    const occluding = ini.match(/^OCCLUDING_MATERIALS = (.*)$/m)?.[1].split(", ") ?? [];
+    expect(grass.length).toBeGreaterThan(0);
+    expect(grass.some((m) => m.startsWith("road"))).toBe(false);
+    expect(occluding.some((m) => m.startsWith("road_"))).toBe(true);
   });
 
   it("writes a kn5 that parses back with physics meshes and spawn points", () => {

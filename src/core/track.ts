@@ -2,6 +2,7 @@
 // through `DataSources`, so the same pipeline runs in the browser (real
 // tiles) and in Node tests (synthetic terrain).
 
+import { extConfigIni } from "./cspConfig";
 import { buildAiLine } from "./aiLine";
 import { BACKDROP_CHUNK, backdropHeight, buildBackdropChunk, planBackdrop } from "./backdrop";
 import { writeFastLaneAi } from "./aiSpline";
@@ -266,6 +267,15 @@ export async function buildTrack(
     raster = await sources.raster(proj, plan.samples.map((s) => s.pos), reach);
     if (raster) {
       trace = traceRoad(plan, raster);
+      if (opts.noTrace.length) {
+        const zones = opts.noTrace.map((z) => ({ c: proj.toLocal(z.at), r: z.radius }));
+        plan.samples.forEach((smp, i) => {
+          // 1 inside a zone, fading to 0 over 30 m outside it.
+          const keep = Math.min(1, ...zones.map((z) => Math.max(0, Math.min(1, (Math.hypot(smp.pos[0] - z.c[0], smp.pos[1] - z.c[1]) - z.r) / 30))));
+          trace!.offset[i] *= keep;
+          trace!.conf[i] *= keep;
+        });
+      }
       applyTrace(plan, trace, (i) => !!inRoundabout(plan, plan.samples[i].pos[0], plan.samples[i].pos[1], 0.5));
     }
   }
@@ -753,6 +763,11 @@ export async function buildTrack(
     })),
     [`${slug}/ui/outline.png`]: outlinePng(outline2d),
     [`${slug}/ui/preview.png`]: previewPng(outline2d, plan.closed),
+    [`${slug}/extension/ext_config.ini`]: enc.encode(extConfigIni(plan, {
+      materials: model.materials.map((m) => m.name),
+      along: (s, t, lift) => along(plan, s, t, lift, opts.crown) as { pos: [number, number, number] },
+      kerbAt,
+    })),
     [`${slug}/README.txt`]: enc.encode(readme(trackMeta, textured.size ? (typeof sources.imageryCredit === "function" ? sources.imageryCredit() : sources.imageryCredit) ?? "aerial imagery" : null)),
   };
 

@@ -8,7 +8,8 @@
 //     "name": "Busselton Foreshore",
 //     "loop": true,
 //     "pins": [[115.33054, -33.65499], [115.33056, -33.65034], ...],   // lng, lat
-//     "options": { "imagery": "high", "trees": "normal" }               // optional: ids of <select>s/<input>s in the UI
+//     "options": { "imagery": "high", "trees": "normal" },              // optional: ids of <select>s/<input>s in the UI
+//     "build": { "noTrace": [{ "at": [115.3445, -33.6500], "radius": 150 }] }  // optional: BuildOptions with no UI control
 //   }
 //
 // Writes out/<slug>.zip and out/<slug>.stats.json. Needs `npx playwright install chromium` once.
@@ -79,6 +80,8 @@ try {
     else if (tag.endsWith("checkbox")) await (value ? el.check() : el.uncheck());
     else await el.fill(String(value));
   }
+  // Build options with no UI control (e.g. noTrace zones) go straight to the build.
+  if (spec.build) await page.evaluate((b) => { window.__buildOptions = b; }, spec.build);
   for (const p of spec.pins) await page.evaluate((pt) => window.__app.addPin(pt), p);
   await page.fill("#name", spec.name);
 

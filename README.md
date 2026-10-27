@@ -8,7 +8,7 @@ This is a fork of [honestjams/ac-track-builder](https://github.com/honestjams/ac
 
 | Track | Layout | Length | Route |
 | --- | --- | --- | --- |
-| Busselton Foreshore | Circuit | 4.4 km | King St, Geographe Bay Rd, West St, Adelaide St, Queen St, Albert St, Bussell Hwy |
+| Busselton Foreshore | Circuit | 4.3 km | King St, Geographe Bay Rd, West St, Adelaide St, Queen St, Albert St, Bussell Hwy |
 | Broadwater Home Run | A to B | 3.6 km | Fairway Dr, Bussell Hwy to King St |
 
 Both are v0.1: built and checked against the map data, not yet driven in game.
@@ -22,6 +22,8 @@ To install, drag the zip onto Content Manager, or unzip it into `assettocorsa/co
 - **Headless builds.** `scripts/headless/build-track.mjs` builds a track from a route file in headless Chromium. It's the same code as the UI, with no clicking.
 - **Build checks.** `scripts/check/check_build.py` draws the built road over the aerial photo and compares its heights with the DEM.
 - **Route files.** `routes/` holds the pins for each track, so a rebuild is one command.
+- **CSP config.** Each build includes `extension/ext_config.ini`: Grass FX on grassed ground (kept off roads and footpaths) and warm street lights at night along built-up stretches. Needs Custom Shaders Patch.
+- **U-turn guard.** The builder warns when a pin makes the route double back, and the check fails the build.
 
 ## Building a track
 
@@ -60,6 +62,7 @@ You can still use the browser version: `npm run dev`, then open http://localhost
 - **pins** are `[lng, lat]`. The route follows the real road network between them.
 - **loop** closes the route back to the first pin.
 - **options** take any setting from the UI by its element id (`imagery`, `trees`, `buildings`, and so on).
+- **build** takes build settings the UI doesn't have, such as `noTrace` zones (`{ "at": [lng, lat], "radius": metres }`) where the road keeps the OSM line instead of the photo trace. Use these on wide main streets where the trace locks onto parking bays.
 
 If a pin snaps onto a car park or side street, nudge it onto the road you want.
 

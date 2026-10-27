@@ -80,6 +80,12 @@ export interface BuildOptions {
   landmarks: boolean;
   /** Move the road to where the aerial photos show it, at their width. */
   traceRoads: boolean;
+  /**
+   * Places where the photo trace is ignored and the road keeps the OSM line
+   * (wide main streets with angled parking can pull the trace onto the
+   * parking bays): centre [lng, lat] and radius in metres. Fades out over 30 m.
+   */
+  noTrace: { at: [number, number]; radius: number }[];
   /** Kerb and gutter where the photos (or a built-up area) show them, instead of a gravel verge. */
   kerbs: boolean;
 }
@@ -121,6 +127,7 @@ export const DEFAULT_OPTIONS: BuildOptions = {
   streetSigns: true,
   landmarks: true,
   traceRoads: true,
+  noTrace: [],
   kerbs: true,
 };
 
