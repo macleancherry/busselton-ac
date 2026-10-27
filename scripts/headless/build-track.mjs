@@ -73,12 +73,18 @@ try {
   // Options first, so routing and naming see them.
   await page.fill("#name", spec.name);
   if (spec.loop) await page.check("#loop");
+  // Set controls directly: some sit in collapsed sections and aren't clickable.
   for (const [id, value] of Object.entries(spec.options ?? {})) {
-    const el = page.locator(`#${id}`);
-    const tag = await el.evaluate((e) => `${e.tagName}:${e.type ?? ""}`);
-    if (tag.startsWith("SELECT")) await el.selectOption(String(value));
-    else if (tag.endsWith("checkbox")) await (value ? el.check() : el.uncheck());
-    else await el.fill(String(value));
+    const ok = await page.evaluate(([id, value]) => {
+      const el = document.getElementById(id);
+      if (!el) return false;
+      if (el.type === "checkbox") el.checked = !!value;
+      else el.value = String(value);
+      el.dispatchEvent(new Event("input", { bubbles: true }));
+      el.dispatchEvent(new Event("change", { bubbles: true }));
+      return true;
+    }, [id, value]);
+    if (!ok) throw new Error(`no control #${id} in the UI`);
   }
   // Build options with no UI control (e.g. noTrace zones) go straight to the build.
   if (spec.build) await page.evaluate((b) => { window.__buildOptions = b; }, spec.build);

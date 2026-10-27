@@ -20,6 +20,13 @@ export interface BuildOptions {
   corridor: number;
   /** Terrain grid spacing, metres. */
   terrainStep: number;
+  /**
+   * How far the terrain under the road and verges is dropped below them, metres,
+   * so it never pokes through. On a coarse grid the drop drags the ground
+   * beside the road down with it (a ditch at the edge); on flat ground use a
+   * finer terrainStep and a small drop.
+   */
+  terrainUnderRoad: number;
   /** Distance over which terrain blends from the road level to the real ground, metres. */
   terrainBlend: number;
   /** Terrain / texture chunk size, metres. */
@@ -100,6 +107,7 @@ export const DEFAULT_OPTIONS: BuildOptions = {
   vergeWidth: 1.5,
   corridor: 90,
   terrainStep: 3,
+  terrainUnderRoad: 0.6,
   terrainBlend: 20,
   chunkSize: 200,
   wallOffset: 10,

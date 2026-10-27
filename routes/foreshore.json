@@ -2,18 +2,50 @@
   "name": "Busselton Foreshore",
   "loop": true,
   "pins": [
-    [115.33054, -33.65499],
-    [115.33056, -33.65034],
-    [115.33748, -33.64763],
-    [115.34384, -33.64784],
-    [115.34543, -33.65284]
+    [
+      115.33054,
+      -33.65499
+    ],
+    [
+      115.33056,
+      -33.65034
+    ],
+    [
+      115.33748,
+      -33.64763
+    ],
+    [
+      115.34384,
+      -33.64784
+    ],
+    [
+      115.34543,
+      -33.65284
+    ]
   ],
-  "options": { "imagery": "high" },
+  "options": {
+    "imagery": "high",
+    "banking": false
+  },
   "build": {
     "noTrace": [
-      { "at": [115.3443, -33.6490], "radius": 130 },
-      { "at": [115.3451, -33.6515], "radius": 130 }
-    ]
+      {
+        "at": [
+          115.3443,
+          -33.649
+        ],
+        "radius": 130
+      },
+      {
+        "at": [
+          115.3451,
+          -33.6515
+        ],
+        "radius": 130
+      }
+    ],
+    "terrainStep": 1.5,
+    "terrainUnderRoad": 0.12
   },
   "_note": "Queen St keeps the OSM line between Adelaide St and Albert St: the photo trace locks onto the angled parking there."
 }
