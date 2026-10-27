@@ -47,6 +47,10 @@ Pins snap to the nearest road. A pin near a car park, side street or the far car
 - Hand-made detail goes in its own .kn5, layered over the generated one (models.ini), so rebuilding the base never wipes it.
 - Blender: script every step (`blender --background --python ...`) so it can be rerun. Export FBX, then ksEditor makes the .kn5.
 
+## Privacy
+
+The fork is public. Never commit anything that locates Mac's home: street names, pins or notes near it. Personal routes live in `routes/private/` (gitignored), including the Home Run. Commit as `macleancherry <2775263+macleancherry@users.noreply.github.com>`, never a personal email.
+
 ## Data rules
 
 - Landgate Locate and Esri imagery: personal, non-commercial use only. Mapillary: CC BY-SA, don't publish tracks containing it. OSM: ODbL, credit it.

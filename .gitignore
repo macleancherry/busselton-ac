@@ -5,3 +5,6 @@ dist
 out/
 drives/
 __pycache__/
+
+# Personal routes (e.g. ones starting at home) stay out of git
+routes/private/

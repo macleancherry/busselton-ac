@@ -9,7 +9,7 @@ This is a fork of [honestjams/ac-track-builder](https://github.com/honestjams/ac
 | Track | Layout | Length | Route |
 | --- | --- | --- | --- |
 | Busselton Foreshore | Circuit | 4.3 km | King St, Geographe Bay Rd, West St, Adelaide St, Queen St, Albert St, Bussell Hwy |
-| Broadwater Home Run | A to B | 3.6 km | Fairway Dr, Bussell Hwy to King St |
+| Broadwater Home Run | A to B | 3.6 km | Fairway Dr, Bussell Hwy to King St (route file kept private) |
 
 Both are v0.1: built and checked against the map data, not yet driven in game.
 
@@ -49,6 +49,9 @@ If you're on a network that strips CORS headers from the routing and map APIs, r
 You can still use the browser version: `npm run dev`, then open http://localhost:5173.
 
 ### Route files
+
+Put routes you don't want public (anything starting at home) in `routes/private/`. That folder is ignored by git.
+
 
 ```json
 {
