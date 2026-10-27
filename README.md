@@ -11,7 +11,7 @@ This is a fork of [honestjams/ac-track-builder](https://github.com/honestjams/ac
 | Busselton Foreshore | Circuit | 4.3 km | King St, Geographe Bay Rd, West St, Adelaide St, Queen St, Albert St, Bussell Hwy |
 | Broadwater Home Run | A to B | 3.6 km | Fairway Dr, Bussell Hwy to King St (route file kept private) |
 
-Both are v0.1: built and checked against the map data, not yet driven in game.
+Both are v0.3: driven in game. Roundabouts, corners and road edges are now smooth; ground textures and trees are next.
 
 To install, drag the zip onto Content Manager, or unzip it into `assettocorsa/content/tracks/`.
 
@@ -24,6 +24,21 @@ To install, drag the zip onto Content Manager, or unzip it into `assettocorsa/co
 - **Route files.** `routes/` holds the pins for each track, so a rebuild is one command.
 - **CSP config.** Each build includes `extension/ext_config.ini`: Grass FX on grassed ground (kept off roads and footpaths) and warm street lights at night along built-up stretches. Needs Custom Shaders Patch.
 - **U-turn guard.** The builder warns when a pin makes the route double back, and the check fails the build.
+- **Smooth town roads.** Fixes for the step behind kerbs and the dip at roundabout entries, plus options for flat ground (`terrainUnderRoad`, a finer `terrainStep`, banking off). `scripts/check/surface_check.py` measures bumps, tilt and edge steps along the driving line.
+- **Private routes.** Anything in `routes/private/` stays out of git.
+
+## Sent upstream
+
+The generic fixes went back to honestjams/ac-track-builder as [pull requests](https://github.com/honestjams/ac-track-builder/pulls?q=is%3Apr+author%3Amacleancherry):
+
+| Pull request | Branch |
+| --- | --- |
+| Fix the step behind kerbs and the dip at roundabout entries | `fix-kerb-terrain-and-roundabout-dips` |
+| Warn when the route turns back on itself | `route-uturn-warning` |
+| Add terrainUnderRoad and noTrace build options | `terrain-under-road-and-no-trace` |
+| Add Landgate's Locate mosaic as WA aerial imagery | `wa-landgate-imagery` |
+
+Keep these branches until the pull requests are merged or closed. Busselton-only work (DEM tiles, routes, headless scripts, CSP config) stays in this fork.
 
 ## Building a track
 
@@ -99,9 +114,11 @@ Fine for racing with your mates. Don't publish or sell tracks built with the aer
 
 The full plan, from capture to Blender to LAN racing, is in the project PRD. Next up:
 
-1. First in-game test of both tracks.
-2. Drive the loop with a camera and GPS, then upload to Mapillary for real signs.
-3. Local detail in Blender: peppermint trees, landmarks, proper houses.
+1. Ground that looks like ground up close: tiled grass, dry grass, sand and mulch textures (`ksMultilayer`) laid out from the aerial photo, and Grass FX tuned for dry Australian grass.
+2. Local trees: she-oaks and Norfolk pines on the foreshore, peppermints in town.
+3. The red cycle path along the foreshore, from OpenStreetMap.
+4. Drive the loop with a camera and GPS, then upload to Mapillary for real signs.
+5. Local detail in Blender: landmarks and proper houses.
 
 ## Credit
 
