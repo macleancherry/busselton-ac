@@ -2,6 +2,7 @@
 // through `DataSources`, so the same pipeline runs in the browser (real
 // tiles) and in Node tests (synthetic terrain).
 
+import { pickSpecies, treeSpeciesAtlas } from "./treeSprites";
 import { GROUND_LAYERS, GROUND_TILE_METRES, groundMask, type GroundDetail, type GroundLayer } from "./ground";
 import { extConfigIni } from "./cspConfig";
 import { buildAiLine } from "./aiLine";
@@ -24,9 +25,9 @@ import { encodeDdsDxt1 } from "./dds";
 import { encodePng } from "./png";
 import { buildMarkings, type DiscreteMark } from "./markings";
 import { buildTerrainChunk, makeTerrainFn, planTerrainChunks, type TerrainChunk } from "./terrain";
-import { FACADES, paintTexture, sealTexture, type SealKind, facadeTexture, grassTexture, concreteTexture, postTexture, railTexture, ROOF_COLOURS, roofTexture, solidTexture, treeAtlas, vergeTexture } from "./textures";
+import { FACADES, paintTexture, sealTexture, type SealKind, facadeTexture, grassTexture, concreteTexture, postTexture, railTexture, ROOF_COLOURS, roofTexture, solidTexture, vergeTexture } from "./textures";
 import {
-  buildGuardRails, buildGuidePosts, buildTrees, filterTrees, railNeeds, treeSpotsFromImagery, type TreeSpot,
+  buildGuardRails, buildGuidePosts, buildTrees, filterTrees, railNeeds, rng, treeSpotsFromImagery, type TreeSpot,
 } from "./scenery";
 import { buildBuildings, centroid, detectBuildings, filterBuildings, fromOsm, type Building } from "./buildings";
 import { chunkPhotoSampler, frontageHouses } from "./frontage";
@@ -336,7 +337,7 @@ export async function buildTrack(
     textures.push({ name: tex, data });
     materials.push(mat);
   };
-  addScenery("trees.png", treeAtlas(), {
+  addScenery("trees.png", treeSpeciesAtlas(), {
     ...material("trees", "trees.png", { ambient: 0.55, diffuse: 0.35, specular: 0, exp: 1 }),
     shader: "ksPerPixelAT",
     alphaTested: true,
@@ -715,7 +716,23 @@ export async function buildTrack(
   await progress("Placing scenery");
   const offRings = (spots: TreeSpot[]) => spots.filter((t) => !inRoundabout(plan, t.x, t.y, opts.vergeWidth + 3));
   const offStreets = (spots: TreeSpot[]) => spots.filter((t) => streetIndex.clearance(t.x, t.y) > 1.5);
-  const trees = buildTrees(offStreets(offRings(filterTrees(treeSpots, index, opts, opts.maxTrees))), ground);
+  // Local species: she-oaks and Norfolk pines on the coast, peppermints on kerbed town streets, tuarts in the bush.
+  const speciesRand = rng(4242);
+  // Town: kerb and gutter within ~150 m along the road (kerbs are only built where the photo shows them).
+  const kerbedNear = plan.samples.map((_, i) => {
+    const reach = Math.round(150 / opts.spacing);
+    for (let k = -reach; k <= reach; k++) {
+      const smp = plan.samples[plan.closed ? (i + k + nS) % nS : Math.max(0, Math.min(nS - 1, i + k))];
+      if (smp.kerb && (smp.kerb[0] > 0 || smp.kerb[1] > 0)) return true;
+    }
+    return false;
+  });
+  const planted = filterTrees(treeSpots, index, opts, opts.maxTrees).map((t) => {
+    const n = index.nearest(t.x, t.y, opts.corridor + 10);
+    const town = !!n && kerbedNear[n.seg];
+    return { ...t, variant: pickSpecies(speciesRand(), !!t.coastal, town) };
+  });
+  const trees = buildTrees(offStreets(offRings(planted)), ground);
   // A tree and a ring of shrubs on each island big enough for them.
   const islandTrees = plan.roundabouts.flatMap((rb) => {
     const ri = innerRadius(rb);

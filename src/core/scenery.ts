@@ -13,7 +13,7 @@ import { MeshBuilder, type Vec3 } from "./mesh";
 import type { BuildOptions } from "./options";
 import { surfaceHeight, type RoadPlan, type SegmentIndex } from "./road";
 import type { TerrainChunk } from "./terrain";
-import { TREE_VARIANTS } from "./textures";
+import { TREE_SPECIES } from "./treeSprites";
 import { pad } from "./roadMesh";
 
 export function rng(seed: number): () => number {
@@ -54,7 +54,10 @@ export interface TreeSpot {
   x: number;
   y: number;
   scale: number;
+  /** Index into TREE_SPECIES. */
   variant: number;
+  /** Water within about 60 m in the aerial photo (the foreshore). */
+  coastal?: boolean;
 }
 
 /**
@@ -77,6 +80,7 @@ export function treeSpotsFromImagery(
   const cells = Math.floor(size / cellPx);
   const rand = rng(Math.round(chunk.minX * 7 + chunk.minY * 13) | 0);
   const out: TreeSpot[] = [];
+  const water = new Uint8Array(cells * cells);
   for (let cy = 0; cy < cells; cy++) {
     for (let cx = 0; cx < cells; cx++) {
       let sr = 0, sg = 0, sb = 0, sl = 0, sl2 = 0, n = 0;
@@ -91,6 +95,11 @@ export function treeSpotsFromImagery(
       const r = sr / n, g = sg / n, b = sb / n, l = sl / n;
       const std = Math.sqrt(Math.max(0, sl2 / n - l * l));
       const exg = (2 * g - r - b) / (r + g + b + 1e-6);
+      // Teal sea also reads green: blue well above red and close to green is water, not canopy.
+      if (b - r > 0.08 && b > 0.75 * g) {
+        water[cy * cells + cx] = 1;
+        continue;
+      }
       const canopy = exg > 0.05 && l < 0.42 && l > 0.04 && std > 0.025;
       if (!canopy) continue;
       // Stronger signal, more likely a tree; keeps sparse scrub sparse.
@@ -100,15 +109,31 @@ export function treeSpotsFromImagery(
         x: chunk.minX + px / pxPerM,
         y: chunk.maxY - py / pxPerM,
         scale: 0.75 + rand() * 0.6,
-        variant: rand() < 0.2 ? 1 : 0,
+        variant: 0,
       });
     }
+  }
+  // Coastal: a real stretch of water within ~60 m (at least a fifth of the cells
+  // around), not a blue roof or a swimming pool.
+  const reach = Math.ceil(60 / cell);
+  for (const t of out) {
+    const cx = Math.floor(((t.x - chunk.minX) * pxPerM) / cellPx), cy = Math.floor(((chunk.maxY - t.y) * pxPerM) / cellPx);
+    let wet = 0, seen = 0;
+    for (let dy = -reach; dy <= reach; dy++) {
+      for (let dx = -reach; dx <= reach; dx++) {
+        const x = cx + dx, y = cy + dy;
+        if (x < 0 || y < 0 || x >= cells || y >= cells || dx * dx + dy * dy > reach * reach) continue;
+        seen++;
+        wet += water[y * cells + x];
+      }
+    }
+    t.coastal = seen > 0 && wet / seen > 0.2;
   }
   return out;
 }
 
 /** Crown radius of a tree sprite at scale 1, metres (half the quad width). */
-export const CROWN_RADIUS = [12 * 0.85 / 2, 15 * 0.55 / 2];
+export const CROWN_RADIUS = TREE_SPECIES.map((s) => s.crown);
 
 /**
  * Keeps trunks off the road and verges and inside the terrain corridor.
@@ -141,9 +166,9 @@ export function buildTrees(spots: TreeSpot[], ground: HeightFn, name = "TREES"):
   const out = new ChunkedMesh(TREE_VERTS);
   for (const t of spots) {
     const mb = out.next();
-    const v = TREE_VARIANTS[t.variant];
-    const H = (v.kind === "conifer" ? 15 : 12) * t.scale;
-    const W = CROWN_RADIUS[t.variant] * 2 * t.scale;
+    const v = TREE_SPECIES[t.variant] ?? TREE_SPECIES[0];
+    const H = v.height * t.scale;
+    const W = v.crown * 2 * t.scale;
     const z = ground(t.x, t.y) - 0.3;
     const rot = rand() * Math.PI;
     for (let p = 0; p < TREE_PLANES; p++) {
