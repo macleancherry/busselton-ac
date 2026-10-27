@@ -13,7 +13,7 @@ import { createPreview, type PreviewScene } from "./preview";
 import { renderArt } from "../services/art";
 import { loadRouteRaster } from "../services/raster";
 import { fetchSeen, savedToken, saveToken } from "../services/mapillary";
-import { classWidths, fetchTileFeatures, roadClassLookup } from "../services/vectorTiles";
+import { classWidths, fetchCoast, fetchTileFeatures, roadClassLookup } from "../services/vectorTiles";
 
 const MAX_KM = 30;
 
@@ -455,7 +455,7 @@ $("build").onclick = async () => {
     const token = $<HTMLInputElement>("mapillaryToken").value.trim();
     saveToken(token);
     let seenError = "";
-    const [osm, tiles, seen] = await Promise.all([
+    const [osm, tiles, seen, coast] = await Promise.all([
       fetchOsm(current.coords),
       fetchTileFeatures(paddedBounds(current.coords, (opts.buildingRadius ?? 250) + 50)).catch(() => null),
       token
@@ -464,6 +464,7 @@ $("build").onclick = async () => {
           return [];
         })
         : Promise.resolve([]),
+      opts.sea !== false ? fetchCoast(paddedBounds(current.coords, (opts.horizon ?? 1500) + 1200)).catch(() => undefined) : Promise.resolve(undefined),
     ]);
     if (tiles) osm.features.buildings = tiles.buildings;
     // Overpass widths when it answered; otherwise widths by road class from the tiles.
@@ -484,6 +485,7 @@ $("build").onclick = async () => {
       raster: (proj, path, reach) => loadRouteRaster(proj, path, reach, chain, 20, (d, t) => setProgress(`Tracing the road in the aerial photos (${Math.round((d / t) * 100)}%)`)),
       roadClassAt: tiles ? roadClassLookup(tiles.roads, current.coords[0][1]) : undefined,
       groundDetails: loadGroundDetails,
+      coast,
       paths: tiles
         ? tiles.roads.filter((r) => r.cls === "path" && r.brunnel !== "bridge" && r.brunnel !== "tunnel")
           .flatMap((r) => {

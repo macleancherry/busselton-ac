@@ -56,6 +56,8 @@ export interface BuildOptions {
   demZoom: number;
   /** Non-drivable horizon terrain out to this distance from the road, metres (0 = none). */
   horizon: number;
+  /** Water surface over the sea, and piers and jetties. */
+  sea: boolean;
   /** Aerial imagery zoom for the horizon terrain. */
   horizonZoom: number;
   /** Trees from aerial imagery: 0 off, 1 normal, 2 dense. */
@@ -129,6 +131,7 @@ export const DEFAULT_OPTIONS: BuildOptions = {
   textureSize: 1024,
   demZoom: 14,
   horizon: 1500,
+  sea: true,
   horizonZoom: 16,
   trees: 1,
   groundDetail: true,

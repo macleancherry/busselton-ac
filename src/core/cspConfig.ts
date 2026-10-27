@@ -13,6 +13,8 @@ export interface CspOptions {
   lightSpacing?: number;
   /** Whether sample i has kerb and gutter on the left (1) or right (-1); falls back to the samples' own kerb flags. */
   kerbAt?: (i: number, side: 1 | -1) => boolean;
+  /** True where no street light should stand (distance along, side). */
+  skipLight?: (s: number, side: 1 | -1) => boolean;
 }
 
 /** Ground that can grow grass: the photo-textured terrain and the grass meshes. */
@@ -22,18 +24,25 @@ const OCCLUDING = /^(road_.*|strip_photo_.*|sidestrips_photo|returns_photo|concr
 
 const fmt = (v: number) => (Math.abs(v) < 1e-4 ? "0" : v.toFixed(2));
 
+export interface LightSpot {
+  /** Sample index and distance along the road. */
+  i: number;
+  s: number;
+  side: 1 | -1;
+}
+
 /**
- * Street light positions: at kerbed (built-up) stretches of the road, every
- * `spacing` metres, alternating sides, set back from the kerb and up a pole's height.
+ * Street lights: on kerbed (built-up) stretches, every `spacing` metres,
+ * alternating sides, skipping spots `skip` rules out (junction mouths, roundabouts).
  */
-export function streetLightPositions(
+export function streetLightSpots(
   plan: RoadPlan,
-  along: CspOptions["along"],
   spacing = 40,
   kerbAt?: CspOptions["kerbAt"],
-): [number, number, number][] {
-  const out: [number, number, number][] = [];
-  let side = 1;
+  skip?: CspOptions["skipLight"],
+): LightSpot[] {
+  const out: LightSpot[] = [];
+  let side: 1 | -1 = 1;
   for (let s = spacing / 2; s < plan.length - 1; s += spacing / 2) {
     // Nearest sample's kerb flags say whether this stretch is in town.
     let i = Math.round((s / plan.length) * (plan.samples.length - 1));
@@ -42,12 +51,35 @@ export function streetLightPositions(
     const kerbed = kerbAt
       ? kerbAt(i, 1) || kerbAt(i, -1)
       : !!sample.kerb && (sample.kerb[0] > 0.5 || sample.kerb[1] > 0.5);
-    side = -side;
+    side = side === 1 ? -1 : 1;
     if (!kerbed) continue;
-    const t = side * (sample.width / 2 + 1.2);
-    out.push(along(s, t, 7.5).pos);
+    // Slide up to 8 m along to clear a junction or roundabout.
+    const ok = [0, 4, -4, 8, -8].map((d) => s + d).find((x) => x > 0 && x < plan.length && !skip?.(x, side));
+    if (ok === undefined) continue;
+    const j = Math.max(0, Math.min(plan.samples.length - 1, Math.round((ok / plan.length) * (plan.samples.length - 1))));
+    out.push({ i: j, s: ok, side });
   }
   return out;
+}
+
+/** Pole set back 1.2 m behind the kerb. */
+export const POLE_OFFSET = 1.2;
+/** The lantern hangs 1.8 m out over the road from the pole, 7.6 m up. */
+export const LANTERN_REACH = 1.8;
+export const LANTERN_HEIGHT = 7.6;
+
+/** Lantern positions (AC world coordinates) for the CSP light series. */
+export function streetLightPositions(
+  plan: RoadPlan,
+  along: CspOptions["along"],
+  spacing = 40,
+  kerbAt?: CspOptions["kerbAt"],
+  skip?: CspOptions["skipLight"],
+): [number, number, number][] {
+  return streetLightSpots(plan, spacing, kerbAt, skip).map((l) => {
+    const w = plan.samples[l.i].width;
+    return along(l.s, l.side * (w / 2 + POLE_OFFSET - LANTERN_REACH), LANTERN_HEIGHT).pos;
+  });
 }
 
 export function extConfigIni(plan: RoadPlan, opts: CspOptions): string {
@@ -81,7 +113,7 @@ export function extConfigIni(plan: RoadPlan, opts: CspOptions): string {
       "",
     );
   }
-  const lights = streetLightPositions(plan, opts.along, opts.lightSpacing ?? 40, opts.kerbAt);
+  const lights = streetLightPositions(plan, opts.along, opts.lightSpacing ?? 40, opts.kerbAt, opts.skipLight);
   if (lights.length) {
     lines.push("[LIGHT_SERIES_STREETLIGHTS]");
     lights.forEach((p, k) => lines.push(`POSITION_${k} = ${p.map(fmt).join(", ")}`));

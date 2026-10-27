@@ -42,7 +42,17 @@ describe("CSP street lights", async () => {
     const pts = streetLightPositions(plan, (s, t, lift) => ({ pos: [s, lift, t] }), 40);
     expect(pts.length).toBeGreaterThan(5);
     expect(pts.every((p) => p[0] < 205)).toBe(true);
-    expect(pts.every((p) => p[1] === 7.5)).toBe(true);
+    expect(pts.every((p) => p[1] === 7.6)).toBe(true);
+    // the lantern hangs over the road edge, 0.6 m in from the kerb line
+    expect(pts.every((p) => Math.abs(Math.abs(p[2]) - 3.4) < 1e-9)).toBe(true);
     expect(new Set(pts.map((p) => Math.sign(p[2]))).size).toBe(2);
+  });
+  it("moves lights off junction mouths", () => {
+    const samples = Array.from({ length: 401 }, (_, i) => sample(i, [1, 1]));
+    const plan = { closed: false, samples, length: 400, roundabouts: [] } as never;
+    const skip = (s: number) => s > 95 && s < 105;
+    const pts = streetLightPositions(plan, (s, t, lift) => ({ pos: [s, lift, t] }), 40, undefined, skip);
+    expect(pts.some((p) => p[0] > 95 && p[0] < 105)).toBe(false);
+    expect(pts.some((p) => p[0] > 85 && p[0] < 115)).toBe(true);
   });
 });

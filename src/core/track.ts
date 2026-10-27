@@ -6,8 +6,9 @@ import { buildPaths, footPathTexture, sharedPathTexture, type PathLine } from ".
 import { pickSpecies, treeSpeciesAtlas } from "./treeSprites";
 import { FACADES, FENCE_COLOURS, facadeTexture, fenceTexture, frontWallTexture, garageTexture, hedgeTexture, mulchTexture, shrubAtlas } from "./houseTextures";
 import { buildLots, planGarages } from "./lots";
+import { buildPiers, buildSea, deckTexture, SeaMask, seaTexture, withSeabed, type CoastPolygon } from "./coast";
 import { GROUND_LAYERS, GROUND_TILE_METRES, groundMask, type GroundDetail, type GroundLayer } from "./ground";
-import { extConfigIni } from "./cspConfig";
+import { extConfigIni, LANTERN_HEIGHT, LANTERN_REACH, POLE_OFFSET, streetLightSpots } from "./cspConfig";
 import { buildAiLine } from "./aiLine";
 import { BACKDROP_CHUNK, backdropHeight, buildBackdropChunk, planBackdrop } from "./backdrop";
 import { writeFastLaneAi } from "./aiSpline";
@@ -75,6 +76,8 @@ export interface DataSources {
   widthAt?(p: LngLat): number | undefined;
   /** Footpaths and shared paths (OSM), already classified. */
   paths?: { pts: LngLat[]; kind: PathLine["kind"] }[];
+  /** The sea and piers (OSM via vector tiles): polygons, exterior ring first; `edge` false on tile seams. */
+  coast?: { ocean: { rings: LngLat[][]; edge: boolean[][] }[]; piers: { rings: LngLat[][]; edge: boolean[][] }[] };
   /** Tiled ground detail textures for ksMultilayer terrain (lawn, rough, sand, litter); null to keep plain photo terrain. */
   groundDetails?(): Promise<Record<GroundLayer, GroundDetail> | null>;
   /** Credit line for the imagery source(s), written into the README; read after imagery is fetched. */
@@ -318,10 +321,17 @@ export async function buildTrack(
 
   await progress("Fetching elevation");
   const bounds = boundsOf(plan.samples.map((s) => s.pos), opts.corridor + opts.terrainBlend + 60);
-  const dem = await sources.dem(proj, bounds, opts.demZoom);
+  const landDem = await sources.dem(proj, bounds, opts.demZoom);
   // The horizon only needs coarse heights; a separate low-zoom DEM keeps the download small.
   const farBounds = boundsOf(plan.samples.map((s) => s.pos), opts.horizon + BACKDROP_CHUNK);
-  const farDem = opts.horizon > 0 ? await sources.dem(proj, farBounds, Math.min(opts.demZoom, 12)) : dem;
+  const landFarDem = opts.horizon > 0 ? await sources.dem(proj, farBounds, Math.min(opts.demZoom, 12)) : landDem;
+  // The sea: a seabed under a water surface, so the bay isn't flat ground.
+  const toCoast = (p: { rings: LngLat[][]; edge: boolean[][] }): CoastPolygon => ({ rings: p.rings.map((r) => r.map((q) => proj.toLocal(q))), edge: p.edge });
+  const ocean = opts.sea ? (sources.coast?.ocean ?? []).map(toCoast) : [];
+  const piers = opts.sea ? (sources.coast?.piers ?? []).map(toCoast) : [];
+  const sea = new SeaMask(ocean, farBounds.minX, farBounds.minY, farBounds.maxX, farBounds.maxY);
+  const dem = ocean.length ? withSeabed(landDem, sea) : landDem;
+  const farDem = ocean.length ? withSeabed(landFarDem, sea) : landFarDem;
   applyElevation(plan, dem, opts);
   const index = new SegmentIndex(plan);
   const terrainAt = makeTerrainFn(plan, index, dem, opts);
@@ -364,6 +374,9 @@ export async function buildTrack(
     addScenery(`facade_${f}.png`, facadeTexture(f), material(`facade_${f}`, `facade_${f}.png`, matte));
     addScenery(`garage_${f}.png`, garageTexture(f), material(`garage_${f}`, `garage_${f}.png`, matte));
   }
+  addScenery("sea.png", seaTexture(), material("sea", "sea.png", { ambient: 0.4, diffuse: 0.35, specular: 0.7, exp: 90 }));
+  addScenery("jetty_deck.png", deckTexture(), material("jetty_deck", "jetty_deck.png", { ambient: 0.45, diffuse: 0.45, specular: 0.05, exp: 10 }));
+  addScenery("jetty_timber.png", solidTexture([118, 108, 96]), material("jetty_timber", "jetty_timber.png", { ambient: 0.45, diffuse: 0.45, specular: 0, exp: 1 }));
   addScenery("soffit.png", solidTexture([226, 224, 216]), material("soffit", "soffit.png", { ambient: 0.5, diffuse: 0.35, specular: 0, exp: 1 }));
   for (const c of FENCE_COLOURS) {
     addScenery(`fence_${c.name}.png`, fenceTexture(c.rgb), material(`fence_${c.name}`, `fence_${c.name}.png`, { ambient: 0.45, diffuse: 0.45, specular: 0.2, exp: 25 }));
@@ -382,6 +395,7 @@ export async function buildTrack(
   }
   const detected: Building[] = [];
   const treeSpots: TreeSpot[] = [];
+  const farTreeSpots: TreeSpot[] = [];
   const photos: Parameters<typeof chunkPhotoSampler>[0] = [];
 
   const textured = new Set<string>();
@@ -419,6 +433,7 @@ export async function buildTrack(
         if (opts.buildings && opts.detectBuildings) detected.push(...detectBuildings(img.rgba, job.size, job.chunk));
         photos.push({ chunk: job.chunk, rgba: img.rgba, size: job.size });
       }
+      if (img.rgba && job.prefix === "backdrop" && opts.trees > 0) farTreeSpots.push(...treeSpotsFromImagery(img.rgba, job.size, job.chunk, 1));
     }
   }
 
@@ -753,6 +768,15 @@ export async function buildTrack(
     return { ...t, variant: pickSpecies(speciesRand(), !!t.coastal, town) };
   });
   const trees = buildTrees(offStreets(offRings(planted)), ground);
+  // Tree lines on the horizon: canopy in the far photo, out to 1 km, as cheap unshadowed sprites.
+  const far = farTreeSpots.filter((t) => !index.nearest(t.x, t.y, opts.corridor + 5) && index.nearest(t.x, t.y, 1000) && !sea.has(t.x, t.y));
+  const farStep = Math.max(1, far.length / 3000);
+  const horizonTrees = buildTrees(
+    Array.from({ length: Math.floor(far.length / farStep) }, (_, i) => far[Math.floor(i * farStep)])
+      .map((t) => ({ ...t, scale: t.scale * 1.15, variant: pickSpecies(speciesRand(), !!t.coastal, false) })),
+    (x, y) => backdropHeight(farDem, index, opts, x, y) - 0.6,
+    "HORIZONTREES",
+  ).map((m) => ({ ...m, castShadows: false }));
   // A tree and a ring of shrubs on each island big enough for them.
   const islandTrees = plan.roundabouts.flatMap((rb) => {
     const ri = innerRadius(rb);
@@ -812,10 +836,34 @@ export async function buildTrack(
     const n = index.nearest(x, y, opts.corridor - 1);
     return n ? ground(x, y) : backdropHeight(farDem, index, opts, x, y) - 0.6;
   };
+  // Street lights: a galvanised pole behind the kerb with an outreach arm and a
+  // flat LED lantern over the road edge, where the CSP config puts the light.
+  const skipLight = (sd: number, side: 1 | -1) => {
+    if (mouth(side, sd)) return true;
+    const i = Math.max(0, Math.min(nS - 1, Math.round((sd / plan.length) * (nS - 1))));
+    const sm = plan.samples[i], t = side * (sm.width / 2 + POLE_OFFSET);
+    const x = sm.pos[0] + sm.left[0] * t, y = sm.pos[1] + sm.left[1] * t;
+    return !!inRoundabout(plan, x, y, 3) || streetIndex.clearance(x, y) < 1;
+  };
+  const streetLightPoles = () => streetLightSpots(plan, 40, kerbAt, skipLight).flatMap((l) => {
+    const sm = plan.samples[l.i];
+    const t = l.side * (sm.width / 2 + POLE_OFFSET);
+    const at: Vec2 = [sm.pos[0] + sm.left[0] * t, sm.pos[1] + sm.left[1] * t];
+    const away: Vec2 = [sm.left[0] * l.side, sm.left[1] * l.side];
+    const z = ground(at[0], at[1]);
+    const tip: Vec2 = [at[0] - away[0] * LANTERN_REACH, at[1] - away[1] * LANTERN_REACH];
+    const arm: Vec2 = [(at[0] + tip[0]) / 2, (at[1] + tip[1]) / 2];
+    return [
+      { kind: "box" as const, at, along: sm.tan, length: 0.16, depth: 0.16, z0: z - 0.5, z1: z + LANTERN_HEIGHT + 0.25, material: "steel" },
+      { kind: "box" as const, at: arm, along: away, length: LANTERN_REACH, depth: 0.07, z0: z + LANTERN_HEIGHT + 0.15, z1: z + LANTERN_HEIGHT + 0.22, material: "steel" },
+      { kind: "box" as const, at: tip, along: away, length: 0.65, depth: 0.3, z0: z + LANTERN_HEIGHT, z1: z + LANTERN_HEIGHT + 0.15, material: "lamp" },
+    ];
+  });
   // Signs and street furniture; their artwork is drawn in one atlas.
   const art = new ArtList();
   const pieces = [
     ...(opts.streetSigns ? streetSigns(streetPlan, plan, opts, art) : []),
+    ...streetLightPoles(),
     ...(opts.landmarks ? landmarks((sources.pois ?? []).map((p) => ({ ...p, at: proj.toLocal(p.at) })), plan, index, opts, art,
       (x, y) => Math.min(streetIndex.clearance(x, y), ...kept.map((b) => (pointInside(x, y, b.ring) ? -1 : Infinity)))) : []),
     ...seenFeatures((sources.seen ?? []).map((f) => ({ ...f, at: proj.toLocal(f.at) })), plan, index, opts, art),
@@ -863,13 +911,15 @@ export async function buildTrack(
       group("KERBS", [...kerbMeshes.gutter, ...kerbMeshes.kerb, ...kerbMeshes.strip, ...kerbReturns]),
       group("TERRAIN", terrainNodes),
       group("WALLS", walls),
-      group("HORIZON", backdropNodes),
+      group("HORIZON", [...backdropNodes, ...horizonTrees]),
       group("TREES", trees),
       group("RAILS", [...rails.rails, ...rails.posts]),
       group("GUIDEPOSTS", posts),
       group("PATHS", pathMeshes),
       group("BUILDINGS", houses),
       group("LOTS", lots),
+      group("SEA", ocean.length ? buildSea(ocean) : []),
+      group("JETTY", piers.length ? buildPiers(piers, buildingGround, sea) : []),
       ...trackObjects(plan, opts),
     ]),
   };
@@ -897,6 +947,7 @@ export async function buildTrack(
       materials: model.materials.map((m) => m.name),
       along: (s, t, lift) => along(plan, s, t, lift, opts.crown) as { pos: [number, number, number] },
       kerbAt,
+      skipLight,
     })),
     [`${slug}/README.txt`]: enc.encode(readme(trackMeta, textured.size ? (typeof sources.imageryCredit === "function" ? sources.imageryCredit() : sources.imageryCredit) ?? "aerial imagery" : null)),
   };

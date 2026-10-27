@@ -14,7 +14,7 @@
 //
 // Writes out/<slug>.zip and out/<slug>.stats.json. Needs `npx playwright install chromium` once.
 //
-// SHOTS=0.1,0.35,0.6 (fractions of the lap) also saves driver's-eye renders from the
+// SHOTS=0.1,0.35,0.6 (fractions of the lap, or lng:lat:lookLng:lookLat:height) also saves driver's-eye renders from the
 // three.js preview as out/<slug>.shot<n>.png (the photo ground only: no ksMultilayer or CSP).
 
 import { spawn } from "node:child_process";
@@ -140,11 +140,18 @@ try {
   writeFileSync(join(out, `${slug}.zip`), Buffer.from(zip, "base64"));
   writeFileSync(join(out, `${slug}.stats.json`), JSON.stringify({ route: basename(routeFile), stats, table }, null, 2));
   if (process.env.SHOTS) {
-    const fracs = process.env.SHOTS.split(",").map(Number);
+    // Each shot is a lap fraction, or "lng:lat:lookLng:lookLat:height" for a fixed view.
+    const fracs = process.env.SHOTS.split(",");
     for (const [n, f] of fracs.entries()) {
       const png = await page.evaluate((f) => {
         const r = window.__app.result(), pv = window.__app.preview();
-        const ss = r.plan.samples, i = Math.floor(f * ss.length) % ss.length, s = ss[i], a = ss[(i + 15) % ss.length];
+        if (f.includes(":")) {
+          const [x, y, lx, ly, h] = f.split(":").map(Number);
+          const e = r.proj.toLocal([x, y]), t = r.proj.toLocal([lx, ly]);
+          pv.view([e[0], h, -e[1]], [t[0], h * 0.6, -t[1]]);
+          return document.getElementById("preview-canvas").toDataURL("image/png").split(",")[1];
+        }
+        const ss = r.plan.samples, i = Math.floor(Number(f) * ss.length) % ss.length, s = ss[i], a = ss[(i + 15) % ss.length];
         // AC space: x east, y up, z south.
         pv.view([s.pos[0], s.h + 1.2, -s.pos[1]], [a.pos[0], a.h + 1.0, -a.pos[1]]);
         return document.getElementById("preview-canvas").toDataURL("image/png").split(",")[1];
