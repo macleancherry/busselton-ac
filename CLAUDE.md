@@ -25,6 +25,7 @@ Mac's project: Busselton, Vasse and Broadwater as Assetto Corsa (AC1) tracks, bu
    - road edges on the real road in the overlay: look at it, at least the corners and start/finish
 4. Install: `scripts\windows\install-track.ps1` (build, check, unzip into AC, optionally copy to the rig).
 4b. Surface check: `npx tsx scripts/check/dump_surface.ts out/<slug>.zip out/<slug>.surface.json` then `python3 -I scripts/check/surface_check.py out/<slug>.surface.json`. Driving line kinks should be 0, max tilt about 3%, and edge steps around kerb height (15 to 20 cm median).
+4c. Renders: add `SHOTS=0.02,0.25,0.5` (lap fractions, or `lng:lat:lookLng:lookLat:height`) to the build command for driver's-eye PNGs in `out/`. They come from the three.js preview: photo ground only, no ksMultilayer detail or CSP.
 5. Smoke test in the workstation's AC: it loads, the car spawns on the grid, timing and pits work, and AI completes a lap.
 
 Busselton is flat, so town routes use `"banking": false` in options, plus `terrainStep: 1.5` and `terrainUnderRoad: 0.12` in `build`. The upstream defaults are for hilly roads: up to 6% banking, a 3 m terrain grid and ground sunk 0.6 m under the road, which together made tilted corners and 40 to 60 cm drops at the road edges here.
