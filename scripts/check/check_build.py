@@ -78,6 +78,20 @@ def main():
     out = os.path.splitext(path)[0].replace(".centreline", "") + ".overlay.png"
     img.save(out)
 
+    # Hairpin spikes: the road reversing within a few metres (a pin on the wrong side of the road).
+    spikes = []
+    for i in range(3, len(xy) - 3):
+        a, b = xy[i] - xy[i - 3], xy[i + 3] - xy[i]
+        la, lb = np.hypot(*a), np.hypot(*b)
+        if la > 0.1 and lb > 0.1 and np.dot(a, b) / (la * lb) < -0.3:
+            if not spikes or i - spikes[-1][0] > 10:
+                spikes.append((i, pts[i][0], pts[i][1]))
+    for _, lng, lat in spikes:
+        draw.ellipse([to_px(*merc(lng, lat))[0] - 25, to_px(*merc(lng, lat))[1] - 25,
+                      to_px(*merc(lng, lat))[0] + 25, to_px(*merc(lng, lat))[1] + 25], outline=(255, 0, 255), width=4)
+    if spikes:
+        img.save(out)
+
     diffs = np.array([q[2] - dem_height(q[0], q[1]) for q in pts])
     ok = np.isfinite(diffs)
     print(f"overlay: {out} ({w}x{h}, {mpp:.2f} m/px)")
@@ -86,6 +100,10 @@ def main():
         d = diffs[ok]
         print(f"road height minus DEM: mean {d.mean():+.2f} m, median {np.median(d):+.2f} m, "
               f"95% within {np.percentile(np.abs(d), 95):.2f} m, max {np.abs(d).max():.2f} m")
+    if spikes:
+        print(f"HAIRPIN SPIKES: {len(spikes)} (circled in magenta): " + ", ".join(f"{lat:.5f}, {lng:.5f}" for _, lng, lat in spikes))
+        sys.exit(1)
+    print("no hairpin spikes")
 
 
 if __name__ == "__main__":
