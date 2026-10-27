@@ -13,6 +13,9 @@
 //   }
 //
 // Writes out/<slug>.zip and out/<slug>.stats.json. Needs `npx playwright install chromium` once.
+//
+// SHOTS=0.1,0.35,0.6 (fractions of the lap) also saves driver's-eye renders from the
+// three.js preview as out/<slug>.shot<n>.png (the photo ground only: no ksMultilayer or CSP).
 
 import { spawn } from "node:child_process";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -136,6 +139,20 @@ try {
   mkdirSync(out, { recursive: true });
   writeFileSync(join(out, `${slug}.zip`), Buffer.from(zip, "base64"));
   writeFileSync(join(out, `${slug}.stats.json`), JSON.stringify({ route: basename(routeFile), stats, table }, null, 2));
+  if (process.env.SHOTS) {
+    const fracs = process.env.SHOTS.split(",").map(Number);
+    for (const [n, f] of fracs.entries()) {
+      const png = await page.evaluate((f) => {
+        const r = window.__app.result(), pv = window.__app.preview();
+        const ss = r.plan.samples, i = Math.floor(f * ss.length) % ss.length, s = ss[i], a = ss[(i + 15) % ss.length];
+        // AC space: x east, y up, z south.
+        pv.view([s.pos[0], s.h + 1.2, -s.pos[1]], [a.pos[0], a.h + 1.0, -a.pos[1]]);
+        return document.getElementById("preview-canvas").toDataURL("image/png").split(",")[1];
+      }, f);
+      writeFileSync(join(out, `${slug}.shot${n}.png`), Buffer.from(png, "base64"));
+    }
+    log(`wrote ${fracs.length} shots`);
+  }
   log(`wrote out/${slug}.zip (${(Buffer.from(zip, "base64").length / 1e6).toFixed(1)} MB)`);
   for (const [k, v] of table) log(`  ${k}: ${v}`);
 } finally {

@@ -4,6 +4,8 @@
 
 import { buildPaths, footPathTexture, sharedPathTexture, type PathLine } from "./paths";
 import { pickSpecies, treeSpeciesAtlas } from "./treeSprites";
+import { FACADES, FENCE_COLOURS, facadeTexture, fenceTexture, frontWallTexture, garageTexture, hedgeTexture, mulchTexture, shrubAtlas } from "./houseTextures";
+import { buildLots, planGarages } from "./lots";
 import { GROUND_LAYERS, GROUND_TILE_METRES, groundMask, type GroundDetail, type GroundLayer } from "./ground";
 import { extConfigIni } from "./cspConfig";
 import { buildAiLine } from "./aiLine";
@@ -26,7 +28,7 @@ import { encodeDdsDxt1 } from "./dds";
 import { encodePng } from "./png";
 import { buildMarkings, type DiscreteMark } from "./markings";
 import { buildTerrainChunk, makeTerrainFn, planTerrainChunks, type TerrainChunk } from "./terrain";
-import { FACADES, paintTexture, sealTexture, type SealKind, facadeTexture, grassTexture, concreteTexture, postTexture, railTexture, ROOF_COLOURS, roofTexture, solidTexture, vergeTexture } from "./textures";
+import { paintTexture, sealTexture, type SealKind, grassTexture, concreteTexture, postTexture, railTexture, ROOF_COLOURS, roofTexture, solidTexture, vergeTexture } from "./textures";
 import {
   buildGuardRails, buildGuidePosts, buildTrees, filterTrees, railNeeds, rng, treeSpotsFromImagery, type TreeSpot,
 } from "./scenery";
@@ -357,9 +359,24 @@ export async function buildTrack(
   addScenery("steel.png", solidTexture([120, 122, 126]), material("steel", "steel.png", { ambient: 0.4, diffuse: 0.45, specular: 0.2, exp: 20 }));
   addScenery("concrete.png", concreteTexture(), material("concrete", "concrete.png", { ambient: 0.45, diffuse: 0.45, specular: 0.05, exp: 10 }));
   addScenery("guidepost.png", postTexture(), material("guidepost", "guidepost.png", { ambient: 0.45, diffuse: 0.45, specular: 0.1, exp: 10 }));
+  const matte = { ambient: 0.45, diffuse: 0.45, specular: 0.05, exp: 10 };
   for (const f of FACADES) {
-    addScenery(`facade_${f}.png`, facadeTexture(f), material(`facade_${f}`, `facade_${f}.png`, { ambient: 0.45, diffuse: 0.45, specular: 0.05, exp: 10 }));
+    addScenery(`facade_${f}.png`, facadeTexture(f), material(`facade_${f}`, `facade_${f}.png`, matte));
+    addScenery(`garage_${f}.png`, garageTexture(f), material(`garage_${f}`, `garage_${f}.png`, matte));
   }
+  addScenery("soffit.png", solidTexture([226, 224, 216]), material("soffit", "soffit.png", { ambient: 0.5, diffuse: 0.35, specular: 0, exp: 1 }));
+  for (const c of FENCE_COLOURS) {
+    addScenery(`fence_${c.name}.png`, fenceTexture(c.rgb), material(`fence_${c.name}`, `fence_${c.name}.png`, { ambient: 0.45, diffuse: 0.45, specular: 0.2, exp: 25 }));
+  }
+  addScenery("frontwall_limestone.png", frontWallTexture("limestone"), material("frontwall_limestone", "frontwall_limestone.png", matte));
+  addScenery("frontwall_brick.png", frontWallTexture("brick"), material("frontwall_brick", "frontwall_brick.png", matte));
+  addScenery("hedge.png", hedgeTexture(), material("hedge", "hedge.png", { ambient: 0.5, diffuse: 0.4, specular: 0, exp: 1 }));
+  addScenery("mulch.png", mulchTexture(), material("mulch", "mulch.png", { ambient: 0.45, diffuse: 0.45, specular: 0, exp: 1 }));
+  addScenery("shrubs.png", shrubAtlas(), {
+    ...material("shrubs", "shrubs.png", { ambient: 0.55, diffuse: 0.35, specular: 0, exp: 1 }),
+    shader: "ksPerPixelAT",
+    alphaTested: true,
+  });
   for (const c of ROOF_COLOURS) {
     addScenery(`roof_${c.name}.png`, roofTexture(c), material(`roof_${c.name}`, `roof_${c.name}.png`, { ambient: 0.45, diffuse: 0.45, specular: c.tile ? 0.05 : 0.25, exp: 25 }));
   }
@@ -810,7 +827,26 @@ export async function buildTrack(
     materials.push({ ...material("signart", "signart.png", { ambient: 0.55, diffuse: 0.45, specular: 0.15, exp: 20 }), shader: "ksPerPixelAT", alphaTested: true });
   }
   const furniture = buildPieces(pieces, atlas);
-  const houses = buildBuildings(opts.horizon > 0 ? kept : kept.filter((b) => b.ring.every(([x, y]) => index.nearest(x, y, opts.corridor - 1))), buildingGround);
+  // Houses: which wall faces the street, then the garage, fences and garden that go with it.
+  const roadGap = (x: number, y: number) => {
+    const n = index.nearest(x, y, 40);
+    return Math.min(n ? n.dist - index.at(n).width / 2 : Infinity, streetIndex.clearance(x, y));
+  };
+  const shown = opts.horizon > 0 ? kept : kept.filter((b) => b.ring.every(([x, y]) => index.nearest(x, y, opts.corridor - 1)));
+  const homes = shown.filter((b) => b.ring.length === 4 && b.roof !== "flat" && b.height <= 7.5);
+  for (const b of homes) {
+    if (b.street !== undefined) continue;
+    let best = -1, bestGap = 25;
+    for (let k = 0; k < 4; k++) {
+      const p = b.ring[k], q = b.ring[(k + 1) % 4];
+      const g = roadGap((p[0] + q[0]) / 2, (p[1] + q[1]) / 2);
+      if (g < bestGap) [best, bestGap] = [k, g];
+    }
+    if (best >= 0) b.street = best;
+  }
+  planGarages(homes);
+  const houses = buildBuildings(shown, buildingGround);
+  const lots = opts.buildings ? buildLots(homes.filter((b) => b.ring.every(([x, y]) => index.nearest(x, y, opts.corridor - 1))), buildingGround, { roadGap }) : [];
 
   const group = (name: string, children: Kn5Node[]): Kn5GroupNode => ({ kind: "node", name, transform: IDENTITY, children });
   const slug = slugify(opts.name);
@@ -833,6 +869,7 @@ export async function buildTrack(
       group("GUIDEPOSTS", posts),
       group("PATHS", pathMeshes),
       group("BUILDINGS", houses),
+      group("LOTS", lots),
       ...trackObjects(plan, opts),
     ]),
   };

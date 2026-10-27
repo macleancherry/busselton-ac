@@ -5,7 +5,7 @@
 import { encodeDdsDxt1 } from "./dds";
 import { encodePng } from "./png";
 
-function rng(seed: number): () => number {
+export function rng(seed: number): () => number {
   let s = seed >>> 0;
   return () => {
     s = (s + 0x6d2b79f5) >>> 0;
@@ -36,7 +36,7 @@ function valueNoise(w: number, h: number, cells: number, seed: number): Float32A
   return out;
 }
 
-function fill(w: number, h: number, shade: (x: number, y: number, i: number) => [number, number, number]): Uint8Array {
+export function fill(w: number, h: number, shade: (x: number, y: number, i: number) => [number, number, number]): Uint8Array {
   const px = new Uint8Array(w * h * 4);
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
@@ -356,15 +356,15 @@ export const ROOF_COLOURS: { name: string; rgb: [number, number, number]; tile?:
 
 /** Roof sheet, 2 m x 2 m: corrugated metal or rows of tiles, in one colour. */
 export function roofTexture(colour: (typeof ROOF_COLOURS)[number]): Uint8Array {
-  const w = 128, h = 128;
+  const w = 256, h = 256;
   const r = rng(71 + colour.rgb[0]);
   const [cr, cg, cb] = colour.rgb;
   return encodePng(fill(w, h, (x, y) => {
     let k: number;
     if (colour.tile) {
       // Overlapping tile rows ~0.33 m, with staggered joints.
-      const row = Math.floor(y / 21), inRow = (y % 21) / 21;
-      const joint = (x + (row % 2) * 16) % 32 < 2;
+      const row = Math.floor(y / 42), inRow = (y % 42) / 42;
+      const joint = (x + (row % 2) * 32) % 64 < 3;
       k = 0.78 + inRow * 0.3 - (joint ? 0.25 : 0);
     } else {
       // Corrugations every ~76 mm run down the slope (along v).
@@ -375,35 +375,3 @@ export function roofTexture(colour: (typeof ROOF_COLOURS)[number]): Uint8Array {
   }), w, h, { alpha: false });
 }
 
-export const FACADES = ["brick", "weatherboard", "render"] as const;
-
-/** One storey (3 m) tall by 4 m wide, with a window. */
-export function facadeTexture(kind: (typeof FACADES)[number]): Uint8Array {
-  const w = 128, h = 96;
-  const r = rng(61 + kind.length);
-  return encodePng(fill(w, h, (x, y) => {
-    const win = x > 34 && x < 94 && y > 26 && y < 66;
-    const frame = !win && x > 30 && x < 98 && y > 22 && y < 70;
-    if (win) {
-      const g = 55 + (y - 26) * 0.9 + r() * 8;
-      return [g * 0.7, g * 0.82, g];
-    }
-    if (frame) return [235, 235, 230];
-    const n = (r() - 0.5) * 14;
-    if (kind === "brick") {
-      // 230 x 76 mm bricks, stretcher bond, pale mortar.
-      const course = Math.floor(y / 2.5);
-      const mortar = y % 2.5 < 0.6 || (x + (course % 2) * 5) % 10 < 0.9;
-      if (mortar) return [196 + n, 188 + n, 172 + n];
-      const tone = ((course * 7 + Math.floor((x + (course % 2) * 5) / 10) * 13) % 5) * 6;
-      return [150 + tone + n, 78 + tone / 2 + n, 58 + n];
-    }
-    if (kind === "weatherboard") {
-      // 150 mm boards with a shadow line under each.
-      const board = (y % 5) / 5;
-      const k = board > 0.8 ? 0.8 : 0.97 + board * 0.03;
-      return [238 * k + n, 236 * k + n, 226 * k + n];
-    }
-    return [214 + n, 200 + n, 172 + n];
-  }), w, h, { alpha: false });
-}
