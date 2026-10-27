@@ -10,6 +10,9 @@ describe("ground mask", () => {
     expect(top(classify(0.86, 0.82, 0.74))).toBe(2); // beach sand
     expect(top(classify(0.16, 0.14, 0.12))).toBe(3); // dark garden bed / shade
     expect(top(classify(0.42, 0.3, 0.22))).toBe(3); // brown mulch
+    expect(top(classify(0.1, 0.45, 0.45))).toBe(2); // shallow teal sea: seabed sand, not lawn
+    expect(top(classify(0.12, 0.25, 0.35))).toBe(2); // deeper water
+    expect(top(classify(0.16, 0.47, 0.41))).toBe(2); // Geographe Bay teal, measured off the Landgate photo
   });
 
   it("always gives a pixel some weight and normalises the mask", () => {

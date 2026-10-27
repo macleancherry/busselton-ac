@@ -90,7 +90,11 @@ export function classify(r: number, g: number, b: number): [number, number, numb
     + 0.15 * clamp01(green * 12) * clamp01((0.3 - lum) * 6);
   const sand = clamp01((lum - 0.55) * 5) * clamp01((0.35 - sat) * 4);
   const litter = clamp01((0.22 - lum) * 6) + clamp01((r - g) * 8) * clamp01((0.5 - lum) * 4);
-  const out: [number, number, number, number] = [lawn, rough, sand, litter];
+  // Water: blue well above red and close to green (Geographe Bay is teal). Lawn
+  // has blue below red. Seabed sand, never lawn.
+  const water = clamp01((b - r - 0.08) * 10) * clamp01((b - 0.75 * g) * 10);
+  if (water > 0.5) return [0, 0, 1, 0];
+  const out: [number, number, number, number] = [lawn * (1 - water), rough * (1 - water), Math.max(sand, water), litter];
   if (out.every((v) => v <= 0.02)) out[1] = 1; // anything unclear reads as rough grass
   return out;
 }
