@@ -78,7 +78,12 @@ function script.update(dt)
   end
   if finishing then return end
   local sp = car.splinePosition
-  if sp > 0.4 and sp < 0.6 then pastHalf = true end
+  -- Count laps from halfway round: the car starts behind the line, so its first crossing
+  -- (a few seconds in) isn't a lap.
+  if not pastHalf and sp > 0.4 and sp < 0.6 then
+    pastHalf = true
+    laps0 = car.lapCount
+  end
   local bucket = math.floor(car.splinePosition * 20)
   if bucket ~= lastShot then
     lastShot = bucket
