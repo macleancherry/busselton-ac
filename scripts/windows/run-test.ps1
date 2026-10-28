@@ -98,23 +98,51 @@ try {
   # Its position is a fraction of the window, and the click is DPI-aware so Windows' display
   # scaling (150-200% on a 4K screen) doesn't move it.
   Add-Type @"
-using System; using System.Runtime.InteropServices;
+using System; using System.Text; using System.Runtime.InteropServices;
 public static class BtClick {
   [StructLayout(LayoutKind.Sequential)] public struct POINT { public int X, Y; }
+  [StructLayout(LayoutKind.Sequential)] public struct RECT { public int L, T, R, B; }
   [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr h);
+  [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
+  [DllImport("user32.dll")] public static extern bool BringWindowToTop(IntPtr h);
+  [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr h, int cmd);
+  [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr h, IntPtr pid);
+  [DllImport("kernel32.dll")] public static extern uint GetCurrentThreadId();
+  [DllImport("user32.dll")] public static extern bool AttachThreadInput(uint a, uint b, bool attach);
+  [DllImport("user32.dll")] public static extern void keybd_event(byte vk, byte scan, uint flags, UIntPtr extra);
   [DllImport("user32.dll")] public static extern bool ClientToScreen(IntPtr h, ref POINT p);
   [DllImport("user32.dll")] public static extern bool SetCursorPos(int x, int y);
   [DllImport("user32.dll")] public static extern void mouse_event(uint f, uint x, uint y, uint d, UIntPtr e);
+  [DllImport("user32.dll")] public static extern bool PostMessage(IntPtr h, uint msg, IntPtr w, IntPtr l);
   [DllImport("user32.dll")] public static extern bool SetProcessDPIAware();
-  [StructLayout(LayoutKind.Sequential)] public struct RECT { public int L, T, R, B; }
   [DllImport("user32.dll")] public static extern bool GetClientRect(IntPtr h, out RECT r);
-  public static void Click(IntPtr h, double fx, double fy) {
+  [DllImport("user32.dll", CharSet = CharSet.Unicode)] public static extern int GetWindowText(IntPtr h, StringBuilder s, int n);
+  public static string Title(IntPtr h) { var sb = new StringBuilder(256); GetWindowText(h, sb, 256); return sb.ToString(); }
+  // Windows only lets the process that has the focus hand it on: join the front window's input
+  // thread and tap Alt (which lifts the lock), then bring AC up.
+  public static void Front(IntPtr h) {
+    IntPtr fg = GetForegroundWindow();
+    uint a = GetWindowThreadProcessId(fg, IntPtr.Zero), me = GetCurrentThreadId();
+    AttachThreadInput(me, a, true);
+    keybd_event(0x12, 0, 0, UIntPtr.Zero); keybd_event(0x12, 0, 2, UIntPtr.Zero);
+    ShowWindow(h, 9); BringWindowToTop(h); SetForegroundWindow(h);
+    AttachThreadInput(me, a, false);
+  }
+  public static string Click(IntPtr h, double fx, double fy) {
     SetProcessDPIAware();
-    SetForegroundWindow(h); System.Threading.Thread.Sleep(300);
+    string before = Title(GetForegroundWindow());
+    Front(h); System.Threading.Thread.Sleep(400);
+    string after = Title(GetForegroundWindow());
     RECT r; GetClientRect(h, out r);
-    POINT p; p.X = (int)Math.Round(fx * (r.R - r.L)); p.Y = (int)Math.Round(fy * (r.B - r.T));
-    ClientToScreen(h, ref p); SetCursorPos(p.X, p.Y);
+    int cx = (int)Math.Round(fx * (r.R - r.L)), cy = (int)Math.Round(fy * (r.B - r.T));
+    // Straight to AC's window (works whatever is in front, if AC reads window messages)...
+    IntPtr lp = (IntPtr)((cy << 16) | (cx & 0xFFFF));
+    PostMessage(h, 0x0200, IntPtr.Zero, lp); PostMessage(h, 0x0201, (IntPtr)1, lp); PostMessage(h, 0x0202, IntPtr.Zero, lp);
+    System.Threading.Thread.Sleep(300);
+    // ...and a real click at the same spot.
+    POINT p; p.X = cx; p.Y = cy; ClientToScreen(h, ref p); SetCursorPos(p.X, p.Y);
     System.Threading.Thread.Sleep(150); mouse_event(2, 0, 0, 0, UIntPtr.Zero); System.Threading.Thread.Sleep(80); mouse_event(4, 0, 0, 0, UIntPtr.Zero);
+    return "front before: '" + before + "', after: '" + after + "', at " + p.X + "," + p.Y;
   }
 }
 "@ -ErrorAction SilentlyContinue
@@ -126,13 +154,21 @@ public static class BtClick {
     if ((Get-Item $cspLog).LastWriteTime -lt $started) { return $false }
     return [bool](Select-String -Path $cspLog -Pattern $what -SimpleMatch -Quiet -ErrorAction SilentlyContinue)
   }
-  foreach ($wait in @(30, 15, 15, 15, 15, 15)) {
-    if ($proc.WaitForExit($wait * 1000)) { break }
-    if (Test-Logged "BTEST,start") { break }
-    $proc.Refresh()
-    if ($proc.MainWindowHandle -ne [IntPtr]::Zero) {
-      Write-Host "  clicking Drive (fallback)"
-      [BtClick]::Click($proc.MainWindowHandle, $DriveX, $DriveY)
+  # Every 10 s for up to 3 minutes, until the script logs that the drive has started.
+  $clickLog = Join-Path $env:TEMP "busselton-clicks.txt"
+  "" | Set-Content $clickLog
+  $clickUntil = (Get-Date).AddMinutes(3)
+  if (-not $proc.WaitForExit(25000)) {
+    while ((Get-Date) -lt $clickUntil -and -not $proc.HasExited) {
+      if (Test-Logged "BTEST,start") { break }
+      $proc.Refresh()
+      if ($proc.MainWindowHandle -ne [IntPtr]::Zero) {
+        $how = [BtClick]::Click($proc.MainWindowHandle, $DriveX, $DriveY)
+        $line = "$(Get-Date -Format HH:mm:ss) clicked Drive: $how"
+        Write-Host "  $line"
+        Add-Content $clickLog $line
+      }
+      if ($proc.WaitForExit(10000)) { break }
     }
   }
   # Wait for the script's finish line (AC can't always quit itself), then a little more logging,
@@ -171,6 +207,7 @@ $replay = Get-ChildItem (Join-Path $docs "replay\temp") -File -ErrorAction Silen
 if ($replay) { Copy-Item $replay.FullName $dest }
 Copy-Item (Join-Path $docs "out\race_out.json") $dest -ErrorAction SilentlyContinue
 Copy-Item $used (Join-Path $dest "race.ini.used") -ErrorAction SilentlyContinue
+Copy-Item (Join-Path $env:TEMP "busselton-clicks.txt") (Join-Path $dest "clicks.txt") -ErrorAction SilentlyContinue
 
 # The drive log: every "BTEST," line the test script wrote, wherever CSP put it.
 $lines = Get-ChildItem (Join-Path $dest "logs") -Recurse -File | Select-String -Pattern 'BTEST,' | ForEach-Object { $_.Line -replace '^.*?BTEST,', 'BTEST,' }

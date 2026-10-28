@@ -54,8 +54,8 @@ function script.update(dt)
     menuWait = menuWait + dt
     if menuWait > 3 then
       menuWait = 0
-      local ok = pcall(ac.tryToStart)
-      ac.log('BTEST,menu,' .. string.format('%.2f', t) .. ',0,0,0,0,0,0,0,' .. (ok and 'pressed drive' or 'tryToStart failed'))
+      local ok, err = pcall(ac.tryToStart)
+      ac.log('BTEST,menu,' .. string.format('%.2f', t) .. ',0,0,0,0,0,0,0,' .. (ok and 'pressed drive' or ('tryToStart failed: ' .. tostring(err):gsub(',', ';'))))
     end
     return
   end
