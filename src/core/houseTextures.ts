@@ -8,6 +8,7 @@
 
 import { encodePng } from "./png";
 import { fill, rng } from "./textures";
+import { WINDOWS } from "./buildings";
 
 type RGB = [number, number, number];
 
@@ -68,16 +69,15 @@ function glass(_u: number, v: number, blind: number, n: number): RGB {
 export function facadeTexture(kind: Facade): Uint8Array {
   const w = FACADE_SIZE.w * PX, h = FACADE_SIZE.h * PX;
   const r = rng(61 + kind.length * 13);
-  const windows = [
-    { x0: 0.8, x1: 2.6, blind: 0.35, split: true },
-    { x0: 5.0, x1: 6.2, blind: 0, split: false },
-  ];
-  // Measured down from 3 m above the floor: heads at 2.25 m, sills at 0.95 m.
-  const y0 = 0.75, y1 = 2.05, f = 0.045;
+  // Where buildings.ts lays the glass panes (WINDOWS: metres along the 8 m
+  // pattern and above the floor); y here runs down from 3 m above the floor.
+  const windows = WINDOWS.map((w, i) => ({ x0: w.x0, x1: w.x1, y0: FACADE_SIZE.h - w.z1, y1: FACADE_SIZE.h - w.z0, blind: i === 0 ? 0.35 : 0, split: w.x1 - w.x0 > 1.6 }));
+  const f = 0.045;
   const frame = frameColour(kind);
   return encodePng(fill(w, h, (px, py) => {
     const x = px / PX, y = py / PX, n = (r() - 0.5) * 12;
     for (const win of windows) {
+      const { y0, y1 } = win;
       if (x > win.x0 - f && x < win.x1 + f && y > y0 - f && y < y1 + f) {
         const inside = x > win.x0 && x < win.x1 && y > y0 && y < y1;
         const mull = win.split && Math.abs(x - (win.x0 + win.x1) / 2) < f / 2;
@@ -85,7 +85,7 @@ export function facadeTexture(kind: Facade): Uint8Array {
         return glass((x - win.x0) / (win.x1 - win.x0), (y - y0) / (y1 - y0), win.blind, n / 2);
       }
       // Sill under the window.
-      if (x > win.x0 - 0.1 && x < win.x1 + 0.1 && y >= y1 + f && y < y1 + f + 0.07) {
+      if (x > win.x0 - 0.1 && x < win.x1 + 0.1 && y >= win.y1 + f && y < win.y1 + f + 0.07) {
         const c = kind === "brick" || kind === "creambrick" ? wallPixel(kind, x, y, n).map((v) => v * 0.82) as RGB : [214 + n, 212 + n, 204 + n] as RGB;
         return c;
       }

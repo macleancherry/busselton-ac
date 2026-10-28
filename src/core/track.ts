@@ -26,11 +26,11 @@ import { buildRingMeshes, buildRingWall, innerRadius, outerRadius, resolveRounda
 import { buildRoadMeshes, buildWalls, type RoadMaterialFn } from "./roadMesh";
 import { buildKerbReturns, buildKerbs, KERB_BACK, KERB_H, kerbEvidence, planKerbs, STRIP_EXTRA, stripPhotoTexture, type StripMaterialFn } from "./kerbs";
 import { photoRoadTexture } from "./photoSurface";
-import { encodeDdsDxt1 } from "./dds";
-import { encodePng } from "./png";
+import { encodeDdsDxt1, encodeDdsDxt5 } from "./dds";
+import { decodeOwnPng, encodePng } from "./png";
 import { buildMarkings, type DiscreteMark } from "./markings";
 import { buildTerrainChunk, makeTerrainFn, planTerrainChunks, type TerrainChunk } from "./terrain";
-import { BARRIERS, barrierTexture, FACADES, paintTexture, sealTexture, type SealKind, garageTexture, grassTexture, concreteTexture, postTexture, railTexture, ROOF_COLOURS, roofTexture, solidTexture, vergeTexture } from "./textures";
+import { BARRIERS, barrierTexture, detailTexture, normalFromHeight, windowTexture, flatNormalTexture, grassAlpha, mapsTexture, FACADES, paintTexture, sealTexture, type SealKind, garageTexture, grassTexture, concreteTexture, postTexture, railTexture, ROOF_COLOURS, roofTexture, solidTexture, vergeTexture } from "./textures";
 import {
   buildGuardRails, buildGuidePosts, buildTrees, treeTrunks, filterTrees, railNeeds, rng, treeSpotsFromImagery, type TreeSpot,
 } from "./scenery";
@@ -294,6 +294,61 @@ function multilayerMaterial(photo: Kn5Material, mask: string, chunkMetres: numbe
   };
 }
 
+/** A normal-mapped material (ksPerPixelNM): relief without reflections. Parameter names as the shader declares them. */
+function nmMaterial(name: string, diffuse: string, normal: string, light: { ambient: number; diffuse: number; specular: number; exp: number }): Kn5Material {
+  const base = material(name, diffuse, light);
+  return {
+    ...base,
+    shader: "ksPerPixelNM",
+    properties: [
+      ...base.properties,
+      { name: "fresnelC", a: 0 },
+      { name: "fresnelEXP", a: 5 },
+      { name: "fresnelMaxLevel", a: 0 },
+      { name: "nmObjectSpace", a: 0 },
+      { name: "isAdditive", a: 0 },
+    ],
+    textures: { txDiffuse: diffuse, txNormal: normal },
+  };
+}
+
+/**
+ * A detail-mapped material (ksPerPixelMultiMap): the diffuse texture, a
+ * normal map, txMaps (specular, gloss, sun specular) and a tiling detail
+ * texture multiplied in wherever the diffuse alpha is 0. Parameter names as
+ * the game's shader declares them.
+ */
+function multiMapMaterial(
+  name: string,
+  diffuse: string,
+  light: { ambient: number; diffuse: number; specular: number; exp: number },
+  maps: { normal: string; maps: string; detail: string; detailUV: number; sunSpecular?: number },
+): Kn5Material {
+  return {
+    name,
+    shader: "ksPerPixelMultiMap",
+    properties: [
+      { name: "ksAmbient", a: light.ambient },
+      { name: "ksDiffuse", a: light.diffuse },
+      { name: "ksSpecular", a: light.specular },
+      { name: "ksSpecularEXP", a: light.exp },
+      { name: "ksEmissive", c: [0, 0, 0] },
+      { name: "ksAlphaRef", a: 0 },
+      { name: "fresnelC", a: 0 },
+      { name: "fresnelEXP", a: 5 },
+      { name: "fresnelMaxLevel", a: 0 },
+      { name: "isAdditive", a: 0 },
+      { name: "useDetail", a: 1 },
+      { name: "detailUVMultiplier", a: maps.detailUV },
+      { name: "shadowBiasMult", a: 0 },
+      { name: "nmObjectSpace", a: 0 },
+      { name: "sunSpecular", a: maps.sunSpecular ?? 0 },
+      { name: "sunSpecularEXP", a: 40 },
+    ],
+    textures: { txDiffuse: diffuse, txNormal: maps.normal, txMaps: maps.maps, txDetail: maps.detail },
+  };
+}
+
 function countGeometry(node: Kn5Node): { v: number; t: number } {
   if (node.kind === "mesh") return { v: node.positions.length / 3, t: node.indices.length / 3 };
   return node.children.map(countGeometry).reduce((a, b) => ({ v: a.v + b.v, t: a.t + b.t }), { v: 0, t: 0 });
@@ -398,25 +453,43 @@ export async function buildTrack(
   addScenery("lamp.png", solidTexture([150, 152, 150]), material("lamp", "lamp.png", { ambient: 0.45, diffuse: 0.45, specular: 0.3, exp: 30 }));
   addScenery("signal.png", solidTexture([28, 30, 26]), material("signal", "signal.png", { ambient: 0.4, diffuse: 0.4, specular: 0.2, exp: 20 }));
   addScenery("rail.png", railTexture(), material("rail", "rail.png", { ambient: 0.4, diffuse: 0.45, specular: 0.3, exp: 30 }));
-  for (const b of BARRIERS) addScenery(`barrier_${b}.png`, barrierTexture(b), material(`barrier_${b}`, `barrier_${b}.png`, { ambient: 0.45, diffuse: 0.45, specular: 0.1, exp: 15 }));
+  // Walls, roofs and fences: with detail shaders, a normal map from each texture's own shading
+  // (mortar joints, weatherboard laps, corrugations) gives them relief.
+  const reliefScenery = (name: string, png: Uint8Array, light: { ambient: number; diffuse: number; specular: number; exp: number }, strength: number) => {
+    if (!opts.detailShaders) return addScenery(`${name}.png`, png, material(name, `${name}.png`, light));
+    const { rgba, width, height } = decodeOwnPng(png);
+    textures.push({ name: `${name}.png`, data: png }, { name: `${name}_nm.png`, data: encodePng(normalFromHeight(rgba, width, height, strength), width, height, { alpha: false }) });
+    materials.push(nmMaterial(name, `${name}.png`, `${name}_nm.png`, light));
+  };
+  for (const b of BARRIERS) reliefScenery(`barrier_${b}`, barrierTexture(b), { ambient: 0.45, diffuse: 0.45, specular: 0.1, exp: 15 }, b === "hedge" ? 2 : 3);
+  addScenery("window.png", windowTexture(), material("window", "window.png", { ambient: 0.35, diffuse: 0.3, specular: 0.6, exp: 80 }));
   addScenery("door.png", solidTexture([92, 62, 44]), material("door", "door.png", { ambient: 0.45, diffuse: 0.45, specular: 0.15, exp: 15 }));
   addScenery("garage.png", garageTexture(), material("garage", "garage.png", { ambient: 0.45, diffuse: 0.45, specular: 0.2, exp: 20 }));
   addScenery("letterbox.png", solidTexture([168, 52, 40]), material("letterbox", "letterbox.png", { ambient: 0.45, diffuse: 0.45, specular: 0.25, exp: 25 }));
+  // Shared textures for detail-mapped materials.
+  if (opts.detailShaders) {
+    for (const k of ["asphalt", "chipseal", "grass"] as const) textures.push({ name: `detail_${k}.png`, data: detailTexture(k) });
+    textures.push({ name: "flat_nm.png", data: flatNormalTexture() });
+    textures.push({ name: "maps_ground.png", data: mapsTexture(0.1, 0.15, 0) });
+    textures.push({ name: "maps_asphalt.png", data: mapsTexture(0.7, 0.5, 0.35) });
+  }
   addScenery("wire.png", solidTexture([38, 38, 40]), material("wire", "wire.png", { ambient: 0.35, diffuse: 0.35, specular: 0.2, exp: 20 }));
   addScenery("steel.png", solidTexture([120, 122, 126]), material("steel", "steel.png", { ambient: 0.4, diffuse: 0.45, specular: 0.2, exp: 20 }));
   addScenery("concrete.png", concreteTexture(), material("concrete", "concrete.png", { ambient: 0.45, diffuse: 0.45, specular: 0.05, exp: 10 }));
   addScenery("guidepost.png", postTexture(), material("guidepost", "guidepost.png", { ambient: 0.45, diffuse: 0.45, specular: 0.1, exp: 10 }));
   const matte = { ambient: 0.45, diffuse: 0.45, specular: 0.05, exp: 10 };
-  // Facades: the kinds buildings.ts picks from, drawn at 64 px per metre.
-  for (const f of FACADES) addScenery(`facade_${f}.png`, facadeTexture(f), material(`facade_${f}`, `facade_${f}.png`, matte));
   addScenery("sea.png", seaTexture(), material("sea", "sea.png", { ambient: 0.4, diffuse: 0.35, specular: 0.7, exp: 90 }));
   addScenery("jetty_deck.png", deckTexture(), material("jetty_deck", "jetty_deck.png", { ambient: 0.45, diffuse: 0.45, specular: 0.05, exp: 10 }));
   addScenery("jetty_timber.png", solidTexture([118, 108, 96]), material("jetty_timber", "jetty_timber.png", { ambient: 0.45, diffuse: 0.45, specular: 0, exp: 1 }));
   for (const c of FENCE_COLOURS) {
-    addScenery(`fence_${c.name}.png`, fenceTexture(c.rgb), material(`fence_${c.name}`, `fence_${c.name}.png`, { ambient: 0.45, diffuse: 0.45, specular: 0.2, exp: 25 }));
+    reliefScenery(`fence_${c.name}`, fenceTexture(c.rgb), { ambient: 0.45, diffuse: 0.45, specular: 0.2, exp: 25 }, 2);
   }
-  addScenery("frontwall_limestone.png", frontWallTexture("limestone"), material("frontwall_limestone", "frontwall_limestone.png", matte));
-  addScenery("frontwall_brick.png", frontWallTexture("brick"), material("frontwall_brick", "frontwall_brick.png", matte));
+  // Facades (ours, 64 px per metre, windows where buildings.ts puts the glass), with relief.
+  for (const f of FACADES) {
+    reliefScenery(`facade_${f}`, facadeTexture(f), { ambient: 0.45, diffuse: 0.45, specular: 0.05, exp: 10 }, 3);
+  }
+  reliefScenery("frontwall_limestone", frontWallTexture("limestone"), matte, 3);
+  reliefScenery("frontwall_brick", frontWallTexture("brick"), matte, 3);
   addScenery("hedge.png", hedgeTexture(), material("hedge", "hedge.png", { ambient: 0.5, diffuse: 0.4, specular: 0, exp: 1 }));
   addScenery("mulch.png", mulchTexture(), material("mulch", "mulch.png", { ambient: 0.45, diffuse: 0.45, specular: 0, exp: 1 }));
   addScenery("shrubs.png", shrubAtlas(), {
@@ -425,7 +498,7 @@ export async function buildTrack(
     alphaTested: true,
   });
   for (const c of ROOF_COLOURS) {
-    addScenery(`roof_${c.name}.png`, roofTexture(c), material(`roof_${c.name}`, `roof_${c.name}.png`, { ambient: 0.45, diffuse: 0.45, specular: c.tile ? 0.05 : 0.25, exp: 25 }));
+    reliefScenery(`roof_${c.name}`, roofTexture(c), { ambient: 0.45, diffuse: 0.45, specular: c.tile ? 0.05 : 0.25, exp: 25 }, 4);
   }
   const detected: Building[] = [];
   const treeSpots: TreeSpot[] = [];
@@ -451,15 +524,26 @@ export async function buildTrack(
       const img = await sources.imagery(proj, job.chunk, job.zoom, job.size);
       if (!img) continue;
       const tex = `${job.prefix}_${job.chunk.key}.${img.ext}`;
-      textures.push({ name: tex, data: img.data });
       // Aerial photos carry their own light and shadow, so lean on ambient.
-      const photoMat = material(`${job.prefix}_${job.chunk.key}`, tex, { ambient: 0.6, diffuse: 0.2, specular: 0, exp: 1 });
+      const photoLight = { ambient: 0.6, diffuse: 0.2, specular: 0, exp: 1 };
       if (details && img.rgba && job.prefix === "terrain") {
+        // Busselton fork: four ground details (lawn, dry grass, sand, mulch) mixed by a mask read off the photo (ksMultilayer).
+        textures.push({ name: tex, data: img.data });
         const maskName = `${job.prefix}_${job.chunk.key}_mask.png`;
         textures.push({ name: maskName, data: encodePng(groundMask(img.rgba, job.size, 256), 256, 256) });
-        materials.push(multilayerMaterial(photoMat, maskName, job.chunk.maxX - job.chunk.minX));
+        materials.push(multilayerMaterial(material(`${job.prefix}_${job.chunk.key}`, tex, photoLight), maskName, job.chunk.maxX - job.chunk.minX));
+      } else if (opts.detailShaders && img.rgba && job.prefix === "terrain") {
+        // Grass detail on the photo's lawns and dry grass (alpha 0 there), a blade every few centimetres.
+        const alpha = grassAlpha(img.rgba, job.size, job.size);
+        const rgba = new Uint8Array(img.rgba);
+        for (let i = 0; i < alpha.length; i++) rgba[i * 4 + 3] = alpha[i];
+        textures.push({ name: tex, data: encodeDdsDxt5(rgba, job.size, job.size) });
+        materials.push(multiMapMaterial(`${job.prefix}_${job.chunk.key}`, tex, photoLight, {
+          normal: "flat_nm.png", maps: "maps_ground.png", detail: "detail_grass.png", detailUV: opts.chunkSize / 0.9,
+        }));
       } else {
-        materials.push(photoMat);
+        textures.push({ name: tex, data: img.data });
+        materials.push(material(`${job.prefix}_${job.chunk.key}`, tex, photoLight));
       }
       textured.add(job.chunk.key);
       if (img.rgba && job.prefix === "terrain") {
@@ -533,9 +617,22 @@ export async function buildTrack(
     if (!surfaceMaterials.has(name)) {
       surfaceMaterials.add(name);
       const tex = sealTexture(kind, twoLane, ci % 3);
-      textures.push({ name: `${name}.dds`, data: tex.dds });
       previewTextures[`${name}.dds`] = { rgba: tex.rgba, width: tex.width, height: tex.height };
-      materials.push(material(name, `${name}.dds`, { ambient: 0.4, diffuse: 0.45, specular: kind === "asphalt" ? 0.08 : 0.04, exp: 20 }));
+      const light = { ambient: 0.4, diffuse: 0.45, specular: kind === "asphalt" ? 0.08 : 0.04, exp: 20 };
+      if (opts.detailShaders) {
+        // Stones in the surface up close: detail everywhere (alpha 0), about 0.8 m a tile across the road.
+        const rgba = new Uint8Array(tex.rgba);
+        for (let i = 3; i < rgba.length; i += 4) rgba[i] = 0;
+        textures.push({ name: `${name}.dds`, data: encodeDdsDxt5(rgba, tex.width, tex.height) });
+        // Cracks and patch edges as relief, from the seal texture's own shading.
+        textures.push({ name: `${name}_nm.dds`, data: encodeDdsDxt1(normalFromHeight(tex.rgba, tex.width, tex.height, 3), tex.width, tex.height) });
+        materials.push(multiMapMaterial(name, `${name}.dds`, light, {
+          normal: `${name}_nm.dds`, maps: "maps_asphalt.png", detail: `detail_${kind}.png`, detailUV: 9, sunSpecular: 0.15,
+        }));
+      } else {
+        textures.push({ name: `${name}.dds`, data: tex.dds });
+        materials.push(material(name, `${name}.dds`, light));
+      }
     }
     return name;
   };
@@ -1063,7 +1160,11 @@ export async function buildTrack(
     ...(opts.traffic ? { [`${slug}/data/traffic.json`]: enc.encode(trafficData()) } : {}),
     [`${slug}/data/map.ini`]: enc.encode(map.ini),
     [`${slug}/data/cameras_1.ini`]: enc.encode(camerasIni(cameras)),
-    [`${slug}/extension/ext_config.ini`]: enc.encode(extConfig(utilities.lights)),
+    [`${slug}/extension/ext_config.ini`]: enc.encode(extConfig(utilities.lights, {
+      // A town's glow at night where most of the route is built up.
+      builtUp: town.filter((t) => t >= 1).length > town.length / 2,
+      radiusKm: Math.max(...outline2d.map((p) => Math.hypot(p[0] - outline2d[0][0], p[1] - outline2d[0][1]))) / 2000,
+    })),
     [`${slug}/map.png`]: map.png,
     [`${slug}/ui/ui_track.json`]: enc.encode(uiTrackJson(trackMeta, {
       length: timedLength(), width: meanWidth, pitboxes: opts.pitCount, closed: plan.closed, centre,

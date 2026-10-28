@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { unzlibSync } from "fflate";
 import { frameTransform, IDENTITY, readKn5, writeKn5, type Kn5Model } from "../src/core/kn5";
 import { readFastLaneAi, writeFastLaneAi, type AiPoint } from "../src/core/aiSpline";
-import { encodePng } from "../src/core/png";
+import { decodeOwnPng, encodePng } from "../src/core/png";
 
 function quad(): Kn5Model {
   const positions = new Float32Array([0, 0, 0, 1, 0, 0, 1, 0, -1, 0, 0, -1]);
@@ -70,6 +70,22 @@ describe("kn5", () => {
   });
 });
 
+describe("kn5 texture registers", () => {
+  it("binds each texture slot to the shader's register, whatever order they're listed in", () => {
+    const tex = (name: string) => ({ name, data: encodePng(new Uint8Array(4).fill(255), 1, 1) });
+    const model: Kn5Model = {
+      textures: [tex("d.png"), tex("n.png"), tex("m.png"), tex("x.png")],
+      materials: [{
+        name: "road", shader: "ksPerPixelMultiMap", properties: [],
+        textures: { txDetail: "x.png", txMaps: "m.png", txDiffuse: "d.png", txNormal: "n.png" },
+      }],
+      root: { kind: "node", name: "root", transform: IDENTITY, children: [] },
+    };
+    const back = readKn5(writeKn5(model));
+    expect(back.materials[0].registers).toEqual({ txDetail: 3, txMaps: 2, txDiffuse: 0, txNormal: 1 });
+  });
+});
+
 describe("fast_lane.ai", () => {
   it("round-trips a version 7 spline", () => {
     const pts: AiPoint[] = [0, 1, 2].map((i) => ({
@@ -115,5 +131,19 @@ describe("dds", () => {
     expect(new TextDecoder().decode(dds.subarray(84, 88))).toBe("DXT1");
     expect(dds.length).toBe(128 + (4 + 1 + 1 + 1) * 8);
     expect(v.getUint16(128, true)).toBe(0xf800); // pure red endpoint
+  });
+});
+
+describe("png round trip", () => {
+  it("decodes what it encodes, RGB and RGBA", () => {
+    const w = 5, h = 3;
+    const px = Uint8Array.from({ length: w * h * 4 }, (_, i) => (i * 37) % 256);
+    const back = decodeOwnPng(encodePng(px, w, h));
+    expect(back.width).toBe(w);
+    expect(Array.from(back.rgba)).toEqual(Array.from(px));
+    const rgb = decodeOwnPng(encodePng(px, w, h, { alpha: false }));
+    for (let i = 0; i < w * h; i++) {
+      expect([rgb.rgba[i * 4], rgb.rgba[i * 4 + 1], rgb.rgba[i * 4 + 2], rgb.rgba[i * 4 + 3]]).toEqual([px[i * 4], px[i * 4 + 1], px[i * 4 + 2], 255]);
+    }
   });
 });
