@@ -141,11 +141,26 @@ try {
   const buildErr = await page.locator("#build-error").evaluate((e) => (e.hidden ? "" : e.textContent));
   if (buildErr) throw new Error(buildErr);
 
-  const { slug, zip, stats, table, centreline, sampleKeys, houses } = await page.evaluate(async () => {
+  // The zip comes out of the page in pieces: one base64 string of a few hundred MB crashes it.
+  const zipLength = await page.evaluate(async () => {
     const a = document.getElementById("download");
-    const buf = new Uint8Array(await (await fetch(a.href)).arrayBuffer());
-    let bin = "";
-    for (let i = 0; i < buf.length; i += 0x8000) bin += String.fromCharCode(...buf.subarray(i, i + 0x8000));
+    window.__zipBuf = new Uint8Array(await (await fetch(a.href)).arrayBuffer());
+    return window.__zipBuf.length;
+  });
+  const CHUNK = 16 * 1024 * 1024;
+  const parts = [];
+  for (let off = 0; off < zipLength; off += CHUNK) {
+    const b64 = await page.evaluate(([o, n]) => {
+      const buf = window.__zipBuf.subarray(o, o + n);
+      let bin = "";
+      for (let i = 0; i < buf.length; i += 0x8000) bin += String.fromCharCode(...buf.subarray(i, i + 0x8000));
+      return btoa(bin);
+    }, [off, CHUNK]);
+    parts.push(Buffer.from(b64, "base64"));
+  }
+  await page.evaluate(() => { window.__zipBuf = null; });
+  const zipBytes = Buffer.concat(parts);
+  const { slug, stats, table, centreline, sampleKeys, houses } = await page.evaluate(async () => {
     const r = window.__app.result();
     const table = [...document.querySelectorAll("#result-stats div")].map((d) => [d.querySelector("dt")?.textContent, d.querySelector("dd")?.textContent]);
     // The built centreline in lng/lat with its height and width, for checking against the photo and the DEM.
@@ -153,7 +168,7 @@ try {
       const [lng, lat] = r.proj.toLngLat(s.pos);
       return [+lng.toFixed(7), +lat.toFixed(7), +s.h.toFixed(3), +(s.width ?? NaN)];
     });
-    return { slug: r.slug, zip: btoa(bin), stats: r.stats, table, centreline, sampleKeys: Object.keys(r.plan.samples[0] ?? {}), houses: r.houses };
+    return { slug: r.slug, stats: r.stats, table, centreline, sampleKeys: Object.keys(r.plan.samples[0] ?? {}), houses: r.houses };
   });
   mkdirSync(join(root, "out"), { recursive: true });
   writeFileSync(join(root, "out", `${slug}.centreline.json`), JSON.stringify({ sampleKeys, centreline }));
@@ -162,7 +177,7 @@ try {
 
   const out = join(root, "out");
   mkdirSync(out, { recursive: true });
-  writeFileSync(join(out, `${slug}.zip`), Buffer.from(zip, "base64"));
+  writeFileSync(join(out, `${slug}.zip`), zipBytes);
   writeFileSync(join(out, `${slug}.stats.json`), JSON.stringify({ route: basename(routeFile), stats, table }, null, 2));
   if (process.env.SHOTS) {
     // Each shot is a lap fraction, or "lng:lat:lookLng:lookLat:height" for a fixed view.
@@ -185,7 +200,7 @@ try {
     }
     log(`wrote ${fracs.length} shots`);
   }
-  log(`wrote out/${slug}.zip (${(Buffer.from(zip, "base64").length / 1e6).toFixed(1)} MB)`);
+  log(`wrote out/${slug}.zip (${(zipBytes.length / 1e6).toFixed(1)} MB)`);
   for (const [k, v] of table) log(`  ${k}: ${v}`);
 } finally {
   await browser.close();
