@@ -108,6 +108,10 @@ export interface BuildOptions {
   terrainLod: boolean;
   /** Write data/traffic.json for CSP's traffic planner (turns on extended track physics, see surfacesIni). */
   traffic: boolean;
+  /** Paint parked cars out of the ground photo (carpark.ts). */
+  carParks: boolean;
+  /** Raise car parks' planted islands behind kerbs, read off the photo (experimental: tree canopy still fools it). */
+  carParkIslands: boolean;
   /** No level-of-detail blocks within this distance of the road's centreline, metres. */
   terrainLodNear: number;
   /** Kerb and gutter where the photos (or a built-up area) show them, instead of a gravel verge. */
@@ -164,6 +168,8 @@ export const DEFAULT_OPTIONS: BuildOptions = {
   traceGuard: true,
   terrainLod: true,
   traffic: false,
+  carParks: true,
+  carParkIslands: false,
   terrainLodNear: 25,
   kerbs: true,
   detailShaders: true,

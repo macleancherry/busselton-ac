@@ -554,6 +554,7 @@ function showStats(r: TrackResult, widthFallback: boolean, usedImagery: Set<Imag
     ["Footpaths", `${(s.footpathMetres / 1000).toFixed(2)} km, ${s.driveways} driveways`],
     ["Signs", `${s.streetSigns} street, ${s.signs} other`],
     ["Poles & lights", `${s.poles} power poles, ${s.streetLights} street lights`],
+    ...(s.carsPainted !== undefined ? [["Car parks", `${s.carsPainted} parked cars painted out, ${s.carParkIslands ?? 0} islands`] as [string, string]] : []),
     ["Guard rail", `${Math.round(s.railMetres)} m`],
     ["Triangles", s.triangles.toLocaleString()],
   ];

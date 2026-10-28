@@ -205,7 +205,7 @@ function bed(mb: MeshBuilder, a: Vec2, b: Vec2, c: Vec2, d: Vec2, ground: Height
 }
 
 /** A shrub: two crossed two-sided sprite quads. */
-function shrub(mb: MeshBuilder, c: Vec2, size: number, species: number, rot: number, ground: HeightFn): void {
+export function shrub(mb: MeshBuilder, c: Vec2, size: number, species: number, rot: number, ground: HeightFn): void {
   const sp = SHRUB_SPECIES[species];
   const H = size, W = size * 1.4;
   const z = ground(c[0], c[1]) - 0.05;

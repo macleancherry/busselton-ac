@@ -5,7 +5,8 @@
 import { buildPaths, footPathTexture, sharedPathTexture, type PathLine } from "./paths";
 import { pickSpecies, treeSpeciesAtlas } from "./treeSprites";
 import { FENCE_COLOURS, facadeTexture, fenceTexture, frontWallTexture, hedgeTexture, mulchTexture, shrubAtlas } from "./houseTextures";
-import { buildLots } from "./lots";
+import { buildLots, shrub } from "./lots";
+import { buildIslands, findIslands, footprintMask, paintOutCars } from "./carpark";
 import { trafficJson, type TrafficRoad } from "./traffic";
 import { buildPiers, buildSea, deckTexture, SeaMask, seaTexture, withSeabed, type CoastPolygon } from "./coast";
 import { GROUND_LAYERS, GROUND_TILE_METRES, groundMask, type GroundDetail, type GroundLayer } from "./ground";
@@ -16,7 +17,7 @@ import { outlinePng, previewPng, readme, slugify, surfacesIni, trackMap, uiTrack
 import type { HeightFn } from "./elevation";
 import { boundsOf, LocalProjection, type Bounds, type LngLat, type Vec2 } from "./geo";
 import { frameTransform, IDENTITY, writeKn5, type Kn5GroupNode, type Kn5Material, type Kn5MeshNode, type Kn5Model, type Kn5Node, type Kn5Texture } from "./kn5";
-import { toAc } from "./mesh";
+import { MeshBuilder, toAc } from "./mesh";
 import { withDefaults, type BuildOptions } from "./options";
 import { simplify } from "./polyline";
 import { applyElevation, inRoundabout, isLoop, planRoad, surfaceHeight, SegmentIndex, type RoadPlan, type RoadSample } from "./road";
@@ -151,6 +152,9 @@ export interface TrackResult {
     streetSigns: number;
     signs: number;
     railMetres: number;
+    /** Parked cars painted out of the ground photo, and car park islands raised. */
+    carsPainted?: number;
+    carParkIslands?: number;
   };
 }
 
@@ -503,6 +507,9 @@ export async function buildTrack(
   const detected: Building[] = [];
   const treeSpots: TreeSpot[] = [];
   const farTreeSpots: TreeSpot[] = [];
+  let carsPainted = 0;
+  const osmRings = opts.carParks ? (sources.osm?.buildings ?? []).map((b) => b.ring.map((p) => proj.toLocal(p))) : [];
+  const islandsFound: { chunk: TerrainChunk; rings: Vec2[][] }[] = [];
   const photos: Parameters<typeof chunkPhotoSampler>[0] = [];
 
   const textured = new Set<string>();
@@ -523,26 +530,41 @@ export async function buildTrack(
       await progress("Fetching aerial imagery", done / jobs.length);
       const img = await sources.imagery(proj, job.chunk, job.zoom, job.size);
       if (!img) continue;
-      const tex = `${job.prefix}_${job.chunk.key}.${img.ext}`;
+      // Busselton fork: parked cars painted out of the ground photo, and the car parks' planted islands found in it.
+      const span = job.chunk.maxX - job.chunk.minX;
+      let clean: ReturnType<typeof paintOutCars> | null = null;
+      if (opts.carParks && img.rgba && job.prefix === "terrain") {
+        // Buildings (mapped, and roofs found in this photo) are never painted over.
+        const roofs = opts.buildings && opts.detectBuildings ? detectBuildings(img.rgba, job.size, job.chunk).map((b) => b.ring) : [];
+        clean = paintOutCars(img.rgba, job.size, span / job.size, footprintMask([...osmRings, ...roofs], job.chunk, job.size));
+      }
+      if (clean) {
+        carsPainted += clean.cars;
+        const rings = opts.carParkIslands ? findIslands(clean.rgba, job.size, job.chunk) : [];
+        if (rings.length) islandsFound.push({ chunk: job.chunk, rings });
+      }
+      const photo = clean?.rgba ?? img.rgba;
+      const tex = `${job.prefix}_${job.chunk.key}.${clean ? "dds" : img.ext}`;
+      const photoData = clean ? encodeDdsDxt1(clean.rgba, job.size, job.size) : img.data;
       // Aerial photos carry their own light and shadow, so lean on ambient.
       const photoLight = { ambient: 0.6, diffuse: 0.2, specular: 0, exp: 1 };
-      if (details && img.rgba && job.prefix === "terrain") {
+      if (details && photo && job.prefix === "terrain") {
         // Busselton fork: four ground details (lawn, dry grass, sand, mulch) mixed by a mask read off the photo (ksMultilayer).
-        textures.push({ name: tex, data: img.data });
+        textures.push({ name: tex, data: photoData });
         const maskName = `${job.prefix}_${job.chunk.key}_mask.png`;
-        textures.push({ name: maskName, data: encodePng(groundMask(img.rgba, job.size, 256), 256, 256) });
+        textures.push({ name: maskName, data: encodePng(groundMask(photo, job.size, 256), 256, 256) });
         materials.push(multilayerMaterial(material(`${job.prefix}_${job.chunk.key}`, tex, photoLight), maskName, job.chunk.maxX - job.chunk.minX));
-      } else if (opts.detailShaders && img.rgba && job.prefix === "terrain") {
+      } else if (opts.detailShaders && photo && job.prefix === "terrain") {
         // Grass detail on the photo's lawns and dry grass (alpha 0 there), a blade every few centimetres.
-        const alpha = grassAlpha(img.rgba, job.size, job.size);
-        const rgba = new Uint8Array(img.rgba);
+        const alpha = grassAlpha(photo, job.size, job.size);
+        const rgba = new Uint8Array(photo);
         for (let i = 0; i < alpha.length; i++) rgba[i * 4 + 3] = alpha[i];
         textures.push({ name: tex, data: encodeDdsDxt5(rgba, job.size, job.size) });
         materials.push(multiMapMaterial(`${job.prefix}_${job.chunk.key}`, tex, photoLight, {
           normal: "flat_nm.png", maps: "maps_ground.png", detail: "detail_grass.png", detailUV: opts.chunkSize / 0.9,
         }));
       } else {
-        textures.push({ name: tex, data: img.data });
+        textures.push({ name: tex, data: photoData });
         materials.push(material(`${job.prefix}_${job.chunk.key}`, tex, photoLight));
       }
       textured.add(job.chunk.key);
@@ -1046,6 +1068,36 @@ export async function buildTrack(
     }
   }
   const houses = buildBuildings(shown, buildingGround);
+  // Car park islands, clear of the road, the streets, buildings and the rings, with shrubs.
+  const islandNodes: Kn5MeshNode[] = [];
+  const islandShrubs = new MeshBuilder();
+  islandShrubs.normals = [];
+  const shrubRand = rng(515);
+  let islandCount = 0;
+  for (const { chunk, rings } of islandsFound) {
+    const ok = rings.filter((ring) => ring.every(([x, y]) => {
+      const n = index.nearest(x, y, 40);
+      if (n && n.dist < index.at(n).width / 2 + 2) return false;
+      if (streetIndex.clearance(x, y) < 0.5 || inRoundabout(plan, x, y, 3)) return false;
+      return !kept.some((b) => pointInRing(x, y, b.ring));
+    }));
+    if (!ok.length) continue;
+    islandCount += ok.length;
+    islandNodes.push(...buildIslands(ok, ground, chunk, `terrain_${chunk.key}`, chunk.key));
+    for (const ring of ok) {
+      // A shrub every 2-3 m^2 or so, inside the island, standing on its raised top.
+      const xs = ring.map((p) => p[0]), ys = ring.map((p) => p[1]);
+      const top = Math.max(...ring.map(([x, y]) => ground(x, y))) + 0.15;
+      for (let x = Math.min(...xs) + 0.8; x < Math.max(...xs) - 0.8; x += 1.8) {
+        for (let y = Math.min(...ys) + 0.8; y < Math.max(...ys) - 0.8; y += 1.8) {
+          const px = x + (shrubRand() - 0.5) * 0.8, py = y + (shrubRand() - 0.5) * 0.8;
+          if (!pointInRing(px, py, ring) || shrubRand() < 0.35 || islandShrubs.vertexCount > 60000) continue;
+          shrub(islandShrubs, [px, py], 0.6 + shrubRand() * 0.6, shrubRand() < 0.5 ? 0 : 1, shrubRand() * Math.PI, () => top);
+        }
+      }
+    }
+  }
+  if (islandShrubs.indices.length) islandNodes.push(islandShrubs.toKn5("ISLAND_SHRUBS", "shrubs", { castShadows: true }));
   const lots = opts.buildings ? buildLots(homes.filter((b) => b.ring.every(([x, y]) => index.nearest(x, y, opts.corridor - 1))), buildingGround, { roadGap }) : [];
 
   const group = (name: string, children: Kn5Node[]): Kn5GroupNode => ({ kind: "node", name, transform: IDENTITY, children });
@@ -1077,6 +1129,7 @@ export async function buildTrack(
         group("FENCES", keepOffRoute(barriers, onRoad).nodes),
         group("PATHS", pathMeshes),
         group("LOTS", keepOffRoute(lots, onRoad).nodes),
+        group("CARPARKS", islandNodes),
         group("JETTY", piers.length ? buildPiers(piers, buildingGround, sea) : []),
       ]),
       // Already in compact chunks (terrain, horizon), or never drawn (walls).
@@ -1204,6 +1257,8 @@ export async function buildTrack(
       sideTraced,
       kerbMetres: (kerbs[0].reduce((a, b) => a + b, 0) + kerbs[1].reduce((a, b) => a + b, 0)) * opts.spacing,
       poles: utilities.poles,
+      carsPainted,
+      carParkIslands: islandCount,
       footpathMetres: verge ? (verge.paths[0].filter(Boolean).length + verge.paths[1].filter(Boolean).length) * opts.spacing : 0,
       driveways: verge?.drives.length ?? 0,
       streetLights: utilities.lights.length,
