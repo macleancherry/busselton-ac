@@ -15,6 +15,7 @@ local t, lastLog, lastShot, offFor, stuckFor = 0, -1, -1, 0, 0
 local started, offNow, finishing, quitAt = false, false, false, nil
 local laps0 = 0
 local menuWait = 0
+local pastHalf = false -- a lap only counts once the car has been halfway round
 
 local function onRoad()
   local n = 0
@@ -42,6 +43,8 @@ local function finish(why)
   log('finish', why)
   shot('finish')
   quitAt = t + 3
+  -- run-test.ps1 watches the log for this line and closes AC (ac.shutdownAssettoCorsa does
+  -- nothing on some CSP versions); keep logging until then.
 end
 
 function script.update(dt)
@@ -61,9 +64,7 @@ function script.update(dt)
   if quitAt and t > quitAt then
     quitAt = nil
     pcall(ac.shutdownAssettoCorsa)
-    return
   end
-  if finishing then return end
   if not started then
     if t < 4 then return end
     local ok, err = pcall(physics.setCarAutopilot, true, false)
@@ -73,8 +74,11 @@ function script.update(dt)
   end
   if t - lastLog >= 0.25 then
     lastLog = t
-    log('pos')
+    log(finishing and 'after' or 'pos')
   end
+  if finishing then return end
+  local sp = car.splinePosition
+  if sp > 0.4 and sp < 0.6 then pastHalf = true end
   local bucket = math.floor(car.splinePosition * 20)
   if bucket ~= lastShot then
     lastShot = bucket
@@ -91,7 +95,7 @@ function script.update(dt)
   end
   stuckFor = (car.speedKmh < 3 and t > 15) and stuckFor + dt or 0
   if stuckFor > 10 then finish('stuck') end
-  if car.lapCount > laps0 then finish('lap') end
+  if pastHalf and car.lapCount > laps0 then finish('lap') end
   if not CLOSED and car.splinePosition > 0.995 then finish('end of road') end
   if t > MAX_TIME then finish('timeout') end
 end

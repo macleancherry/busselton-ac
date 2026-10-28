@@ -118,17 +118,40 @@ public static class BtClick {
   }
 }
 "@ -ErrorAction SilentlyContinue
+  # The track script's lines in CSP's log tell us when the drive has started and finished.
+  $cspLog = Join-Path $docs "logs\custom_shaders_patch.log"
+  function Test-Logged([string]$what) {
+    if (-not (Test-Path $cspLog)) { return $false }
+    # CSP starts a fresh log each launch, so anything in it is from this run.
+    if ((Get-Item $cspLog).LastWriteTime -lt $started) { return $false }
+    return [bool](Select-String -Path $cspLog -Pattern $what -SimpleMatch -Quiet -ErrorAction SilentlyContinue)
+  }
   foreach ($wait in @(30, 15, 15, 15, 15, 15)) {
     if ($proc.WaitForExit($wait * 1000)) { break }
+    if (Test-Logged "BTEST,start") { break }
     $proc.Refresh()
     if ($proc.MainWindowHandle -ne [IntPtr]::Zero) {
       Write-Host "  clicking Drive (fallback)"
       [BtClick]::Click($proc.MainWindowHandle, $DriveX, $DriveY)
     }
   }
-  if (-not $proc.WaitForExit(($Minutes + 2) * 60 * 1000)) {
+  # Wait for the script's finish line (AC can't always quit itself), then a little more logging,
+  # then close AC the normal way so it saves the replay; force it only if that doesn't work.
+  $deadline = (Get-Date).AddMinutes($Minutes + 2)
+  while (-not $proc.HasExited -and (Get-Date) -lt $deadline) {
+    if (Test-Logged "BTEST,finish") {
+      Write-Host "  run finished: closing AC" -ForegroundColor Cyan
+      Start-Sleep -Seconds 8
+      $proc.CloseMainWindow() | Out-Null
+      if (-not $proc.WaitForExit(30000)) { Stop-Process -Id $proc.Id -Force }
+      break
+    }
+    Start-Sleep -Seconds 5
+  }
+  if (-not $proc.HasExited) {
     Write-Host "Still running after $Minutes min: closing AC." -ForegroundColor Yellow
-    Stop-Process -Id $proc.Id -Force
+    $proc.CloseMainWindow() | Out-Null
+    if (-not $proc.WaitForExit(30000)) { Stop-Process -Id $proc.Id -Force }
   }
 } finally {
   Copy-Item $backup $raceIni -Force
