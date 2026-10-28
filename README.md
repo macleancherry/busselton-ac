@@ -122,12 +122,12 @@ Fine for racing with your mates. Don't publish or sell tracks built with the aer
 
 ## Plan
 
-The full plan, from capture to Blender to LAN racing, is in the project PRD. Next up:
+The full roadmap is in [ROADMAP.md](ROADMAP.md): Busselton done properly, then open-world town, traffic, CSP and Pure atmosphere (seasons, rain, night), and the wider South West from the capes to Collie. Next up:
 
-1. Check the new ground, houses, sea and jetty in game and tune from what feels wrong.
-2. Terrain level of detail: it's two thirds of the triangles; fine grid near the road, coarser behind.
-3. Drive the loop with a camera and GPS, then upload to Mapillary for real signs.
-4. Local detail in Blender: landmarks (the jetty's Interpretive Centre and Observatory, the foreshore buildings).
+1. Merge upstream and check v0.4 in game.
+2. Terrain level of detail and a performance budget per track.
+3. The foreshore showcase: car park, seawall, jetty precinct.
+4. Generated traffic (CSP traffic planner and AI splines).
 
 ## Credit
 

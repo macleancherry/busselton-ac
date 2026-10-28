@@ -1,0 +1,238 @@
+# Busselton AC roadmap
+
+**Goal:** Busselton and then the wider South West, from the Busselton Jetty to Cape Leeuwin, as Assetto Corsa tracks you can just drive around in. Real roads, real heights, the trees and buildings locals would recognise, traffic, day and night, summer and winter. Built from free data and free tools, for personal use.
+
+This is the plan for this fork. The generator itself is [honestjams/ac-track-builder](https://github.com/honestjams/ac-track-builder); anything that's useful beyond the South West goes back upstream (see [Working with upstream](#working-with-upstream)).
+
+Status key: ✅ done · 🔨 in progress · ⬜ planned · ❓ needs checking first
+
+---
+
+## Where we are (v0.4, October 2026)
+
+Two tracks build from route files with one command, then pass automatic checks:
+
+- **Busselton Foreshore**: a 4.3 km circuit along Geographe Bay Rd, Queen St and Marine Tce.
+- **A 3.6 km point-to-point sprint** through the western suburbs (its route file is private).
+
+What a build has today:
+
+- ✅ Landgate aerial imagery and Geoscience Australia's 5 m LiDAR heights for Busselton, Vasse and Broadwater
+- ✅ Smooth town roads: no banking, kerbs at the right height, flat roundabouts
+- ✅ Close-up ground detail (`ksMultilayer`), with Grass FX tuned for straw-coloured verges
+- ✅ Local trees: she-oak, Norfolk pine, peppermint and tuart
+- ✅ The red shared path and footpaths
+- ✅ WA houses (hip roofs, brick and render, garages), plus Colorbond fences, front walls, hedges and garden beds
+- ✅ Street lights with CSP night lighting
+- ✅ The bay as water, and the 1.8 km jetty
+- ✅ Horizon tree lines
+- ✅ Headless builds, checks (photo overlay, DEM heights, bumps, edge steps) and driver's-eye renders
+
+---
+
+## What the best AC maps get right
+
+What makes the most-loved community maps feel alive, and what we take from each:
+
+| Map | What it does well | What we take |
+| --- | --- | --- |
+| **Shutoko Revival Project** | Huge, accurate road network, dense traffic (through AssettoServer), superb night lighting, a living community | Open-world layout, traffic as a first-class feature, night as good as day |
+| **Arrabassada** (Barcelona) | Urban highway into mountain road, working traffic lights, viewpoints and parking areas, night mode | Traffic lights, places to stop, a mix of town and country in one drive |
+| **Slea Head Drive** (Ireland) | 48 trackside cameras, AI, rain effects, detailed buildings | Replay cameras, RainFX, care on buildings |
+| **Wicklow Mountains** | ~47 km open world, two layouts with AI | Several layouts from one map, open world plus routes |
+| **Mulholland Drive** | Racing version and free-roam version with two-way traffic | One race layout and one cruise layout per area |
+| **Santa Monica Mountains** | Photogrammetry scenery | Our own photo scans for landmarks |
+| **Street2Sim** | Pins to track, camber from DEM, automatic checks, optional `.blend` export, area builds for car parks and intersections, a library of built roads | `.blend`/FBX export for hand detail, area builds, a track index |
+
+Sources: [OverTake: six real-road maps for free roaming](https://racedepartment.com/news/comments/76810/), [Street2Sim](https://www.street2sim.com/) and [our notes on how it works](docs/how-street2sim-works.md).
+
+---
+
+## Phase 1: Foundations 🔨
+
+Get the base right before adding more.
+
+- ⬜ **Merge upstream.** Take honestjams' houses, poles and wires, photo-read footpaths and driveways, culling and draw distances, road-edge ramp, U-turn spur removal and replay cameras. Keep ours where it's South West specific.
+- ⬜ **In-game check of v0.4.** Ground detail scale, Grass FX on dry verges, water edge, frame rate on the RTX 4060.
+- ⬜ **Terrain level of detail.** Fine grid near the road, coarser behind. Terrain is two thirds of the triangles now.
+- ⬜ **Performance budget per track.** Triangles, draw calls and texture memory, reported by every build and checked against limits.
+- ⬜ **Layouts.** One track folder with several layouts (circuit, sprint, free roam), the way Kunos and the big mods do it.
+- ⬜ **Export for Blender.** FBX (and maybe `.blend`) of the generated base, so hand-made detail lines up exactly and survives rebuilds (layered with `models.ini`).
+
+## Phase 2: Busselton, properly 🔨
+
+Make town feel like town before going regional.
+
+- ⬜ **Foreshore showcase:**
+  - car park islands with kerbs, line marking and arrows as real 3D
+  - cars painted out of the ground photo
+  - the rock seawall, palms and Norfolk pines where the photo shows them
+  - garden beds along the path
+- ⬜ **Jetty precinct:** the Interpretive Centre, the jetty train line, the Underwater Observatory at the far end, and jetty lights at night.
+- ⬜ **Queen St and the town centre:** shopfronts with verandahs and awnings, signage, parallel and angled parking.
+- ⬜ **WA road details:**
+  - give-way and stop lines
+  - bike lanes and bicycle symbols
+  - bus stops and WA-style guideposts
+  - street name blades in the WA style
+  - kangaroo signs out of town
+- ⬜ **Parked cars:** along kerbs and in car parks (static, cheap), so streets don't look empty.
+- ⬜ **Roundabout landscaping:** the planted islands Busselton is full of.
+- ⬜ **Landmarks list:** the buildings and spots locals would point at, each modelled by hand or from photos.
+
+## Phase 3: Open world ⬜
+
+Go from "a route" to "a town you can drive anywhere in".
+
+- ⬜ **Area builds:** the whole road network inside a boundary, not just one route. Every junction, roundabout and side street is drivable. Street2Sim sells this as area builds; we'd build it from the OSM road graph.
+- ⬜ **Spawn points around town:** grid and pit spots in real car parks (foreshore, shopping centre, the jetty), so you can start anywhere.
+- ⬜ **Traffic lights** where OSM maps them, with working phases (CSP).
+- ⬜ **Points of interest:** viewpoints and places to stop, as in Arrabassada.
+- ⬜ **A town map app:** the area map in CSP, so you can see where you are.
+
+## Phase 4: Traffic ⬜
+
+The big one for making it feel real, and a gap in almost every generated track.
+
+There are two ways AC does traffic. We should generate both from the same road graph:
+
+1. **Offline, single player: the CSP traffic planner.** CSP ships a traffic tool (by x4fab, CC0) that reads `data/traffic.json`: lanes as point lists, intersections with allowed turns, and areas. It runs thousands of cars cheaply. The track needs custom physics enabled in `surfaces.ini` (`[_SCRIPTING_PHYSICS] ALLOW_TOOLS=1`). [Source](https://github.com/ac-custom-shaders-patch/acc-lua-internal/tree/main/included-tools/traffic).
+2. **AI splines** (`fast_lane.ai` per lane) for CSP's AI Flood in Track Day mode, and for AssettoServer if we ever host. [AssettoServer AI traffic](https://space-node.net/blog/assettoserver-ai-traffic-freeroam-setup-2026).
+
+Plan:
+
+- ⬜ **Generate `traffic.json`** from OSM:
+  - lanes from `lanes` and `oneway`, on the correct (left) side
+  - intersections at every junction
+  - roundabouts as give-way entries
+  - speeds from `maxspeed` (50 in town, 70/80/110 out of town)
+- ⬜ **Generate per-lane AI splines**, both directions, for AI Flood.
+- ⬜ **Traffic density zones:** busy Bussell Hwy and Queen St, quiet estates, school-zone speeds.
+- ⬜ **An Aussie traffic car pack:**
+  - Hilux, Ranger, Corolla, i30, Camry, Commodore, Falcon, Prado, RAV4
+  - utes with trailers, cars towing caravans and boats (very South West)
+  - LOD models, set up for the traffic tool
+- ⬜ **Kid-friendly settings:** slower, calmer traffic.
+- ❓ **LAN with traffic:** check whether CSP offline traffic works in Content Manager LAN sessions, or whether that needs AssettoServer.
+
+## Phase 5: Atmosphere (CSP and Pure) ⬜
+
+What makes a map look great at any time of day and in any weather.
+
+- ⬜ **Seasons:** WA verges and paddocks are green in winter and straw from December to April. Use CSP's seasonal adjustments and our ground mask to switch between them. This is a real South West signature.
+- ⬜ **RainFX:**
+  - wet roads, with puddles in low spots found from the DEM
+  - wet kerbs and gutters
+- ⬜ **Night:**
+  - house windows lit at random
+  - shop signs, car park lights and the jetty lights
+  - light pollution over town
+  - distant emissives so the town glows from a distance
+- ⬜ **Water:** CSP's water shader for the bay, waves at the beach, boats at moorings.
+- ⬜ **Audio:** surf at the beach, magpies and kookaburras in the morning, wind in the she-oaks, the jetty train (CSP track audio).
+- ⬜ **Lighting quality:**
+  - vertex AO (VAO) on buildings and under trees
+  - local cubemaps in the town centre
+  - per-pixel fog
+  - tree alignment fixes
+- ⬜ **Pure:** tune Pure's lighting per track so the bright WA sun and glare off the bay look right.
+- ⬜ **Animated objects:** flags, swaying trees, the jetty train.
+
+CSP track config reference: [acc-extension-config wiki](https://github.com/ac-custom-shaders-patch/acc-extension-config/wiki/Tracks-%E2%80%93-Miscellaneous-options).
+
+## Phase 6: The South West ⬜
+
+From the bay to the capes. AC can't stream a whole region, so this is a set of tracks plus one long drive, each a few tens of km at most.
+
+### Drives and tracks
+
+| Track | Why | Character |
+| --- | --- | --- |
+| **Caves Road: Busselton to Yallingup** | The start of [Tourist Drive 250](https://en.wikipedia.org/wiki/Caves_Road_(Western_Australia)), through Dunsborough | Coastal peppermint woodland, then climbing onto the Leeuwin-Naturaliste ridge |
+| **Caves Road: Yallingup to Margaret River** | Wine country, surf breaks | Narrow and winding, vineyards, cellar doors |
+| **Caves Road and Boranup Drive** | The [only karri forest between the capes](https://australiassouthwest.com/listings/boranup-forest/). Boranup Drive is limestone gravel | Tall karri regrowth, dappled light, a gravel loop |
+| **Margaret River town** | The main street and surrounds | Town centre, roundabouts |
+| **Cape Naturaliste Rd** | To the lighthouse, near Sugarloaf Rock and Meelup | Coastal heath, granite, ocean views |
+| **Cape Leeuwin, Augusta** | The far end of Caves Road (111 km), the lighthouse | Exposed coastal heath |
+| **Tuart Drive, Ludlow** | ~15 km through the [largest pure tuart forest in the world](https://en.wikipedia.org/wiki/Tuart_Forest_National_Park), the old Bussell Hwy | Huge pale tuarts, quiet two-lane road |
+| **Bussell Highway** | The fast way between towns | Dual carriageway, 110 km/h, overtaking lanes |
+| **Collie Motorplex** | A real [1.6 km circuit](https://www.westernaustralia.com/au/attraction/collie-motorplex/5bdbda6151e41a8860149e69) in the South West | A proper race track, from LiDAR |
+| ❓ **Forest Rally Busselton stage** | The gravel stage the [Forest Rally](https://bdtimes.com.au/news/busselton-dunsborough-times/entries-sought-for-west-cape-classic-ng-b88750922z) runs, also used by the West Cape Classic | Gravel, forest |
+| ❓ **Backroads** | Wildwood Rd, Tom Cullity Dr, Rosa Brook Rd and others: drive them, then pick the best | Rolling farmland and forest |
+
+### Landscape zones
+
+Each needs its own trees, ground and roadside:
+
+- **Coast:** white sand, dunes, peppermint and she-oak, limestone, granite at Canal Rocks and Sugarloaf.
+- **Capes heath:** low windswept scrub on limestone, ocean views.
+- **Tuart woodland:** Ludlow, around Busselton.
+- **Jarrah-marri forest:** the ridge and inland.
+- **Karri forest:** Boranup and the south. Very tall straight trunks; needs proper 3D trees, not sprites.
+- **Vineyards and paddocks:**
+  - vine rows laid out along `landuse=vineyard` and the row direction in the photo
+  - post-and-wire fences, farm gates, cattle grids
+  - green in winter, gold in summer
+- **Wetlands:** Vasse-Wonnerup, with black swans.
+
+### What the generator needs for this
+
+- ⬜ More DEM: extend the 5 m tiles to the capes and Collie. ❓ Check whether Landgate or GA have 1 m LiDAR here.
+- ⬜ Unsealed roads: gravel surface physics, dust, a limestone gravel texture.
+- ⬜ Country roadsides:
+  - gravel shoulders and white guideposts
+  - Armco on bends and drop-offs
+  - farm driveways and mailboxes on posts
+- ⬜ Long roads: tiling, LOD and draw distances that hold up at 30+ km.
+- ⬜ Proper trees: CSP's tree system, or mesh trees for karri and tuart, with LODs.
+- ⬜ Vineyard generator.
+- ⬜ Landmarks: lighthouses, wineries and cellar doors, surf car parks (Yallingup, Surfers Point), the caves' entrances.
+
+## Phase 7: Our own capture ⬜
+
+Real photos beat procedural textures. Everything we capture ourselves can also go into a public version.
+
+- 🔨 **Mapillary walks and drives** through key areas, for real signs, poles and street detail ([capture kit](scripts/capture/README.md)).
+- ⬜ **Texture photos:** brick, render, limestone, peppermint and karri bark, local roof colours, made into seamless CC0 textures.
+- ⬜ **Photogrammetry** of landmarks: the jetty buildings, the foreshore, lighthouses. ❓ Check the CASA drone rules near Busselton airport first.
+- ⬜ **Reference sets:** Street View and real estate photos as reference only, never copied into the track.
+
+## Phase 8: Tooling and quality ⬜
+
+- ✅ Build checks: photo overlay, DEM heights, hairpin spikes, surface bumps and edge steps.
+- ✅ Driver's-eye renders from the headless build.
+- ⬜ **Before/after render sets on every build,** to catch visual regressions.
+- ⬜ **CI on GitHub:** tests and type-check on every push.
+- ⬜ **Automated in-game smoke test:**
+  - it loads, the car spawns, timing works
+  - AI completes a lap
+  - frame-rate snapshot
+- ⬜ **One-click install:** a Content Manager install link for the LAN rig.
+
+## Phase 9: Fun stuff ⬜
+
+- ⬜ **Checkpoint challenges** (CSP Lua): find the jetty, the lighthouse, the big tuart. Good for the kids.
+- ⬜ **Point-to-point time trials** between towns, with leaderboards on the LAN.
+- ⬜ **Cruise mode:** traffic on, no timing, start anywhere.
+- ⬜ **Drift spots:** empty car parks and industrial areas as area builds (Street2Sim's drift lots idea).
+
+---
+
+## Working with upstream
+
+[honestjams/ac-track-builder](https://github.com/honestjams/ac-track-builder) is the generator. We send back anything that isn't South West specific, and take its improvements in. Sent so far: kerb and roundabout fixes, the U-turn warning, `terrainUnderRoad` and no-trace zones, and Landgate imagery (all merged).
+
+Candidates to send next:
+
+- `ksMultilayer` ground detail
+- dry-grass Grass FX tuning
+- sea and piers
+- house lots
+- regional tree species
+- headless builds and the check scripts
+- traffic generation, once it exists
+
+## Data and sharing
+
+- **Landgate and Esri imagery:** personal, non-commercial use only. **Mapillary:** CC BY-SA. **OpenStreetMap:** ODbL. **GA DEM:** CC BY 4.0. **ambientCG textures:** CC0.
+- Builds stay private. A public South West release would need imagery off, our own CC0 textures and scans, and no Mapillary data. That's a later decision.
