@@ -7,8 +7,9 @@
 // building built right up to the footpath, the way town-centre shops are and
 // houses aren't. The front is the wall nearest a street.
 //
-// Signs are made up: coloured panels with blocks for lettering, no real names
-// or logos.
+// Signs: a shop's real name (from its OpenStreetMap POI) when the build can draw
+// text (the browser passes a drawer in), otherwise made-up coloured panels with
+// blocks for lettering. Never logos.
 
 import type { HeightFn } from "./elevation";
 import type { Vec2 } from "./geo";
@@ -49,9 +50,20 @@ export interface Shopfront {
   /** Ground floor height, and the verandah's underside above the ground. */
   ground: number;
   under: number;
-  /** Row in the sign atlas. */
+  /** Row in the sign atlas (named signs come after the SIGN_COUNT made-up ones). */
   sign: number;
+  /** The shop's name, for its sign. */
+  name?: string;
 }
+
+/** Draws shop names for signs: one RGBA row per name, `w` x `h` pixels, each squeezed by `squeeze[i]` across. */
+export type SignDrawer = (names: { text: string; bg: [number, number, number]; ink: [number, number, number]; squeeze: number }[], w: number, h: number) => Uint8Array | Uint8ClampedArray | undefined;
+
+/** Sign atlas size: SIGN_W wide, SIGN_H per row. */
+export const SIGN_W = 1024;
+export const SIGN_H = 64;
+/** At most this many named signs (the rest get made-up ones). */
+const MAX_NAMED = 120;
 
 /**
  * The buildings that are shops, and their fronts. `gap(x, y)` is the distance from a point to the
@@ -59,7 +71,7 @@ export interface Shopfront {
  */
 export function findShopfronts(
   buildings: Building[],
-  pois: { at: Vec2; cls: string; subclass?: string }[],
+  pois: { at: Vec2; cls: string; subclass?: string; name?: string }[],
   gap: (x: number, y: number) => number,
   ground: HeightFn,
   /** Houses only count with a shop right at them (a café in a house), not just nearby. */
@@ -68,6 +80,7 @@ export function findShopfronts(
   const shops = pois.filter((p) => SHOP_CLASSES.has(p.cls) || SHOP_CLASSES.has(p.subclass ?? ""));
   const rand = rng(77);
   const out: Shopfront[] = [];
+  const centres: [Vec2, number][] = [];
   for (const b of buildings) {
     if (b.ring.length < 4) continue;
     const ring = ringArea(b.ring) < 0 ? b.ring.slice().reverse() : b.ring;
@@ -101,6 +114,28 @@ export function findShopfronts(
       under: Math.min(VERANDAH_H, Math.max(2.6, b.height - 0.4)),
       sign: Math.floor(rand() * SIGN_COUNT),
     });
+    centres.push([c, reach]);
+  }
+  // Names: each named shop goes on the sign of the nearest front it's within reach of, one name per
+  // front (the closest shop wins), and only fronts with a verandah carry a sign.
+  const claims: { f: number; d: number; name: string }[] = [];
+  for (const s of shops) {
+    const name = s.name?.trim();
+    if (!name) continue;
+    let best = -1, bestD = Infinity;
+    out.forEach((f, i) => {
+      const [c, reach] = centres[i];
+      const d = Math.hypot(s.at[0] - c[0], s.at[1] - c[1]);
+      if (f.depth > 0 && d < reach && d < bestD) [best, bestD] = [i, d];
+    });
+    if (best >= 0) claims.push({ f: best, d: bestD, name });
+  }
+  claims.sort((x, y) => x.d - y.d);
+  let named = 0;
+  for (const c of claims) {
+    if (out[c.f].name || named >= MAX_NAMED) continue;
+    out[c.f].name = c.name;
+    out[c.f].sign = SIGN_COUNT + named++;
   }
   return out;
 }
@@ -124,6 +159,7 @@ class Chunks {
 
 export function buildShopfronts(fronts: Shopfront[]): Kn5MeshNode[] {
   const roof = new Chunks(), fascia = new Chunks(), posts = new Chunks(), glass = new Chunks();
+  const rows = signRows(fronts);
   for (const f of fronts) {
     const [a, b, o] = [f.a, f.b, f.out];
     const L = Math.hypot(b[0] - a[0], b[1] - a[1]);
@@ -168,7 +204,7 @@ export function buildShopfronts(fronts: Shopfront[]): Kn5MeshNode[] {
       const mb = fascia.next(16);
       const i = mb.vertexCount;
       const s0 = at(a, 0, f.depth + 0.02), s1 = at(a, L, f.depth + 0.02);
-      const v0 = f.sign / SIGN_COUNT, v1 = (f.sign + 1) / SIGN_COUNT;
+      const v0 = f.sign / rows, v1 = (f.sign + 1) / rows;
       mb.vertex([s0[0], s0[1], zT + 0.08], 0, v0);
       mb.vertex([s1[0], s1[1], zT + 0.08], 1, v0);
       mb.vertex([s1[0], s1[1], zT + 0.08 - FASCIA], 1, v1);
@@ -213,17 +249,27 @@ export function buildShopfronts(fronts: Shopfront[]): Kn5MeshNode[] {
   return out;
 }
 
-/** Eight made-up shop signs, one per row: a coloured panel with a border and blocks of "lettering". */
-export function shopSignTexture(): Uint8Array {
-  const w = 512, h = 64 * SIGN_COUNT;
+/** Rows in the sign atlas: the made-up signs, then one per named front. */
+export function signRows(fronts: Shopfront[]): number {
+  return Math.max(SIGN_COUNT, ...fronts.map((f) => f.sign + 1));
+}
+
+const PALETTE: [number, number, number][] = [
+  [176, 38, 42], [24, 64, 120], [30, 110, 70], [236, 236, 228], [32, 32, 36], [210, 150, 40], [120, 40, 110], [20, 120, 140],
+];
+const inkOn = (bg: [number, number, number]): [number, number, number] => (bg[0] + bg[1] + bg[2] > 450 ? [30, 30, 34] : [245, 243, 236]);
+const hash = (t: string) => [...t].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) >>> 0, 7);
+
+/**
+ * The sign atlas: eight made-up signs (a coloured panel with blocks of "lettering"), then the named
+ * shops' signs drawn by `draw` (a made-up sign in their place without one).
+ */
+export function shopSignTexture(fronts: Shopfront[] = [], draw?: SignDrawer): Uint8Array {
+  const w = SIGN_W, h = SIGN_H * signRows(fronts);
   const r = rng(91);
-  const palette: [number, number, number][] = [
-    [176, 38, 42], [24, 64, 120], [30, 110, 70], [236, 236, 228], [32, 32, 36], [210, 150, 40], [120, 40, 110], [20, 120, 140],
-  ];
   const signs = Array.from({ length: SIGN_COUNT }, (_, k) => {
-    const bg = palette[k % palette.length];
-    const light = bg[0] + bg[1] + bg[2] > 450;
-    const ink: [number, number, number] = light ? [30, 30, 34] : [245, 243, 236];
+    const bg = PALETTE[k % PALETTE.length];
+    const ink = inkOn(bg);
     // Words: runs of letter blocks, centred.
     const words: [number, number][] = [];
     let x = 0;
@@ -235,12 +281,31 @@ export function shopSignTexture(): Uint8Array {
     }
     return { bg, ink, words, total: x - 1.5, tall: 0.5 + r() * 0.15 };
   });
+  const named = fronts.filter((f) => f.name && f.sign >= SIGN_COUNT).sort((a, b) => a.sign - b.sign);
+  const L = (f: Shopfront) => Math.hypot(f.b[0] - f.a[0], f.b[1] - f.a[1]);
+  const jobs = named.map((f) => {
+    const bg = PALETTE[hash(f.name!) % PALETTE.length];
+    // The row is stretched over the fascia: L metres across, FASCIA up. Square letters need the
+    // text squeezed across by the inverse.
+    return { text: f.name!, bg, ink: inkOn(bg), squeeze: Math.min(1, (FASCIA / SIGN_H) / (L(f) / SIGN_W)) };
+  });
+  const drawn = jobs.length && draw ? draw(jobs, w, SIGN_H) : undefined;
+  const fallback = named.map((f) => hash(f.name!) % SIGN_COUNT);
   return encodePng(fill(w, h, (x, y) => {
-    const k = Math.floor(y / 64), s = signs[k];
-    const ly = y % 64;
+    let k = Math.floor(y / SIGN_H);
+    const ly = y % SIGN_H;
+    if (k >= SIGN_COUNT) {
+      const n = k - SIGN_COUNT;
+      if (drawn) {
+        const i = ((n * SIGN_H + ly) * w + x) * 4;
+        return [drawn[i], drawn[i + 1], drawn[i + 2]];
+      }
+      k = fallback[n];
+    }
+    const s = signs[k];
     // Border.
     if (ly < 3 || ly > 60 || x < 3 || x > w - 4) return [s.ink[0] * 0.6 + s.bg[0] * 0.4, s.ink[1] * 0.6 + s.bg[1] * 0.4, s.ink[2] * 0.6 + s.bg[2] * 0.4];
-    // Letters: blocks 14 px wide with 4 px gaps, in the middle 40% of the panel.
+    // Letters: blocks 14 px wide with 4 px gaps, in the middle of the panel.
     const unit = 18;
     const x0 = w / 2 - (s.total * unit) / 2;
     const top = 32 - (64 * s.tall) / 2, bot = 32 + (64 * s.tall) / 2;
@@ -283,7 +348,7 @@ export function shopWindowTexture(): Uint8Array {
 }
 
 /** Built shopfront counts, for the build's stats. */
-export function shopStats(fronts: Shopfront[]): { shops: number; verandahs: number } {
-  return { shops: fronts.length, verandahs: fronts.filter((f) => f.depth > 0).length };
+export function shopStats(fronts: Shopfront[]): { shops: number; verandahs: number; named: number } {
+  return { shops: fronts.length, verandahs: fronts.filter((f) => f.depth > 0).length, named: fronts.filter((f) => f.name).length };
 }
 

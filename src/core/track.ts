@@ -6,7 +6,7 @@ import { buildPaths, footPathTexture, sharedPathTexture, type PathLine } from ".
 import { pickSpecies, treeSpeciesAtlas } from "./treeSprites";
 import { FENCE_COLOURS, facadeTexture, fenceTexture, frontWallTexture, hedgeTexture, mulchTexture, shrubAtlas } from "./houseTextures";
 import { buildLots, shrub } from "./lots";
-import { buildShopfronts, findShopfronts, shopSignTexture, shopStats, shopWindowTexture } from "./shops";
+import { buildShopfronts, findShopfronts, shopSignTexture, shopStats, shopWindowTexture, type SignDrawer } from "./shops";
 import { buildIslands, findIslands, footprintMask, lineMask, paintOutCars } from "./carpark";
 import { trafficJson, type TrafficRoad } from "./traffic";
 import autotestLua from "./lua/autotest.lua?raw";
@@ -92,6 +92,8 @@ export interface DataSources {
    * matched to the house whose front wall is nearest `at`, within 8 m.
    */
   houseLooks?: { at: LngLat; facade?: string }[];
+  /** Draws shop names for their signs (needs a canvas: the browser passes one in). */
+  drawSigns?: SignDrawer;
   coast?: { ocean: { rings: LngLat[][]; edge: boolean[][] }[]; piers: { rings: LngLat[][]; edge: boolean[][] }[]; beaches?: { rings: LngLat[][]; edge: boolean[][] }[] };
   /** Tiled ground detail textures for ksMultilayer terrain (lawn, rough, sand, litter); null to keep plain photo terrain. */
   groundDetails?(): Promise<Record<GroundLayer, GroundDetail> | null>;
@@ -170,6 +172,7 @@ export interface TrackResult {
     /** Shopfronts built, and how many have a verandah. */
     shops?: number;
     verandahs?: number;
+    shopNames?: number;
     carParkIslands?: number;
   };
 }
@@ -1125,7 +1128,7 @@ export async function buildTrack(
   ) : [];
   const shopMeshes = buildShopfronts(shopfronts);
   if (shopMeshes.length) {
-    textures.push({ name: "shop_sign.png", data: shopSignTexture() }, { name: "shop_window.png", data: shopWindowTexture() });
+    textures.push({ name: "shop_sign.png", data: shopSignTexture(shopfronts, sources.drawSigns) }, { name: "shop_window.png", data: shopWindowTexture() });
     materials.push(
       material("shop_sign", "shop_sign.png", { ambient: 0.5, diffuse: 0.45, specular: 0.1, exp: 15 }),
       material("shop_window", "shop_window.png", { ambient: 0.4, diffuse: 0.3, specular: 0.6, exp: 60 }),
@@ -1344,6 +1347,7 @@ export async function buildTrack(
       housesLooked,
       shops: shopStats(shopfronts).shops,
       verandahs: shopStats(shopfronts).verandahs,
+      shopNames: shopStats(shopfronts).named,
       carParkIslands: islandCount,
       footpathMetres: verge ? (verge.paths[0].filter(Boolean).length + verge.paths[1].filter(Boolean).length) * opts.spacing : 0,
       driveways: verge?.drives.length ?? 0,

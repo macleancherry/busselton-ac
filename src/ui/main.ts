@@ -470,6 +470,7 @@ $("build").onclick = async () => {
       pois: tiles?.pois,
       seen,
       houseLooks: (window as unknown as { __houseLooks?: { at: [number, number]; facade?: string }[] }).__houseLooks,
+      drawSigns,
       renderArt,
       raster: (proj, path, reach) => loadRouteRaster(proj, path, reach, chain, 20, (d, t) => setProgress(`Tracing the road in the aerial photos (${Math.round((d / t) * 100)}%)`)),
       roadClassAt: tiles ? roadClassLookup(tiles.roads, current.coords[0][1]) : undefined,
@@ -592,3 +593,44 @@ if (import.meta.env.DEV) {
     preview: () => preview,
   };
 }
+
+/** Shop names for their fascia signs, drawn with the browser's fonts: one w x h row each. */
+function drawSigns(
+  names: { text: string; bg: [number, number, number]; ink: [number, number, number]; squeeze: number }[], w: number, h: number,
+): Uint8ClampedArray {
+  const canvas = document.createElement("canvas");
+  canvas.width = w;
+  canvas.height = h * names.length;
+  const ctx = canvas.getContext("2d")!;
+  const rgb = (c: [number, number, number]) => `rgb(${c[0]},${c[1]},${c[2]})`;
+  names.forEach((n, i) => {
+    const y = i * h;
+    ctx.fillStyle = rgb(n.bg);
+    ctx.fillRect(0, y, w, h);
+    // A thin border in a mix of the two colours.
+    ctx.strokeStyle = rgb([0, 1, 2].map((k) => n.ink[k] * 0.6 + n.bg[k] * 0.4) as [number, number, number]);
+    ctx.lineWidth = 3;
+    ctx.strokeRect(1.5, y + 1.5, w - 3, h - 3);
+    ctx.save();
+    ctx.translate(w / 2, y + h / 2);
+    // Squeezed across, so the letters come out square once stretched along the fascia.
+    ctx.scale(n.squeeze, 1);
+    ctx.fillStyle = rgb(n.ink);
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    let size = Math.round(h * 0.62);
+    const font = (px: number) => `bold ${px}px "Helvetica Neue", Arial, "Liberation Sans", sans-serif`;
+    ctx.font = font(size);
+    // Shrink long names to fit inside the border.
+    const room = (w - 24) / n.squeeze;
+    const width = ctx.measureText(n.text).width;
+    if (width > room) {
+      size = Math.max(10, Math.floor((size * room) / width));
+      ctx.font = font(size);
+    }
+    ctx.fillText(n.text, 0, 2);
+    ctx.restore();
+  });
+  return ctx.getImageData(0, 0, w, canvas.height).data;
+}
+
