@@ -33,7 +33,7 @@ track loads and drives. Use a short road (1–3 km) for the first test.
 | 14 | Guard rails stop the car and sit on the verge, not floating or buried | `1WALL_RAIL_*`, `buildGuardRails` |
 | 15 | Buildings stand on the ground and are solid | `1WALL_BLD_*`, `buildBuildings` |
 | 16 | Line markings don't flicker against the road at a distance | `LIFT` in `markings.ts` (15 mm) |
-| 17 | Roundabouts drive as a smooth circle; the kerb is mountable; no bump where the road meets the ring | `roundabout.ts`, connectors in `roadMesh.ts` |
+| 17 | Roundabouts drive as a smooth circle; the kerb is mountable; no bump where the road meets the ring | `roundabout.ts`, connectors in `roadMesh.ts`, ring ground in `terrain.ts` (28 Oct: the ground poked 6 to 20 cm up through every mouth and the ring gutter; fixed, retest) |
 | 18 | Side streets meet the route without a step or a gap at the mouth | `buildSideStreets` junction blend |
 | 19 | Street name blades and shop signs read correctly (not mirrored) from both sides | `face()` in `furniture.ts`, atlas UVs |
 | 20 | Sign cut-outs (stop, give way, warning diamonds) have clean edges, no square backgrounds | `signart` material, `ksPerPixelAT` |
@@ -53,6 +53,10 @@ track loads and drives. Use a short road (1–3 km) for the first test.
 
 - **AI drives off (open, 28 Oct).** Mac's first test: the AI drove straight
   off to the left and crashed or stopped. See ROADMAP.md, Phase 1, for the suspects.
+  Ruled out so far: the file layout matches AssettoServer's and Content Manager's
+  readers field for field, and `WARNING: TRACK :: NO POSITION DATA FOUND` also
+  shows on Kunos tracks (ks_barcelona), so it isn't the cause. Next: where on the
+  lap the cars leave the road (from the replay).
 - **AI line grid.** We write `fast_lane.ai` with no spatial lookup grid
   (`hasGrid = 0`). Content Manager reads that fine. If AI misbehaves, record a
   line in game (AI line helper or CSP's AI tools) as a workaround, and we'll

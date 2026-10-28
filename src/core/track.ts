@@ -581,7 +581,7 @@ export async function buildTrack(
   const streetPlan = planSideStreets(
     opts.sideStreets ? sources.streets?.lines ?? [] : [], sources.streets?.names ?? [], plan, index, opts, proj,
   );
-  const sideTraced = raster && opts.traceRoads ? traceSideStreets(streetPlan.streets, raster, opts) : 0;
+  const sideTraced = raster && opts.traceRoads ? traceSideStreets(streetPlan.streets, raster, opts, index) : 0;
   const streetIndex = new LineIndex(streetPlan.streets);
   const mouth = (side: 1 | -1, sd: number) => streetPlan.junctions.some((j) => j.side === side && Math.abs(j.s - sd) < j.width / 2 + 1.5);
 

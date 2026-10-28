@@ -300,13 +300,13 @@ export function buildSideStreets(
  * moving it onto its real line and width. Junction ends stay pinned to the
  * route's edge.
  */
-export function traceSideStreets(streets: SideStreet[], raster: RasterSampler, opts: BuildOptions): number {
+export function traceSideStreets(streets: SideStreet[], raster: RasterSampler, opts: BuildOptions, route?: SegmentIndex): number {
   let traced = 0;
   for (const st of streets) {
     const length = st.pts.reduce((a, p, k) => (k ? a + Math.hypot(p[0] - st.pts[k - 1][0], p[1] - st.pts[k - 1][1]) : 0), 0);
     if (length < 30 || isLoop(st.pts)) continue;
     const sub = planRoad(st.pts, { ...opts, widthOverride: st.width, lineSmoothing: 2, banking: false });
-    const tr = traceRoad(sub, raster);
+    const tr = traceRoad(sub, raster, undefined, opts.traceGuard);
     if (tr.coverage < 0.2) continue;
     const n = sub.samples.length;
     // Ease the shift to nothing over 12 m at each junction end.
@@ -316,6 +316,13 @@ export function traceSideStreets(streets: SideStreet[], raster: RasterSampler, o
       return o * Math.min(1, d / 12);
     });
     applyTrace(sub, tr, () => false);
+    // A trace that drifts onto the route (a street running beside it, pulled onto its asphalt)
+    // would leave the street under the road: keep the mapped line instead.
+    if (route && sub.samples.some((smp) => {
+      if (Math.min(...ends.map((e) => Math.abs(smp.s - sub.samples[e].s))) < 15) return false;
+      const near = route.nearest(smp.pos[0], smp.pos[1], 30);
+      return !!near && near.dist < route.at(near).width / 2 + smp.width / 2 + 0.5;
+    })) continue;
     st.pts = sub.samples.map((s) => s.pos);
     st.widths = sub.samples.map((s) => s.width);
     st.joins = ends;
