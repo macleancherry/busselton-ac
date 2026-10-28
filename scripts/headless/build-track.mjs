@@ -72,8 +72,12 @@ try {
     // Some networks (proxies) strip CORS headers from third-party APIs; fetch those
     // outside the page and hand them back with the header put back.
     await page.route(/^https:\/\//, async (r) => {
+      // NET_LOG=1 logs each outside request as it starts and ends (for hangs).
+      const url = r.request().url();
+      if (process.env.NET_LOG) log("net start", url.slice(0, 160));
       try {
         const res = await r.fetch({ timeout: 120_000 });
+        if (process.env.NET_LOG) log("net done", res.status(), url.slice(0, 100));
         await r.fulfill({ response: res, headers: { ...res.headers(), "access-control-allow-origin": "*" } });
       } catch {
         await r.abort().catch(() => {});
