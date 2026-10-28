@@ -81,6 +81,9 @@ export function treeSpotsFromImagery(
   const rand = rng(Math.round(chunk.minX * 7 + chunk.minY * 13) | 0);
   const out: TreeSpot[] = [];
   const water = new Uint8Array(cells * cells);
+  // Each cell: 0 nothing, 1 lush canopy, 2 grey-olive canopy (decided with its neighbours below), 3 shaded canopy.
+  const kind = new Uint8Array(cells * cells);
+  const odds = new Float32Array(cells * cells);
   for (let cy = 0; cy < cells; cy++) {
     for (let cx = 0; cx < cells; cx++) {
       let sr = 0, sg = 0, sb = 0, sl = 0, sl2 = 0, n = 0;
@@ -95,19 +98,51 @@ export function treeSpotsFromImagery(
       const r = sr / n, g = sg / n, b = sb / n, l = sl / n;
       const std = Math.sqrt(Math.max(0, sl2 / n - l * l));
       const exg = (2 * g - r - b) / (r + g + b + 1e-6);
+      const c = cy * cells + cx;
       // Teal sea also reads green: blue well above red and close to green is water, not canopy.
       if (b - r > 0.08 && b > 0.75 * g) {
-        water[cy * cells + cx] = 1;
+        water[c] = 1;
         continue;
       }
-      // Lush canopy is plainly green; eucalypt and tuart canopy is grey-olive (barely greener than
-      // grey), so it counts too when it's textured like a crown and not red or sandy.
-      const lush = exg > 0.05 && std > 0.025;
-      const olive = exg > 0.012 && g >= r * 0.98 && std > 0.04;
-      const canopy = (lush || olive) && l < 0.42 && l > 0.04;
-      if (!canopy) continue;
-      // Stronger signal, more likely a tree; keeps sparse scrub sparse.
-      if (rand() > Math.min(1, lush ? 0.35 + (exg - 0.05) * 6 : 0.3 + (std - 0.04) * 6)) continue;
+      if (l >= 0.42 || l <= 0.04) continue;
+      // Lush canopy is plainly green. Eucalypt and tuart canopy is grey-olive, barely greener than
+      // grey: textured like a crown, not red, sandy or blue-grey.
+      if (exg > 0.05 && std > 0.025) {
+        kind[c] = 1;
+        // Stronger signal, more likely a tree; keeps sparse scrub sparse.
+        odds[c] = Math.min(1, 0.35 + (exg - 0.05) * 6);
+      } else if (exg > 0.012 && g >= r * 0.98 && b < r * 1.15 && std > 0.04 && std < 0.14) {
+        kind[c] = 2;
+        odds[c] = Math.min(1, 0.3 + (std - 0.04) * 6);
+      } else if (g >= r * 0.95 && b < r * 1.3 && std > 0.035 && std < 0.18) {
+        // Dark, textured, not red: canopy in shade. A tree only inside a stretch of canopy.
+        kind[c] = 3;
+      }
+    }
+  }
+  for (let cy = 0; cy < cells; cy++) {
+    for (let cx = 0; cx < cells; cx++) {
+      const c = cy * cells + cx;
+      if (!kind[c]) continue;
+      let p = odds[c];
+      if (kind[c] >= 2) {
+        // Grey-olive and shaded canopy count only inside a stretch of canopy (most neighbours canopy too): a row of
+        // parked cars or a roof edge is as textured, but a strip one or two cells wide.
+        let canopy = 0, seen = 0;
+        for (let dy = -1; dy <= 1; dy++) {
+          for (let dx = -1; dx <= 1; dx++) {
+            const x = cx + dx, y = cy + dy;
+            if ((dx || dy) && x >= 0 && y >= 0 && x < cells && y < cells) {
+              seen++;
+              if (kind[y * cells + x]) canopy++;
+            }
+          }
+        }
+        if (canopy < seen * 0.7) continue;
+        // Inside forest: olive crowns most cells, and a fair share of the shaded ones.
+        p = kind[c] === 2 ? Math.max(p, 0.6) : 0.4;
+      }
+      if (rand() > p) continue;
       const px = (cx + 0.5 + (rand() - 0.5) * 0.95) * cellPx, py = (cy + 0.5 + (rand() - 0.5) * 0.95) * cellPx;
       out.push({
         x: chunk.minX + px / pxPerM,

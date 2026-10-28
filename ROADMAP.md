@@ -8,11 +8,13 @@ Status key: ✅ done · 🔨 in progress · ⬜ planned · ❓ needs checking fi
 
 ---
 
-## Where we are (v0.5, 28 October 2026)
+## Where we are (v0.6, 29 October 2026)
 
-Two tracks build from route files with one command, then pass automatic checks:
+Four tracks build from route files with one command, then pass automatic checks:
 
 - **Busselton Foreshore**: a 4.3 km circuit along Geographe Bay Rd, Queen St and Marine Tce.
+- **Busselton town centre**: a 2.2 km loop down Queen St, along Albert St and back by Marine Tce, with shopfronts and traffic.
+- **Tuart Drive, Ludlow**: 16.6 km point to point through Tuart Forest, from Wonnerup to Ludlow.
 - **A 3.6 km point-to-point sprint** through the western suburbs (its route file is private).
 
 What a build has today:
@@ -32,6 +34,9 @@ What a build has today:
 - ✅ A rock seawall and groynes, Norfolk pines and palms along the foreshore
 - ✅ CSP traffic lanes (`data/traffic.json`), checked automatically; not yet driven with in game
 - ✅ An unattended AI test run on the workstation, with a drive log, replay and report
+- ✅ Shopfronts: verandahs on posts, fascia signs and shop windows where the photo and map show shops
+- ✅ Forest: grey-olive tuart and eucalypt canopy read from the photo as trees (Tuart Drive went from 1,700 to about 8,000)
+- ✅ A performance budget check on every build, and checks that work on long tracks
 
 ---
 
@@ -75,13 +80,13 @@ Make town feel like town before going regional.
 
 - 🔨 **Foreshore showcase:**
   - car park islands with kerbs, line marking and arrows as real 3D
-  - 🔨 cars painted out of the ground photo (most done; rows of bays beside paths and gardens still show)
+  - ✅ cars painted out of the ground photo, including dark cars and cars between bay lines (only near streets and car-park aisles, so forest shadows are left alone)
   - ✅ the rock seawall (limestone revetment along the back of the beach) and rock groynes
   - ✅ Norfolk pines along the foreshore, with palms mixed in (the photo can't tell a palm from other trees)
   - garden beds along the path
   - jetty precinct buildings: waiting on Mac's Mapillary footage for their fronts
 - ⬜ **Jetty precinct:** the Interpretive Centre, the jetty train line, the Underwater Observatory at the far end, and jetty lights at night.
-- ⬜ **Queen St and the town centre:** shopfronts with verandahs and awnings, signage, parallel and angled parking.
+- 🔨 **Queen St and the town centre:** ✅ its own route, ✅ shopfronts with verandahs, posts, signs and windows. Still to do: real shop names on the signs, parallel and angled parking.
 - ⬜ **WA road details:**
   - give-way and stop lines
   - bike lanes and bicycle symbols
@@ -165,7 +170,7 @@ From the bay to the capes. AC can't stream a whole region, so this is a set of t
 | **Margaret River town** | The main street and surrounds | Town centre, roundabouts |
 | **Cape Naturaliste Rd** | To the lighthouse, near Sugarloaf Rock and Meelup | Coastal heath, granite, ocean views |
 | **Cape Leeuwin, Augusta** | The far end of Caves Road (111 km), the lighthouse | Exposed coastal heath |
-| **Tuart Drive, Ludlow** | ~15 km through the [largest pure tuart forest in the world](https://en.wikipedia.org/wiki/Tuart_Forest_National_Park), the old Bussell Hwy | Huge pale tuarts, quiet two-lane road |
+| 🔨 **Tuart Drive, Ludlow** (built, waiting on a drive) | ~15 km through the [largest pure tuart forest in the world](https://en.wikipedia.org/wiki/Tuart_Forest_National_Park), the old Bussell Hwy | Huge pale tuarts, quiet two-lane road |
 | **Bussell Highway** | The fast way between towns | Dual carriageway, 110 km/h, overtaking lanes |
 | **Collie Motorplex** | A real [1.6 km circuit](https://www.westernaustralia.com/au/attraction/collie-motorplex/5bdbda6151e41a8860149e69) in the South West | A proper race track, from LiDAR |
 | ❓ **Forest Rally Busselton stage** | The gravel stage the [Forest Rally](https://bdtimes.com.au/news/busselton-dunsborough-times/entries-sought-for-west-cape-classic-ng-b88750922z) runs, also used by the West Cape Classic | Gravel, forest |
@@ -188,13 +193,13 @@ Each needs its own trees, ground and roadside:
 
 ### What the generator needs for this
 
-- ⬜ More DEM: extend the 5 m tiles to the capes and Collie. ❓ Check whether Landgate or GA have 1 m LiDAR here.
+- 🔨 More DEM: ✅ the 5 m tiles now reach Ludlow and Tuart Forest; still to go: the capes and Collie. ❓ Check whether Landgate or GA have 1 m LiDAR here.
 - ⬜ Unsealed roads: gravel surface physics, dust, a limestone gravel texture.
 - ⬜ Country roadsides:
   - gravel shoulders and white guideposts
   - Armco on bends and drop-offs
   - farm driveways and mailboxes on posts
-- ⬜ Long roads: tiling, LOD and draw distances that hold up at 30+ km.
+- 🔨 Long roads: ✅ 16 km builds within budget (coarser terrain grid and horizon per route); still to check: 30+ km, draw distances.
 - ⬜ Proper trees: CSP's tree system, or mesh trees for karri and tuart, with LODs.
 - ⬜ Vineyard generator.
 - ⬜ Landmarks: lighthouses, wineries and cellar doors, surf car parks (Yallingup, Surfers Point), the caves' entrances.
