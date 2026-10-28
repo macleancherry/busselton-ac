@@ -100,10 +100,14 @@ export function treeSpotsFromImagery(
         water[cy * cells + cx] = 1;
         continue;
       }
-      const canopy = exg > 0.05 && l < 0.42 && l > 0.04 && std > 0.025;
+      // Lush canopy is plainly green; eucalypt and tuart canopy is grey-olive (barely greener than
+      // grey), so it counts too when it's textured like a crown and not red or sandy.
+      const lush = exg > 0.05 && std > 0.025;
+      const olive = exg > 0.012 && g >= r * 0.98 && std > 0.04;
+      const canopy = (lush || olive) && l < 0.42 && l > 0.04;
       if (!canopy) continue;
       // Stronger signal, more likely a tree; keeps sparse scrub sparse.
-      if (rand() > Math.min(1, 0.35 + (exg - 0.05) * 6)) continue;
+      if (rand() > Math.min(1, lush ? 0.35 + (exg - 0.05) * 6 : 0.3 + (std - 0.04) * 6)) continue;
       const px = (cx + 0.5 + (rand() - 0.5) * 0.95) * cellPx, py = (cy + 0.5 + (rand() - 0.5) * 0.95) * cellPx;
       out.push({
         x: chunk.minX + px / pxPerM,

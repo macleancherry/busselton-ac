@@ -28,10 +28,12 @@
     "banking": false
   },
   "build": {
-    "terrainStep": 1.5,
+    "terrainStep": 2.5,
     "terrainUnderRoad": 0.12,
     "traceGuard": false,
-    "traffic": true
+    "traffic": true,
+    "corridor": 70,
+    "horizon": 1000
   },
-  "_note": "Tuart Drive, Ludlow: the old Bussell Hwy through Tuart Forest National Park, from near Wonnerup to Ludlow. Point to point, about 14 km."
+  "_note": "Tuart Drive, Ludlow: the old Bussell Hwy through Tuart Forest National Park, from near Wonnerup to Ludlow. Point to point, about 14 km. Coarser terrain (2.5 m grid, 70 m corridor, 1 km horizon) keeps 16 km of road inside the triangle budget."
 }
