@@ -152,7 +152,7 @@ export function buildRoadMeshes(
       // L, the ring edge from L's side round to R's, then R, and back across the
       // road's end to L through points on its crown. Without those the patch
       // spans edge to edge and sags below the crowned road in the middle,
-      // a pothole at every roundabout entry and exit.
+      // a 10-20 cm dip at every roundabout entry and exit.
       const across: Vec3[] = [-0.5, 0, 0.5].map((f) => point(s, f * half, surfaceHeight(s, f * half, opts.crown)));
       let poly: Vec3[] = [L, ...arc, R, ...across];
       let area = 0;

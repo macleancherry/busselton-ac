@@ -3,28 +3,19 @@
 // doors, Colorbond side fences, limestone and brick front walls, hedges,
 // garden-bed mulch and two garden shrubs.
 //
-// Wall textures are 64 px per metre. Facades run top-down (v = 0 at the
-// eaves) so the windows sit at the same height under every roof; garages
-// run bottom-up from the wall's base, which is 0.4 m below the ground.
+// Wall textures are 64 px per metre, one 3 m storey tall and 8 m wide, laid
+// on the walls by buildings.ts with their bottom on the floor.
 
 import { encodePng } from "./png";
 import { fill, rng } from "./textures";
 
 type RGB = [number, number, number];
 
-export const FACADES = ["brick", "weatherboard", "render", "brick_cream", "render_grey"] as const;
-export type Facade = (typeof FACADES)[number];
-
-/** Facade picked for a house: WA suburbs are mostly face brick and render. */
-export function pickFacade(r: number): number {
-  // brick 30%, cream brick 25%, render 25%, grey render 10%, weatherboard 10%
-  return r < 0.3 ? 0 : r < 0.55 ? 3 : r < 0.8 ? 2 : r < 0.9 ? 4 : 1;
-}
+/** The same kinds, in the same order, as FACADES in textures.ts. */
+export type Facade = "brick" | "weatherboard" | "render" | "creambrick" | "fibro";
 
 /** Metres one facade repeat covers across, and down. */
 export const FACADE_SIZE = { w: 8, h: 3 } as const;
-/** Garage wall section: metres across, and up from the wall base. */
-export const GARAGE_SIZE = { w: 6, h: 4 } as const;
 /** Fence panel and front wall repeats, metres across. */
 export const FENCE_PANEL = 2.4;
 export const FENCE_HEIGHT = 1.8;
@@ -34,7 +25,7 @@ const PX = 64;
 
 /** Plain wall at (x, y) metres (y down): brick courses, boards or render. */
 function wallPixel(kind: Facade, x: number, y: number, n: number): RGB {
-  if (kind === "brick" || kind === "brick_cream") {
+  if (kind === "brick" || kind === "creambrick") {
     // 230 x 76 mm bricks with 10 mm joints, stretcher bond.
     const course = Math.floor(y / 0.086);
     const xo = x + (course % 2) * 0.12;
@@ -54,12 +45,16 @@ function wallPixel(kind: Facade, x: number, y: number, n: number): RGB {
     const k = board > 0.85 ? 0.8 : 0.96 + board * 0.04;
     return [236 * k + n, 234 * k + n, 224 * k + n];
   }
-  if (kind === "render_grey") return [118 + n, 120 + n, 118 + n];
+  if (kind === "fibro") {
+    // Fibro-cement sheets, 1.2 m wide, with cover strips.
+    const strip = x % 1.2 < 0.05;
+    return strip ? [205 + n, 205 + n, 198 + n] : [226 + n / 2, 224 + n / 2, 214 + n / 2];
+  }
   return [228 + n, 222 + n, 206 + n];
 }
 
 function frameColour(kind: Facade): RGB {
-  return kind === "render_grey" || kind === "brick_cream" ? [44, 45, 46] : [236, 236, 230];
+  return kind === "creambrick" ? [44, 45, 46] : [236, 236, 230];
 }
 
 /** Window glass: sky reflected at the top, dark inside, sometimes a blind. */
@@ -69,7 +64,7 @@ function glass(_u: number, v: number, blind: number, n: number): RGB {
   return [g * 0.72, g * 0.84, g];
 }
 
-/** One storey of wall 8 m wide by 3 m, with a wide sliding window and a narrower one. */
+/** One storey of wall 8 m wide by 3 m (from the floor up), with a wide sliding window and a narrower one. */
 export function facadeTexture(kind: Facade): Uint8Array {
   const w = FACADE_SIZE.w * PX, h = FACADE_SIZE.h * PX;
   const r = rng(61 + kind.length * 13);
@@ -77,7 +72,8 @@ export function facadeTexture(kind: Facade): Uint8Array {
     { x0: 0.8, x1: 2.6, blind: 0.35, split: true },
     { x0: 5.0, x1: 6.2, blind: 0, split: false },
   ];
-  const y0 = 0.55, y1 = 1.85, f = 0.045;
+  // Measured down from 3 m above the floor: heads at 2.25 m, sills at 0.95 m.
+  const y0 = 0.75, y1 = 2.05, f = 0.045;
   const frame = frameColour(kind);
   return encodePng(fill(w, h, (px, py) => {
     const x = px / PX, y = py / PX, n = (r() - 0.5) * 12;
@@ -90,7 +86,7 @@ export function facadeTexture(kind: Facade): Uint8Array {
       }
       // Sill under the window.
       if (x > win.x0 - 0.1 && x < win.x1 + 0.1 && y >= y1 + f && y < y1 + f + 0.07) {
-        const c = kind.startsWith("brick") ? wallPixel(kind, x, y, n).map((v) => v * 0.82) as RGB : [214 + n, 212 + n, 204 + n] as RGB;
+        const c = kind === "brick" || kind === "creambrick" ? wallPixel(kind, x, y, n).map((v) => v * 0.82) as RGB : [214 + n, 212 + n, 204 + n] as RGB;
         return c;
       }
     }
@@ -98,32 +94,6 @@ export function facadeTexture(kind: Facade): Uint8Array {
     // Shade under the eaves.
     if (y < 0.4) c = c.map((v) => v * (0.62 + 0.38 * (y / 0.4))) as RGB;
     return c;
-  }), w, h, { alpha: false });
-}
-
-const GARAGE_DOOR: Record<Facade, RGB> = {
-  brick: [228, 226, 213], brick_cream: [75, 76, 70], render: [62, 63, 64], render_grey: [50, 50, 51], weatherboard: [228, 226, 213],
-};
-
-/** Garage wall 6 m wide by 4 m up from the wall base: a 4.8 m panel-lift door, 2.1 m high. */
-export function garageTexture(kind: Facade): Uint8Array {
-  const w = GARAGE_SIZE.w * PX, h = GARAGE_SIZE.h * PX;
-  const r = rng(91 + kind.length * 7);
-  const door = GARAGE_DOOR[kind];
-  // y measured down from the top of the texture, 4 m above the wall base.
-  const top = GARAGE_SIZE.h - 2.5, bottom = GARAGE_SIZE.h - 0.4;
-  return encodePng(fill(w, h, (px, py) => {
-    const x = px / PX, y = py / PX, n = (r() - 0.5) * 10;
-    if (x > 0.6 && x < 5.4 && y > top && y < bottom) {
-      // Panels: a shallow rib every 0.1 m, shading lighter at the bottom.
-      const rib = ((y - top) % 0.1) / 0.1;
-      const k = (rib < 0.15 ? 0.82 : 1) * (0.9 + 0.1 * ((y - top) / (bottom - top)));
-      return [door[0] * k + n / 2, door[1] * k + n / 2, door[2] * k + n / 2];
-    }
-    // Recess shadow round the opening, and the concrete apron below it.
-    if (x > 0.52 && x < 5.48 && y > top - 0.08 && y < bottom) return [70 + n, 66 + n, 60 + n];
-    if (y >= bottom) return [176 + n, 172 + n, 164 + n];
-    return wallPixel(kind, x, y, n);
   }), w, h, { alpha: false });
 }
 

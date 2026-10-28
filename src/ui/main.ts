@@ -136,80 +136,60 @@ function renderPins(): void {
 function removePin(i: number): void {
   pins.splice(i, 1);
   renderPins();
-$<HTMLInputElement>("mapillaryToken").value = savedToken();
-
-// Test hook for the browser smoke test (dev server only).
-if (import.meta.env.DEV) {
-  (window as unknown as { __app: object }).__app = {
-    map,
-    addPin(p: LngLat) {
-      pins.push(p);
-      renderPins();
-      refreshRoute();
-    },
-    result: () => lastResult,
-    preview: () => preview,
-  };
-}
   refreshRoute();
 }
 
+// No-trace zones: where the photo trace goes wrong, the road keeps its mapped line.
+const ZONE_RADIUS = 60;
+let zoneMode = false;
+let zones: { at: LngLat; circle: L.Circle }[] = [];
+function renderZones(): void {
+  const hint = $("zones-hint");
+  hint.hidden = !zones.length && !zoneMode;
+  hint.textContent = zoneMode
+    ? "Click the map to place it."
+    : `${zones.length} no-trace ${zones.length === 1 ? "zone" : "zones"}: click one to remove it.`;
+  $("add-zone").setAttribute("aria-pressed", String(zoneMode));
+}
+function addZone(at: LngLat): void {
+  const circle = L.circle([at[1], at[0]], { radius: ZONE_RADIUS, color: "#e0457b", weight: 2, fillOpacity: 0.12 }).addTo(map);
+  const zone = { at, circle };
+  circle.on("click", (ev: L.LeafletMouseEvent) => {
+    L.DomEvent.stopPropagation(ev);
+    circle.remove();
+    zones = zones.filter((z) => z !== zone);
+    renderZones();
+  });
+  zones.push(zone);
+  renderZones();
+}
+$("add-zone").onclick = () => {
+  zoneMode = !zoneMode;
+  renderZones();
+};
+
 map.on("click", (e: L.LeafletMouseEvent) => {
+  if (zoneMode) {
+    zoneMode = false;
+    addZone([e.latlng.lng, e.latlng.lat]);
+    return;
+  }
   pins.push([e.latlng.lng, e.latlng.lat]);
   renderPins();
-
-// Test hook for the browser smoke test (dev server only).
-if (import.meta.env.DEV) {
-  (window as unknown as { __app: object }).__app = {
-    map,
-    addPin(p: LngLat) {
-      pins.push(p);
-      renderPins();
-      refreshRoute();
-    },
-    result: () => lastResult,
-    preview: () => preview,
-  };
-}
   refreshRoute();
 });
 
 $("reverse").onclick = () => {
   pins.reverse();
   renderPins();
-
-// Test hook for the browser smoke test (dev server only).
-if (import.meta.env.DEV) {
-  (window as unknown as { __app: object }).__app = {
-    map,
-    addPin(p: LngLat) {
-      pins.push(p);
-      renderPins();
-      refreshRoute();
-    },
-    result: () => lastResult,
-    preview: () => preview,
-  };
-}
   refreshRoute();
 };
 $("clear").onclick = () => {
   pins = [];
+  zones.forEach((z) => z.circle.remove());
+  zones = [];
+  renderZones();
   renderPins();
-
-// Test hook for the browser smoke test (dev server only).
-if (import.meta.env.DEV) {
-  (window as unknown as { __app: object }).__app = {
-    map,
-    addPin(p: LngLat) {
-      pins.push(p);
-      renderPins();
-      refreshRoute();
-    },
-    result: () => lastResult,
-    preview: () => preview,
-  };
-}
   refreshRoute();
 };
 $<HTMLInputElement>("loop").onchange = () => refreshRoute();
@@ -226,6 +206,7 @@ async function doRoute(): Promise<void> {
   err.hidden = true;
   current = null;
   updateBuildButton();
+  $("route-note").hidden = true;
   if (pins.length < 2) {
     routeLine?.remove();
     routeLine = null;
@@ -253,6 +234,11 @@ async function doRoute(): Promise<void> {
       err.textContent = "Make the road at least 300 m long.";
       err.hidden = false;
     }
+    const note = $("route-note");
+    note.hidden = !r.trimmed.length;
+    note.textContent = r.trimmed.length
+      ? `Cut ${r.trimmed.length === 1 ? "a U-turn" : `${r.trimmed.length} U-turns`} out of the route (a pin on the far side of the road). Drag the pin onto the near side to keep it exact.`
+      : "";
     if (r.uturns.length && err.hidden) {
       const [lng, lat] = r.uturns[0];
       err.textContent = `The route turns back on itself near ${lat.toFixed(5)}, ${lng.toFixed(5)}, which builds a hairpin spike. Move or remove the pin there.`;
@@ -396,6 +382,7 @@ function readOptions(): Partial<BuildOptions> {
     landmarks: $<HTMLInputElement>("landmarks").checked,
     traceRoads: $<HTMLInputElement>("traceRoads").checked,
     kerbs: $<HTMLInputElement>("kerbs").checked,
+    noTrace: zones.map((z) => ({ at: z.at, radius: ZONE_RADIUS })),
   };
 }
 
@@ -563,7 +550,9 @@ function showStats(r: TrackResult, widthFallback: boolean, usedImagery: Set<Imag
     ["Traced from photos", `${Math.round(s.traced * 100)}% of the road, ${s.photoLines} lines${s.photoChunks ? `, ${s.photoChunks} photo-surfaced stretches` : ""}`],
     ["Side streets", `${s.sideStreets.toLocaleString()} (${s.sideTraced} traced)`],
     ["Kerb & gutter", `${(s.kerbMetres / 1000).toFixed(2)} km`],
+    ["Footpaths", `${(s.footpathMetres / 1000).toFixed(2)} km, ${s.driveways} driveways`],
     ["Signs", `${s.streetSigns} street, ${s.signs} other`],
+    ["Poles & lights", `${s.poles} power poles, ${s.streetLights} street lights`],
     ["Guard rail", `${Math.round(s.railMetres)} m`],
     ["Triangles", s.triangles.toLocaleString()],
   ];
@@ -585,6 +574,7 @@ document.addEventListener("keydown", (e) => {
 });
 
 renderPins();
+$<HTMLInputElement>("mapillaryToken").value = savedToken();
 
 // Test hook for the browser smoke test (dev server only).
 if (import.meta.env.DEV) {

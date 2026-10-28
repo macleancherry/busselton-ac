@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { planRoad, type RoadPlan } from "../src/core/road";
 import { withDefaults } from "../src/core/options";
-import { arrowGlyph, buildMarkings, planCentreLine, textGlyph } from "../src/core/markings";
+import { arrowGlyph, buildMarkings, planCentreLine, symbolGlyph, textGlyph } from "../src/core/markings";
 import type { Vec2 } from "../src/core/geo";
 
 function road(path: Vec2[], height: (s: number) => number = () => 100): RoadPlan {
@@ -101,7 +101,22 @@ describe("arrows and painted numbers", () => {
     expect(all).toHaveLength(1);
     for (let i = 0; i < all[0].normals.length; i += 3) expect(all[0].normals[i + 1]).toBeCloseTo(1);
     expect(arrowGlyph("u-turn")).toBeNull();
-    expect(textGlyph("SLOW")).toBeNull();
+    // A bicycle: two wheels and a frame, fitting a lane, standing up it.
+    const bike = symbolGlyph("bicycle")!;
+    const pts = bike.lines.flat();
+    expect(Math.max(...pts.map((p) => p[1])) - Math.min(...pts.map((p) => p[1]))).toBeLessThan(1.5);
+    expect(Math.max(...pts.map((p) => p[0]))).toBeCloseTo(bike.length, 1);
+    expect(symbolGlyph("wheelchair")).toBeNull();
+    expect(textGlyph("crosswalk-ahead-now")).toBeNull(); // three words
+    expect(textGlyph("ampersand&")).toBeNull(); // too long, and an unknown character
     expect(textGlyph("40")!.lines.length).toBe(3); // "4" is two strokes, "0" one
+    // Words fit a lane; two words stack along the road, the first nearest the driver.
+    const school = textGlyph("school")!;
+    const across = school.lines.flat().map((p) => p[1]);
+    expect(Math.max(...across) - Math.min(...across)).toBeLessThanOrEqual(2.81);
+    const kc = textGlyph("keep-clear")!;
+    expect(kc.length).toBeCloseTo(7.5, 5);
+    const along = kc.lines.flat().map((p) => p[0]);
+    expect(Math.max(...along)).toBeCloseTo(7.5, 5);
   });
 });

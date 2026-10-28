@@ -14,11 +14,11 @@
 // (the next house), and long runs into ~15 m lots. Each house is a box
 // square to the street, its roof in the photo's colour.
 
-import { centroid, nearestRoofColour, pickRoof, pointInRing, type Building } from "./buildings";
+import { centroid, houseRoof, nearestRoofColour, pointInRing, type Building } from "./buildings";
 import type { Vec2 } from "./geo";
 import { rng } from "./scenery";
 import type { TerrainChunk } from "./terrain";
-import { pickFacade } from "./houseTextures";
+import { FACADES } from "./textures";
 
 /** Aerial photo colour at a local point, 0..1 RGB, or null where there is none. */
 export type PhotoSampler = (x: number, y: number) => [number, number, number] | null;
@@ -235,6 +235,7 @@ function box(cols: Column[], side: 1 | -1, rand: () => number): Building | null 
   const f0 = mid.half + front, f1 = mid.half + back;
   const at = (s: number, f: number): Vec2 => [mid.pos[0] + tx * s + ox * f, mid.pos[1] + ty * s + oy * f];
   const ring: Vec2[] = [at(s0, f0), at(s1, f0), at(s1, f1), at(s0, f1)];
+  const facing: [Vec2, Vec2] = [ring[0], ring[1]];
   // Counter-clockwise, as footprints are elsewhere.
   if (side === -1) ring.reverse();
   const rgb = [0, 1, 2].map((k) => (ok.reduce((s, c) => s + c.rgb[k], 0) / ok.length) * 255) as [number, number, number];
@@ -242,11 +243,13 @@ function box(cols: Column[], side: 1 | -1, rand: () => number): Building | null 
   return {
     ring,
     height: area > 250 ? 3.6 : 2.8,
-    roof: pickRoof(rand()),
+    roof: houseRoof(rand),
     roofColour: nearestRoofColour(rgb),
-    facade: pickFacade(rand()),
+    facade: Math.floor(rand() * FACADES.length),
     source: "frontage",
-    // The first wall runs along the street (the ring is reversed on the far side).
-    street: side === -1 ? 2 : 0,
+    front: facing,
+    setback: front,
+    // About half the houses on a street show a garage door to it.
+    garage: s1 - s0 >= 8 && rand() < 0.5,
   };
 }

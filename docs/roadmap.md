@@ -2,23 +2,48 @@
 
 Rough priority order. Each chunk is a self-contained change.
 
-1. **First in-game test.** Run through [verification.md](verification.md) and
-   fix whatever it turns up.
-2. ~~Trees, guard rails, guide posts, buildings, Australian surfaces and
-   markings, roundabouts.~~ Done. Next steps for
-   scenery: tree trunk collision, pitched roofs, more tree species per
-   region, power poles and road signs, give-way lines at roundabout entries,
-   multi-lane roundabouts, and CSP grass FX on grassy terrain.
-3. ~~**Truer road edges.**~~ Done: traced from the aerial photo, with line
-   markings and an optional photo surface, side streets traced too, kerb
-   and gutter in town, turn arrows and painted numbers. Next: painted words
-   (KEEP CLEAR, BUS), bicycle symbols, footpaths as their own surface.
-4. **Higher-resolution elevation.** Done for Queensland (the state's
-   bare-earth lidar model), NSW (5 m) and Victoria (10 m). Next: USGS 3DEP 1 m,
-   Japan GSI 5 m.
-5. **Build in a Web Worker** so the page stays responsive on long roads.
-6. **CSP extras.** `ext_config.ini` with grass FX, rain puddles and track
-   lighting.
-7. **Pit lane AI** (`pit_lane.ai`) and replay cameras.
-8. **Shareable builds.** Imagery from an openly licensed source (e.g. NAIP in
-   the US), so built tracks can be shared.
+## Now: time trial ready
+
+1. **In-game test of the time-trial build.** Run through
+   [verification.md](verification.md) (items 21-23 especially: spawn
+   direction, the timer starting at START and stopping at FINISH, kerbs at
+   roundabouts and turns, side streets counting as off track) and fix
+   whatever it turns up.
+2. ~~U-turn spurs~~ (cut out of the route automatically) and ~~the ditch
+   along road edges~~ (terrain ramps up to the verge or kerb). Done.
+3. ~~Photo trace walking off onto grey roofs and parking~~, ~~performance
+   pass~~ (wide meshes split into tiles, draw distances on small detail),
+   ~~replay cameras~~. Done. Still open: setting `noTrace` zones from the map.
+
+## Next: realism
+
+6. ~~Power poles, wires, street lights; footpaths, driveways, laybacks,
+   letterboxes; painted words; houses with hip roofs, eaves, doors and
+   garages; gum trees and palms.~~ Done.
+7. ~~CSP night lighting, CSP Grass FX on lawns and strips, bicycle
+   symbols, fences/walls/hedges from OSM, solid tree trunks, no-trace zones
+   from the map.~~ Done.
+8. **Close-range ground without CSP.** A grass detail texture through AC's
+   detail-map shader; its parameters need checking in game first.
+9. **Scenery.** Multi-lane roundabouts, front fences where OSM has none
+   (read off the photo), house windows lit at night.
+
+## Later
+
+10. **Build in a Web Worker** so the page stays responsive on long roads.
+11. **Higher-resolution elevation abroad.** USGS 3DEP 1 m, Japan GSI 5 m.
+    (Done for Queensland, NSW and Victoria.)
+12. **CSP extras.** `ext_config.ini` with rain puddles and track lighting.
+13. **Shareable builds.** Imagery from an openly licensed source (e.g. NAIP in
+    the US), so built tracks can be shared.
+
+## Done
+
+Road mesh from OSM, real elevation (state bare-earth models where there are
+any), satellite textures, AI line and timing, trees, guard rails, guide
+posts, buildings (mapped, detected and frontage houses), Australian
+surfaces and markings, true roundabouts, side streets and street signs,
+landmarks, Mapillary features, roads traced from the aerial photo with
+their line markings, kerb and gutter, turn arrows, WA (Landgate), NSW and
+Queensland imagery, start and finish gates with run-up and run-off, track
+limits, U-turn spur removal.

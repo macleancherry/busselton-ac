@@ -2,7 +2,8 @@
 // (Overpass). All keyless public services; the browser's Referer identifies
 // the app, as their usage policies ask.
 
-import type { LngLat } from "../core/geo";
+import { haversine, type LngLat } from "../core/geo";
+import { trimSpurs } from "../core/spurs";
 import type { OsmFeatures } from "../core/track";
 import type { RoundaboutHint } from "../core/roundabout";
 
@@ -20,8 +21,10 @@ export interface Route {
   distance: number;
   /** Where the route goes round a roundabout, with the arc it drives. */
   roundabouts: RoundaboutHint[];
-  /** Where the route turns back on itself (usually a pin snapped to the wrong side of the road). */
+  /** Where the route still turns back on itself (usually a pin snapped to the wrong side of the road). */
   uturns: LngLat[];
+  /** U-turn spurs cut out of the route. */
+  trimmed: LngLat[];
 }
 
 interface OsrmStep {
@@ -42,7 +45,18 @@ export async function route(pins: LngLat[], signal?: AbortSignal): Promise<Route
     .filter((st) => /^(roundabout|rotary|roundabout turn)$/.test(st.maneuver.type))
     .map((st) => ({ location: st.maneuver.location, arc: st.geometry.coordinates }));
   const uturns = steps.filter((st) => st.maneuver.modifier === "uturn").map((st) => st.maneuver.location);
-  return { coords: body.routes[0].geometry.coordinates, distance: body.routes[0].distance, roundabouts, uturns };
+  const coords: LngLat[] = body.routes[0].geometry.coordinates;
+  const t = trimSpurs(coords, uturns);
+  if (!t.cut.length) return { coords, distance: body.routes[0].distance, roundabouts, uturns, trimmed: [] };
+  // A roundabout the route only went round to turn back is gone with the spur.
+  const near = (p: LngLat) => t.coords.some((c) => haversine(c, p) < 30);
+  return {
+    coords: t.coords,
+    distance: t.coords.slice(1).reduce((d, c, i) => d + haversine(t.coords[i], c), 0),
+    roundabouts: roundabouts.filter((rb) => near(rb.location)),
+    uturns: t.kept,
+    trimmed: t.cut,
+  };
 }
 
 export interface Place {
@@ -114,6 +128,17 @@ interface OverpassWay {
   type: string;
   tags?: Record<string, string>;
   geometry?: { lat: number; lon: number }[];
+  /** Nodes only. */
+  lat?: number;
+  lon?: number;
+}
+
+/** A street's power line, on poles: minor_line, or line at distribution voltage (not towers). */
+function onPoles(tags: Record<string, string>): boolean {
+  if (tags.power === "minor_line") return true;
+  if (tags.power !== "line") return false;
+  const volts = (tags.voltage ?? "").split(";").map(Number).filter((v) => v > 0);
+  return volts.length > 0 && Math.max(...volts) <= 33000;
 }
 
 export interface OsmData {
@@ -136,6 +161,10 @@ export async function fetchOsm(routeCoords: LngLat[]): Promise<OsmData> {
     way(around:12,${around})[highway];
     way(around:15,${around})[barrier=guard_rail];
     way(around:30,${around})[junction~"^(roundabout|circular)$"];
+    node(around:40,${around})[power=pole];
+    node(around:40,${around})[highway=street_lamp];
+    way(around:40,${around})[power~"^(line|minor_line)$"];
+    way(around:45,${around})[barrier~"^(fence|wall|hedge|retaining_wall)$"];
   );out tags geom;`;
   const ctl = new AbortController();
   const timer = setTimeout(() => ctl.abort(), 45000);
@@ -145,7 +174,7 @@ export async function fetchOsm(routeCoords: LngLat[]): Promise<OsmData> {
       const r = await fetch(url, { method: "POST", body: new URLSearchParams({ data: query }), signal: ctl.signal });
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       const body = await r.json();
-      return ((body.elements ?? []) as OverpassWay[]).filter((e) => e.type === "way" && e.geometry);
+      return ((body.elements ?? []) as OverpassWay[]).filter((e) => (e.type === "way" && e.geometry) || (e.type === "node" && e.lat !== undefined));
     }));
   } catch {
     // every mirror failed
@@ -153,15 +182,28 @@ export async function fetchOsm(routeCoords: LngLat[]): Promise<OsmData> {
     clearTimeout(timer);
     ctl.abort();
   }
-  const features: OsmFeatures = { buildings: [], guardRails: [], roundaboutRings: [] };
+  const features: OsmFeatures = { buildings: [], guardRails: [], roundaboutRings: [], poles: [], lamps: [], powerLines: [], barriers: [] };
   if (!elements) return { features };
 
   const ways: Way[] = [];
   for (const e of elements) {
     const tags = e.tags ?? {};
+    if (e.type === "node") {
+      if (tags.power === "pole") features.poles!.push([e.lon!, e.lat!]);
+      else if (tags.highway === "street_lamp") features.lamps!.push([e.lon!, e.lat!]);
+      continue;
+    }
     const pts = e.geometry!.map((g) => [g.lon, g.lat] as LngLat);
-    if (tags.junction === "roundabout" || tags.junction === "circular") {
+    if (tags.power === "line" || tags.power === "minor_line") {
+      if (onPoles(tags)) features.powerLines!.push(pts);
+    } else if (tags.junction === "roundabout" || tags.junction === "circular") {
       features.roundaboutRings!.push(pts);
+    } else if (/^(fence|wall|hedge|retaining_wall)$/.test(tags.barrier ?? "")) {
+      const height = parseFloat(tags.height ?? "");
+      features.barriers!.push({
+        pts, kind: tags.barrier as "fence" | "wall" | "hedge" | "retaining_wall",
+        fenceType: tags.fence_type, material: tags.material, height: Number.isFinite(height) ? height : undefined,
+      });
     } else if (tags.barrier === "guard_rail") {
       features.guardRails.push(pts);
     } else if (tags.highway) {

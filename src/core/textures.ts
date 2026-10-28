@@ -269,16 +269,19 @@ export class Raster {
 
 /** Tree atlas variants: u ranges within the 512 x 512 atlas. */
 export const TREE_VARIANTS = [
-  { u0: 0, u1: 0.5, kind: "broadleaf" },
-  { u0: 0.5, u1: 1, kind: "conifer" },
+  { u0: 0, u1: 0.25, kind: "broadleaf", height: 12, width: 10.2 },
+  { u0: 0.25, u1: 0.5, kind: "conifer", height: 15, width: 8.25 },
+  { u0: 0.5, u1: 0.75, kind: "eucalypt", height: 16, width: 9.6 },
+  { u0: 0.75, u1: 1, kind: "palm", height: 10, width: 7 },
 ] as const;
 
 /**
- * Two tree sprites side by side with an alpha channel, for alpha-tested
- * crossed-quad trees: an open eucalypt/broadleaf canopy and a conifer.
+ * Tree sprites side by side with an alpha channel, for alpha-tested
+ * crossed-quad trees: a broadleaf shade tree, a conifer, a eucalypt (pale
+ * trunk, sparse grey-green clumps you can see through) and a palm.
  */
 export function treeAtlas(): Uint8Array {
-  const w = 512, h = 512;
+  const w = 1024, h = 512;
   const px = new Uint8Array(w * h * 4);
   const r = rng(41);
   const put = (x: number, y: number, c: [number, number, number]) => {
@@ -289,14 +292,23 @@ export function treeAtlas(): Uint8Array {
     px[i + 2] = c[2];
     px[i + 3] = 255;
   };
-  const blob = (cx: number, cy: number, rad: number, shade: number, x0: number, x1: number) => {
+  const green: [number, number, number] = [34, 70, 30];
+  const blob = (cx: number, cy: number, rad: number, shade: number, x0: number, x1: number, col = green, holes = 0.55) => {
     for (let y = cy - rad; y <= cy + rad; y++) {
       for (let x = Math.max(x0, cx - rad); x <= Math.min(x1 - 1, cx + rad); x++) {
         const d = Math.hypot(x - cx, y - cy) / rad;
-        if (d > 1 || r() < d * d * 0.55) continue; // ragged, see-through edges
+        if (d > 1 || r() < d * d * holes) continue; // ragged, see-through edges
         const k = shade * (0.75 + 0.35 * (1 - d)) * (0.85 + r() * 0.3);
-        put(x, y, [34 * k + 8, 70 * k + 14, 30 * k + 6]);
+        put(x, y, [col[0] * k + 8, col[1] * k + 14, col[2] * k + 6]);
       }
+    }
+  };
+  const line = (x0: number, y0: number, x1: number, y1: number, width: number, col: (t: number) => [number, number, number]) => {
+    const n = Math.ceil(Math.hypot(x1 - x0, y1 - y0));
+    for (let i = 0; i <= n; i++) {
+      const t = i / Math.max(1, n), x = x0 + (x1 - x0) * t, y = y0 + (y1 - y0) * t;
+      const wd = typeof width === "number" ? width : 1;
+      for (let dx = -wd / 2; dx <= wd / 2; dx++) put(x + dx, y, col(t));
     }
   };
   // Broadleaf: trunk with a couple of branches, clumped canopy.
@@ -315,6 +327,59 @@ export function treeAtlas(): Uint8Array {
     for (let i = 0; i < 26; i++) {
       const x = 384 + (r() * 2 - 1) * half;
       blob(x, y + r() * 30, 10 + r() * 10, 0.55 + r() * 0.45, 256, 512);
+    }
+  }
+  // Eucalypt: a tall pale trunk forking into a few limbs, sparse grey-green clumps at their ends.
+  const gum = (t: number): [number, number, number] => {
+    const patch = r() < 0.15 ? 0.82 : 1;
+    return [(208 - t * 20) * patch + r() * 10, (200 - t * 22) * patch + r() * 10, (184 - t * 26) * patch + r() * 8];
+  };
+  for (let y = 300; y < 512; y++) {
+    const t = 3.5 + (y - 300) * 0.02;
+    for (let x = 640 - t; x < 640 + t; x++) put(x, y, gum((512 - y) / 212));
+  }
+  // Limbs leave the trunk at different heights and bend outward, then up;
+  // foliage clumps along their outer half.
+  const limbs: [number, number, number][] = [
+    [300, -95, 95], [318, 82, 120], [342, -55, 175], [360, 100, 205], [305, 20, 55], [330, -20, 120],
+  ];
+  for (const [y0, dx, yEnd] of limbs) {
+    const midX = 640 + dx * 0.55, midY = (y0 + yEnd) / 2 + 25;
+    const w0 = y0 > 320 ? 4 : 5;
+    line(640, y0, midX, midY, w0, (t) => gum(0.55 + t * 0.2));
+    line(midX, midY, 640 + dx, yEnd, w0 - 2, (t) => gum(0.75 + t * 0.25));
+    for (let i = 0; i < 12; i++) {
+      const t = 0.45 + r() * 0.65;
+      const x = midX + (dx * 0.45) * (t - 0.5) * 2 + (r() - 0.5) * 40, y = midY + (yEnd - midY) * Math.min(1, t) - r() * 25;
+      blob(x, y, 10 + r() * 15, 0.75 + r() * 0.5, 512, 768, [92, 104, 72], 0.75);
+    }
+  }
+  // Palm: a thin ringed trunk with a crown of drooping fronds.
+  const cx = 896, cy = 150;
+  for (let y = cy; y < 512; y++) {
+    const x = cx + Math.sin((y - cy) / 120) * 6;
+    const ring = (y % 9) < 2 ? 0.8 : 1;
+    for (let dx = -4; dx <= 4; dx++) put(x + dx, y, [118 * ring + r() * 12, 104 * ring + r() * 10, 86 * ring]);
+  }
+  // Fronds: some rising before they droop, some hanging; dense leaflets either side.
+  for (let f = 0; f < 18; f++) {
+    const a = (f / 18) * Math.PI * 2 + r() * 0.3;
+    const L = 80 + r() * 40, lift = 0.2 + r() * 0.8, droop = 0.5 + r() * 0.7;
+    const reach = Math.cos(a);
+    let px0 = cx, py0 = cy;
+    for (let i = 1; i <= 30; i++) {
+      const t = i / 30;
+      const x = cx + reach * L * t, y = cy - lift * L * t * 0.9 + droop * L * t * t;
+      line(px0, py0, x, y, 3, () => [74 + r() * 15, 100 + r() * 20, 48]);
+      // Leaflets: long near the base, shorter toward the tip, angled forward and down.
+      const nx = -(y - py0), ny = x - px0, nl = Math.hypot(nx, ny) || 1;
+      const len = 22 * (1 - t * 0.55);
+      for (const sgn of [1, -1]) {
+        const ex = x + (nx / nl) * len * sgn + (x - px0) * 0.8, ey = y + (ny / nl) * len * sgn + len * 0.6;
+        line(x, y, ex, ey, 2, () => [50 + r() * 22, 96 + r() * 28, 38 + r() * 12]);
+      }
+      px0 = x;
+      py0 = y;
     }
   }
   return encodePng(px, w, h);
@@ -375,3 +440,105 @@ export function roofTexture(colour: (typeof ROOF_COLOURS)[number]): Uint8Array {
   }), w, h, { alpha: false });
 }
 
+export const FACADES = ["brick", "weatherboard", "render", "creambrick", "fibro"] as const;
+
+/**
+ * One storey (3 m) tall by 8 m wide: a wide living-room window and a small,
+ * higher one (bathroom or bedroom), in white frames, so a wall reads as a
+ * house rather than a row of motel rooms.
+ */
+export function facadeTexture(kind: (typeof FACADES)[number]): Uint8Array {
+  const w = 256, h = 96; // 32 px per metre
+  const r = rng(61 + kind.length);
+  const windows: [number, number, number, number][] = [
+    [36, 108, 24, 66], // 2.25 m wide, sill at 0.9 m
+    [170, 210, 24, 50], // 1.25 m wide, sill at 1.4 m
+  ];
+  return encodePng(fill(w, h, (x, y) => {
+    for (const [x0, x1, y0, y1] of windows) {
+      if (x > x0 && x < x1 && y > y0 && y < y1) {
+        // Glass, a mullion in the wide one, and a hint of curtain at the top.
+        if (x1 - x0 > 60 && Math.abs(x - (x0 + x1) / 2) < 1.5) return [235, 235, 230];
+        const g = 55 + (y - y0) * 0.9 + r() * 8 + (y < y0 + 6 ? 40 : 0);
+        return [g * 0.7, g * 0.82, g];
+      }
+      if (x > x0 - 4 && x < x1 + 4 && y > y0 - 4 && y < y1 + 4) return [235, 235, 230];
+    }
+    const n = (r() - 0.5) * 14;
+    if (kind === "brick" || kind === "creambrick") {
+      // 230 x 76 mm bricks, stretcher bond.
+      const course = Math.floor(y / 2.5);
+      const mortar = y % 2.5 < 0.6 || (x + (course % 2) * 4) % 8 < 0.9;
+      const tone = ((course * 7 + Math.floor((x + (course % 2) * 4) / 8) * 13) % 5) * 6;
+      if (kind === "creambrick") return mortar ? [200 + n, 196 + n, 186 + n] : [214 + tone + n, 190 + tone / 2 + n, 148 + n];
+      if (mortar) return [196 + n, 188 + n, 172 + n];
+      return [150 + tone + n, 78 + tone / 2 + n, 58 + n];
+    }
+    if (kind === "weatherboard") {
+      // 150 mm boards with a shadow line under each.
+      const board = (y % 5) / 5;
+      const k = board > 0.8 ? 0.8 : 0.97 + board * 0.03;
+      return [238 * k + n, 236 * k + n, 226 * k + n];
+    }
+    if (kind === "fibro") {
+      // Fibro-cement sheets, 1.2 m wide, with cover strips.
+      const strip = x % 38 < 2;
+      return strip ? [205 + n, 205 + n, 198 + n] : [226 + n / 2, 224 + n / 2, 214 + n / 2];
+    }
+    return [214 + n, 200 + n, 172 + n];
+  }), w, h, { alpha: false });
+}
+
+/** A Colorbond roller door, 2.6 m x 2.1 m: fine horizontal ribs, a darker bottom rail. */
+export function garageTexture(): Uint8Array {
+  const w = 64, h = 64;
+  const r = rng(91);
+  return encodePng(fill(w, h, (_x, y) => {
+    const n = (r() - 0.5) * 6;
+    if (y > 60) return [120 + n, 122 + n, 120 + n];
+    const k = 0.92 + 0.08 * Math.sin((y / h) * Math.PI * 2 * 14);
+    return [214 * k + n, 212 * k + n, 200 * k + n];
+  }), w, h, { alpha: false });
+}
+
+/** Barrier kinds along property lines, and the texture each one wears. */
+export const BARRIERS = ["colorbond", "paling", "brickwall", "hedge"] as const;
+
+/**
+ * Textures 2 m along by 2 m tall: a Colorbond fence (corrugated steel
+ * panels between posts), timber palings, a garden wall of red brick with a
+ * capping course, and a clipped hedge.
+ */
+export function barrierTexture(kind: (typeof BARRIERS)[number]): Uint8Array {
+  const w = 128, h = 128;
+  const r = rng(201 + kind.length);
+  const leaf = kind === "hedge" ? valueNoise(w, h, 24, 77) : null;
+  return encodePng(fill(w, h, (x, y, i) => {
+    const n = (r() - 0.5) * 10;
+    if (kind === "colorbond") {
+      // Grey-green "Woodland Grey": corrugations every ~7 cm, a post every 2.4 m (here at the tile edge), top rail.
+      if (x < 3 || y < 4) return [70 + n, 72 + n, 66 + n];
+      const k = 0.88 + 0.12 * Math.sin((x / w) * Math.PI * 2 * 28);
+      return [96 * k + n, 99 * k + n, 90 * k + n];
+    }
+    if (kind === "paling") {
+      // 100 mm palings with gaps of shadow, weathered timber, a rail across.
+      const board = x % 6.4 < 0.8;
+      if (board) return [62 + n, 50 + n, 40 + n];
+      if (y > 30 && y < 36) return [96 + n, 80 + n, 62 + n];
+      const grain = ((x * 7 + Math.floor(y / 9) * 3) % 11) * 2;
+      return [150 + grain + n, 124 + grain + n, 94 + n];
+    }
+    if (kind === "brickwall") {
+      if (y < 6) return [182 + n, 176 + n, 166 + n]; // capping
+      const course = Math.floor(y / 5);
+      const mortar = y % 5 < 1 || (x + (course % 2) * 8) % 16 < 1;
+      if (mortar) return [196 + n, 188 + n, 172 + n];
+      const tone = ((course * 7 + Math.floor((x + (course % 2) * 8) / 16) * 13) % 5) * 6;
+      return [150 + tone + n, 78 + tone / 2 + n, 58 + n];
+    }
+    // Hedge: dense leaves, darker in the hollows.
+    const k = 0.55 + leaf![i] * 0.7;
+    return [36 * k + n / 2, 78 * k + n, 32 * k + n / 2];
+  }), w, h, { alpha: false });
+}

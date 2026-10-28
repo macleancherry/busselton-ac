@@ -4,39 +4,45 @@
 
 import { buildPaths, footPathTexture, sharedPathTexture, type PathLine } from "./paths";
 import { pickSpecies, treeSpeciesAtlas } from "./treeSprites";
-import { FACADES, FENCE_COLOURS, facadeTexture, fenceTexture, frontWallTexture, garageTexture, hedgeTexture, mulchTexture, shrubAtlas } from "./houseTextures";
-import { buildLots, planGarages } from "./lots";
+import { FENCE_COLOURS, facadeTexture, fenceTexture, frontWallTexture, hedgeTexture, mulchTexture, shrubAtlas } from "./houseTextures";
+import { buildLots } from "./lots";
 import { buildPiers, buildSea, deckTexture, SeaMask, seaTexture, withSeabed, type CoastPolygon } from "./coast";
 import { GROUND_LAYERS, GROUND_TILE_METRES, groundMask, type GroundDetail, type GroundLayer } from "./ground";
-import { extConfigIni, LANTERN_HEIGHT, LANTERN_REACH, POLE_OFFSET, streetLightSpots } from "./cspConfig";
 import { buildAiLine } from "./aiLine";
 import { BACKDROP_CHUNK, backdropHeight, buildBackdropChunk, planBackdrop } from "./backdrop";
 import { writeFastLaneAi } from "./aiSpline";
 import { outlinePng, previewPng, readme, slugify, surfacesIni, trackMap, uiTrackJson, type TrackMeta } from "./acFiles";
 import type { HeightFn } from "./elevation";
 import { boundsOf, LocalProjection, type Bounds, type LngLat, type Vec2 } from "./geo";
-import { frameTransform, IDENTITY, writeKn5, type Kn5GroupNode, type Kn5Material, type Kn5Model, type Kn5Node, type Kn5Texture } from "./kn5";
+import { frameTransform, IDENTITY, writeKn5, type Kn5GroupNode, type Kn5Material, type Kn5MeshNode, type Kn5Model, type Kn5Node, type Kn5Texture } from "./kn5";
 import { toAc } from "./mesh";
 import { withDefaults, type BuildOptions } from "./options";
 import { simplify } from "./polyline";
 import { applyElevation, inRoundabout, isLoop, planRoad, surfaceHeight, SegmentIndex, type RoadPlan, type RoadSample } from "./road";
-import { extendRoute } from "./extend";
+import { extendRoute, pathLength } from "./extend";
+import { keepOffRoute, onRoute } from "./clearance";
 import { buildRingMeshes, buildRingWall, innerRadius, outerRadius, resolveRoundabouts, ringHeight, type RoundaboutHint } from "./roundabout";
 import { buildRoadMeshes, buildWalls, type RoadMaterialFn } from "./roadMesh";
-import { buildKerbReturns, buildKerbs, KERB_BACK, kerbEvidence, planKerbs, STRIP_EXTRA, stripPhotoTexture, type StripMaterialFn } from "./kerbs";
+import { buildKerbReturns, buildKerbs, KERB_BACK, KERB_H, kerbEvidence, planKerbs, STRIP_EXTRA, stripPhotoTexture, type StripMaterialFn } from "./kerbs";
 import { photoRoadTexture } from "./photoSurface";
 import { encodeDdsDxt1 } from "./dds";
 import { encodePng } from "./png";
 import { buildMarkings, type DiscreteMark } from "./markings";
 import { buildTerrainChunk, makeTerrainFn, planTerrainChunks, type TerrainChunk } from "./terrain";
-import { paintTexture, sealTexture, type SealKind, grassTexture, concreteTexture, postTexture, railTexture, ROOF_COLOURS, roofTexture, solidTexture, vergeTexture } from "./textures";
+import { BARRIERS, barrierTexture, FACADES, paintTexture, sealTexture, type SealKind, garageTexture, grassTexture, concreteTexture, postTexture, railTexture, ROOF_COLOURS, roofTexture, solidTexture, vergeTexture } from "./textures";
 import {
-  buildGuardRails, buildGuidePosts, buildTrees, filterTrees, railNeeds, rng, treeSpotsFromImagery, type TreeSpot,
+  buildGuardRails, buildGuidePosts, buildTrees, treeTrunks, filterTrees, railNeeds, rng, treeSpotsFromImagery, type TreeSpot,
 } from "./scenery";
-import { buildBuildings, centroid, detectBuildings, filterBuildings, fromOsm, type Building } from "./buildings";
+import { buildBuildings, centroid, detectBuildings, filterBuildings, fromOsm, pointInRing, type Building } from "./buildings";
+import { camerasIni, placeCameras } from "./cameras";
+import { cullable } from "./cull";
+import { extConfig } from "./cspConfig";
+import { buildBarriers } from "./fences";
 import { chunkPhotoSampler, frontageHouses } from "./frontage";
 import { ArtList, type ArtRenderer } from "./art";
-import { buildPieces, landmarks, seenFeatures, streetSigns } from "./furniture";
+import { buildPieces, gateSigns, landmarks, mergeSightings, seenFeatures, streetSigns } from "./furniture";
+import { placeUtilities } from "./utilities";
+import { buildVergeConcrete, laybacks, letterboxes, readVerge } from "./footpaths";
 import { findLines, paintCandidates, type ImageLine } from "./paintLines";
 import { applyTrace, displayOf, traceRoad, type RasterSampler, type TraceResult } from "./trace";
 import { buildSideStreets, LineIndex, traceSideStreets, planSideStreets, streetSurface, type StreetLine, type StreetName } from "./sideStreets";
@@ -90,6 +96,12 @@ export interface OsmFeatures {
   guardRails: LngLat[][];
   /** OSM junction=roundabout ways near the route. */
   roundaboutRings?: LngLat[][];
+  /** Fences, walls and hedges near the route (OSM barrier=*). */
+  barriers?: { pts: LngLat[]; kind: "fence" | "wall" | "hedge" | "retaining_wall"; fenceType?: string; material?: string; height?: number }[];
+  /** Power poles, street lamps and distribution power lines (on poles) near the route. */
+  poles?: LngLat[];
+  lamps?: LngLat[];
+  powerLines?: LngLat[][];
 }
 
 export interface TrackResult {
@@ -129,6 +141,12 @@ export interface TrackResult {
     sideTraced: number;
     /** Kerb and gutter built, metres (both sides counted). */
     kerbMetres: number;
+    /** Power poles and street lights placed. */
+    poles: number;
+    streetLights: number;
+    /** Footpath read off the photo, metres (both sides), and driveway crossovers. */
+    footpathMetres: number;
+    driveways: number;
     streetSigns: number;
     signs: number;
     railMetres: number;
@@ -140,18 +158,28 @@ const MIN_LENGTH = 300;
 /** Clear road between the front row of the grid and the start line, and before the back row. */
 const GRID_DEPTH = 14;
 
-/** The sample at a pin: nearest to it among those about `est` metres along the road. */
-function sampleNearPin(plan: RoadPlan, pin: Vec2, est: number): number {
-  let best = 0, bestD = Infinity;
-  plan.samples.forEach((s, i) => {
-    if (Math.abs(s.s - est) > 40) return;
-    const d = Math.hypot(s.pos[0] - pin[0], s.pos[1] - pin[1]);
-    if (d < bestD) {
-      bestD = d;
-      best = i;
-    }
-  });
-  return best;
+/**
+ * The sample at a pin: nearest to it among those about `frac` of the way
+ * along the road (smoothing shortens the road a little, so distances along
+ * the original path only say roughly where to look; on a road that passes
+ * the same spot twice, this keeps to the right pass).
+ */
+function sampleNearPin(plan: RoadPlan, pin: Vec2, frac: number): number {
+  const last = plan.samples[plan.samples.length - 1].s;
+  const est = frac * last, window = Math.max(60, last * 0.05);
+  let best = -1, bestD = Infinity;
+  for (const pass of [window, Infinity]) {
+    plan.samples.forEach((s, i) => {
+      if (Math.abs(s.s - est) > pass) return;
+      const d = Math.hypot(s.pos[0] - pin[0], s.pos[1] - pin[1]);
+      if (d < bestD) {
+        bestD = d;
+        best = i;
+      }
+    });
+    if (best >= 0) break;
+  }
+  return Math.max(0, best);
 }
 
 /** Point on the road at distance s (wrapping on loops), lateral offset t, and its heading. */
@@ -293,7 +321,10 @@ export async function buildTrack(
     ? extendRoute(local, (sources.streets?.lines ?? []).map((l) => l.pts.map((p) => proj.toLocal(p))), GRID_DEPTH + rows * 8 + opts.runUp, opts.runOff)
     : null;
   const plan = planRoad(ext?.path ?? local, opts, widthFn, circles);
-  if (ext) plan.timed = { start: sampleNearPin(plan, local[0], ext.startAt), finish: sampleNearPin(plan, local[local.length - 1], ext.finishAt) };
+  if (ext) {
+    const total = pathLength(ext.path);
+    plan.timed = { start: sampleNearPin(plan, local[0], ext.startAt / total), finish: sampleNearPin(plan, local[local.length - 1], ext.finishAt / total) };
+  }
   const timedLength = () => (plan.timed ? plan.samples[plan.timed.finish].s - plan.samples[plan.timed.start].s : plan.length);
   if (timedLength() < MIN_LENGTH) throw new Error(`Road is ${Math.round(timedLength())} m; make it at least ${MIN_LENGTH} m`);
 
@@ -366,18 +397,20 @@ export async function buildTrack(
   addScenery("lamp.png", solidTexture([150, 152, 150]), material("lamp", "lamp.png", { ambient: 0.45, diffuse: 0.45, specular: 0.3, exp: 30 }));
   addScenery("signal.png", solidTexture([28, 30, 26]), material("signal", "signal.png", { ambient: 0.4, diffuse: 0.4, specular: 0.2, exp: 20 }));
   addScenery("rail.png", railTexture(), material("rail", "rail.png", { ambient: 0.4, diffuse: 0.45, specular: 0.3, exp: 30 }));
+  for (const b of BARRIERS) addScenery(`barrier_${b}.png`, barrierTexture(b), material(`barrier_${b}`, `barrier_${b}.png`, { ambient: 0.45, diffuse: 0.45, specular: 0.1, exp: 15 }));
+  addScenery("door.png", solidTexture([92, 62, 44]), material("door", "door.png", { ambient: 0.45, diffuse: 0.45, specular: 0.15, exp: 15 }));
+  addScenery("garage.png", garageTexture(), material("garage", "garage.png", { ambient: 0.45, diffuse: 0.45, specular: 0.2, exp: 20 }));
+  addScenery("letterbox.png", solidTexture([168, 52, 40]), material("letterbox", "letterbox.png", { ambient: 0.45, diffuse: 0.45, specular: 0.25, exp: 25 }));
+  addScenery("wire.png", solidTexture([38, 38, 40]), material("wire", "wire.png", { ambient: 0.35, diffuse: 0.35, specular: 0.2, exp: 20 }));
   addScenery("steel.png", solidTexture([120, 122, 126]), material("steel", "steel.png", { ambient: 0.4, diffuse: 0.45, specular: 0.2, exp: 20 }));
   addScenery("concrete.png", concreteTexture(), material("concrete", "concrete.png", { ambient: 0.45, diffuse: 0.45, specular: 0.05, exp: 10 }));
   addScenery("guidepost.png", postTexture(), material("guidepost", "guidepost.png", { ambient: 0.45, diffuse: 0.45, specular: 0.1, exp: 10 }));
   const matte = { ambient: 0.45, diffuse: 0.45, specular: 0.05, exp: 10 };
-  for (const f of FACADES) {
-    addScenery(`facade_${f}.png`, facadeTexture(f), material(`facade_${f}`, `facade_${f}.png`, matte));
-    addScenery(`garage_${f}.png`, garageTexture(f), material(`garage_${f}`, `garage_${f}.png`, matte));
-  }
+  // Facades: the kinds buildings.ts picks from, drawn at 64 px per metre.
+  for (const f of FACADES) addScenery(`facade_${f}.png`, facadeTexture(f), material(`facade_${f}`, `facade_${f}.png`, matte));
   addScenery("sea.png", seaTexture(), material("sea", "sea.png", { ambient: 0.4, diffuse: 0.35, specular: 0.7, exp: 90 }));
   addScenery("jetty_deck.png", deckTexture(), material("jetty_deck", "jetty_deck.png", { ambient: 0.45, diffuse: 0.45, specular: 0.05, exp: 10 }));
   addScenery("jetty_timber.png", solidTexture([118, 108, 96]), material("jetty_timber", "jetty_timber.png", { ambient: 0.45, diffuse: 0.45, specular: 0, exp: 1 }));
-  addScenery("soffit.png", solidTexture([226, 224, 216]), material("soffit", "soffit.png", { ambient: 0.5, diffuse: 0.35, specular: 0, exp: 1 }));
   for (const c of FENCE_COLOURS) {
     addScenery(`fence_${c.name}.png`, fenceTexture(c.rgb), material(`fence_${c.name}`, `fence_${c.name}.png`, { ambient: 0.45, diffuse: 0.45, specular: 0.2, exp: 25 }));
   }
@@ -526,23 +559,23 @@ export async function buildTrack(
   // Kerb and gutter: read off the photo where the road was traced; in town
   // they are the rule, so there it takes little evidence (or none, under canopy).
   const nS = plan.samples.length;
+  // How built-up it is around each sample (checked every 10 m): 2 = town
+  // (dense houses or a street grid), 1 = edge of town, 0 = country.
+  // Motorways never count. Only real streets count, not driveways and tracks.
+  const streets = streetPlan.streets.filter((st) => /^(primary|secondary|tertiary|minor)/.test(st.cls));
+  const town: number[] = [];
+  plan.samples.forEach((s, i) => {
+    if (i % 5) return town.push(town[i - 1]);
+    const near = (r: number) => ([x, y]: Vec2) => Math.hypot(x - s.pos[0], y - s.pos[1]) < r;
+    const cls = sources.roadClassAt?.(proj.toLngLat(s.pos)) ?? "";
+    if (/^(motorway|trunk)/.test(cls)) return town.push(0);
+    const houses = centres.filter(near(150)).length, grid = streets.filter((st) => st.pts.some(near(120))).length;
+    town.push(houses >= 20 || grid >= 5 ? 2 : houses >= 8 || grid >= 3 ? 1 : 0);
+  });
   let kerbs: [number[], number[]] = [new Array(nS).fill(0), new Array(nS).fill(0)];
   if (opts.kerbs) {
     const tr = trace;
     const evidence = raster && tr ? kerbEvidence(plan, raster, (i) => tr.conf[i] > 0.7) : null;
-    // How built-up it is around each sample (checked every 10 m): 2 = town
-    // (dense houses or a street grid), 1 = edge of town, 0 = country.
-    // Motorways never count. Only real streets count, not driveways and tracks.
-    const streets = streetPlan.streets.filter((st) => /^(primary|secondary|tertiary|minor)/.test(st.cls));
-    const town: number[] = [];
-    plan.samples.forEach((s, i) => {
-      if (i % 5) return town.push(town[i - 1]);
-      const near = (r: number) => ([x, y]: Vec2) => Math.hypot(x - s.pos[0], y - s.pos[1]) < r;
-      const cls = sources.roadClassAt?.(proj.toLngLat(s.pos)) ?? "";
-      if (/^(motorway|trunk)/.test(cls)) return town.push(0);
-      const houses = centres.filter(near(150)).length, grid = streets.filter((st) => st.pts.some(near(120))).length;
-      town.push(houses >= 20 || grid >= 5 ? 2 : houses >= 8 || grid >= 3 ? 1 : 0);
-    });
     // A kerb must never stand on anything drivable: none across a side
     // street's mouth, on the inside of a turn too tight for the strip (it
     // would fold over onto the road), or anywhere its gutter, kerb or strip
@@ -570,8 +603,10 @@ export async function buildTrack(
       rb.kerbed = plan.samples.some((s, i) => (kerbs[0][i] || kerbs[1][i]) && Math.hypot(s.pos[0] - rb.c[0], s.pos[1] - rb.c[1]) < reach);
     }
   }
-  // Record the kerbs on the samples too: the terrain reads them, so the ground
-  // behind a kerb starts at nature strip height instead of 40 cm below it.
+  // Record the kerbs on the samples too: the terrain reads them (SegmentIndex.at),
+  // so the ground behind a kerb starts at nature strip height. Without this it
+  // started BELOW_VERGE under the road edge, leaving a step of about 40 cm
+  // between the back of the nature strip and the ground.
   plan.samples.forEach((smp, i) => {
     if (kerbs[0][i] > 0 || kerbs[1][i] > 0) smp.kerb = [kerbs[0][i], kerbs[1][i]];
   });
@@ -655,7 +690,13 @@ export async function buildTrack(
     previewTextures["returns_photo.dds"] = returns.atlas;
     materials.push(material("returns_photo", "returns_photo.dds", { ambient: 0.6, diffuse: 0.2, specular: 0, exp: 1 }));
   }
-  const kerbMeshes = buildKerbs(plan, opts, kerbs, stripMaterial, returns?.noRamp);
+  // Footpaths and driveway crossovers in the nature strip, where the photo shows them; the kerb lays back at each driveway.
+  const stripOuter = opts.vergeWidth + STRIP_EXTRA;
+  const verge = opts.kerbs && raster ? readVerge(plan, raster, kerbs, stripOuter, (x, y) => streetIndex.clearance(x, y) < 0.5) : null;
+  const kerbMeshes = buildKerbs(plan, opts, kerbs, stripMaterial, returns?.noRamp, verge ? laybacks(nS, verge) : undefined);
+  const vergeGround = (x: number, y: number, d: number, smp: RoadSample, side: 1 | -1) =>
+    d <= stripOuter ? surfaceHeight(smp, (side * smp.width) / 2, opts.crown) + KERB_H : terrainAt(x, y).h;
+  const vergeConcrete = verge ? buildVergeConcrete(plan, verge, vergeGround) : [];
   // Photo surface on the traced side streets too (the nearest 40, to keep the file in check).
   const photoStreets = new Set(
     opts.roadSurface === "photo" && raster
@@ -701,7 +742,7 @@ export async function buildTrack(
   }
   // Painted marks street-level imagery located: snapped to the road at their distance along it.
   const discreteMarks = (): DiscreteMark[] => (sources.seen ?? []).flatMap((f): DiscreteMark[] => {
-    const m = /^marking--discrete--(stop-line|give-way|crosswalk-zebra|arrow--([a-z-]+)|text--(\d+))/.exec(f.value);
+    const m = /^marking--discrete--(stop-line|give-way|crosswalk-zebra|arrow--([a-z-]+)|text--([a-z0-9-]+)|symbol--(bicycle))/.exec(f.value);
     if (!m) return [];
     const p = proj.toLocal(f.at);
     const n = index.nearest(p[0], p[1], 15);
@@ -710,10 +751,11 @@ export async function buildTrack(
     const at = { s: plan.samples[n.seg].s + n.frac * opts.spacing, t: n.t };
     if (m[2]) return [{ ...at, kind: "arrow", shape: m[2] }];
     if (m[3]) return [{ ...at, kind: "text", shape: m[3] }];
+    if (m[4]) return [{ ...at, kind: "symbol", shape: m[4] }];
     return [{ ...at, kind: m[1] === "stop-line" ? "stop" : m[1] === "give-way" ? "giveway" : "zebra" }];
   }).filter((d, i, all) => !all.slice(0, i).some((e) => e.kind === d.kind && Math.abs(e.s - d.s) < 8
     // Arrows and numbers: one per lane.
-    && (!/^(arrow|text)$/.test(d.kind) || Math.sign(e.t) === Math.sign(d.t) && Math.abs(e.t - d.t) < 1.6)));
+    && (!/^(arrow|text|symbol)$/.test(d.kind) || Math.sign(e.t) === Math.sign(d.t) && Math.abs(e.t - d.t) < 1.6)));
   const markings = opts.markings
     ? buildMarkings(plan, opts, (sd) => {
       const p = sampleNear(sd).pos;
@@ -767,7 +809,9 @@ export async function buildTrack(
     const town = !!n && kerbedNear[n.seg];
     return { ...t, variant: pickSpecies(speciesRand(), !!t.coastal, town) };
   });
-  const trees = buildTrees(offStreets(offRings(planted)), ground);
+  const treesKept = offStreets(offRings(planted));
+  const trees = buildTrees(treesKept, ground);
+  const trunks = treeTrunks(treesKept, ground);
   // Tree lines on the horizon: canopy in the far photo, out to 1 km, as cheap unshadowed sprites.
   const far = farTreeSpots.filter((t) => !index.nearest(t.x, t.y, opts.corridor + 5) && index.nearest(t.x, t.y, 1000) && !sea.has(t.x, t.y));
   const farStep = Math.max(1, far.length / 3000);
@@ -777,6 +821,12 @@ export async function buildTrack(
     (x, y) => backdropHeight(farDem, index, opts, x, y) - 0.6,
     "HORIZONTREES",
   ).map((m) => ({ ...m, castShadows: false }));
+  // Fences, walls and hedges where OSM maps them, never near the road or across a street.
+  const barriers = buildBarriers(
+    (sources.osm?.barriers ?? []).map((b) => ({ ...b, pts: b.pts.map((p) => proj.toLocal(p)) })),
+    index, opts, ground,
+    (x, y) => streetIndex.clearance(x, y) > 1.5 && !inRoundabout(plan, x, y, opts.vergeWidth + 3),
+  );
   // A tree and a ring of shrubs on each island big enough for them.
   const islandTrees = plan.roundabouts.flatMap((rb) => {
     const ri = innerRadius(rb);
@@ -795,15 +845,22 @@ export async function buildTrack(
   };
   const shrubs = islandTrees.length ? buildTrees(islandTrees, islandGround, "ISLANDTREES") : [];
 
-  // Footpaths and the red shared path, clear of the road, the streets and the rings.
+  // Footpaths and the red shared path, clear of the road, the streets, car park aisles and the rings.
+  const serviceIndex = new LineIndex((sources.streets?.lines ?? [])
+    .filter((l) => /^(service|parking_aisle)/.test(l.cls) && l.brunnel !== "bridge" && l.brunnel !== "tunnel")
+    .map((l) => ({ pts: l.pts.map((p) => proj.toLocal(p)), width: 5 })));
   const pathMeshes = opts.paths && sources.paths?.length
     ? buildPaths(
       sources.paths.map((l) => ({ kind: l.kind, pts: l.pts.map((p) => proj.toLocal(p)) })),
       ground,
-      (x, y, half) => {
+      (x, y, half, kind) => {
         const n = index.nearest(x, y, 30);
         // Clear of the asphalt plus gutter and kerb (~0.5 m); paths often run right behind the kerb.
         if (n && n.dist < index.at(n).width / 2 + 0.5 + half) return false;
+        // Footpaths beside a road are read off the photo (footpaths.ts); OSM's only away from roads.
+        if (kind === "foot" && ((n && n.dist < index.at(n).width / 2 + 8) || streetIndex.clearance(x, y) < 8)) return false;
+        // Not across car park aisles and driveways (OSM service roads).
+        if (serviceIndex.clearance(x, y) < half + 0.3) return false;
         return streetIndex.clearance(x, y) > half + 0.3 && !inRoundabout(plan, x, y, half + 2);
       },
       (x, y) => !!index.nearest(x, y, opts.corridor - 5),
@@ -836,37 +893,24 @@ export async function buildTrack(
     const n = index.nearest(x, y, opts.corridor - 1);
     return n ? ground(x, y) : backdropHeight(farDem, index, opts, x, y) - 0.6;
   };
-  // Street lights: a galvanised pole behind the kerb with an outreach arm and a
-  // flat LED lantern over the road edge, where the CSP config puts the light.
-  const skipLight = (sd: number, side: 1 | -1) => {
-    if (mouth(side, sd)) return true;
-    const i = Math.max(0, Math.min(nS - 1, Math.round((sd / plan.length) * (nS - 1))));
-    const sm = plan.samples[i], t = side * (sm.width / 2 + POLE_OFFSET);
-    const x = sm.pos[0] + sm.left[0] * t, y = sm.pos[1] + sm.left[1] * t;
-    return !!inRoundabout(plan, x, y, 3) || streetIndex.clearance(x, y) < 1;
-  };
-  const streetLightPoles = () => streetLightSpots(plan, 40, kerbAt, skipLight).flatMap((l) => {
-    const sm = plan.samples[l.i];
-    const t = l.side * (sm.width / 2 + POLE_OFFSET);
-    const at: Vec2 = [sm.pos[0] + sm.left[0] * t, sm.pos[1] + sm.left[1] * t];
-    const away: Vec2 = [sm.left[0] * l.side, sm.left[1] * l.side];
-    const z = ground(at[0], at[1]);
-    const tip: Vec2 = [at[0] - away[0] * LANTERN_REACH, at[1] - away[1] * LANTERN_REACH];
-    const arm: Vec2 = [(at[0] + tip[0]) / 2, (at[1] + tip[1]) / 2];
-    return [
-      { kind: "box" as const, at, along: sm.tan, length: 0.16, depth: 0.16, z0: z - 0.5, z1: z + LANTERN_HEIGHT + 0.25, material: "steel" },
-      { kind: "box" as const, at: arm, along: away, length: LANTERN_REACH, depth: 0.07, z0: z + LANTERN_HEIGHT + 0.15, z1: z + LANTERN_HEIGHT + 0.22, material: "steel" },
-      { kind: "box" as const, at: tip, along: away, length: 0.65, depth: 0.3, z0: z + LANTERN_HEIGHT, z1: z + LANTERN_HEIGHT + 0.15, material: "lamp" },
-    ];
-  });
+  // Power poles, wires and street lights: seen, mapped, or (lights, in town) at a typical spacing.
+  const seenLocal = mergeSightings((sources.seen ?? []).map((f) => ({ ...f, at: proj.toLocal(f.at) })));
+  const osmLocal = (pts?: LngLat[]) => (pts ?? []).map((p) => proj.toLocal(p));
+  const utilities = placeUtilities({
+    poles: [...seenLocal.filter((f) => /^object--support--utility-pole/.test(f.value)).map((f) => f.at), ...osmLocal(sources.osm?.poles)],
+    lamps: [...seenLocal.filter((f) => /^object--street-light/.test(f.value)).map((f) => f.at), ...osmLocal(sources.osm?.lamps)],
+    lines: (sources.osm?.powerLines ?? []).map(osmLocal),
+  }, plan, index, opts, (i) => town[i], (x, y) => streetIndex.clearance(x, y) < 1 || kept.some((b) => pointInRing(x, y, b.ring)));
   // Signs and street furniture; their artwork is drawn in one atlas.
   const art = new ArtList();
   const pieces = [
     ...(opts.streetSigns ? streetSigns(streetPlan, plan, opts, art) : []),
-    ...streetLightPoles(),
     ...(opts.landmarks ? landmarks((sources.pois ?? []).map((p) => ({ ...p, at: proj.toLocal(p.at) })), plan, index, opts, art,
       (x, y) => Math.min(streetIndex.clearance(x, y), ...kept.map((b) => (pointInside(x, y, b.ring) ? -1 : Infinity)))) : []),
     ...seenFeatures((sources.seen ?? []).map((f) => ({ ...f, at: proj.toLocal(f.at) })), plan, index, opts, art),
+    ...gateSigns(plan, opts, art),
+    ...utilities.pieces,
+    ...(verge ? letterboxes(plan, verge, vergeGround) : []),
   ];
   let atlas = null;
   if (sources.renderArt && art.list.length) {
@@ -875,7 +919,8 @@ export async function buildTrack(
     materials.push({ ...material("signart", "signart.png", { ambient: 0.55, diffuse: 0.45, specular: 0.15, exp: 20 }), shader: "ksPerPixelAT", alphaTested: true });
   }
   const furniture = buildPieces(pieces, atlas);
-  // Houses: which wall faces the street, then the garage, fences and garden that go with it.
+  // Houses: the wall facing the street (frontage houses know theirs; for the
+  // rest it's the wall nearest a road), then the fences and garden that go with it.
   const roadGap = (x: number, y: number) => {
     const n = index.nearest(x, y, 40);
     return Math.min(n ? n.dist - index.at(n).width / 2 : Infinity, streetIndex.clearance(x, y));
@@ -883,43 +928,57 @@ export async function buildTrack(
   const shown = opts.horizon > 0 ? kept : kept.filter((b) => b.ring.every(([x, y]) => index.nearest(x, y, opts.corridor - 1)));
   const homes = shown.filter((b) => b.ring.length === 4 && b.roof !== "flat" && b.height <= 7.5);
   for (const b of homes) {
-    if (b.street !== undefined) continue;
+    if (b.front) continue;
     let best = -1, bestGap = 25;
     for (let k = 0; k < 4; k++) {
       const p = b.ring[k], q = b.ring[(k + 1) % 4];
       const g = roadGap((p[0] + q[0]) / 2, (p[1] + q[1]) / 2);
       if (g < bestGap) [best, bestGap] = [k, g];
     }
-    if (best >= 0) b.street = best;
+    if (best >= 0) {
+      b.front = [b.ring[best], b.ring[(best + 1) % 4]];
+      b.setback = bestGap;
+    }
   }
-  planGarages(homes);
   const houses = buildBuildings(shown, buildingGround);
   const lots = opts.buildings ? buildLots(homes.filter((b) => b.ring.every(([x, y]) => index.nearest(x, y, opts.corridor - 1))), buildingGround, { roadGap }) : [];
 
   const group = (name: string, children: Kn5Node[]): Kn5GroupNode => ({ kind: "node", name, transform: IDENTITY, children });
+  // Last check: no kerb, strip, gutter or rail triangle stands on the route's asphalt.
+  const onRoad = onRoute(plan, index);
+  const meshesOf = (nodes: Kn5Node[]) => nodes.filter((n): n is Kn5MeshNode => n.kind === "mesh");
+  const kerbsClear = keepOffRoute([...kerbMeshes.gutter, ...kerbMeshes.kerb, ...kerbMeshes.strip, ...kerbReturns, ...vergeConcrete], onRoad);
+  const ringsClear = keepOffRoute(meshesOf(ringNodes), onRoad);
+  const railsClear = keepOffRoute(rails.rails, onRoad);
   const slug = slugify(opts.name);
   const model: Kn5Model = {
     textures,
     materials,
+    // Wide meshes split into tiles and small detail given a draw distance, so the game can skip what's out of sight.
     root: group(slug, [
-      group("ROAD", roadMeshes.road),
-      group("SIDESTREETS", sideStreets),
-      group("FURNITURE", furniture),
-      group("ROUNDABOUTS", [...ringNodes, ...shrubs, ...ringWalls]),
-      group("MARKINGS", markings),
-      group("VERGE", roadMeshes.verge),
-      group("KERBS", [...kerbMeshes.gutter, ...kerbMeshes.kerb, ...kerbMeshes.strip, ...kerbReturns]),
+      ...cullable([
+        group("ROAD", roadMeshes.road),
+        group("SIDESTREETS", sideStreets),
+        group("FURNITURE", furniture),
+        group("WIRES", utilities.wires),
+        group("ROUNDABOUTS", [...ringsClear.nodes, ...shrubs, ...ringWalls]),
+        group("MARKINGS", markings),
+        group("VERGE", roadMeshes.verge),
+        group("KERBS", kerbsClear.nodes),
+        group("TREES", trees),
+        group("RAILS", [...railsClear.nodes, ...rails.posts]),
+        group("GUIDEPOSTS", posts),
+        group("BUILDINGS", houses),
+        group("FENCES", keepOffRoute(barriers, onRoad).nodes),
+        group("PATHS", pathMeshes),
+        group("LOTS", keepOffRoute(lots, onRoad).nodes),
+        group("JETTY", piers.length ? buildPiers(piers, buildingGround, sea) : []),
+      ]),
+      // Already in compact chunks (terrain, horizon), or never drawn (walls).
       group("TERRAIN", terrainNodes),
-      group("WALLS", walls),
       group("HORIZON", [...backdropNodes, ...horizonTrees]),
-      group("TREES", trees),
-      group("RAILS", [...rails.rails, ...rails.posts]),
-      group("GUIDEPOSTS", posts),
-      group("PATHS", pathMeshes),
-      group("BUILDINGS", houses),
-      group("LOTS", lots),
       group("SEA", ocean.length ? buildSea(ocean) : []),
-      group("JETTY", piers.length ? buildPiers(piers, buildingGround, sea) : []),
+      group("WALLS", [...walls, ...trunks]),
       ...trackObjects(plan, opts),
     ]),
   };
@@ -931,24 +990,21 @@ export async function buildTrack(
   if (plan.closed) outline2d.push(outline2d[0]);
   const map = trackMap(outline2d);
   const meanWidth = plan.samples.reduce((a, s) => a + s.width, 0) / plan.samples.length;
+  const cameras = placeCameras(plan, opts, (x, y) => terrainAt(x, y).h, (x, y) => kept.some((b) => pointInRing(x, y, b.ring)));
   const trackMeta: TrackMeta = { name: opts.name, ...meta };
   const files: Record<string, Uint8Array> = {
     [`${slug}/${slug}.kn5`]: kn5,
     [`${slug}/ai/fast_lane.ai`]: ai,
     [`${slug}/data/surfaces.ini`]: enc.encode(surfacesIni()),
     [`${slug}/data/map.ini`]: enc.encode(map.ini),
+    [`${slug}/data/cameras_1.ini`]: enc.encode(camerasIni(cameras)),
+    [`${slug}/extension/ext_config.ini`]: enc.encode(extConfig(utilities.lights)),
     [`${slug}/map.png`]: map.png,
     [`${slug}/ui/ui_track.json`]: enc.encode(uiTrackJson(trackMeta, {
       length: timedLength(), width: meanWidth, pitboxes: opts.pitCount, closed: plan.closed, centre,
     })),
     [`${slug}/ui/outline.png`]: outlinePng(outline2d),
     [`${slug}/ui/preview.png`]: previewPng(outline2d, plan.closed),
-    [`${slug}/extension/ext_config.ini`]: enc.encode(extConfigIni(plan, {
-      materials: model.materials.map((m) => m.name),
-      along: (s, t, lift) => along(plan, s, t, lift, opts.crown) as { pos: [number, number, number] },
-      kerbAt,
-      skipLight,
-    })),
     [`${slug}/README.txt`]: enc.encode(readme(trackMeta, textured.size ? (typeof sources.imageryCredit === "function" ? sources.imageryCredit() : sources.imageryCredit) ?? "aerial imagery" : null)),
   };
 
@@ -981,6 +1037,10 @@ export async function buildTrack(
       sideStreets: streetPlan.streets.length,
       sideTraced,
       kerbMetres: (kerbs[0].reduce((a, b) => a + b, 0) + kerbs[1].reduce((a, b) => a + b, 0)) * opts.spacing,
+      poles: utilities.poles,
+      footpathMetres: verge ? (verge.paths[0].filter(Boolean).length + verge.paths[1].filter(Boolean).length) * opts.spacing : 0,
+      driveways: verge?.drives.length ?? 0,
+      streetLights: utilities.lights.length,
       streetSigns: pieces.filter((p) => p.kind === "blade").length,
       signs: pieces.filter((p) => p.kind === "face").length,
       railMetres: needs.reduce((n, side) => n + side.filter(Boolean).length * opts.spacing, 0),

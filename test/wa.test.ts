@@ -29,30 +29,3 @@ describe("WA sources", () => {
     expect(Number.isNaN(h[1])).toBe(true);
   });
 });
-
-describe("CSP street lights", async () => {
-  const { streetLightPositions } = await import("../src/core/cspConfig");
-  const sample = (s: number, kerb: [number, number] | undefined) => ({
-    pos: [s, 0] as [number, number], tan: [1, 0] as [number, number], left: [0, 1] as [number, number],
-    curvature: 0, s, width: 8, h: 0, bank: 0, kerb,
-  });
-  it("lights only kerbed stretches, alternating sides, at pole height", () => {
-    const samples = Array.from({ length: 401 }, (_, i) => sample(i, i < 200 ? [1, 1] : undefined));
-    const plan = { closed: false, samples, length: 400, roundabouts: [] } as never;
-    const pts = streetLightPositions(plan, (s, t, lift) => ({ pos: [s, lift, t] }), 40);
-    expect(pts.length).toBeGreaterThan(5);
-    expect(pts.every((p) => p[0] < 205)).toBe(true);
-    expect(pts.every((p) => p[1] === 7.6)).toBe(true);
-    // the lantern hangs over the road edge, 0.6 m in from the kerb line
-    expect(pts.every((p) => Math.abs(Math.abs(p[2]) - 3.4) < 1e-9)).toBe(true);
-    expect(new Set(pts.map((p) => Math.sign(p[2]))).size).toBe(2);
-  });
-  it("moves lights off junction mouths", () => {
-    const samples = Array.from({ length: 401 }, (_, i) => sample(i, [1, 1]));
-    const plan = { closed: false, samples, length: 400, roundabouts: [] } as never;
-    const skip = (s: number) => s > 95 && s < 105;
-    const pts = streetLightPositions(plan, (s, t, lift) => ({ pos: [s, lift, t] }), 40, undefined, skip);
-    expect(pts.some((p) => p[0] > 95 && p[0] < 105)).toBe(false);
-    expect(pts.some((p) => p[0] > 85 && p[0] < 115)).toBe(true);
-  });
-});

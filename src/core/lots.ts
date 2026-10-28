@@ -8,14 +8,14 @@
 // the house on each side, the front boundary sits about 4.5 m back from the
 // road's edge (the verge and footpath), and the yard runs 8 m behind.
 
-import { ccwRing, pointInRing, type Building } from "./buildings";
+import { pointInRing, ringArea, type Building } from "./buildings";
 import type { HeightFn } from "./elevation";
 import type { Vec2 } from "./geo";
 import type { Kn5MeshNode } from "./kn5";
 import type { MeshBuilder, Vec3 } from "./mesh";
 import { pad } from "./roadMesh";
 import { ChunkedMesh, rng } from "./scenery";
-import { FENCE_COLOURS, FENCE_PANEL, FENCE_HEIGHT, FRONT_WALL_REPEAT, GARAGE_SIZE, SHRUB_SPECIES } from "./houseTextures";
+import { FENCE_COLOURS, FENCE_PANEL, FENCE_HEIGHT, FRONT_WALL_REPEAT, SHRUB_SPECIES } from "./houseTextures";
 
 const SIDE = 1.2;
 const VERGE = 4.5;
@@ -29,16 +29,20 @@ export interface LotOptions {
 
 type FrontKind = "none" | "limestone" | "brick" | "hedge";
 
-/** Decides each house's garage end; call before buildBuildings. */
-export function planGarages(houses: Building[], seed = 11): void {
-  const r = rng(seed);
-  for (const b of houses) {
-    const { ring, street } = ccwRing(b);
-    if (street < 0 || ring.length !== 4 || b.height > 4) continue;
-    const p = ring[street], q = ring[(street + 1) % 4];
-    if (Math.hypot(q[0] - p[0], q[1] - p[1]) < GARAGE_SIZE.w + 3) continue;
-    if (r() < 0.85) b.garage = r() < 0.5 ? "start" : "end";
-  }
+/** The driveway runs from the garage door at the start of the front wall (as buildings.ts draws it). */
+const DRIVE: [number, number] = [0, 3.8];
+
+/** The ring counter-clockwise, with the index of the front wall in it (-1 if none). */
+export function frontWall(b: Building): { ring: Vec2[]; k: number } {
+  const ring = ringArea(b.ring) < 0 ? b.ring.slice().reverse() : b.ring;
+  if (!b.front) return { ring, k: -1 };
+  const [f0, f1] = b.front;
+  const same = (a: Vec2, c: Vec2) => Math.hypot(a[0] - c[0], a[1] - c[1]) < 0.05;
+  const k = ring.findIndex((p, i) => {
+    const q = ring[(i + 1) % ring.length];
+    return (same(p, f0) && same(q, f1)) || (same(p, f1) && same(q, f0));
+  });
+  return { ring, k };
 }
 
 export function buildLots(houses: Building[], ground: HeightFn, opts: LotOptions): Kn5MeshNode[] {
@@ -65,7 +69,7 @@ export function buildLots(houses: Building[], ground: HeightFn, opts: LotOptions
   const free = (x: number, y: number, self: Building) => opts.roadGap(x, y) > 1.5 && !inHouse(x, y, self) && !pointInRing(x, y, self.ring);
 
   for (const b of houses) {
-    const { ring, street } = ccwRing(b);
+    const { ring, k: street } = frontWall(b);
     if (street < 0 || ring.length !== 4) continue;
     const P = ring[street], Q = ring[(street + 1) % 4];
     const len = Math.hypot(Q[0] - P[0], Q[1] - P[1]);
@@ -92,7 +96,7 @@ export function buildLots(houses: Building[], ground: HeightFn, opts: LotOptions
     const wallAt = gap - VERGE;
     const roll = rand();
     const kind: FrontKind = wallAt < 1.5 ? "none" : roll < 0.35 ? "none" : roll < 0.6 ? "limestone" : roll < 0.75 ? "brick" : "hedge";
-    const drive = b.garage === "start" ? [0.3, GARAGE_SIZE.w - 0.3] : b.garage === "end" ? [len - GARAGE_SIZE.w + 0.3, len - 0.3] : rand() < 0.5 ? [0, 3.2] : [len - 3.2, len];
+    const drive = b.garage ? DRIVE : rand() < 0.5 ? [0, 3.2] : [len - 3.2, len];
     if (kind !== "none") {
       const spec = kind === "hedge" ? { h: 1.0, d: 0.8 } : kind === "limestone" ? { h: 0.9, d: 0.35 } : { h: 0.8, d: 0.25 };
       const runs: [number, number][] = [[-SIDE, drive[0]], [drive[1], len + SIDE]];
@@ -106,14 +110,17 @@ export function buildLots(houses: Building[], ground: HeightFn, opts: LotOptions
       }
     }
 
-    // Garden bed along the front of the house (not across the garage), with shrubs.
+    // Garden beds along the front of the house: not across the driveway, and
+    // leaving a path to the front door (where buildings.ts puts it).
     if (rand() < 0.75) {
-      const [g0, g1] = b.garage === "start" ? [GARAGE_SIZE.w, len] : b.garage === "end" ? [0, len - GARAGE_SIZE.w] : [0, len];
+      const door = b.garage ? Math.min(len - 1.4, 4.2) : len / 3;
+      const runs: [number, number][] = [[b.garage ? DRIVE[1] : 0, door - 0.5], [door + 1.35, len]];
       const bedDepth = Math.min(1.4, Math.max(0, gap - 2.5));
-      if (g1 - g0 > 2 && bedDepth > 0.6) {
+      for (const [g0, g1] of runs) {
+        if (g1 - g0 < 1.5 || bedDepth <= 0.6) continue;
         bed(beds.next(8), at(g0, 0.05), at(g1, 0.05), at(g1, bedDepth), at(g0, bedDepth), ground);
         const sm = shrubs.next(48);
-        for (let s = g0 + 0.8; s < g1 - 0.5; s += 1.6 + rand() * 1.4) {
+        for (let s = g0 + 0.7; s < g1 - 0.4; s += 1.6 + rand() * 1.4) {
           shrub(sm, at(s, bedDepth / 2 + 0.05), 0.8 + rand() * 0.7, rand() < 0.5 ? 0 : 1, rand() * Math.PI, ground);
         }
       }

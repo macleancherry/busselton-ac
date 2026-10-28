@@ -28,14 +28,14 @@ export function pathKind(subclass: string | undefined, bicycle: string | undefin
 }
 
 /**
- * Ribbon meshes along the paths. `clear(x, y, half)` says whether a point
- * `half` metres wide is clear of the road and streets; stretches that aren't
- * are left out (the path meets the road there).
+ * Ribbon meshes along the paths. `clear(x, y, half, kind)` says whether a
+ * point `half` metres wide is clear of the road and streets; stretches that
+ * aren't are left out (the path meets the road there).
  */
 export function buildPaths(
   lines: PathLine[],
   ground: (x: number, y: number) => number,
-  clear: (x: number, y: number, half: number) => boolean,
+  clear: (x: number, y: number, half: number, kind: PathLine["kind"]) => boolean,
   inCorridor: (x: number, y: number) => boolean,
 ): Kn5MeshNode[] {
   const out: Kn5MeshNode[] = [];
@@ -71,7 +71,7 @@ export function buildPaths(
         if (i > 0) s += Math.hypot(p[0] - o[0], p[1] - o[1]);
         const dx = q[0] - o[0], dy = q[1] - o[1], L = Math.hypot(dx, dy) || 1;
         const nx = -dy / L, ny = dx / L;
-        if (!inCorridor(p[0], p[1]) || !clear(p[0], p[1], half)) {
+        if (!inCorridor(p[0], p[1]) || !clear(p[0], p[1], half, kind)) {
           flush();
           continue;
         }

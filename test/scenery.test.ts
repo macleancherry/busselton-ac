@@ -120,3 +120,22 @@ describe("buildTrack with scenery", async () => {
     expect(found).toBe(true);
   });
 });
+
+describe("tree trunks", async () => {
+  const { treeTrunks } = await import("../src/core/scenery");
+  it("puts an invisible solid box at each trunk, wider for a big tuart", () => {
+    // Norfolk pine (0.5 m) and a small she-oak (0.3 m at half scale -> the 20 cm minimum).
+    const nodes = treeTrunks([{ x: 10, y: 5, scale: 1, variant: 2 }, { x: 40, y: -6, scale: 0.5, variant: 1 }], () => 20);
+    expect(nodes).toHaveLength(1);
+    const n = nodes[0];
+    expect(n.name).toMatch(/^1WALL_TREE_/);
+    expect(n.renderable).toBe(false);
+    const xs = (x0: number) => Array.from({ length: n.positions.length / 3 }, (_, i) => n.positions[i * 3]).filter((x) => Math.abs(x - x0) < 1);
+    const w = (x0: number) => Math.max(...xs(x0)) - Math.min(...xs(x0));
+    expect(w(10)).toBeCloseTo(0.5, 3);
+    expect(w(40)).toBeCloseTo(0.2, 3); // never thinner than 20 cm
+    const ys = Array.from({ length: n.positions.length / 3 }, (_, i) => n.positions[i * 3 + 1]);
+    expect(Math.min(...ys)).toBeLessThan(20);
+    expect(Math.max(...ys)).toBeCloseTo(23, 3);
+  });
+});
