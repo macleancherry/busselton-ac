@@ -195,7 +195,7 @@ function wallBox(mb: MeshBuilder, a: Vec2, c: Vec2, depth: number, ground: Heigh
 function bed(mb: MeshBuilder, a: Vec2, b: Vec2, c: Vec2, d: Vec2, ground: HeightFn): void {
   const i = mb.vertexCount;
   for (const p of [a, b, c, d]) {
-    mb.vertex([p[0], p[1], ground(p[0], p[1]) + 0.04], p[0] / 2, p[1] / 2);
+    mb.vertex([p[0], p[1], ground(p[0], p[1]) + 0.07], p[0] / 2, p[1] / 2);
     mb.normals!.push(0, 0, 1);
   }
   // a->b runs along the house, c and d are toward the street: make it face up.

@@ -104,6 +104,10 @@ export interface BuildOptions {
   noTrace: { at: [number, number]; radius: number }[];
   /** Reject photo-trace rows that run out of view or are far wider than the mapped street (see traceRoad). */
   traceGuard: boolean;
+  /** Coarser terrain blocks away from the road where the ground is flat enough (see buildTerrainChunk). */
+  terrainLod: boolean;
+  /** No level-of-detail blocks within this distance of the road's centreline, metres. */
+  terrainLodNear: number;
   /** Kerb and gutter where the photos (or a built-up area) show them, instead of a gravel verge. */
   kerbs: boolean;
 }
@@ -151,6 +155,8 @@ export const DEFAULT_OPTIONS: BuildOptions = {
   traceRoads: true,
   noTrace: [],
   traceGuard: true,
+  terrainLod: true,
+  terrainLodNear: 25,
   kerbs: true,
 };
 
