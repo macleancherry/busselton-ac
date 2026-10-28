@@ -102,6 +102,8 @@ export interface BuildOptions {
    * parking bays): centre [lng, lat] and radius in metres. Fades out over 30 m.
    */
   noTrace: { at: [number, number]; radius: number }[];
+  /** Reject photo-trace rows that run out of view or are far wider than the mapped street (see traceRoad). */
+  traceGuard: boolean;
   /** Kerb and gutter where the photos (or a built-up area) show them, instead of a gravel verge. */
   kerbs: boolean;
 }
@@ -148,6 +150,7 @@ export const DEFAULT_OPTIONS: BuildOptions = {
   landmarks: true,
   traceRoads: true,
   noTrace: [],
+  traceGuard: true,
   kerbs: true,
 };
 

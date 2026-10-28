@@ -336,7 +336,7 @@ export async function buildTrack(
     const reach = Math.max(16, Math.max(...plan.samples.map((s) => s.width)) * 1.5);
     raster = await sources.raster(proj, plan.samples.map((s) => s.pos), reach);
     if (raster) {
-      trace = traceRoad(plan, raster);
+      trace = traceRoad(plan, raster, undefined, opts.traceGuard);
       if (opts.noTrace.length) {
         const zones = opts.noTrace.map((z) => ({ c: proj.toLocal(z.at), r: z.radius }));
         plan.samples.forEach((smp, i) => {
@@ -846,6 +846,13 @@ export async function buildTrack(
   const shrubs = islandTrees.length ? buildTrees(islandTrees, islandGround, "ISLANDTREES") : [];
 
   // Footpaths and the red shared path, clear of the road, the streets, car park aisles and the rings.
+  const nearVergeConcrete = (x: number, y: number) => {
+    const n = verge ? index.nearest(x, y, 20) : null;
+    if (!n) return false;
+    const band = verge!.paths[n.t >= 0 ? 0 : 1][n.seg];
+    const d = n.dist - index.at(n).width / 2;
+    return !!band && d > band.d0 - 1 && d < band.d1 + 1;
+  };
   const serviceIndex = new LineIndex((sources.streets?.lines ?? [])
     .filter((l) => /^(service|parking_aisle)/.test(l.cls) && l.brunnel !== "bridge" && l.brunnel !== "tunnel")
     .map((l) => ({ pts: l.pts.map((p) => proj.toLocal(p)), width: 5 })));
@@ -857,8 +864,8 @@ export async function buildTrack(
         const n = index.nearest(x, y, 30);
         // Clear of the asphalt plus gutter and kerb (~0.5 m); paths often run right behind the kerb.
         if (n && n.dist < index.at(n).width / 2 + 0.5 + half) return false;
-        // Footpaths beside a road are read off the photo (footpaths.ts); OSM's only away from roads.
-        if (kind === "foot" && ((n && n.dist < index.at(n).width / 2 + 8) || streetIndex.clearance(x, y) < 8)) return false;
+        // Where the photo already gave a footpath here (footpaths.ts), don't lay OSM's on top.
+        if (kind === "foot" && nearVergeConcrete(x, y)) return false;
         // Not across car park aisles and driveways (OSM service roads).
         if (serviceIndex.clearance(x, y) < half + 0.3) return false;
         return streetIndex.clearance(x, y) > half + 0.3 && !inRoundabout(plan, x, y, half + 2);

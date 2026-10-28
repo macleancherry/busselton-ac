@@ -83,7 +83,14 @@ export function rectify(plan: RoadPlan, raster: RasterSampler, halfWidth: number
   return { rows, half };
 }
 
-export function traceRoad(plan: RoadPlan, raster: RasterSampler, osmWidths?: number[]): TraceResult {
+/**
+ * `guard` (default on) rejects rows whose asphalt runs out of view or is far
+ * wider than the mapped street. Turn it off for wide streets with kerbside
+ * parking and car parks alongside (four-lane main roads), where every row
+ * runs out of view and the guard would leave the road at its mapped width;
+ * use noTrace zones for the spots where the unguarded trace goes wrong.
+ */
+export function traceRoad(plan: RoadPlan, raster: RasterSampler, osmWidths?: number[], guard = true): TraceResult {
   const n = plan.samples.length;
   const widths = osmWidths ?? plan.samples.map((s) => s.width);
   const reach = Math.max(14, Math.max(...widths) * 1.4);
@@ -160,12 +167,12 @@ export function traceRoad(plan: RoadPlan, raster: RasterSampler, osmWidths?: num
     // Not the road's edges: a run that carries on out of view (grey roofs,
     // a car park), or one far wider than the street (parking bays alongside).
     // Following those walks the trace off the road, a little more each row.
-    const open = lo <= 1 || hi >= m - 2;
-    const tooWide = w > widths[i] + WIDER;
+    const open = guard && (lo <= 1 || hi >= m - 2);
+    const tooWide = guard && w > widths[i] + WIDER;
     if (!open && !tooWide && w >= 3 && w <= 22 && inRun / (hi - lo + 1) > 0.75) {
       left[i] = (hi - half) * DT; // +t is left
       right[i] = (lo - half) * DT;
-      const drift = Math.round(MAX_DRIFT / DT);
+      const drift = Math.round((guard ? MAX_DRIFT : 1e6) / DT);
       centre = Math.max(half - drift, Math.min(half + drift, Math.round((lo + hi) / 2 * 0.3 + centre * 0.7)));
     }
   }
