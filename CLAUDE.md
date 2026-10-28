@@ -37,11 +37,20 @@ Both Windows machines can run AC at the same time; LAN racing uses Content Manag
 4. Install (workstation): `scripts\windows\install-track.ps1` unzips into AC and optionally copies to the rig.
 4b. Surface check: `npx tsx scripts/check/dump_surface.ts out/<slug>.zip out/<slug>.surface.json` then `python3 -I scripts/check/surface_check.py out/<slug>.surface.json`. Driving line kinks should be 0, max tilt about 3%, and edge steps around kerb height (15 to 20 cm median).
 4c. Renders: add `SHOTS=0.02,0.25,0.5` (lap fractions, or `lng:lat:lookLng:lookLat:height`) to the build command for driver's-eye PNGs in `out/`. They come from the three.js preview: photo ground only, no ksMultilayer detail or CSP.
+4d. Traffic (when the route has `traffic: true`): `python3 -I scripts/check/traffic_check.py out/<slug>.zip out/<slug>.surface.json` must pass (no overlapping intersections, no loose lane ends, lanes on asphalt).
 5. Smoke test (workstation, reported back, never fixed there): it loads, the car spawns on the grid, timing and pits work, and AI completes a lap.
 
 Busselton is flat, so town routes use `"banking": false` in options, plus `terrainStep: 1.5` and `terrainUnderRoad: 0.12` in `build`. The upstream defaults are for hilly roads: up to 6% banking, a 3 m terrain grid and ground sunk 0.6 m under the road, which together made tilted corners and 40 to 60 cm drops at the road edges here.
 
 Pins snap to the nearest road. A pin near a car park, side street or the far carriageway of a divided road makes a detour or a U-turn spike. Put pins mid-block on the road you want, or leave them out and let the route follow the road.
+
+## Upstream
+
+honestjams/ac-track-builder moves fast and often builds things we also want. After every tranche of work, before reporting back to Mac:
+
+1. `git fetch upstream` (add it with `git remote add upstream https://github.com/honestjams/ac-track-builder.git` if missing) and `git log main..upstream/main`.
+2. If there's anything new, tell Mac what it is, then merge: take upstream's version where both sides built the same thing, keep the fork's South West work on top, rerun the tests and the checks, and rebuild.
+3. Note anything worth sending back upstream.
 
 ## Code map
 

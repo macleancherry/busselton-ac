@@ -257,7 +257,6 @@ export function trafficGraph(roadsIn: TrafficRoad[], roundabouts: TrafficRoundab
   // 4. Roundabouts: a clockwise ring lane, and an intersection where each road meets it.
   const intersections: Intersection[] = [];
   let interId = 1;
-  const ringReach = roundabouts.map((rb) => rb.rOut + 4);
   roundabouts.forEach((rb, k) => {
     const rr = (rb.rIn + rb.rOut) / 2;
     const n = Math.max(16, Math.round((2 * Math.PI * rr) / 3));
@@ -290,29 +289,50 @@ export function trafficGraph(roadsIn: TrafficRoad[], roundabouts: TrafficRoundab
         arms.push({ a0: a - half, a1: a + half, r1 });
       }
     }
-    // A junction just off the ring (a side street meeting the road as it
-    // arrives) can't sit beside the arm without overlapping it: it joins it.
-    merged = merged.filter((j) => {
-      const d = dist(j.c, rb.c);
-      if (d >= rb.rOut + 4 + j.r + 0.5) return true;
-      const a = Math.atan2(j.c[1] - rb.c[1], j.c[0] - rb.c[0]);
+    type Group = { a0: number; a1: number; r1: number };
+    const group = (list: Group[]): Group[] => {
+      const sorted = [...list].sort((x, y) => x.a0 - y.a0);
+      const out: Group[] = [];
+      for (const arm of sorted) {
+        const g = out[out.length - 1];
+        if (g && arm.a0 < g.a1 + 0.15) {
+          g.a1 = Math.max(g.a1, arm.a1);
+          g.r1 = Math.max(g.r1, arm.r1);
+        } else out.push({ ...arm });
+      }
+      // Wrapping round past +pi into the first group.
+      if (out.length > 1 && out[out.length - 1].a1 + 0.15 > out[0].a0 + Math.PI * 2) {
+        const last = out.pop()!;
+        out[0] = { a0: last.a0 - Math.PI * 2, a1: Math.max(out[0].a1, last.a1 - Math.PI * 2), r1: Math.max(out[0].r1, last.r1) };
+      }
+      return out;
+    };
+    // The angular reach of a junction circle seen from the ring's centre.
+    const span = (j: { c: Vec2; r: number }) => {
+      const d = dist(j.c, rb.c), a = Math.atan2(j.c[1] - rb.c[1], j.c[0] - rb.c[0]);
       const half = Math.asin(Math.min(1, j.r / Math.max(d, j.r)));
-      arms.push({ a0: a - half, a1: a + half, r1: d + j.r });
+      return { d, a0: a - half, a1: a + half };
+    };
+    const touches = (g: Group, j: { c: Vec2; r: number }) => {
+      const s = span(j);
+      if (s.d - j.r > g.r1 + 0.5) return false;
+      for (const off of [-Math.PI * 2, 0, Math.PI * 2]) if (s.a0 + off < g.a1 + 0.05 && s.a1 + off > g.a0 - 0.05) return true;
       return false;
-    });
-    arms.sort((x, y) => x.a0 - y.a0);
-    const groups: { a0: number; a1: number; r1: number }[] = [];
-    for (const arm of arms) {
-      const g = groups[groups.length - 1];
-      if (g && arm.a0 < g.a1 + 0.15) {
-        g.a1 = Math.max(g.a1, arm.a1);
-        g.r1 = Math.max(g.r1, arm.r1);
-      } else groups.push({ ...arm });
-    }
-    // Wrapping round past +pi into the first group.
-    if (groups.length > 1 && groups[groups.length - 1].a1 + 0.15 > groups[0].a0 + Math.PI * 2) {
-      const last = groups.pop()!;
-      groups[0] = { a0: last.a0 - Math.PI * 2, a1: Math.max(groups[0].a1, last.a1 - Math.PI * 2), r1: Math.max(groups[0].r1, last.r1) };
+    };
+    // A junction that would touch an arm (a side street meeting the road as
+    // it arrives at the ring) joins it, until none touch.
+    let groups = group(arms);
+    for (let again = true; again;) {
+      again = false;
+      const idx = merged.findIndex((j) => dist(j.c, rb.c) < rb.rOut + 4 + j.r + 0.5 || groups.some((g) => touches(g, j)));
+      if (idx >= 0) {
+        const j = merged[idx];
+        const s = span(j);
+        arms.push({ a0: s.a0, a1: s.a1, r1: s.d + j.r });
+        merged.splice(idx, 1);
+        groups = group(arms);
+        again = true;
+      }
     }
     for (const g of groups) {
       // Arms all round a small ring: leave a gap so the sector doesn't close on itself.
@@ -329,11 +349,8 @@ export function trafficGraph(roadsIn: TrafficRoad[], roundabouts: TrafficRoundab
         id: interId++,
         points: [...arc(g.r1), ...arc(r0).reverse()].map((q) => ac(q, rb.h)),
       });
-      ringReach[k] = Math.max(ringReach[k], g.r1);
     }
   });
-  // Junctions clear of every roundabout's arms.
-  merged = merged.filter((j) => !roundabouts.some((rb, k) => dist(j.c, rb.c) < ringReach[k] + j.r + 0.5));
 
   for (const j of merged) intersections.push({ name: `${j.turn ? "Turn" : "Junction"} ${interId}`, id: interId++, points: polygon(j.c, j.r, j.h, j.turn ? 6 : 8) });
 

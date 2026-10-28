@@ -7,7 +7,7 @@
     npx tsx scripts/check/dump_surface.ts out/<slug>.zip out/<slug>.surface.json
     python3 -I scripts/check/traffic_check.py out/<slug>.zip out/<slug>.surface.json
 
-Exits non-zero when polygons overlap or lanes leave the asphalt, and writes
+Exits non-zero when polygons overlap, a lane end is loose or lanes leave the asphalt, and writes
 out/<slug>.traffic.png: lanes over the drivable surface, polygons shaded.
 """
 
@@ -108,7 +108,7 @@ def main():
     out = os.path.splitext(spath)[0].replace(".surface", "") + ".traffic.png"
     img.save(out)
     print(f"map: {out}")
-    failed = bad_pairs or off > 0.03 * pts
+    failed = bad_pairs or loose_ends or off > 0.03 * pts
     sys.exit(1 if failed else 0)
 
 
