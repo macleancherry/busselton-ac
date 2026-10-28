@@ -20,7 +20,10 @@ param(
   [string]$Car,
   [int]$Minutes = 9,
   [string]$Share = $env:BUSSELTON_TEST_SHARE,
-  [string]$AcPath = $env:BUSSELTON_AC_PATH
+  [string]$AcPath = $env:BUSSELTON_AC_PATH,
+  # Where the Drive button is in AC's window (client pixels): the top icon of the left-hand bar.
+  [int]$DriveX = 26,
+  [int]$DriveY = 88
 )
 $ErrorActionPreference = "Stop"
 $repo = Resolve-Path (Join-Path $PSScriptRoot "..\..")
@@ -81,6 +84,32 @@ $started = Get-Date
 Write-Host "Starting $slug with the AI driving (up to $Minutes min) ..." -ForegroundColor Cyan
 try {
   $proc = Start-Process -FilePath (Join-Path $AcPath "acs.exe") -WorkingDirectory $AcPath -PassThru
+  # AC opens on its setup screen and waits for the Drive button (top of the left-hand bar). The
+  # track's test script presses it too; as a fallback, click it here a few times while AC loads.
+  # AC's menu bar is a fixed size in pixels, so the button sits at the same spot at any resolution.
+  Add-Type @"
+using System; using System.Runtime.InteropServices;
+public static class BtClick {
+  [StructLayout(LayoutKind.Sequential)] public struct POINT { public int X, Y; }
+  [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr h);
+  [DllImport("user32.dll")] public static extern bool ClientToScreen(IntPtr h, ref POINT p);
+  [DllImport("user32.dll")] public static extern bool SetCursorPos(int x, int y);
+  [DllImport("user32.dll")] public static extern void mouse_event(uint f, uint x, uint y, uint d, UIntPtr e);
+  public static void Click(IntPtr h, int x, int y) {
+    SetForegroundWindow(h); System.Threading.Thread.Sleep(300);
+    POINT p; p.X = x; p.Y = y; ClientToScreen(h, ref p); SetCursorPos(p.X, p.Y);
+    System.Threading.Thread.Sleep(150); mouse_event(2, 0, 0, 0, UIntPtr.Zero); System.Threading.Thread.Sleep(80); mouse_event(4, 0, 0, 0, UIntPtr.Zero);
+  }
+}
+"@ -ErrorAction SilentlyContinue
+  foreach ($wait in @(25, 10, 10, 10)) {
+    if ($proc.WaitForExit($wait * 1000)) { break }
+    $proc.Refresh()
+    if ($proc.MainWindowHandle -ne [IntPtr]::Zero) {
+      Write-Host "  clicking Drive (fallback)"
+      [BtClick]::Click($proc.MainWindowHandle, $DriveX, $DriveY)
+    }
+  }
   if (-not $proc.WaitForExit(($Minutes + 2) * 60 * 1000)) {
     Write-Host "Still running after $Minutes min: closing AC." -ForegroundColor Yellow
     Stop-Process -Id $proc.Id -Force
