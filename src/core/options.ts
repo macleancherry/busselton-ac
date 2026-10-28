@@ -106,6 +106,8 @@ export interface BuildOptions {
   traceGuard: boolean;
   /** Coarser terrain blocks away from the road where the ground is flat enough (see buildTerrainChunk). */
   terrainLod: boolean;
+  /** Write data/traffic.json for CSP's traffic planner (turns on extended track physics, see surfacesIni). */
+  traffic: boolean;
   /** No level-of-detail blocks within this distance of the road's centreline, metres. */
   terrainLodNear: number;
   /** Kerb and gutter where the photos (or a built-up area) show them, instead of a gravel verge. */
@@ -156,6 +158,7 @@ export const DEFAULT_OPTIONS: BuildOptions = {
   noTrace: [],
   traceGuard: true,
   terrainLod: true,
+  traffic: false,
   terrainLodNear: 25,
   kerbs: true,
 };
