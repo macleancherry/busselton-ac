@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildPiers, buildSea, SEA_LEVEL, SeaMask, withSeabed, type CoastPolygon } from "../src/core/coast";
+import { buildGroynes, buildPiers, buildSea, buildSeawall, SEA_LEVEL, SeaMask, withSeabed, type CoastPolygon } from "../src/core/coast";
 
 // Sea north of y = 100; a jetty 6 m wide from the beach (y = 80) 400 m out.
 const ocean: CoastPolygon = { rings: [[[-500, 100], [500, 100], [500, 1000], [-500, 1000]]], edge: [[true, true, true, true]] };
@@ -35,5 +35,40 @@ describe("coast", () => {
     for (let i = 0; i < timber.positions.length; i += 3) {
       if (timber.positions[i + 1] < 0) expect(-timber.positions[i + 2]).toBeGreaterThan(100);
     }
+  });
+
+  // A beach from y = 60 (its back) to the water at y = 100, both ways round.
+  for (const ccw of [true, false]) {
+    it(`walls the back of the beach only, cap up and face to the sand (${ccw ? "counter-clockwise" : "clockwise"} ring)`, () => {
+      const ring: [number, number][] = [[-200, 60], [200, 60], [200, 100], [-200, 100]];
+      const beach: CoastPolygon = { rings: [ccw ? ring : [...ring].reverse()], edge: [[true, true, true, true]] };
+      const ashore: CoastPolygon = { rings: [[[-3, 40], [3, 40], [3, 480], [-3, 480]]], edge: [[true, true, true, true]] };
+      const meshes = buildSeawall([beach], withSeabed(land, sea), sea, () => true, [ashore]);
+      expect(meshes.length).toBe(1);
+      const m = meshes[0];
+      let up = 0, toSea = 0;
+      for (let i = 0; i < m.positions.length; i += 3) {
+        // AC space: z is south, so the beach's y = 60 is z = -60.
+        expect(m.positions[i + 2]).toBeGreaterThan(-75);
+        expect(m.positions[i + 2]).toBeLessThan(-55);
+        // Clear of the jetty coming ashore at x = 0.
+        expect(Math.abs(m.positions[i])).toBeGreaterThan(9);
+        up += m.normals[i + 1];
+        toSea -= m.normals[i + 2];
+      }
+      expect(up).toBeGreaterThan(0);
+      expect(toSea).toBeGreaterThan(0);
+    });
+  }
+
+  it("builds a rock groyne out into the water, crest above it", () => {
+    const [m] = buildGroynes([[[100, 90], [100, 160]]], withSeabed(land, sea));
+    let maxY = -Infinity, up = 0;
+    for (let i = 0; i < m.positions.length; i += 3) {
+      maxY = Math.max(maxY, m.positions[i + 1]);
+      up += m.normals[i + 1];
+    }
+    expect(maxY).toBeGreaterThan(SEA_LEVEL + 0.5);
+    expect(up).toBeGreaterThan(0);
   });
 });

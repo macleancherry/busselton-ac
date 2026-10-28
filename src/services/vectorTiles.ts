@@ -214,7 +214,7 @@ export interface TilePolygon {
  * class pier, as areas) from z13 tiles over [west, south, east, north].
  * Polygons are clipped to their tiles so neighbouring tiles meet without overlap.
  */
-export async function fetchCoast(bbox: [number, number, number, number]): Promise<{ ocean: TilePolygon[]; piers: TilePolygon[] }> {
+export async function fetchCoast(bbox: [number, number, number, number]): Promise<{ ocean: TilePolygon[]; piers: TilePolygon[]; beaches: TilePolygon[] }> {
   const url = await tileTemplate();
   const z = 13;
   const [w, s, e, n] = bbox;
@@ -223,6 +223,7 @@ export async function fetchCoast(bbox: [number, number, number, number]): Promis
   if ((x1 - x0 + 1) * (y1 - y0 + 1) > 100) throw new Error("Area too large for coast tiles");
   const ocean: TilePolygon[] = [];
   const piers: TilePolygon[] = [];
+  const beaches: TilePolygon[] = [];
   const jobs: Promise<void>[] = [];
   for (let ty = y0; ty <= y1; ty++) {
     for (let tx = x0; tx <= x1; tx++) {
@@ -255,9 +256,10 @@ export async function fetchCoast(bbox: [number, number, number, number]): Promis
         };
         take("water", (p) => p.class === "ocean", ocean);
         take("transportation", (p) => p.class === "pier", piers);
+        take("landcover", (p) => p.class === "sand" && (p.subclass === "beach" || p.subclass === undefined), beaches);
       })().catch(() => undefined));
     }
   }
   await Promise.all(jobs);
-  return { ocean, piers };
+  return { ocean, piers, beaches };
 }

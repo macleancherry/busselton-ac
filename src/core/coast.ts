@@ -67,6 +67,20 @@ export class SeaMask {
     const c = Math.floor((x - this.x0) / this.cell), r = Math.floor((y - this.y0) / this.cell);
     return c >= 0 && r >= 0 && c < this.w && r < this.h && this.cells[r * this.w + c] === 1;
   }
+  /** Any sea within `radius` metres. */
+  near(x: number, y: number, radius: number): boolean {
+    const n = Math.ceil(radius / this.cell);
+    const c0 = Math.floor((x - this.x0) / this.cell), r0 = Math.floor((y - this.y0) / this.cell);
+    for (let dr = -n; dr <= n; dr++) {
+      const r = r0 + dr;
+      if (r < 0 || r >= this.h) continue;
+      for (let dc = -n; dc <= n; dc++) {
+        const c = c0 + dc;
+        if (c >= 0 && c < this.w && dr * dr + dc * dc <= n * n && this.cells[r * this.w + c] === 1) return true;
+      }
+    }
+    return false;
+  }
 }
 
 /** Ground heights with the seabed dropped under the sea. */
@@ -234,4 +248,167 @@ export function deckTexture(): Uint8Array {
     const k = gap ? 0.45 : tone[plank % 14] * (0.95 + r() * 0.1);
     return [150 * k, 140 * k, 126 * k];
   }), w, h, { alpha: false });
+}
+
+/* ---------------- seawall and groynes ---------------- */
+
+/** Height of the revetment's crest above the ground behind it, metres. */
+const WALL_UP = 0.4;
+/** Least drop from the crest to the toe, so the rocks read even where the ground barely falls. */
+const WALL_MIN = 0.9;
+/** Across the rocks, from the back of the beach out onto the sand, metres. */
+const WALL_RUN = 3.6;
+
+/**
+ * A limestone rock revetment (as along Busselton's foreshore: a bank of boulders between the
+ * path and the sand) at the landward edge of each beach (OSM natural=beach, from OpenMapTiles
+ * landcover sand), sloping from just above the ground behind down onto the sand. Only where
+ * `want` says (near the track), and not where a jetty comes ashore. Visual only.
+ */
+export function buildSeawall(beaches: CoastPolygon[], ground: HeightFn, sea: SeaMask, want: (x: number, y: number) => boolean, piers: CoastPolygon[]): Kn5MeshNode[] {
+  const out: Kn5MeshNode[] = [];
+  const rand = rng(11);
+  let mb = new MeshBuilder();
+  const flush = () => {
+    if (mb.indices.length) out.push(mb.toKn5(`SEAWALL_${pad(out.length)}`, "rock"));
+    mb = new MeshBuilder();
+  };
+  const pierEdges = piers.flatMap((p) => (p.rings[0] ?? []).map((a, i, r) => [a, r[(i + 1) % r.length]] as const));
+  const nearPier = (x: number, y: number) => pierEdges.some(([a, b]) => {
+    const dx = b[0] - a[0], dy = b[1] - a[1], L2 = dx * dx + dy * dy || 1e-9;
+    const t = Math.max(0, Math.min(1, ((x - a[0]) * dx + (y - a[1]) * dy) / L2));
+    return Math.hypot(a[0] + dx * t - x, a[1] + dy * t - y) < 8;
+  });
+  /** Facing the water: straight out across the sand (along nIn) reaches the sea within 80 m. */
+  const facesSea = (p: Vec2, nIn: Vec2) => {
+    for (let d = 4; d <= 80; d += 4) if (sea.has(p[0] + nIn[0] * d, p[1] + nIn[1] * d)) return true;
+    return false;
+  };
+  for (const b of beaches) {
+    b.rings.forEach((ring, ri) => {
+      const n = ring.length;
+      if (n < 3) return;
+      // Inward (into the sand) is to the left of a counter-clockwise outer ring.
+      let area = 0;
+      for (let i = 0; i < n; i++) area += ring[i][0] * ring[(i + 1) % n][1] - ring[(i + 1) % n][0] * ring[i][1];
+      const ccw = area > 0 === (ri === 0);
+      let run: { p: Vec2; nIn: Vec2; s: number }[] = [];
+      const emit = () => {
+        if (run.length >= 3) {
+          if (mb.vertexCount + run.length * 5 > 60000) flush();
+          const base = mb.vertexCount;
+          for (const r of run) {
+            const at = (t: number): Vec2 => [r.p[0] + r.nIn[0] * t, r.p[1] + r.nIn[1] * t];
+            const behind = at(-1.5), sand = at(WALL_RUN + 1);
+            const back = ground(behind[0], behind[1]);
+            const top = back + WALL_UP;
+            const foot = Math.min(ground(sand[0], sand[1]), top - WALL_MIN);
+            const rise = top - foot;
+            const lump = () => (rand() - 0.5) * 0.3;
+            // Tucked under the ground behind, a lumpy crest, the face, and a toe buried in the sand.
+            const profile: [number, number][] = [
+              [-0.4, back - 0.05], [0.7, top + lump()], [1.9, top - rise * 0.45 + lump()], [3.0, foot + 0.2 + lump() * 0.5], [WALL_RUN, foot - 0.3],
+            ];
+            const v = r.s / 6;
+            for (const [t, z] of profile) {
+              const q = at(t + (rand() - 0.5) * 0.25);
+              mb.vertex([q[0], q[1], z], (t + 0.4) / 6, v);
+            }
+          }
+          for (let k = 0; k < run.length - 1; k++) {
+            const a = base + k * 5, c = a + 5;
+            // Sand to the left of travel (counter-clockwise ring) faces up one way round, else the other.
+            for (let j = 0; j < 4; j++) {
+              if (ccw) mb.quad(a + j, c + j, c + j + 1, a + j + 1);
+              else mb.quad(a + j, a + j + 1, c + j + 1, c + j);
+            }
+          }
+        }
+        run = [];
+      };
+      let s = 0;
+      for (let i = 0; i < n; i++) {
+        const a = ring[i], q = ring[(i + 1) % n];
+        const L = Math.hypot(q[0] - a[0], q[1] - a[1]);
+        if (!b.edge[ri][i] || L < 1e-6) {
+          emit();
+          continue;
+        }
+        const d: Vec2 = [(q[0] - a[0]) / L, (q[1] - a[1]) / L];
+        const nIn: Vec2 = ccw ? [-d[1], d[0]] : [d[1], -d[0]];
+        const steps = Math.max(1, Math.ceil(L / 1.5));
+        for (let k = 0; k < steps; k++) {
+          const p: Vec2 = [a[0] + (q[0] - a[0]) * (k / steps), a[1] + (q[1] - a[1]) * (k / steps)];
+          // The back of the beach: no water close behind it, near the track, clear of jetties.
+          const back = facesSea(p, nIn) && !sea.near(p[0], p[1], 8) && !sea.near(p[0] - nIn[0] * 8, p[1] - nIn[1] * 8, 6);
+          if (back && want(p[0], p[1]) && !nearPier(p[0], p[1])) run.push({ p, nIn, s });
+          else emit();
+          s += L / steps;
+        }
+      }
+      emit();
+    });
+  }
+  flush();
+  return out;
+}
+
+/** Rock groynes (OSM man_made=groyne or breakwater): a rubble ridge out into the water. Visual only. */
+export function buildGroynes(lines: Vec2[][], ground: HeightFn): Kn5MeshNode[] {
+  const mb = new MeshBuilder();
+  const rand = rng(7);
+  for (const line of lines) {
+    const pts: Vec2[] = [];
+    for (let i = 1; i < line.length; i++) {
+      const a = line[i - 1], b = line[i], n = Math.max(1, Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / 1.5));
+      for (let k = i === 1 ? 0 : 1; k <= n; k++) pts.push([a[0] + ((b[0] - a[0]) * k) / n, a[1] + ((b[1] - a[1]) * k) / n]);
+    }
+    if (pts.length < 2) continue;
+    const base = mb.vertexCount;
+    let s = 0;
+    pts.forEach((p, i) => {
+      const q = pts[Math.min(pts.length - 1, i + 1)], o = pts[Math.max(0, i - 1)];
+      if (i > 0) s += Math.hypot(p[0] - o[0], p[1] - o[1]);
+      const L = Math.hypot(q[0] - o[0], q[1] - o[1]) || 1;
+      const nx = -(q[1] - o[1]) / L, ny = (q[0] - o[0]) / L;
+      const g = ground(p[0], p[1]);
+      // Crest a metre above the water (or the sand), lumpy; toes buried.
+      const crest = Math.max(SEA_LEVEL, g) + 0.9 + (rand() - 0.5) * 0.35;
+      const profile: [number, number][] = [[-2.6, g - 0.5], [-1.3, crest - 0.45], [-0.4, crest], [0.5, crest - 0.1], [1.4, crest - 0.5], [2.6, g - 0.5]];
+      profile.forEach(([t, z]) => {
+        const w = t + (rand() - 0.5) * 0.3;
+        mb.vertex([p[0] + nx * w, p[1] + ny * w, z], (t + 2.6) / 6, s / 6);
+      });
+    });
+    for (let k = 0; k < pts.length - 1; k++) {
+      const a = base + k * 6, c = a + 6;
+      for (let j = 0; j < 5; j++) mb.quad(a + j + 1, a + j, c + j, c + j + 1);
+    }
+  }
+  return mb.indices.length ? [mb.toKn5("GROYNES", "rock")] : [];
+}
+
+/** Limestone boulders, tiling: pale cream-grey rocks with dark gaps between them (a Voronoi pattern). */
+export function rockTexture(): Uint8Array {
+  const w = 256, h = 256;
+  const r = rng(5);
+  const seeds = Array.from({ length: 46 }, () => ({ x: r() * w, y: r() * h, tone: 0.75 + r() * 0.35, warm: r() }));
+  return encodePng(fill(w, h, (x, y) => {
+    let d1 = Infinity, d2 = Infinity, best = seeds[0];
+    for (const s of seeds) {
+      for (const [ox, oy] of [[0, 0], [w, 0], [-w, 0], [0, h], [0, -h], [w, h], [-w, -h], [w, -h], [-w, h]]) {
+        const d = Math.hypot(x - s.x - ox, y - s.y - oy);
+        if (d < d1) {
+          d2 = d1;
+          d1 = d;
+          best = s;
+        } else if (d < d2) d2 = d;
+      }
+    }
+    // Dark in the gaps, rounded and lit from the top-left on each rock, a little grain.
+    const gap = Math.min(1, (d2 - d1) / 6);
+    const grain = 0.92 + ((Math.sin(x * 12.9898 + y * 78.233) * 43758.5453) % 1 + 1) % 1 * 0.12;
+    const v = best.tone * (0.35 + 0.65 * gap) * grain * (1 - Math.min(0.25, d1 / 120));
+    return [Math.min(255, 196 * v + 18 * best.warm), Math.min(255, 186 * v + 10 * best.warm), Math.min(255, 162 * v)];
+  }), w, h);
 }

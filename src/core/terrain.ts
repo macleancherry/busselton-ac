@@ -248,3 +248,35 @@ export function buildTerrainChunk(
   const material = textured ? `terrain_${chunk.key}` : "grass";
   return mb.toKn5(`1GRASS_${chunk.key}`, material);
 }
+
+/**
+ * The highest the terrain mesh can be at (x, y): it is drawn on a grid of `step`
+ * (chunks start on multiples of the chunk size), and between nodes either diagonal may
+ * split a cell, so take the higher of the two triangle readings. Things laid on the
+ * ground (paths) sit on this rather than the exact ground function, which can dip
+ * between nodes where two rules meet (a road's verge and a ring's).
+ */
+export function meshTop(terrain: (x: number, y: number) => TerrainSample, opts: BuildOptions): (x: number, y: number) => number {
+  const size = opts.chunkSize;
+  const step = size / Math.max(1, Math.round(size / opts.terrainStep));
+  const cache = new Map<string, number>();
+  const node = (i: number, j: number) => {
+    const k = `${i},${j}`;
+    let h = cache.get(k);
+    if (h === undefined) {
+      h = terrain(i * step, j * step).h;
+      if (cache.size > 200_000) cache.clear();
+      cache.set(k, h);
+    }
+    return h;
+  };
+  return (x, y) => {
+    const i = Math.floor(x / step), j = Math.floor(y / step);
+    const u = x / step - i, v = y / step - j;
+    const h00 = node(i, j), h10 = node(i + 1, j), h01 = node(i, j + 1), h11 = node(i + 1, j + 1);
+    // Split along (0,0)-(1,1), then along (1,0)-(0,1).
+    const a = u >= v ? h00 + (h10 - h00) * u + (h11 - h10) * v : h00 + (h01 - h00) * v + (h11 - h01) * u;
+    const b = u + v <= 1 ? h00 + (h10 - h00) * u + (h01 - h00) * v : h11 + (h01 - h11) * (1 - u) + (h10 - h11) * (1 - v);
+    return Math.max(a, b);
+  };
+}

@@ -69,11 +69,13 @@ Get the base right before adding more.
 
 Make town feel like town before going regional.
 
-- ⬜ **Foreshore showcase:**
+- 🔨 **Foreshore showcase:**
   - car park islands with kerbs, line marking and arrows as real 3D
-  - cars painted out of the ground photo
-  - the rock seawall, palms and Norfolk pines where the photo shows them
+  - 🔨 cars painted out of the ground photo (most done; rows of bays beside paths and gardens still show)
+  - ✅ the rock seawall (limestone revetment along the back of the beach) and rock groynes
+  - ✅ Norfolk pines along the foreshore; palms still to come
   - garden beds along the path
+  - jetty precinct buildings: waiting on Mac's Mapillary footage for their fronts
 - ⬜ **Jetty precinct:** the Interpretive Centre, the jetty train line, the Underwater Observatory at the far end, and jetty lights at night.
 - ⬜ **Queen St and the town centre:** shopfronts with verandahs and awnings, signage, parallel and angled parking.
 - ⬜ **WA road details:**

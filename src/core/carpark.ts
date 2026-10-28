@@ -89,7 +89,11 @@ function components(mask: Uint8Array, size: number, maxPixels: number): number[]
  * The photo with parked cars replaced by the asphalt around them. `mpp` is
  * metres per pixel. Returns the cleaned RGBA and how many cars went.
  */
-export function paintOutCars(rgba: Uint8Array | Uint8ClampedArray, size: number, mpp: number, keepOut?: Uint8Array): { rgba: Uint8Array; cars: number } {
+export function paintOutCars(
+  rgba: Uint8Array | Uint8ClampedArray, size: number, mpp: number, keepOut?: Uint8Array,
+  /** For tuning: told why each candidate blob was left alone (blob centre in pixels). */
+  why?: (x: number, y: number, reason: string) => void,
+): { rgba: Uint8Array; cars: number } {
   const n = size * size;
   const asph = new Float32Array(n);
   const cr = new Float32Array(n), cg = new Float32Array(n), cb = new Float32Array(n);
@@ -148,8 +152,11 @@ export function paintOutCars(rgba: Uint8Array | Uint8ClampedArray, size: number,
     }
     const w = (x1 - x0 + 1) * mpp, h = (y1 - y0 + 1) * mpp;
     // Not a thin line (paint), and nowhere thicker than a car is long.
-    if (Math.min(w, h) < 1.2 || !comp.some((i) => solid[i] > 0.9)) continue;
-    if (comp.some((i) => thick[i] > 0.97 || roofy[i] > 0.95)) continue;
+    const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+    const no = (r: string) => why?.(cx, cy, r);
+    if (Math.min(w, h) < 1.2 || !comp.some((i) => solid[i] > 0.9)) { no("thin"); continue; }
+    if (comp.some((i) => thick[i] > 0.97)) { no("thick"); continue; }
+    if (comp.some((i) => roofy[i] > 0.95)) { no("roofy"); continue; }
     if (comp.length * mpp * mpp > 15) {
       let m = 0, m2 = 0;
       for (const i of comp) {
@@ -158,7 +165,7 @@ export function paintOutCars(rgba: Uint8Array | Uint8ClampedArray, size: number,
         m2 += v * v;
       }
       m /= comp.length;
-      if (Math.sqrt(Math.max(0, m2 / comp.length - m * m)) < 0.09) continue;
+      if (Math.sqrt(Math.max(0, m2 / comp.length - m * m)) < 0.09) { no("even"); continue; }
     }
     // Asphalt all round: a blob that runs into something else (a garden, a kerb, a building) isn't a parked car.
     let edge = 0, foreign = 0;
@@ -170,7 +177,7 @@ export function paintOutCars(rgba: Uint8Array | Uint8ClampedArray, size: number,
         if (!asph[j]) foreign++;
       }
     }
-    if (foreign > 0.45 * edge) continue;
+    if (foreign > 0.45 * edge) { no(`foreign ${(foreign / edge).toFixed(2)}`); continue; }
     // ...and smooth asphalt at that: a sunlit gap in tree canopy has busy, grey-green canopy round it.
     const pad0 = Math.round(0.8 / mpp), pad1 = Math.round(2 / mpp);
     let ringN = 0, smooth = 0;
@@ -182,7 +189,7 @@ export function paintOutCars(rgba: Uint8Array | Uint8ClampedArray, size: number,
         if (asph[j] && rough[j] < 0.05) smooth++;
       }
     }
-    if (smooth < 0.4 * ringN) continue;
+    if (smooth < 0.4 * ringN) { no(`ring ${(smooth / ringN).toFixed(2)}`); continue; }
     cars++;
     // Paint out the blob and a pixel round it (shadow edges, antialiasing).
     const grow = Math.max(1, Math.round(0.45 / mpp));

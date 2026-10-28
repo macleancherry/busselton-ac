@@ -8,7 +8,7 @@ import { FENCE_COLOURS, facadeTexture, fenceTexture, frontWallTexture, hedgeText
 import { buildLots, shrub } from "./lots";
 import { buildIslands, findIslands, footprintMask, paintOutCars } from "./carpark";
 import { trafficJson, type TrafficRoad } from "./traffic";
-import { buildPiers, buildSea, deckTexture, SeaMask, seaTexture, withSeabed, type CoastPolygon } from "./coast";
+import { buildGroynes, buildPiers, buildSea, buildSeawall, deckTexture, rockTexture, SeaMask, seaTexture, withSeabed, type CoastPolygon } from "./coast";
 import { GROUND_LAYERS, GROUND_TILE_METRES, groundMask, type GroundDetail, type GroundLayer } from "./ground";
 import { buildAiLine } from "./aiLine";
 import { BACKDROP_CHUNK, backdropHeight, buildBackdropChunk, planBackdrop } from "./backdrop";
@@ -23,14 +23,14 @@ import { simplify } from "./polyline";
 import { applyElevation, inRoundabout, isLoop, planRoad, surfaceHeight, SegmentIndex, type RoadPlan, type RoadSample } from "./road";
 import { extendRoute, pathLength } from "./extend";
 import { keepOffRoute, onRoute } from "./clearance";
-import { buildRingMeshes, buildRingWall, innerRadius, outerRadius, resolveRoundabouts, ringHeight, type RoundaboutHint } from "./roundabout";
+import { buildRingMeshes, buildRingWall, innerRadius, outerRadius, resolveRoundabouts, ringHeight, vergeOuterRadius, type RoundaboutHint } from "./roundabout";
 import { buildRoadMeshes, buildWalls, type RoadMaterialFn } from "./roadMesh";
 import { buildKerbReturns, buildKerbs, KERB_BACK, KERB_H, kerbEvidence, planKerbs, STRIP_EXTRA, stripPhotoTexture, type StripMaterialFn } from "./kerbs";
 import { photoRoadTexture } from "./photoSurface";
 import { encodeDdsDxt1, encodeDdsDxt5 } from "./dds";
 import { decodeOwnPng, encodePng } from "./png";
 import { buildMarkings, type DiscreteMark } from "./markings";
-import { buildTerrainChunk, makeTerrainFn, planTerrainChunks, type TerrainChunk } from "./terrain";
+import { buildTerrainChunk, makeTerrainFn, meshTop, planTerrainChunks, type TerrainChunk } from "./terrain";
 import { BARRIERS, barrierTexture, detailTexture, normalFromHeight, windowTexture, flatNormalTexture, grassAlpha, mapsTexture, FACADES, paintTexture, sealTexture, type SealKind, garageTexture, grassTexture, concreteTexture, postTexture, railTexture, ROOF_COLOURS, roofTexture, solidTexture, vergeTexture } from "./textures";
 import {
   buildGuardRails, buildGuidePosts, buildTrees, treeTrunks, filterTrees, railNeeds, rng, treeSpotsFromImagery, type TreeSpot,
@@ -85,7 +85,7 @@ export interface DataSources {
   /** Footpaths and shared paths (OSM), already classified. */
   paths?: { pts: LngLat[]; kind: PathLine["kind"] }[];
   /** The sea and piers (OSM via vector tiles): polygons, exterior ring first; `edge` false on tile seams. */
-  coast?: { ocean: { rings: LngLat[][]; edge: boolean[][] }[]; piers: { rings: LngLat[][]; edge: boolean[][] }[] };
+  coast?: { ocean: { rings: LngLat[][]; edge: boolean[][] }[]; piers: { rings: LngLat[][]; edge: boolean[][] }[]; beaches?: { rings: LngLat[][]; edge: boolean[][] }[] };
   /** Tiled ground detail textures for ksMultilayer terrain (lawn, rough, sand, litter); null to keep plain photo terrain. */
   groundDetails?(): Promise<Record<GroundLayer, GroundDetail> | null>;
   /** Credit line for the imagery source(s), written into the README; read after imagery is fetched. */
@@ -104,6 +104,8 @@ export interface OsmFeatures {
   poles?: LngLat[];
   lamps?: LngLat[];
   powerLines?: LngLat[][];
+  /** Rock groynes and breakwaters (OSM man_made=groyne|breakwater) near the route. */
+  groynes?: LngLat[][];
 }
 
 export interface TrackResult {
@@ -420,6 +422,7 @@ export async function buildTrack(
   const toCoast = (p: { rings: LngLat[][]; edge: boolean[][] }): CoastPolygon => ({ rings: p.rings.map((r) => r.map((q) => proj.toLocal(q))), edge: p.edge });
   const ocean = opts.sea ? (sources.coast?.ocean ?? []).map(toCoast) : [];
   const piers = opts.sea ? (sources.coast?.piers ?? []).map(toCoast) : [];
+  const beaches = opts.sea ? (sources.coast?.beaches ?? []).map(toCoast) : [];
   const sea = new SeaMask(ocean, farBounds.minX, farBounds.minY, farBounds.maxX, farBounds.maxY);
   const dem = ocean.length ? withSeabed(landDem, sea) : landDem;
   const farDem = ocean.length ? withSeabed(landFarDem, sea) : landFarDem;
@@ -483,6 +486,7 @@ export async function buildTrack(
   addScenery("guidepost.png", postTexture(), material("guidepost", "guidepost.png", { ambient: 0.45, diffuse: 0.45, specular: 0.1, exp: 10 }));
   const matte = { ambient: 0.45, diffuse: 0.45, specular: 0.05, exp: 10 };
   addScenery("sea.png", seaTexture(), material("sea", "sea.png", { ambient: 0.4, diffuse: 0.35, specular: 0.7, exp: 90 }));
+  reliefScenery("rock", rockTexture(), { ambient: 0.45, diffuse: 0.45, specular: 0.05, exp: 10 }, 4);
   addScenery("jetty_deck.png", deckTexture(), material("jetty_deck", "jetty_deck.png", { ambient: 0.45, diffuse: 0.45, specular: 0.05, exp: 10 }));
   addScenery("jetty_timber.png", solidTexture([118, 108, 96]), material("jetty_timber", "jetty_timber.png", { ambient: 0.45, diffuse: 0.45, specular: 0, exp: 1 }));
   for (const c of FENCE_COLOURS) {
@@ -908,6 +912,7 @@ export async function buildTrack(
     if (mesh) backdropNodes.push(mesh);
   }
   const ground = (x: number, y: number) => terrainAt(x, y).h;
+  const onMesh = meshTop(terrainAt, opts);
   const walls = buildWalls(plan, opts, ground, index);
 
   await progress("Placing scenery");
@@ -916,6 +921,7 @@ export async function buildTrack(
   // Local species: she-oaks and Norfolk pines on the coast, peppermints on kerbed town streets, tuarts in the bush.
   const speciesRand = rng(4242);
   // Town: kerb and gutter within ~150 m along the road (kerbs are only built where the photo shows them).
+  const FORESHORE = 120;
   const kerbedNear = plan.samples.map((_, i) => {
     const reach = Math.round(150 / opts.spacing);
     for (let k = -reach; k <= reach; k++) {
@@ -927,7 +933,7 @@ export async function buildTrack(
   const planted = filterTrees(treeSpots, index, opts, opts.maxTrees).map((t) => {
     const n = index.nearest(t.x, t.y, opts.corridor + 10);
     const town = !!n && kerbedNear[n.seg];
-    return { ...t, variant: pickSpecies(speciesRand(), !!t.coastal, town) };
+    return { ...t, variant: pickSpecies(speciesRand(), !!t.coastal, town, ocean.length > 0 && sea.near(t.x, t.y, FORESHORE)) };
   });
   const treesKept = offStreets(offRings(planted));
   const trees = buildTrees(treesKept, ground);
@@ -979,8 +985,10 @@ export async function buildTrack(
   const pathMeshes = opts.paths && sources.paths?.length
     ? buildPaths(
       sources.paths.map((l) => ({ kind: l.kind, pts: l.pts.map((p) => proj.toLocal(p)) })),
-      ground,
+      (x, y) => Math.max(ground(x, y), onMesh(x, y)),
       (x, y, half, kind) => {
+        // Not under a ring's verge and grass strip.
+        if (plan.roundabouts.some((rb) => Math.hypot(x - rb.c[0], y - rb.c[1]) < vergeOuterRadius(rb, opts) + half + 0.3)) return false;
         const n = index.nearest(x, y, 30);
         // Clear of the asphalt plus gutter and kerb (~0.5 m); paths often run right behind the kerb.
         if (n && n.dist < index.at(n).width / 2 + 0.5 + half) return false;
@@ -1131,6 +1139,10 @@ export async function buildTrack(
         group("LOTS", keepOffRoute(lots, onRoad).nodes),
         group("CARPARKS", islandNodes),
         group("JETTY", piers.length ? buildPiers(piers, buildingGround, sea) : []),
+        group("SEAWALL", ocean.length ? [
+          ...buildSeawall(beaches, buildingGround, sea, (x, y) => !!index.nearest(x, y, 250), piers),
+          ...buildGroynes((sources.osm?.groynes ?? []).map((l) => l.map((p) => proj.toLocal(p))), buildingGround),
+        ] : []),
       ]),
       // Already in compact chunks (terrain, horizon), or never drawn (walls).
       group("TERRAIN", terrainNodes),

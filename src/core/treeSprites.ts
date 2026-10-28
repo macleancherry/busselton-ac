@@ -212,10 +212,13 @@ export function treeSpeciesAtlas(): Uint8Array {
 /**
  * Which species grows here: the coast (near water in the aerial photo) is
  * she-oaks with some Norfolk pines and peppermints; kerbed town streets are
- * mostly peppermints; elsewhere tuarts and peppermints, as around the Ludlow
+ * mostly peppermints; the foreshore (sea within 120 m by the coastline) mostly Norfolk
+ * pines; elsewhere tuarts and peppermints, as around the Ludlow
  * and Vasse bush.
  */
-export function pickSpecies(r: number, coastal: boolean, town: boolean): number {
+export function pickSpecies(r: number, coastal: boolean, town: boolean, foreshore = false): number {
+  // The foreshore itself (between the beach and the first street) is lined with Norfolk pines.
+  if (foreshore) return r < 0.7 ? 2 : r < 0.9 ? 0 : 1;
   if (coastal) return r < 0.6 ? 1 : r < 0.8 ? 2 : 0;
   if (town) return r < 0.75 ? 0 : r < 0.9 ? 1 : 3;
   return r < 0.55 ? 3 : 0;
