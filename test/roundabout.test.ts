@@ -3,7 +3,8 @@ import { buildTrack, type DataSources } from "../src/core/track";
 import { DemGrid } from "../src/core/elevation";
 import { LocalProjection, type LngLat, type Vec2 } from "../src/core/geo";
 import { readKn5, type Kn5MeshNode, type Kn5Node } from "../src/core/kn5";
-import { buildRingMeshes, fitCircle, resolveRoundabouts, ringHeight } from "../src/core/roundabout";
+import { buildRingMeshes, fitCircle, innerRadius, outerRadius, resolveRoundabouts, ringHeight } from "../src/core/roundabout";
+import { readFastLaneAi } from "../src/core/aiSpline";
 import { withDefaults } from "../src/core/options";
 
 const proj = new LocalProjection([153.4, -28.0]);
@@ -120,5 +121,28 @@ describe("buildTrack through a roundabout", async () => {
         expect(Math.hypot(cx - rb.c[0], -cz - rb.c[1])).toBeGreaterThan(rb.r + rb.w / 2 - 1);
       }
     }
+  });
+
+  it("gives the AI a smooth line through the ring, clear of the island", () => {
+    const ai = readFastLaneAi(result.files["rb/ai/fast_lane.ai"]);
+    // AC space: x east, z south.
+    const local = ai.map((p) => [p.position[0], -p.position[2]] as [number, number]);
+    let worstTurn = 0;
+    for (let i = 1; i < local.length - 1; i++) {
+      const [x, y] = local[i];
+      const d = Math.hypot(x - rb.c[0], y - rb.c[1]);
+      if (d < outerRadius(rb)) {
+        expect(d).toBeGreaterThan(innerRadius(rb) + 1.4);
+      }
+      if (d < outerRadius(rb) + 20) {
+        const a = local[i - 1], b = local[i + 1];
+        const h1 = Math.atan2(y - a[1], x - a[0]), h2 = Math.atan2(b[1] - y, b[0] - x);
+        const t = Math.abs(Math.atan2(Math.sin(h2 - h1), Math.cos(h2 - h1)));
+        worstTurn = Math.max(worstTurn, t);
+      }
+    }
+    // No kinks: neighbouring points turn no more than about 20 degrees (the ring itself bends
+    // about 12 degrees a point; unsmoothed, the arms met it with 70 degree kinks).
+    expect(worstTurn).toBeLessThan(0.35);
   });
 });
