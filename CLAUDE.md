@@ -29,7 +29,7 @@ Both Windows machines can run AC at the same time; LAN racing uses Content Manag
 ## Build loop
 
 1. Route file in `routes/` (pins as `[lng, lat]`; `loop: true` for a circuit).
-2. `node scripts/headless/build-track.mjs routes/<name>.json` writes `out/<slug>.zip`, `.stats.json` and `.centreline.json`.
+2. `node scripts/headless/build-track.mjs routes/<name>.json` writes `out/<slug>.zip`, `.stats.json` and `.centreline.json`. It stops if Overpass or map tiles still fail after retries ("MISSING DATA"); just build again. Overpass is often busy.
 3. `python3 -I scripts/check/check_build.py out/<slug>.centreline.json` checks the build. It must pass before Mac sees a build:
    - no hairpin spikes (exits non-zero and circles them in magenta on `out/<slug>.overlay.png`)
    - road height minus DEM: 95% within 0.3 m
@@ -37,7 +37,7 @@ Both Windows machines can run AC at the same time; LAN racing uses Content Manag
 4. Install (workstation): `scripts\windows\install-track.ps1` unzips into AC and optionally copies to the rig.
 4b. Surface check: `npx tsx scripts/check/dump_surface.ts out/<slug>.zip out/<slug>.surface.json` then `python3 -I scripts/check/surface_check.py out/<slug>.surface.json`. Driving line kinks should be 0, max tilt about 3%, and edge steps around kerb height (15 to 20 cm median).
 4c. Renders: add `SHOTS=0.02,0.25,0.5` (lap fractions, or `lng:lat:lookLng:lookLat:height`) to the build command for driver's-eye PNGs in `out/`. They come from the three.js preview: photo ground only, no ksMultilayer detail or CSP.
-4d. Traffic (when the route has `traffic: true`): `python3 -I scripts/check/traffic_check.py out/<slug>.zip out/<slug>.surface.json` must pass (no overlapping intersections, no loose lane ends, lanes on asphalt).
+4d. Traffic (when the route has `traffic: true`): `python3 -I scripts/check/traffic_check.py out/<slug>.zip out/<slug>.surface.json` must pass (no overlapping intersections, no loose lane ends, lanes on asphalt, no parked car in a lane).
 4e. Budget: `npx tsx scripts/check/budget.ts out/<slug>.zip` (triangles, draw calls, texture memory, kn5 size against limits for the RTX 4060) must pass.
 5. Smoke test (workstation, reported back, never fixed there): it loads, the car spawns on the grid, timing and pits work, and AI completes a lap.
 5b. Traffic test (workstation or rig): `docs/traffic-test.md`.

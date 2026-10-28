@@ -6,6 +6,7 @@ import { buildPaths, footPathTexture, sharedPathTexture, type PathLine } from ".
 import { pickSpecies, treeSpeciesAtlas } from "./treeSprites";
 import { FENCE_COLOURS, facadeTexture, fenceTexture, frontWallTexture, hedgeTexture, mulchTexture, shrubAtlas } from "./houseTextures";
 import { buildLots, shrub } from "./lots";
+import { buildParkedCars, carTexture, paintFor, type ParkedCar } from "./parkedCars";
 import { buildShopfronts, findShopfronts, shopSignTexture, shopStats, shopWindowTexture, type SignDrawer } from "./shops";
 import { buildIslands, findIslands, footprintMask, lineMask, paintOutCars } from "./carpark";
 import { trafficJson, type TrafficRoad } from "./traffic";
@@ -127,6 +128,8 @@ export interface TrackResult {
   junctions: { s: number; side: 1 | -1 }[];
   /** Houses with a known front wall, for matching to street photos. */
   houses: { front: [LngLat, LngLat]; height: number; facade: string; source: string }[];
+  /** Parked cars placed (local metres), for checking renders. */
+  parked: { at: [number, number]; dir: [number, number] }[];
   /** Raw pixels for textures the browser can't decode (DDS), keyed by texture name. */
   previewTextures: Record<string, { rgba: Uint8Array; width: number; height: number }>;
   stats: {
@@ -167,6 +170,7 @@ export interface TrackResult {
     railMetres: number;
     /** Parked cars painted out of the ground photo, and car park islands raised. */
     carsPainted?: number;
+    parkedCars?: number;
     /** Houses whose walls were set from street photos. */
     housesLooked?: number;
     /** Shopfronts built, and how many have a verandah. */
@@ -529,6 +533,7 @@ export async function buildTrack(
   const treeSpots: TreeSpot[] = [];
   const farTreeSpots: TreeSpot[] = [];
   let carsPainted = 0;
+  const parkedSpots: ParkedCar[] = [];
   const streetLines = opts.carParks
     ? [...(sources.streets?.lines ?? []).filter((l) => !/^(path|footway|cycleway|track|steps|pedestrian|bridleway)/.test(l.cls)).map((l) => l.pts.map((p) => proj.toLocal(p))), plan.samples.map((s) => s.pos)]
     : [];
@@ -573,6 +578,16 @@ export async function buildTrack(
       }
       if (clean) {
         carsPainted += clean.cars;
+        if (opts.parkedCars) {
+          const m = span / job.size;
+          for (const c of clean.spots) {
+            parkedSpots.push({
+              at: [job.chunk.minX + (c.px + 0.5) * m, job.chunk.maxY - (c.py + 0.5) * m],
+              dir: [c.dir[0], -c.dir[1]],
+              paint: paintFor(c.rgb),
+            });
+          }
+        }
         const rings = opts.carParkIslands ? findIslands(clean.rgba, job.size, job.chunk) : [];
         if (rings.length) islandsFound.push({ chunk: job.chunk, rings });
       }
@@ -1136,6 +1151,18 @@ export async function buildTrack(
     );
     textures.push({ name: "verandah.png", data: roofTexture(ROOF_COLOURS[1]) });
   }
+  // Parked cars back where the photo had them: off the route's road and the side streets it builds,
+  // away from street centrelines (cars there were driving), not in a building.
+  const streetCentres = new LineIndex(streetLines.map((pts) => ({ pts, width: 0 })));
+  let parked = parkedSpots.filter(({ at: [x, y] }) => {
+    // On the detailed ground only (the horizon mesh sits at another height).
+    const n = index.nearest(x, y, opts.corridor - 5);
+    if (!n || n.dist < index.at(n).width / 2 + 0.5) return false;
+    if (streetCentres.clearance(x, y) < 2.4) return false;
+    // Inside a side street the track builds (and runs traffic on).
+    if (streetIndex.clearance(x, y) < -0.3) return false;
+    return !shown.some((b) => pointInRing(x, y, b.ring));
+  });
   const houses = buildBuildings(shown, buildingGround);
   // Car park islands, clear of the road, the streets, buildings and the rings, with shrubs.
   const islandNodes: Kn5MeshNode[] = [];
@@ -1271,6 +1298,26 @@ export async function buildTrack(
     })));
   };
 
+  const trafficText = opts.traffic ? trafficData() : "";
+  if (trafficText && parked.length) {
+    // No parked car within 1.8 m of a traffic lane (AC space: x, z = -north).
+    const lanePts = new LineIndex((JSON.parse(trafficText).lanes as { points: [number, number, number][] }[])
+      .map((l) => ({ pts: l.points.map((p) => [p[0], -p[2]] as Vec2), width: 0 })));
+    parked = parked.filter(({ at: [x, y] }) => lanePts.clearance(x, y) > 1.8);
+  }
+  // Added to the scene now the traffic lanes are known (none sits in a lane): the cars culled with
+  // the other detail, their collision boxes with the walls.
+  if (parked.length) {
+    // On the terrain as drawn (the higher of its two triangle readings), not the smooth height under it.
+    const parkedMeshes = buildParkedCars(parked, (x, y) => Math.max(ground(x, y), onMesh(x, y)));
+    model.root.children.push(
+      ...cullable([group("PARKED_CARS", parkedMeshes.filter((m) => !m.name.startsWith("1WALL")))]),
+      group("PARKED_CAR_WALLS", parkedMeshes.filter((m) => m.name.startsWith("1WALL"))),
+    );
+    textures.push({ name: "parked_car.png", data: carTexture() });
+    materials.push(material("parked_car", "parked_car.png", { ambient: 0.45, diffuse: 0.55, specular: 0.5, exp: 40 }));
+  }
+
   await progress("Writing track files");
   const kn5 = writeKn5(model);
   const aiPoints = buildAiLine(plan);
@@ -1286,7 +1333,7 @@ export async function buildTrack(
     [`${slug}/ai/fast_lane.ai`]: ai,
     [`${slug}/data/ai_hints.ini`]: enc.encode(aiHintsIni(aiPoints)),
     [`${slug}/data/surfaces.ini`]: enc.encode(surfacesIni(opts.traffic)),
-    ...(opts.traffic ? { [`${slug}/data/traffic.json`]: enc.encode(trafficData()) } : {}),
+    ...(opts.traffic ? { [`${slug}/data/traffic.json`]: enc.encode(trafficText) } : {}),
     [`${slug}/data/map.ini`]: enc.encode(map.ini),
     [`${slug}/data/cameras_1.ini`]: enc.encode(camerasIni(cameras)),
     // The automatic test run (scripts/windows/run-test.ps1): a track script that only wakes up for a
@@ -1314,6 +1361,7 @@ export async function buildTrack(
   await progress("Done", 1);
   return {
     slug, files, model, plan, proj, previewTextures,
+    parked: parked.map((c) => ({ at: c.at, dir: c.dir })),
     houses: homes.filter((b) => b.front).map((b) => ({
       front: [proj.toLngLat(b.front![0]), proj.toLngLat(b.front![1])] as [LngLat, LngLat],
       height: b.height,
@@ -1344,6 +1392,7 @@ export async function buildTrack(
       kerbMetres: (kerbs[0].reduce((a, b) => a + b, 0) + kerbs[1].reduce((a, b) => a + b, 0)) * opts.spacing,
       poles: utilities.poles,
       carsPainted,
+      parkedCars: parked.length,
       housesLooked,
       shops: shopStats(shopfronts).shops,
       verandahs: shopStats(shopfronts).verandahs,

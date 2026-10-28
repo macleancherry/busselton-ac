@@ -18,6 +18,7 @@
 //
 // SHOTS=0.1,0.35,0.6 (fractions of the lap, or lng:lat:lookLng:lookLat:height) also saves driver's-eye renders from the
 // three.js preview as out/<slug>.shot<n>.png (the photo ground only: no ksMultilayer or CSP).
+// car0..car9 looks at parked cars spread through the list.
 
 import { spawn } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -193,6 +194,16 @@ try {
     for (const [n, f] of fracs.entries()) {
       const png = await page.evaluate((f) => {
         const r = window.__app.result(), pv = window.__app.preview();
+        if (f.startsWith("car")) {
+          // car<N>: from 10 m beside and 4 m above the Nth parked car (spread over the list), looking at it.
+          const cars = r.parked ?? [];
+          if (!cars.length) return "";
+          const c = cars[Math.floor((Number(f.slice(3)) / 10) * cars.length) % cars.length];
+          const g = r.plan.samples[0].h;
+          const e = [c.at[0] - c.dir[1] * 10 + c.dir[0] * 4, c.at[1] + c.dir[0] * 10 + c.dir[1] * 4];
+          pv.view([e[0], g + 4, -e[1]], [c.at[0], g, -c.at[1]]);
+          return document.getElementById("preview-canvas").toDataURL("image/png").split(",")[1];
+        }
         if (f.includes(":")) {
           const [x, y, lx, ly, h] = f.split(":").map(Number);
           const e = r.proj.toLocal([x, y]), t = r.proj.toLocal([lx, ly]);
@@ -204,7 +215,7 @@ try {
         pv.view([s.pos[0], s.h + 1.2, -s.pos[1]], [a.pos[0], a.h + 1.0, -a.pos[1]]);
         return document.getElementById("preview-canvas").toDataURL("image/png").split(",")[1];
       }, f);
-      writeFileSync(join(out, `${slug}.shot${n}.png`), Buffer.from(png, "base64"));
+      if (png) writeFileSync(join(out, `${slug}.shot${n}.png`), Buffer.from(png, "base64"));
     }
     log(`wrote ${fracs.length} shots`);
   }

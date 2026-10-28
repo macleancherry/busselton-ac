@@ -93,7 +93,7 @@ Make town feel like town before going regional.
   - bus stops and WA-style guideposts
   - street name blades in the WA style
   - kangaroo signs out of town
-- ⬜ **Parked cars:** along kerbs and in car parks (static, cheap), so streets don't look empty.
+- 🔨 **Parked cars:** ✅ low-poly cars put back where the photo had parked cars (same spot, angle and roughly the colour), with collision boxes and none in a traffic lane. Still to do: better car models (CSP or our own, with LODs), and car parks beyond the detailed ground.
 - ⬜ **Roundabout landscaping:** the planted islands Busselton is full of.
 - ⬜ **Landmarks list:** the buildings and spots locals would point at, each modelled by hand or from photos.
 

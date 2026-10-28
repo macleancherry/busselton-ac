@@ -85,6 +85,76 @@ function components(mask: Uint8Array, size: number, maxPixels: number): number[]
   return out;
 }
 
+/** A parked car found in the photo: centre in pixels, which way it points (unit, image axes: y down), and its colour (0-1). */
+export interface CarSpot {
+  px: number;
+  py: number;
+  dir: [number, number];
+  rgb: [number, number, number];
+}
+
+/**
+ * The cars in one painted-out blob: a single car, a row parked end to end along a kerb, or a row
+ * (or two back to back) parked nose-in across a car park. The blob's long axis says which: a blob
+ * under 3 m wide is cars end to end, 3 to 6.5 m one row of bays, wider two.
+ */
+export function carsInBlob(comp: number[], size: number, mpp: number, rgba: Uint8Array | Uint8ClampedArray): CarSpot[] {
+  if (comp.length < 4) return [];
+  let mx = 0, my = 0;
+  for (const i of comp) { mx += i % size; my += (i / size) | 0; }
+  mx /= comp.length; my /= comp.length;
+  let sxx = 0, syy = 0, sxy = 0;
+  for (const i of comp) {
+    const dx = (i % size) - mx, dy = ((i / size) | 0) - my;
+    sxx += dx * dx; syy += dy * dy; sxy += dx * dy;
+  }
+  const th = 0.5 * Math.atan2(2 * sxy, sxx - syy);
+  const ax: [number, number] = [Math.cos(th), Math.sin(th)], bx: [number, number] = [-ax[1], ax[0]];
+  const us: number[] = [], vs: number[] = [];
+  for (const i of comp) {
+    const dx = (i % size) - mx, dy = ((i / size) | 0) - my;
+    us.push(dx * ax[0] + dy * ax[1]);
+    vs.push(dx * bx[0] + dy * bx[1]);
+  }
+  const span = (a: number[]) => {
+    a.sort((p, q) => p - q);
+    return [a[Math.floor(a.length * 0.02)], a[Math.floor(a.length * 0.98)]];
+  };
+  const [u0, u1] = span(us), [v0, v1] = span(vs);
+  const L = (u1 - u0 + 1) * mpp, W = (v1 - v0 + 1) * mpp;
+  if (W < 1.2) return [];
+  const inBlob = new Set(comp);
+  const out: CarSpot[] = [];
+  const place = (u: number, v: number, dir: [number, number]) => {
+    const px = mx + ax[0] * u + bx[0] * v, py = my + ax[1] * u + bx[1] * v;
+    const c = Math.round(py) * size + Math.round(px);
+    if (!inBlob.has(c)) return;
+    // Colour: the blob's pixels within a metre.
+    const r = Math.max(1, Math.round(1 / mpp));
+    let sr = 0, sg = 0, sb = 0, k = 0;
+    for (let dy = -r; dy <= r; dy++) {
+      for (let dx = -r; dx <= r; dx++) {
+        const j = (Math.round(py) + dy) * size + Math.round(px) + dx;
+        if (!inBlob.has(j)) continue;
+        sr += rgba[j * 4]; sg += rgba[j * 4 + 1]; sb += rgba[j * 4 + 2]; k++;
+      }
+    }
+    out.push({ px, py, dir, rgb: [sr / k / 255, sg / k / 255, sb / k / 255] });
+  };
+  const um = (u0 + u1) / 2, vm = (v0 + v1) / 2;
+  if (W <= 3) {
+    // End to end along the long axis (or one car).
+    const n = Math.max(1, Math.round(L / 5.6));
+    for (let k = 0; k < n; k++) place(um + ((k + 0.5) / n - 0.5) * (u1 - u0), vm, ax);
+  } else {
+    // Nose-in bays across the long axis, one row or two back to back.
+    const n = Math.max(1, Math.round(L / 2.6));
+    const rows = W > 6.5 ? [vm - (v1 - v0) / 4, vm + (v1 - v0) / 4] : [vm];
+    for (const v of rows) for (let k = 0; k < n; k++) place(um + ((k + 0.5) / n - 0.5) * (u1 - u0), v, bx);
+  }
+  return out;
+}
+
 /**
  * The photo with parked cars replaced by the asphalt around them. `mpp` is
  * metres per pixel. Returns the cleaned RGBA and how many cars went.
@@ -99,7 +169,7 @@ export function paintOutCars(
     /** Where any car may be (near mapped streets): bright gaps in forest canopy are not cars. Everywhere when left out. */
     streets?: Uint8Array;
   } = {},
-): { rgba: Uint8Array; cars: number } {
+): { rgba: Uint8Array; cars: number; spots: CarSpot[] } {
   const { why, carParks, streets } = extra;
   const n = size * size;
   const asph = new Float32Array(n);
@@ -164,6 +234,7 @@ export function paintOutCars(
   const roofy = boxMean(pale, size, Math.round(1.5 / mpp));
   const out = new Uint8Array(rgba);
   let cars = 0;
+  const spots: CarSpot[] = [];
   for (const comp of components(cand, size, Math.ceil(maxPx) + 1)) {
     if (comp.length < minPx || comp.length > maxPx) continue;
     let x0 = size, x1 = 0, y0 = size, y1 = 0;
@@ -212,6 +283,7 @@ export function paintOutCars(
     }
     if (smooth < 0.4 * ringN) { no(`ring ${(smooth / ringN).toFixed(2)}`); continue; }
     cars++;
+    spots.push(...carsInBlob(comp, size, mpp, rgba));
     // Paint out the blob and a pixel round it (shadow edges, antialiasing).
     const grow = Math.max(1, Math.round(0.45 / mpp));
     const done = new Set<number>();
@@ -234,7 +306,7 @@ export function paintOutCars(
     }
   }
   cars += secondPass();
-  return { rgba: out, cars };
+  return { rgba: out, cars, spots };
 
   /**
    * Inside car parks proper (mostly smooth asphalt within 6 m), anything car-sized that differs
@@ -279,6 +351,7 @@ export function paintOutCars(
       // Tree shadows: planting right beside them.
       if (plantedSum / comp.length > 0.08) { why2("planted"); continue; }
       found++;
+      spots.push(...carsInBlob(comp, size, mpp, rgba));
       const grow = Math.max(1, Math.round(0.35 / mpp));
       const done = new Set<number>();
       for (const i of comp) {

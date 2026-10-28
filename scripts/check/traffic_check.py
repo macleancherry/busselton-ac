@@ -89,6 +89,23 @@ def main():
     for a, b in bad_pairs[:8]:
         print(f"   {data['intersections'][a]['name']} and {data['intersections'][b]['name']} near x {polys[a][0][0]:.0f} z {polys[a][0][1]:.0f}")
     print(f"lane ends outside any intersection: {loose_ends}")
+    # Parked cars (their collision boxes) in a lane: traffic would drive into them.
+    cars = []
+    for m in surf["meshes"]:
+        if m["name"].startswith("1WALL_CAR"):
+            P = np.asarray(m["p"], np.float64).reshape(-1, 3)
+            cars += [P[k:k + 20, [0, 2]].mean(0) for k in range(0, len(P), 20)]  # 20 vertices per box (scenery.box)
+    blocked = []
+    if cars:
+        C = np.array(cars)
+        for lane in data["lanes"]:
+            for p in lane["points"]:
+                d = np.hypot(C[:, 0] - p[0], C[:, 1] - p[2])
+                if d.min() < 1.6:
+                    blocked.append((p[0], p[2]))
+    print(f"parked cars {len(cars)}, lane points blocked by one: {len(blocked)}")
+    for x, z in blocked[:5]:
+        print(f"   at x {x:.0f} z {z:.0f}")
 
     # Map: asphalt grey, polygons shaded, lanes on top (off-asphalt points in red).
     # Shrunk to at most 6000 px a side for long tracks.
@@ -112,7 +129,7 @@ def main():
     out = os.path.splitext(spath)[0].replace(".surface", "") + ".traffic.png"
     img.save(out)
     print(f"map: {out}")
-    failed = bad_pairs or loose_ends or off > 0.03 * pts
+    failed = bad_pairs or loose_ends or off > 0.03 * pts or blocked
     sys.exit(1 if failed else 0)
 
 

@@ -110,6 +110,8 @@ export interface BuildOptions {
   traffic: boolean;
   /** Paint parked cars out of the ground photo (carpark.ts). */
   carParks: boolean;
+  /** Low-poly cars where the photo had parked cars (needs carParks). */
+  parkedCars: boolean;
   /** Raise car parks' planted islands behind kerbs, read off the photo (experimental: tree canopy still fools it). */
   carParkIslands: boolean;
   /** No level-of-detail blocks within this distance of the road's centreline, metres. */
@@ -170,6 +172,7 @@ export const DEFAULT_OPTIONS: BuildOptions = {
   traffic: false,
   carParks: true,
   carParkIslands: false,
+  parkedCars: true,
   terrainLodNear: 25,
   kerbs: true,
   detailShaders: true,
