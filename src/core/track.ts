@@ -85,6 +85,11 @@ export interface DataSources {
   /** Footpaths and shared paths (OSM), already classified. */
   paths?: { pts: LngLat[]; kind: PathLine["kind"] }[];
   /** The sea and piers (OSM via vector tiles): polygons, exterior ring first; `edge` false on tile seams. */
+  /**
+   * What each house really looks like, from street photos (scripts/mapillary/house_looks.py):
+   * matched to the house whose front wall is nearest `at`, within 8 m.
+   */
+  houseLooks?: { at: LngLat; facade?: string }[];
   coast?: { ocean: { rings: LngLat[][]; edge: boolean[][] }[]; piers: { rings: LngLat[][]; edge: boolean[][] }[]; beaches?: { rings: LngLat[][]; edge: boolean[][] }[] };
   /** Tiled ground detail textures for ksMultilayer terrain (lawn, rough, sand, litter); null to keep plain photo terrain. */
   groundDetails?(): Promise<Record<GroundLayer, GroundDetail> | null>;
@@ -116,6 +121,8 @@ export interface TrackResult {
   proj: LocalProjection;
   /** Where side streets meet the route (distance along it, side 1 = left). */
   junctions: { s: number; side: 1 | -1 }[];
+  /** Houses with a known front wall, for matching to street photos. */
+  houses: { front: [LngLat, LngLat]; height: number; facade: string; source: string }[];
   /** Raw pixels for textures the browser can't decode (DDS), keyed by texture name. */
   previewTextures: Record<string, { rgba: Uint8Array; width: number; height: number }>;
   stats: {
@@ -156,6 +163,8 @@ export interface TrackResult {
     railMetres: number;
     /** Parked cars painted out of the ground photo, and car park islands raised. */
     carsPainted?: number;
+    /** Houses whose walls were set from street photos. */
+    housesLooked?: number;
     carParkIslands?: number;
   };
 }
@@ -1075,6 +1084,23 @@ export async function buildTrack(
       b.setback = bestGap;
     }
   }
+  // Street photos say what the wall is made of.
+  const frontMid = (b: Building) => b.front ? [(b.front[0][0] + b.front[1][0]) / 2, (b.front[0][1] + b.front[1][1]) / 2] : null;
+  let housesLooked = 0;
+  for (const look of sources.houseLooks ?? []) {
+    const [x, y] = proj.toLocal(look.at);
+    let best: Building | null = null, bestD = 8;
+    for (const b of homes) {
+      const m = frontMid(b);
+      const d = m ? Math.hypot(m[0] - x, m[1] - y) : Infinity;
+      if (d < bestD) [best, bestD] = [b, d];
+    }
+    const f = look.facade ? FACADES.indexOf(look.facade as (typeof FACADES)[number]) : -1;
+    if (best && f >= 0) {
+      best.facade = f;
+      housesLooked++;
+    }
+  }
   const houses = buildBuildings(shown, buildingGround);
   // Car park islands, clear of the road, the streets, buildings and the rings, with shrubs.
   const islandNodes: Kn5MeshNode[] = [];
@@ -1246,6 +1272,12 @@ export async function buildTrack(
   await progress("Done", 1);
   return {
     slug, files, model, plan, proj, previewTextures,
+    houses: homes.filter((b) => b.front).map((b) => ({
+      front: [proj.toLngLat(b.front![0]), proj.toLngLat(b.front![1])] as [LngLat, LngLat],
+      height: b.height,
+      facade: FACADES[b.facade],
+      source: b.source,
+    })),
     junctions: streetPlan.junctions.map((j) => ({ s: j.s, side: j.side })),
     stats: {
       length: plan.length,
@@ -1270,6 +1302,7 @@ export async function buildTrack(
       kerbMetres: (kerbs[0].reduce((a, b) => a + b, 0) + kerbs[1].reduce((a, b) => a + b, 0)) * opts.spacing,
       poles: utilities.poles,
       carsPainted,
+      housesLooked,
       carParkIslands: islandCount,
       footpathMetres: verge ? (verge.paths[0].filter(Boolean).length + verge.paths[1].filter(Boolean).length) * opts.spacing : 0,
       driveways: verge?.drives.length ?? 0,

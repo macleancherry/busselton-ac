@@ -469,6 +469,7 @@ $("build").onclick = async () => {
       streets: tiles ? { lines: tiles.roads, names: tiles.names } : undefined,
       pois: tiles?.pois,
       seen,
+      houseLooks: (window as unknown as { __houseLooks?: { at: [number, number]; facade?: string }[] }).__houseLooks,
       renderArt,
       raster: (proj, path, reach) => loadRouteRaster(proj, path, reach, chain, 20, (d, t) => setProgress(`Tracing the road in the aerial photos (${Math.round((d / t) * 100)}%)`)),
       roadClassAt: tiles ? roadClassLookup(tiles.roads, current.coords[0][1]) : undefined,

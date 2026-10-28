@@ -33,3 +33,23 @@ Open `frames.geojson` at [geojson.io](https://geojson.io) and check the dots sit
 Mapillary blurs faces and number plates, then takes a day or two to detect objects. After that, paste your Mapillary client token into the builder's Mapillary field and rebuild. In headless builds, put `MAPILLARY_TOKEN=MLY|...` in `.env.local` (gitignored) or the environment. Never put the token in a route file: routes are public.
 
 GoPro with GPS turned on: skip `--gpx`, because the GPS is in the video.
+
+## House looks from your photos
+
+After a build, `out/<slug>.houses.json` lists every house front. Then:
+
+```
+python3 -I scripts/mapillary/house_looks.py out/<slug>.houses.json --user maccherry
+HOUSE_LOOKS=out/<slug>.looks.json node scripts/headless/build-track.mjs routes/<route>.json
+```
+
+It finds the photos that see each front from 5 to 22 m, samples the wall between the fence tops
+and the eaves, and votes brick / cream brick / render / weatherboard across at least two photos.
+Check `out/<slug>.looks.png` (the samples in magenta on each house's best photo) before trusting it.
+
+For this to work well:
+- Walk the footpath, or drive slowly in the kerb lane. Dashcam footage from the middle of a wide
+  road sees houses too far away (the wall is a sliver at the horizon).
+- A second pass with the phone pointing sideways at the houses (landscape, steady) gives the best
+  wall photos. A 360 camera covers both in one pass.
+- Daylight without harsh shadows; overcast is ideal.

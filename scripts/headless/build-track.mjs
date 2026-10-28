@@ -101,6 +101,11 @@ try {
     }, [id, value]);
     if (!ok) throw new Error(`no control #${id} in the UI`);
   }
+  // What houses look like from street photos: HOUSE_LOOKS=out/<slug>.looks.json (from house_looks.py).
+  if (process.env.HOUSE_LOOKS) {
+    const looks = JSON.parse(readFileSync(resolve(root, process.env.HOUSE_LOOKS), "utf8"));
+    await page.evaluate((l) => { window.__houseLooks = l; }, looks.houses ?? looks);
+  }
   // Build options with no UI control (e.g. noTrace zones) go straight to the build.
   if (spec.build) await page.evaluate((b) => { window.__buildOptions = b; }, spec.build);
   for (const p of spec.pins) await page.evaluate((pt) => window.__app.addPin(pt), p);
@@ -130,7 +135,7 @@ try {
   const buildErr = await page.locator("#build-error").evaluate((e) => (e.hidden ? "" : e.textContent));
   if (buildErr) throw new Error(buildErr);
 
-  const { slug, zip, stats, table, centreline, sampleKeys } = await page.evaluate(async () => {
+  const { slug, zip, stats, table, centreline, sampleKeys, houses } = await page.evaluate(async () => {
     const a = document.getElementById("download");
     const buf = new Uint8Array(await (await fetch(a.href)).arrayBuffer());
     let bin = "";
@@ -142,10 +147,12 @@ try {
       const [lng, lat] = r.proj.toLngLat(s.pos);
       return [+lng.toFixed(7), +lat.toFixed(7), +s.h.toFixed(3), +(s.width ?? NaN)];
     });
-    return { slug: r.slug, zip: btoa(bin), stats: r.stats, table, centreline, sampleKeys: Object.keys(r.plan.samples[0] ?? {}) };
+    return { slug: r.slug, zip: btoa(bin), stats: r.stats, table, centreline, sampleKeys: Object.keys(r.plan.samples[0] ?? {}), houses: r.houses };
   });
   mkdirSync(join(root, "out"), { recursive: true });
   writeFileSync(join(root, "out", `${slug}.centreline.json`), JSON.stringify({ sampleKeys, centreline }));
+  // House fronts, for matching to street photos (scripts/mapillary/house_looks.py).
+  writeFileSync(join(root, "out", `${slug}.houses.json`), JSON.stringify(houses ?? []));
 
   const out = join(root, "out");
   mkdirSync(out, { recursive: true });
