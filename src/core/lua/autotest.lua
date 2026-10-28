@@ -1,7 +1,8 @@
 -- Busselton AC automatic test run (CSP track script).
 --
 -- Does nothing unless the driver is named "Busselton Test" (scripts/windows/run-test.ps1 sets
--- that), so it's harmless in normal driving. In a test run it hands the player's car to the AI,
+-- that), so it's harmless in normal driving. In a test run it leaves the setup screen (presses
+-- Drive), hands the player's car to the AI,
 -- writes the car's state four times a second to the CSP log (lines starting "BTEST,"), takes a
 -- screenshot every 5% of the lap and whenever the car leaves the road or gets stuck, and quits AC
 -- after a lap, at the end of a point-to-point road, when stuck, or after MAX_TIME seconds.
@@ -12,6 +13,7 @@ local active = ac.getDriverName(0) == 'Busselton Test'
 local t, lastLog, lastShot, offFor, stuckFor = 0, -1, -1, 0, 0
 local started, offNow, finishing, quitAt = false, false, false, nil
 local laps0 = 0
+local menuWait = 0
 
 local function onRoad()
   local n = 0
@@ -43,6 +45,16 @@ end
 
 function script.update(dt)
   if not active then return end
+  -- AC opens on the setup screen and waits for "Drive": press it (every few seconds until it takes).
+  if sim.isInMainMenu then
+    menuWait = menuWait + dt
+    if menuWait > 3 then
+      menuWait = 0
+      local ok = pcall(ac.tryToStart)
+      ac.log('BTEST,menu,' .. string.format('%.2f', t) .. ',0,0,0,0,0,0,0,' .. (ok and 'pressed drive' or 'tryToStart failed'))
+    end
+    return
+  end
   if sim.isReplayActive or sim.isPaused then return end
   t = t + dt
   if quitAt and t > quitAt then
