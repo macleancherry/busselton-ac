@@ -6,14 +6,25 @@ Mac's project: Busselton, Vasse and Broadwater as Assetto Corsa (AC1) tracks, bu
 
 - Plain, direct language. Short updates. Lead with the result.
 - He drives the tracks and reports what feels wrong; you do the building, checking and fixing.
-- He often instructs from his phone while you run on the workstation, so put anything he must read in your reply, not buried in tool output.
+- He instructs from his laptop or phone, so put anything he must read in your reply, not buried in tool output.
 
-## Machines (all Windows, gigabit LAN)
+## Machines and who does what
 
-- **Workstation** (Ryzen 5 5600, RTX 4060, 16 GB): runs Claude, all tools, and AC + CSP + Pure for smoke tests. Builds happen here.
-- **Gaming rig** (Ryzen 7 9800X3D, RTX 5080): AC, Content Manager and CSP only. Builds reach it through a network share of its `content\tracks` folder.
-- Both machines can run AC at the same time. LAN racing uses Content Manager's built-in LAN mode, with no server software.
-- 16 GB RAM on the workstation: close AC and Blender before photogrammetry; keep scans under about 200 photos.
+Code is written in one place only. Check which machine you're on before you change anything.
+
+| Where | Role | Writes code? |
+| --- | --- | --- |
+| **Claude session from Mac's laptop or phone** (cloud workspace) | Everything that changes the repo: code, route files, docs, builds, checks, renders, commits and pushes to `origin main`. Sends Mac the zips. | **Yes. The only place.** |
+| **Workstation** (Windows; Ryzen 5 5600, RTX 4060, 16 GB; AC + CSP + Pure) | Test bench. Install a build, smoke test it in AC, read logs, report back. Later: heavy GPU jobs (Blender, photogrammetry) run from scripts already in the repo. | **No.** |
+| **Gaming rig** (Windows; Ryzen 7 9800X3D, RTX 5080; AC, Content Manager, CSP) | Driving. Builds reach it through a network share of its `content\tracks` folder. | **No.** |
+
+**If you are Claude Code on the workstation:**
+- Never edit source, route files or docs, and never commit or push. The kids use this machine too, so it isn't always logged in or free; nothing in the project may depend on it.
+- To test: `git pull` (or take the zip Mac gives you), install the build (unzip into AC's `content\tracks`, or `scripts\windows\install-track.ps1` on an existing zip), run the smoke test (step 5 below), and collect AC and CSP logs.
+- When something is wrong, don't fix it. Write a short report: what you did, what happened, which file or mesh it looks like, and the relevant log lines. Save it as `reports/<date>-<topic>.md` (gitignored) and tell Mac, so he can paste it into the laptop session.
+- If you find local changes in the repo, leave them uncommitted and tell Mac; don't push them.
+
+Both Windows machines can run AC at the same time; LAN racing uses Content Manager's built-in LAN mode, with no server software. The workstation has 16 GB RAM: close AC and Blender before photogrammetry, and keep scans under about 200 photos.
 
 ## Build loop
 
@@ -23,10 +34,10 @@ Mac's project: Busselton, Vasse and Broadwater as Assetto Corsa (AC1) tracks, bu
    - no hairpin spikes (exits non-zero and circles them in magenta on `out/<slug>.overlay.png`)
    - road height minus DEM: 95% within 0.3 m
    - road edges on the real road in the overlay: look at it, at least the corners and start/finish
-4. Install: `scripts\windows\install-track.ps1` (build, check, unzip into AC, optionally copy to the rig).
+4. Install (workstation): `scripts\windows\install-track.ps1` unzips into AC and optionally copies to the rig.
 4b. Surface check: `npx tsx scripts/check/dump_surface.ts out/<slug>.zip out/<slug>.surface.json` then `python3 -I scripts/check/surface_check.py out/<slug>.surface.json`. Driving line kinks should be 0, max tilt about 3%, and edge steps around kerb height (15 to 20 cm median).
 4c. Renders: add `SHOTS=0.02,0.25,0.5` (lap fractions, or `lng:lat:lookLng:lookLat:height`) to the build command for driver's-eye PNGs in `out/`. They come from the three.js preview: photo ground only, no ksMultilayer detail or CSP.
-5. Smoke test in the workstation's AC: it loads, the car spawns on the grid, timing and pits work, and AI completes a lap.
+5. Smoke test (workstation, reported back, never fixed there): it loads, the car spawns on the grid, timing and pits work, and AI completes a lap.
 
 Busselton is flat, so town routes use `"banking": false` in options, plus `terrainStep: 1.5` and `terrainUnderRoad: 0.12` in `build`. The upstream defaults are for hilly roads: up to 6% banking, a 3 m terrain grid and ground sunk 0.6 m under the road, which together made tilted corners and 40 to 60 cm drops at the road edges here.
 
