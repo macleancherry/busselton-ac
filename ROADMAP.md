@@ -65,7 +65,7 @@ Get the base right before adding more.
   The AI now gets 2.4 km round the Foreshore (past the 2.1 km corner and the first roundabout), then beaches on the nature strip at the exit of the second roundabout. A GT3 car on kerbed town streets will keep finding kerbs, so this is about good enough: traffic is what fills the streets.
 - 🔨 **In-game check.** Done: roundabout lip (fixed), power poles, night lighting. Still to check: ground detail scale, Grass FX on dry verges, the water edge, frame rate on the RTX 4060.
 - ✅ **Terrain level of detail.** Fine grid near the road, flat blocks drawn as fans further out: the Foreshore went from 1.0M to 0.75M triangles.
-- ⬜ **Performance budget per track.** Triangles, draw calls and texture memory, reported by every build and checked against limits.
+- ✅ **Performance budget per track.** `scripts/check/budget.ts`: triangles, draw calls, texture memory and kn5 size per build, checked against limits, with the biggest groups listed.
 - ⬜ **Layouts.** One track folder with several layouts (circuit, sprint, free roam), the way Kunos and the big mods do it.
 - ⬜ **Export for Blender.** FBX (and maybe `.blend`) of the generated base, so hand-made detail lines up exactly and survives rebuilds (layered with `models.ini`).
 
