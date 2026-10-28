@@ -61,7 +61,9 @@ await new Promise((ok, fail) => {
 
 const browser = await chromium.launch({ args: ["--use-gl=swiftshader", "--enable-unsafe-swiftshader"] });
 try {
-  const page = await browser.newPage({ viewport: { width: 1400, height: 900 }, timezoneId: "Australia/Perth" });
+  // A normal desktop user agent: Landgate's CDN turns away "HeadlessChrome" with a 403.
+  const userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36";
+  const page = await browser.newPage({ viewport: { width: 1400, height: 900 }, timezoneId: "Australia/Perth", userAgent });
   page.on("console", (m) => {
     if (m.type() === "error") log("page error:", m.text());
   });

@@ -1,6 +1,6 @@
 // Tree sprites for the alpha-tested crossed-quad trees, drawn procedurally so
 // the track ships no third-party art: four South West WA species side by side
-// in one 2048 x 1024 atlas (each 512 x 1024).
+// in one 2560 x 1024 atlas (each 512 x 1024).
 //
 //   0 WA peppermint (Agonis flexuosa): Busselton's street tree. Short leaning
 //     trunk, dense dark crown, weeping foliage.
@@ -9,6 +9,8 @@
 //   2 Norfolk Island pine: tall, straight trunk, flat horizontal tiers.
 //   3 tuart (Eucalyptus gomphocephala): big pale-trunked gum, open clumpy
 //     olive crown.
+//   4 palm (Canary Island date palm, as in the foreshore car parks): thick
+//     ringed trunk, a ball of long arching fronds.
 
 import { encodePng } from "./png";
 
@@ -34,13 +36,14 @@ export interface TreeSpecies {
   crown: number;
 }
 
-const W = 2048, H = 1024, CELL = 512;
+const W = 2560, H = 1024, CELL = 512;
 
 export const TREE_SPECIES: TreeSpecies[] = [
-  { name: "peppermint", u0: 0, u1: 0.25, height: 9, crown: 4.5 },
-  { name: "sheoak", u0: 0.25, u1: 0.5, height: 11, crown: 4 },
-  { name: "norfolk", u0: 0.5, u1: 0.75, height: 22, crown: 5.5 },
-  { name: "tuart", u0: 0.75, u1: 1, height: 17, crown: 7.5 },
+  { name: "peppermint", u0: 0, u1: 0.2, height: 9, crown: 4.5 },
+  { name: "sheoak", u0: 0.2, u1: 0.4, height: 11, crown: 4 },
+  { name: "norfolk", u0: 0.4, u1: 0.6, height: 22, crown: 5.5 },
+  { name: "tuart", u0: 0.6, u1: 0.8, height: 17, crown: 7.5 },
+  { name: "palm", u0: 0.8, u1: 1, height: 10, crown: 4 },
 ];
 
 type RGB = [number, number, number];
@@ -189,10 +192,38 @@ function tuart(cv: Canvas, r: () => number): void {
   }
 }
 
-/** The 2048 x 1024 RGBA atlas of all four species. */
+function palm(cv: Canvas, r: () => number): void {
+  const bark: RGB = [120, 98, 72];
+  const tx = 256, top = 330;
+  // Thick trunk with old frond bases in rings, a little wider at the foot.
+  cv.line(tx, 1024, tx, top + 40, 34, 27, (t) => shade(jitter(bark, r, 0.15), 0.75 + 0.25 * t));
+  for (let y = top + 50; y < 1020; y += 14) cv.line(tx - 30, y, tx + 30, y + 3, 1, 1, () => shade(bark, 0.6));
+  // Fronds: long arching strokes radiating from the crown, drooping at the tips, with leaflets.
+  const frond: RGB = [70, 104, 52];
+  const fronds = 46;
+  for (let k = 0; k < fronds; k++) {
+    const a = (k / fronds) * Math.PI * 2 + r() * 0.2;
+    const reach = 150 + r() * 80;
+    const dx = Math.cos(a) * reach, lift = Math.sin(a) * 0.45;
+    const steps = 60;
+    let px = tx, py = top;
+    for (let i = 1; i <= steps; i++) {
+      const t = i / steps;
+      const x = tx + dx * t, y = top - reach * lift * t - 120 * t * (1 - t) * (0.6 + lift) + 140 * t * t;
+      const c = lit(frond, y, top - 200, top + 200, -lift, r);
+      cv.line(px, py, x, y, 1.5, 1, () => c);
+      // Leaflets either side, shorter toward the tip.
+      if (i % 2 === 0) for (const side of [-1, 1]) leaf(cv, x, y, 10 + 18 * (1 - t), side * (0.9 + r() * 0.4) + (dx > 0 ? 0.3 : -0.3), shade(c, 0.9 + r() * 0.2));
+      px = x;
+      py = y;
+    }
+  }
+}
+
+/** The 2560 x 1024 RGBA atlas of all five species. */
 export function treeSpeciesPixels(): Uint8Array {
   const px = new Uint8Array(W * H * 4);
-  const painters = [peppermint, sheoak, norfolk, tuart];
+  const painters = [peppermint, sheoak, norfolk, tuart, palm];
   painters.forEach((paint, i) => {
     const cv = new Canvas(i * CELL);
     paint(cv, rng(1000 + i * 77));
@@ -218,7 +249,7 @@ export function treeSpeciesAtlas(): Uint8Array {
  */
 export function pickSpecies(r: number, coastal: boolean, town: boolean, foreshore = false): number {
   // The foreshore itself (between the beach and the first street) is lined with Norfolk pines.
-  if (foreshore) return r < 0.7 ? 2 : r < 0.9 ? 0 : 1;
+  if (foreshore) return r < 0.6 ? 2 : r < 0.75 ? 4 : r < 0.92 ? 0 : 1;
   if (coastal) return r < 0.6 ? 1 : r < 0.8 ? 2 : 0;
   if (town) return r < 0.75 ? 0 : r < 0.9 ? 1 : 3;
   return r < 0.55 ? 3 : 0;

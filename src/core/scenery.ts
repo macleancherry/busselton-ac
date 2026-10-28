@@ -158,8 +158,8 @@ export function filterTrees(spots: TreeSpot[], index: SegmentIndex, opts: BuildO
 }
 
 /** Trunk width at scale 1 per sprite (broadleaf, conifer, eucalypt, palm), metres. */
-/** Trunk width per TREE_SPECIES entry (peppermint, she-oak, Norfolk pine, tuart), metres at scale 1. */
-const TRUNK = [0.45, 0.3, 0.5, 0.75];
+/** Trunk width per TREE_SPECIES entry (peppermint, she-oak, Norfolk pine, tuart, palm), metres at scale 1. */
+const TRUNK = [0.45, 0.3, 0.5, 0.75, 0.6];
 
 /**
  * Solid trunks: an invisible box at each tree for the physics (1WALL_), so a
