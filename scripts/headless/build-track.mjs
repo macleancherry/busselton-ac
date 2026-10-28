@@ -18,7 +18,7 @@
 // three.js preview as out/<slug>.shot<n>.png (the photo ground only: no ksMultilayer or CSP).
 
 import { spawn } from "node:child_process";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium } from "playwright";
@@ -30,6 +30,14 @@ if (!routeFile) {
   process.exit(1);
 }
 const spec = JSON.parse(readFileSync(routeFile, "utf8"));
+// KEY=value lines from .env.local (gitignored), without overriding the real environment.
+const envFile = join(dirname(fileURLToPath(import.meta.url)), "..", "..", ".env.local");
+if (existsSync(envFile)) {
+  for (const line of readFileSync(envFile, "utf8").split(/\r?\n/)) {
+    const m = line.match(/^\s*([A-Z_][A-Z0-9_]*)\s*=\s*(.*?)\s*$/);
+    if (m && process.env[m[1]] === undefined) process.env[m[1]] = m[2];
+  }
+}
 const PORT = Number(process.env.PORT ?? 5199);
 const TIMEOUT = Number(process.env.BUILD_TIMEOUT_MIN ?? 30) * 60_000;
 
@@ -77,7 +85,11 @@ try {
   await page.fill("#name", spec.name);
   if (spec.loop) await page.check("#loop");
   // Set controls directly: some sit in collapsed sections and aren't clickable.
-  for (const [id, value] of Object.entries(spec.options ?? {})) {
+  // The Mapillary token comes from the environment (or a gitignored .env.local), never a route file:
+  // the routes are public.
+  const options = { ...(spec.options ?? {}) };
+  if (process.env.MAPILLARY_TOKEN) options.mapillaryToken = process.env.MAPILLARY_TOKEN;
+  for (const [id, value] of Object.entries(options)) {
     const ok = await page.evaluate(([id, value]) => {
       const el = document.getElementById(id);
       if (!el) return false;

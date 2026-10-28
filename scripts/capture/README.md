@@ -30,6 +30,6 @@ Open `frames.geojson` at [geojson.io](https://geojson.io) and check the dots sit
 - **Dots nowhere near:** pass `--start "2026-11-01 09:14:05"` with the time you noted.
 - **Looks right:** rerun with `--upload`.
 
-Mapillary blurs faces and number plates, then takes a day or two to detect objects. After that, paste your Mapillary client token into the builder's Mapillary field and rebuild. In headless builds, add `"mapillaryToken": "..."` to the route's `options`.
+Mapillary blurs faces and number plates, then takes a day or two to detect objects. After that, paste your Mapillary client token into the builder's Mapillary field and rebuild. In headless builds, put `MAPILLARY_TOKEN=MLY|...` in `.env.local` (gitignored) or the environment. Never put the token in a route file: routes are public.
 
 GoPro with GPS turned on: skip `--gpx`, because the GPS is in the video.
