@@ -41,4 +41,15 @@ describe("car parks", () => {
     for (let i = 1; i < top.positions.length; i += 3) expect(top.positions[i]).toBeCloseTo(2.15, 3);
     for (let i = 1; i < top.normals.length; i += 3) expect(top.normals[i]).toBeGreaterThan(0.99);
   });
+
+  it("paints out a car between bay lines and keeps the lines", () => {
+    // Bays 2.6 m wide: lines (0.2 m, one pixel) at x = 10, 12.6, 15.2 from y = 10 to 15; a dark car in the middle bay.
+    const lineAt = (x: number, y: number) => y > 10 && y < 15 && [10, 12.6, 15.2].some((lx) => x >= lx && x < lx + 0.2);
+    const carAt = (x: number, y: number) => x > 10.5 && x < 12.3 && y > 10.3 && y < 14.8;
+    const bay = image((x, y) => (lineAt(x, y) ? [232, 232, 228] : carAt(x, y) ? [30, 32, 40] : asphalt));
+    const { rgba } = paintOutCars(bay, size, mpp);
+    const c = at(rgba, 11.4, 12.5);
+    for (let k = 0; k < 3; k++) expect(Math.abs(c[k] - asphalt[k])).toBeLessThan(14);
+    for (const lx of [10.05, 12.65, 15.25]) expect(at(rgba, lx, 12.5)[0]).toBeGreaterThan(200);
+  });
 });

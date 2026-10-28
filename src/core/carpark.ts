@@ -116,9 +116,23 @@ export function paintOutCars(
   const R = Math.max(2, Math.round(6 / mpp));
   const frac = boxMean(smoothAsph, size, R);
   const mr = boxMean(cr, size, R), mg = boxMean(cg, size, R), mb = boxMean(cb, size, R);
+  // Line marking: bright, grey-white and thin (in a metre's window, mostly not bright), where a
+  // white car is bright right across. Bay lines aren't cars: they stay out of the blobs (so a car
+  // doesn't join up with the lines either side of it), count as asphalt round a car, and are kept
+  // when a car is painted out.
+  const bright = new Float32Array(n);
+  for (let i = 0; i < n; i++) {
+    const r = rgba[i * 4] / 255, g = rgba[i * 4 + 1] / 255, b = rgba[i * 4 + 2] / 255;
+    const mx = Math.max(r, g, b), mn = Math.min(r, g, b);
+    if ((r + g + b) / 3 > 0.6 && (mx - mn) / (mx || 1) < 0.2) bright[i] = 1;
+  }
+  const brightNear = boxMean(bright, size, Math.max(2, Math.round(0.5 / mpp)));
+  const paint = new Uint8Array(n);
+  for (let i = 0; i < n; i++) if (bright[i] && brightNear[i] < 0.38 && frac[i] > 0.15) paint[i] = 1;
+  const road = (i: number) => asph[i] === 1 || paint[i] === 1;
   const cand = new Uint8Array(n);
   for (let i = 0; i < n; i++) {
-    if (asph[i] || frac[i] <= 0.15) continue;
+    if (asph[i] || paint[i] || frac[i] <= 0.15) continue;
     // Cars aren't grass, gardens, red brick paving or buildings: leave those alone.
     const r = rgba[i * 4] / 255, g = rgba[i * 4 + 1] / 255, b = rgba[i * 4 + 2] / 255;
     if (isPlanted(r, g, b) || (r > g * 1.15 && r > b * 1.3) || keepOut?.[i]) continue;
@@ -174,7 +188,7 @@ export function paintOutCars(
       for (const j of [x > 0 ? i - 1 : -1, x < size - 1 ? i + 1 : -1, y > 0 ? i - size : -1, y < size - 1 ? i + size : -1]) {
         if (j < 0 || cand[j]) continue;
         edge++;
-        if (!asph[j]) foreign++;
+        if (!road(j)) foreign++;
       }
     }
     if (foreign > 0.45 * edge) { no(`foreign ${(foreign / edge).toFixed(2)}`); continue; }
@@ -186,7 +200,7 @@ export function paintOutCars(
         if (xx > x0 - pad0 && xx < x1 + pad0 && yy > y0 - pad0 && yy < y1 + pad0) continue;
         const j = yy * size + xx;
         ringN++;
-        if (asph[j] && rough[j] < 0.05) smooth++;
+        if ((asph[j] && rough[j] < 0.05) || paint[j]) smooth++;
       }
     }
     if (smooth < 0.4 * ringN) { no(`ring ${(smooth / ringN).toFixed(2)}`); continue; }
@@ -201,7 +215,7 @@ export function paintOutCars(
           const xx = x + dx, yy = y + dy;
           if (xx < 0 || yy < 0 || xx >= size || yy >= size) continue;
           const j = yy * size + xx;
-          if (done.has(j)) continue;
+          if (done.has(j) || paint[j]) continue;
           done.add(j);
           const f = frac[j] || 1;
           const noise = ((j * 2654435761) >>> 0) % 13 - 6;
@@ -212,7 +226,74 @@ export function paintOutCars(
       }
     }
   }
+  cars += secondPass();
   return { rgba: out, cars };
+
+  /**
+   * Inside car parks proper (mostly smooth asphalt within 6 m), anything car-sized that differs
+   * from the local asphalt colour: dark cars (which read as asphalt above, so they fall apart
+   * into thin pieces) and cars caught between bay lines. Not tree shadows (planting next to
+   * them), and only blobs the size and shape of one or two cars.
+   */
+  function secondPass(): number {
+    const c2 = new Uint8Array(n);
+    const planted = new Float32Array(n);
+    for (let i = 0; i < n; i++) {
+      const r = out[i * 4] / 255, g = out[i * 4 + 1] / 255, b = out[i * 4 + 2] / 255;
+      if (isPlanted(r, g, b)) planted[i] = 1;
+    }
+    const plantedNear = boxMean(planted, size, Math.max(2, Math.round(2.5 / mpp)));
+    for (let i = 0; i < n; i++) {
+      if (frac[i] < 0.35 || paint[i] || planted[i] || keepOut?.[i]) continue;
+      const f = frac[i];
+      const ar = mr[i] / f, ag = mg[i] / f, ab = mb[i] / f;
+      const r = out[i * 4] / 255, g = out[i * 4 + 1] / 255, b = out[i * 4 + 2] / 255;
+      if (Math.hypot(r - ar, g - ag, b - ab) > 0.11) c2[i] = 1;
+    }
+    // Close small gaps (a windscreen or roof stripe the colour of asphalt splits a car in pieces).
+    const near2 = boxMean(Float32Array.from(c2), size, Math.max(1, Math.round(0.4 / mpp)));
+    const closed = new Uint8Array(n);
+    for (let i = 0; i < n; i++) if (near2[i] > 0.12 && frac[i] >= 0.3 && !paint[i]) closed[i] = 1;
+    let found = 0;
+    const max2 = 18 / (mpp * mpp);
+    for (const comp of components(closed, size, Math.ceil(max2) + 1)) {
+      const area = comp.length * mpp * mpp;
+      const why2 = (r: string) => why?.(comp[0] % size, (comp[0] / size) | 0, "2:" + r);
+      if (area < 3 || area > 18) { if (area >= 1) why2(area < 3 ? "small" : "big"); continue; }
+      let x0 = size, x1 = 0, y0 = size, y1 = 0, plantedSum = 0;
+      for (const i of comp) {
+        const x = i % size, y = (i / size) | 0;
+        x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y);
+        plantedSum += plantedNear[i];
+      }
+      const w = (x1 - x0 + 1) * mpp, h = (y1 - y0 + 1) * mpp;
+      // One or two cars, any angle: no side over 7 m, and filling a fair part of its box.
+      if (Math.max(w, h) > 7 || Math.min(w, h) < 1.3 || comp.length / ((x1 - x0 + 1) * (y1 - y0 + 1)) < 0.3) { why2("shape"); continue; }
+      // Tree shadows: planting right beside them.
+      if (plantedSum / comp.length > 0.08) { why2("planted"); continue; }
+      found++;
+      const grow = Math.max(1, Math.round(0.35 / mpp));
+      const done = new Set<number>();
+      for (const i of comp) {
+        const x = i % size, y = (i / size) | 0;
+        for (let dy = -grow; dy <= grow; dy++) {
+          for (let dx = -grow; dx <= grow; dx++) {
+            const xx = x + dx, yy = y + dy;
+            if (xx < 0 || yy < 0 || xx >= size || yy >= size) continue;
+            const j = yy * size + xx;
+            if (done.has(j) || paint[j]) continue;
+            done.add(j);
+            const f = frac[j] || 1;
+            const noise = ((j * 2654435761) >>> 0) % 13 - 6;
+            out[j * 4] = Math.min(255, Math.max(0, (mr[j] / f) * 255 + noise));
+            out[j * 4 + 1] = Math.min(255, Math.max(0, (mg[j] / f) * 255 + noise));
+            out[j * 4 + 2] = Math.min(255, Math.max(0, (mb[j] / f) * 255 + noise));
+          }
+        }
+      }
+    }
+    return found;
+  }
 }
 
 /** Building footprints (local rings), grown by `pad` metres, as a pixel mask over a chunk's photo. */
