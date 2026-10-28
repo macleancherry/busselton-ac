@@ -228,7 +228,7 @@ Real photos beat procedural textures. Everything we capture ourselves can also g
 
 ## Working with upstream
 
-[honestjams/ac-track-builder](https://github.com/honestjams/ac-track-builder) is the generator. We send back anything that isn't South West specific, and take its improvements in. Sent so far: kerb and roundabout fixes, the U-turn warning, `terrainUnderRoad` and no-trace zones, and Landgate imagery (all merged).
+[honestjams/ac-track-builder](https://github.com/honestjams/ac-track-builder) is the generator. We send back anything that isn't South West specific, and take its improvements in. Sent so far: kerb and roundabout fixes, the U-turn warning, `terrainUnderRoad` and no-trace zones, and Landgate imagery (all merged). Open (28 Oct): #6 spawn direction, roundabout mouths and AI corner hints; #7 terrain level of detail; #8 CSP traffic lanes; #9 the coast (sea, jetties, seawall, groynes).
 
 Candidates to send next:
 
