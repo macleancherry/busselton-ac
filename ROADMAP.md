@@ -8,7 +8,7 @@ Status key: ✅ done · 🔨 in progress · ⬜ planned · ❓ needs checking fi
 
 ---
 
-## Where we are (v0.4, October 2026)
+## Where we are (v0.5, 28 October 2026)
 
 Two tracks build from route files with one command, then pass automatic checks:
 
@@ -27,6 +27,11 @@ What a build has today:
 - ✅ The bay as water, and the 1.8 km jetty
 - ✅ Horizon tree lines
 - ✅ Headless builds, checks (photo overlay, DEM heights, bumps, edge steps) and driver's-eye renders
+- ✅ Upstream's houses (doors, garages, driveways), power poles, wires, photo footpaths, culling and replay cameras, merged in
+- ✅ Real power poles, street lights and signs from Mapillary detections
+- ✅ A rock seawall and groynes, Norfolk pines and palms along the foreshore
+- ✅ CSP traffic lanes (`data/traffic.json`), checked automatically; not yet driven with in game
+- ✅ An unattended AI test run on the workstation, with a drive log, replay and report
 
 ---
 
@@ -52,15 +57,14 @@ Sources: [OverTake: six real-road maps for free roaming](https://racedepartment.
 
 Get the base right before adding more.
 
-- ⬜ **Merge upstream.** Take honestjams' houses, poles and wires, photo-read footpaths and driveways, culling and draw distances, road-edge ramp, U-turn spur removal and replay cameras. Keep ours where it's South West specific.
-- ⬜ **Fix the AI driving off the road.** First in-game test (28 Oct): the AI "drove straight off to the left and crashed". Suspects, most likely first:
-  - `fast_lane.ai` has no spatial lookup grid. The layout is known from Content Manager's `AiSplineGrid`, but not the values the game expects.
-  - There's no `pit_lane.ai` for AI starting from the pit boxes.
-  - Grid slots sit a quarter of the road width off the centreline.
+- ✅ **Merge upstream.** honestjams' houses, poles and wires, photo-read footpaths and driveways, culling and draw distances, road-edge ramp, U-turn spur removal, replay cameras, CSP realism and detail shaders. Checked again after every tranche of work.
+- 🔨 **The AI driving off the road.** The main cause was found and fixed on 28 Oct: spawn points faced backwards, so the AI's first move was a U-turn. Since then:
+  - corner hints (`ai_hints.ini`) for tight corners, and the AI kept a metre off the kerbs
+  - a smoothed line through roundabouts
 
-  Needs: which track and mode, where it left the road, and the AI/spline lines from `log.txt`. CSP's traffic planner doesn't use `fast_lane.ai`, so traffic isn't affected; AI Flood is.
-- ⬜ **In-game check of v0.4.** Ground detail scale, Grass FX on dry verges, water edge, frame rate on the RTX 4060.
-- ⬜ **Terrain level of detail.** Fine grid near the road, coarser behind. Terrain is two thirds of the triangles now.
+  The AI now gets 2.4 km round the Foreshore (past the 2.1 km corner and the first roundabout), then beaches on the nature strip at the exit of the second roundabout. A GT3 car on kerbed town streets will keep finding kerbs, so this is about good enough: traffic is what fills the streets.
+- 🔨 **In-game check.** Done: roundabout lip (fixed), power poles, night lighting. Still to check: ground detail scale, Grass FX on dry verges, the water edge, frame rate on the RTX 4060.
+- ✅ **Terrain level of detail.** Fine grid near the road, flat blocks drawn as fans further out: the Foreshore went from 1.0M to 0.75M triangles.
 - ⬜ **Performance budget per track.** Triangles, draw calls and texture memory, reported by every build and checked against limits.
 - ⬜ **Layouts.** One track folder with several layouts (circuit, sprint, free roam), the way Kunos and the big mods do it.
 - ⬜ **Export for Blender.** FBX (and maybe `.blend`) of the generated base, so hand-made detail lines up exactly and survives rebuilds (layered with `models.ini`).
@@ -73,7 +77,7 @@ Make town feel like town before going regional.
   - car park islands with kerbs, line marking and arrows as real 3D
   - 🔨 cars painted out of the ground photo (most done; rows of bays beside paths and gardens still show)
   - ✅ the rock seawall (limestone revetment along the back of the beach) and rock groynes
-  - ✅ Norfolk pines along the foreshore; palms still to come
+  - ✅ Norfolk pines along the foreshore, with palms mixed in (the photo can't tell a palm from other trees)
   - garden beds along the path
   - jetty precinct buildings: waiting on Mac's Mapillary footage for their fronts
 - ⬜ **Jetty precinct:** the Interpretive Centre, the jetty train line, the Underwater Observatory at the far end, and jetty lights at night.
@@ -109,11 +113,10 @@ There are two ways AC does traffic. We should generate both from the same road g
 
 Plan:
 
-- ⬜ **Generate `traffic.json`** from OSM:
-  - lanes from `lanes` and `oneway`, on the correct (left) side
-  - intersections at every junction
-  - roundabouts as give-way entries
-  - speeds from `maxspeed` (50 in town, 70/80/110 out of town)
+- 🔨 **Generate `traffic.json`.** Done: lanes on the left (two each way on wide roads), intersections at every junction, roundabouts as a clockwise ring with priority, speeds from road class and town, and a check that fails on overlapping junctions or loose lane ends. Still to do:
+  - an in-game test with the planner (steps in [docs/traffic-test.md](docs/traffic-test.md))
+  - lanes from OSM `lanes` and `oneway`
+  - speeds from OSM `maxspeed`
 - ⬜ **Generate per-lane AI splines**, both directions, for AI Flood.
 - ⬜ **Traffic density zones:** busy Bussell Hwy and Queen St, quiet estates, school-zone speeds.
 - ⬜ **An Aussie traffic car pack:**
@@ -131,11 +134,11 @@ What makes a map look great at any time of day and in any weather.
 - ⬜ **RainFX:**
   - wet roads, with puddles in low spots found from the DEM
   - wet kerbs and gutters
-- ⬜ **Night:**
-  - house windows lit at random
+- 🔨 **Night:**
+  - ✅ house windows lit at random
+  - ✅ light pollution over town
+  - ✅ distant emissives on the street lights
   - shop signs, car park lights and the jetty lights
-  - light pollution over town
-  - distant emissives so the town glows from a distance
 - ⬜ **Water:** CSP's water shader for the bay, waves at the beach, boats at moorings.
 - ⬜ **Audio:** surf at the beach, magpies and kookaburras in the morning, wind in the she-oaks, the jetty train (CSP track audio).
 - ⬜ **Lighting quality:**
@@ -200,7 +203,9 @@ Each needs its own trees, ground and roadside:
 
 Real photos beat procedural textures. Everything we capture ourselves can also go into a public version.
 
-- 🔨 **Mapillary walks and drives** through key areas, for real signs, poles and street detail ([capture kit](scripts/capture/README.md)).
+- 🔨 **Mapillary walks and drives** through key areas, for real signs, poles and street detail ([capture kit](scripts/capture/README.md)). Mac's first uploads (28 Oct) are processing. Ready for them:
+  - ✅ a coverage check (`scripts/mapillary/coverage.py`)
+  - ✅ house matching, which sets each house's walls from the photos (`scripts/mapillary/house_looks.py`)
 - ⬜ **Texture photos:** brick, render, limestone, peppermint and karri bark, local roof colours, made into seamless CC0 textures.
 - ⬜ **Photogrammetry** of landmarks: the jetty buildings, the foreshore, lighthouses. ❓ Check the CASA drone rules near Busselton airport first.
 - ⬜ **Reference sets:** Street View and real estate photos as reference only, never copied into the track.
@@ -210,11 +215,12 @@ Real photos beat procedural textures. Everything we capture ourselves can also g
 - ✅ Build checks: photo overlay, DEM heights, hairpin spikes, surface bumps and edge steps.
 - ✅ Driver's-eye renders from the headless build.
 - ⬜ **Before/after render sets on every build,** to catch visual regressions.
-- ⬜ **CI on GitHub:** tests and type-check on every push.
-- ⬜ **Automated in-game smoke test:**
-  - it loads, the car spawns, timing works
-  - AI completes a lap
-  - frame-rate snapshot
+- ✅ **CI on GitHub:** tests, type-check and build on every push.
+- 🔨 **Automated in-game test** (`scripts/windows/run-test.ps1`, run on the workstation):
+  - ✅ it loads, presses Drive, hands the car to the AI, logs the drive, saves the replay and closes AC
+  - ✅ a report here of where the AI left the road (`scripts/check/autotest_report.py`)
+  - ⬜ screenshots (CSP's screenshot call doesn't work from a track script)
+  - ⬜ a frame-rate snapshot
 - ⬜ **One-click install:** a Content Manager install link for the LAN rig.
 
 ## Phase 9: Fun stuff ⬜
@@ -234,11 +240,9 @@ Candidates to send next:
 
 - `ksMultilayer` ground detail
 - dry-grass Grass FX tuning
-- sea and piers
 - house lots
-- regional tree species
-- headless builds and the check scripts
-- traffic generation, once it exists
+- the AI line through roundabouts
+- headless builds, the check scripts and the automatic AI test (his repo has no headless tooling yet)
 
 ## Data and sharing
 
