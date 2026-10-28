@@ -91,9 +91,16 @@ function components(mask: Uint8Array, size: number, maxPixels: number): number[]
  */
 export function paintOutCars(
   rgba: Uint8Array | Uint8ClampedArray, size: number, mpp: number, keepOut?: Uint8Array,
-  /** For tuning: told why each candidate blob was left alone (blob centre in pixels). */
-  why?: (x: number, y: number, reason: string) => void,
+  extra: {
+    /** For tuning: told why each candidate blob was left alone (blob centre in pixels). */
+    why?: (x: number, y: number, reason: string) => void;
+    /** Where the second pass may look (near mapped car-park aisles). Everywhere when left out. */
+    carParks?: Uint8Array;
+    /** Where any car may be (near mapped streets): bright gaps in forest canopy are not cars. Everywhere when left out. */
+    streets?: Uint8Array;
+  } = {},
 ): { rgba: Uint8Array; cars: number } {
+  const { why, carParks, streets } = extra;
   const n = size * size;
   const asph = new Float32Array(n);
   const cr = new Float32Array(n), cg = new Float32Array(n), cb = new Float32Array(n);
@@ -135,7 +142,7 @@ export function paintOutCars(
     if (asph[i] || paint[i] || frac[i] <= 0.15) continue;
     // Cars aren't grass, gardens, red brick paving or buildings: leave those alone.
     const r = rgba[i * 4] / 255, g = rgba[i * 4 + 1] / 255, b = rgba[i * 4 + 2] / 255;
-    if (isPlanted(r, g, b) || (r > g * 1.15 && r > b * 1.3) || keepOut?.[i]) continue;
+    if (isPlanted(r, g, b) || (r > g * 1.15 && r > b * 1.3) || keepOut?.[i] || (streets && !streets[i])) continue;
     cand[i] = 1;
   }
   // Rows of parked cars touch (shadows join them), so a blob can be a whole
@@ -244,7 +251,7 @@ export function paintOutCars(
     }
     const plantedNear = boxMean(planted, size, Math.max(2, Math.round(2.5 / mpp)));
     for (let i = 0; i < n; i++) {
-      if (frac[i] < 0.35 || paint[i] || planted[i] || keepOut?.[i]) continue;
+      if (frac[i] < 0.35 || paint[i] || planted[i] || keepOut?.[i] || (carParks && !carParks[i]) || (streets && !streets[i])) continue;
       const f = frac[i];
       const ar = mr[i] / f, ag = mg[i] / f, ab = mb[i] / f;
       const r = out[i * 4] / 255, g = out[i * 4 + 1] / 255, b = out[i * 4 + 2] / 255;
@@ -297,6 +304,28 @@ export function paintOutCars(
 }
 
 /** Building footprints (local rings), grown by `pad` metres, as a pixel mask over a chunk's photo. */
+/** Pixels within `radius` metres of any of the lines (local metres). */
+export function lineMask(lines: Vec2[][], chunk: TerrainChunk, size: number, radius: number): Uint8Array {
+  const mask = new Uint8Array(size * size);
+  const mpp = (chunk.maxX - chunk.minX) / size, rp = radius / mpp;
+  for (const pts of lines) {
+    for (let k = 0; k + 1 < pts.length; k++) {
+      const ax = (pts[k][0] - chunk.minX) / mpp, ay = (chunk.maxY - pts[k][1]) / mpp;
+      const bx = (pts[k + 1][0] - chunk.minX) / mpp, by = (chunk.maxY - pts[k + 1][1]) / mpp;
+      const x0 = Math.max(0, Math.floor(Math.min(ax, bx) - rp)), x1 = Math.min(size - 1, Math.ceil(Math.max(ax, bx) + rp));
+      const y0 = Math.max(0, Math.floor(Math.min(ay, by) - rp)), y1 = Math.min(size - 1, Math.ceil(Math.max(ay, by) + rp));
+      if (x0 > x1 || y0 > y1) continue;
+      const dx = bx - ax, dy = by - ay, l2 = dx * dx + dy * dy || 1;
+      for (let py = y0; py <= y1; py++)
+        for (let px = x0; px <= x1; px++) {
+          const t = Math.max(0, Math.min(1, ((px + 0.5 - ax) * dx + (py + 0.5 - ay) * dy) / l2));
+          if (Math.hypot(px + 0.5 - ax - t * dx, py + 0.5 - ay - t * dy) <= rp) mask[py * size + px] = 1;
+        }
+    }
+  }
+  return mask;
+}
+
 export function footprintMask(rings: Vec2[][], chunk: TerrainChunk, size: number, pad = 1): Uint8Array {
   const mask = new Uint8Array(size * size);
   const span = chunk.maxX - chunk.minX, mpp = span / size;

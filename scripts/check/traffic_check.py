@@ -20,7 +20,7 @@ import numpy as np
 from PIL import Image, ImageDraw
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from surface_check import CELL, raster  # noqa: E402
+from surface_check import CELL, covered  # noqa: E402
 
 
 def _cross(p, q, r, s):
@@ -63,13 +63,12 @@ def main():
         data = json.loads(z.read(name))
     surf = json.load(open(spath))
     drivable = lambda n: n[:2] == "1R" or n.startswith("1STREET")
-    top, _, _, _, x0, z0 = raster(surf["meshes"], drivable)
-    H, W = top.shape
+    cells, x0, z0, H, W = covered([m for m in surf["meshes"] if drivable(m["name"])])
 
     def on_road(x, z, reach=1):
         i, j = int((z - z0) / CELL), int((x - x0) / CELL)
-        win = top[max(0, i - reach):i + reach + 1, max(0, j - reach):j + reach + 1]
-        return win.size > 0 and not np.all(np.isnan(win))
+        return any(0 <= i + a < H and 0 <= j + b < W and (i + a) * W + j + b in cells
+                   for a in range(-reach, reach + 1) for b in range(-reach, reach + 1))
 
     polys = [[(p[0], p[2]) for p in it["points"]] for it in data["intersections"]]
     bad_pairs = [(a, b) for a in range(len(polys)) for b in range(a + 1, len(polys)) if overlap(polys[a], polys[b])]
@@ -92,9 +91,14 @@ def main():
     print(f"lane ends outside any intersection: {loose_ends}")
 
     # Map: asphalt grey, polygons shaded, lanes on top (off-asphalt points in red).
-    img = Image.fromarray(np.where(np.isnan(top), 255, 170).astype(np.uint8)).convert("RGB")
+    # Shrunk to at most 6000 px a side for long tracks.
+    shrink = max(1, -(-max(W, H) // 6000))
+    grey = np.full((-(-H // shrink), -(-W // shrink)), 255, np.uint8)
+    c = np.fromiter(cells, np.int64, len(cells))
+    grey[(c // W) // shrink, (c % W) // shrink] = 170
+    img = Image.fromarray(grey).convert("RGB")
     d = ImageDraw.Draw(img, "RGBA")
-    f = lambda x, z: ((x - x0) / CELL, (z - z0) / CELL)
+    f = lambda x, z: ((x - x0) / CELL / shrink, (z - z0) / CELL / shrink)
     for i, poly in enumerate(polys):
         bad = any(i in pair for pair in bad_pairs)
         d.polygon([f(*p) for p in poly], fill=(255, 0, 0, 90) if bad else (60, 160, 255, 70))

@@ -7,7 +7,7 @@ import { pickSpecies, treeSpeciesAtlas } from "./treeSprites";
 import { FENCE_COLOURS, facadeTexture, fenceTexture, frontWallTexture, hedgeTexture, mulchTexture, shrubAtlas } from "./houseTextures";
 import { buildLots, shrub } from "./lots";
 import { buildShopfronts, findShopfronts, shopSignTexture, shopStats, shopWindowTexture } from "./shops";
-import { buildIslands, findIslands, footprintMask, paintOutCars } from "./carpark";
+import { buildIslands, findIslands, footprintMask, lineMask, paintOutCars } from "./carpark";
 import { trafficJson, type TrafficRoad } from "./traffic";
 import autotestLua from "./lua/autotest.lua?raw";
 import { buildGroynes, buildPiers, buildSea, buildSeawall, deckTexture, rockTexture, SeaMask, seaTexture, withSeabed, type CoastPolygon } from "./coast";
@@ -526,6 +526,12 @@ export async function buildTrack(
   const treeSpots: TreeSpot[] = [];
   const farTreeSpots: TreeSpot[] = [];
   let carsPainted = 0;
+  const streetLines = opts.carParks
+    ? [...(sources.streets?.lines ?? []).filter((l) => !/^(path|footway|cycleway|track|steps|pedestrian|bridleway)/.test(l.cls)).map((l) => l.pts.map((p) => proj.toLocal(p))), plan.samples.map((s) => s.pos)]
+    : [];
+  const parkingLines = opts.carParks
+    ? (sources.streets?.lines ?? []).filter((l) => /^(service|parking_aisle)/.test(l.cls)).map((l) => l.pts.map((p) => proj.toLocal(p)))
+    : [];
   const osmRings = opts.carParks ? (sources.osm?.buildings ?? []).map((b) => b.ring.map((p) => proj.toLocal(p))) : [];
   const islandsFound: { chunk: TerrainChunk; rings: Vec2[][] }[] = [];
   const photos: Parameters<typeof chunkPhotoSampler>[0] = [];
@@ -554,7 +560,13 @@ export async function buildTrack(
       if (opts.carParks && img.rgba && job.prefix === "terrain") {
         // Buildings (mapped, and roofs found in this photo) are never painted over.
         const roofs = opts.buildings && opts.detectBuildings ? detectBuildings(img.rgba, job.size, job.chunk).map((b) => b.ring) : [];
-        clean = paintOutCars(img.rgba, job.size, span / job.size, footprintMask([...osmRings, ...roofs], job.chunk, job.size));
+        // Cars only near mapped streets (in bush, bright gaps in the canopy look like cars), and the
+        // second pass (dark cars, cars between bay lines) only near car-park aisles: on open road
+        // it finds tree shadows and patched bitumen.
+        clean = paintOutCars(img.rgba, job.size, span / job.size, footprintMask([...osmRings, ...roofs], job.chunk, job.size), {
+          carParks: lineMask(parkingLines, job.chunk, job.size, 15),
+          streets: lineMask(streetLines, job.chunk, job.size, 14),
+        });
       }
       if (clean) {
         carsPainted += clean.cars;
