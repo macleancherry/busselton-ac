@@ -31,6 +31,8 @@ export interface CspOptions {
   builtUp?: boolean;
   /** Half the track's extent, km: how far the glow reaches. */
   radiusKm?: number;
+  /** Load extension/autotest.lua as a track script. */
+  autotest?: boolean;
 }
 
 /** `lights` are lamp heads in local metres (x east, y north, z up). */
@@ -138,5 +140,6 @@ export function extConfig(lights: Vec3[], opts: CspOptions = {}): string {
       "",
     );
   }
+  if (opts.autotest) lines.push("[SCRIPT_0]", "SCRIPT = autotest.lua", "");
   return lines.join("\r\n");
 }

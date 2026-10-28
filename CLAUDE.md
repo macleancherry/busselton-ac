@@ -20,7 +20,7 @@ Code is written in one place only. Check which machine you're on before you chan
 
 **If you are Claude Code on the workstation:**
 - Never edit source, route files or docs, and never commit or push. The kids use this machine too, so it isn't always logged in or free; nothing in the project may depend on it.
-- To test: `git pull` (or take the zip Mac gives you), install the build (unzip into AC's `content\tracks`, or `scripts\windows\install-track.ps1` on an existing zip), run the smoke test (step 5 below), and collect AC and CSP logs.
+- To test: `git pull` (or take the zip Mac gives you). For an unattended AI run use `scripts\windows\run-test.ps1 -Zip <zip>` (step 5c) and don't write your own automation. Otherwise install the build (unzip into AC's `content\tracks`, or `scripts\windows\install-track.ps1` on an existing zip), run the smoke test (step 5 below), and collect AC and CSP logs.
 - When something is wrong, don't fix it. Write a short report: what you did, what happened, which file or mesh it looks like, and the relevant log lines. Save it as `reports/<date>-<topic>.md` (gitignored) and tell Mac, so he can paste it into the laptop session.
 - If you find local changes in the repo, leave them uncommitted and tell Mac; don't push them.
 
@@ -40,6 +40,7 @@ Both Windows machines can run AC at the same time; LAN racing uses Content Manag
 4d. Traffic (when the route has `traffic: true`): `python3 -I scripts/check/traffic_check.py out/<slug>.zip out/<slug>.surface.json` must pass (no overlapping intersections, no loose lane ends, lanes on asphalt).
 5. Smoke test (workstation, reported back, never fixed there): it loads, the car spawns on the grid, timing and pits work, and AI completes a lap.
 5b. Traffic test (workstation or rig): `docs/traffic-test.md`.
+5c. Automatic AI test (workstation, unattended): `scripts\windows\run-test.ps1 -Zip <zip>` installs the build, starts a practice session with the AI driving the player's car (the build's `extension/autotest.lua` track script, active only for a driver named "Busselton Test"), logs the drive and takes screenshots, quits, and puts logs, screenshots, replay and `btest.csv` in `$env:BUSSELTON_TEST_SHARE\<date>-<slug>` plus a zip. Mac attaches the zip here; read it with `python3 -I scripts/check/autotest_report.py <zip> out/<slug>.surface.json`.
 
 Busselton is flat, so town routes use `"banking": false` in options, plus `terrainStep: 1.5` and `terrainUnderRoad: 0.12` in `build`. The upstream defaults are for hilly roads: up to 6% banking, a 3 m terrain grid and ground sunk 0.6 m under the road, which together made tilted corners and 40 to 60 cm drops at the road edges here.
 

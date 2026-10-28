@@ -8,6 +8,7 @@ import { FENCE_COLOURS, facadeTexture, fenceTexture, frontWallTexture, hedgeText
 import { buildLots, shrub } from "./lots";
 import { buildIslands, findIslands, footprintMask, paintOutCars } from "./carpark";
 import { trafficJson, type TrafficRoad } from "./traffic";
+import autotestLua from "./lua/autotest.lua?raw";
 import { buildGroynes, buildPiers, buildSea, buildSeawall, deckTexture, rockTexture, SeaMask, seaTexture, withSeabed, type CoastPolygon } from "./coast";
 import { GROUND_LAYERS, GROUND_TILE_METRES, groundMask, type GroundDetail, type GroundLayer } from "./ground";
 import { buildAiLine } from "./aiLine";
@@ -1251,7 +1252,11 @@ export async function buildTrack(
     ...(opts.traffic ? { [`${slug}/data/traffic.json`]: enc.encode(trafficData()) } : {}),
     [`${slug}/data/map.ini`]: enc.encode(map.ini),
     [`${slug}/data/cameras_1.ini`]: enc.encode(camerasIni(cameras)),
+    // The automatic test run (scripts/windows/run-test.ps1): a track script that only wakes up for a
+    // driver named "Busselton Test". Track scripts need the scripting physics traffic turns on.
+    ...(opts.traffic ? { [`${slug}/extension/autotest.lua`]: enc.encode(autotestLua.replace("__CLOSED__", plan.closed ? "true" : "false")) } : {}),
     [`${slug}/extension/ext_config.ini`]: enc.encode(extConfig(utilities.lights, {
+      autotest: opts.traffic,
       // A town's glow at night where most of the route is built up.
       builtUp: town.filter((t) => t >= 1).length > town.length / 2,
       radiusKm: Math.max(...outline2d.map((p) => Math.hypot(p[0] - outline2d[0][0], p[1] - outline2d[0][1]))) / 2000,
