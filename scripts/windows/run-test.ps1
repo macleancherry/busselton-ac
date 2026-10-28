@@ -77,6 +77,14 @@ foreach ($kv in @(
 )) { $ini = Set-Ini $ini $kv[0] $kv[1] $kv[2] }
 if ($Car) { $ini = Set-Ini $ini "RACE" "MODEL" $Car; $ini = Set-Ini $ini "CAR_0" "MODEL" "-" }
 Set-Content -Path $raceIni -Value $ini -Encoding ASCII
+# Run windowed: in exclusive full screen the simulated Drive click never reaches AC.
+$videoIni = Join-Path $docs "cfg\video.ini"
+$videoBackup = "$videoIni.before-test"
+if (Test-Path $videoIni) {
+  Copy-Item $videoIni $videoBackup -Force
+  $video = Set-Ini (Get-Content $videoIni) "VIDEO" "FULLSCREEN" "0"
+  Set-Content -Path $videoIni -Value $video -Encoding ASCII
+}
 $used = Join-Path $env:TEMP "race.ini.used"
 Copy-Item $raceIni $used -Force
 
@@ -124,6 +132,7 @@ public static class BtClick {
   }
 } finally {
   Copy-Item $backup $raceIni -Force
+  if (Test-Path $videoBackup) { Copy-Item $videoBackup $videoIni -Force }
 }
 Start-Sleep -Seconds 3
 

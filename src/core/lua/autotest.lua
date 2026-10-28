@@ -10,6 +10,7 @@
 local MAX_TIME = 480
 local CLOSED = __CLOSED__ -- filled in by the build: a circuit (true) or point to point
 local active = ac.getDriverName(0) == 'Busselton Test'
+ac.log('BTEST,loaded,0,0,0,0,0,0,0,0,driver=' .. tostring(ac.getDriverName(0)) .. (active and ' (test run)' or ' (idle)'))
 local t, lastLog, lastShot, offFor, stuckFor = 0, -1, -1, 0, 0
 local started, offNow, finishing, quitAt = false, false, false, nil
 local laps0 = 0
