@@ -6,6 +6,7 @@ import { buildPaths, footPathTexture, sharedPathTexture, type PathLine } from ".
 import { pickSpecies, treeSpeciesAtlas } from "./treeSprites";
 import { FENCE_COLOURS, facadeTexture, fenceTexture, frontWallTexture, hedgeTexture, mulchTexture, shrubAtlas } from "./houseTextures";
 import { buildLots, shrub } from "./lots";
+import { buildShopfronts, findShopfronts, shopSignTexture, shopStats, shopWindowTexture } from "./shops";
 import { buildIslands, findIslands, footprintMask, paintOutCars } from "./carpark";
 import { trafficJson, type TrafficRoad } from "./traffic";
 import autotestLua from "./lua/autotest.lua?raw";
@@ -166,6 +167,9 @@ export interface TrackResult {
     carsPainted?: number;
     /** Houses whose walls were set from street photos. */
     housesLooked?: number;
+    /** Shopfronts built, and how many have a verandah. */
+    shops?: number;
+    verandahs?: number;
     carParkIslands?: number;
   };
 }
@@ -1102,6 +1106,21 @@ export async function buildTrack(
       housesLooked++;
     }
   }
+  // Shops: verandahs over the footpath, a fascia sign and shop windows on the street side.
+  const homeSet = new Set(homes);
+  const shopfronts = opts.buildings ? findShopfronts(
+    shown, (sources.pois ?? []).map((p) => ({ ...p, at: proj.toLocal(p.at) })), roadGap, buildingGround, (b) => homeSet.has(b),
+  ) : [];
+  const shopMeshes = buildShopfronts(shopfronts);
+  if (shopMeshes.length) {
+    textures.push({ name: "shop_sign.png", data: shopSignTexture() }, { name: "shop_window.png", data: shopWindowTexture() });
+    materials.push(
+      material("shop_sign", "shop_sign.png", { ambient: 0.5, diffuse: 0.45, specular: 0.1, exp: 15 }),
+      material("shop_window", "shop_window.png", { ambient: 0.4, diffuse: 0.3, specular: 0.6, exp: 60 }),
+      material("verandah", "verandah.png", { ambient: 0.45, diffuse: 0.45, specular: 0.2, exp: 20 }),
+    );
+    textures.push({ name: "verandah.png", data: roofTexture(ROOF_COLOURS[1]) });
+  }
   const houses = buildBuildings(shown, buildingGround);
   // Car park islands, clear of the road, the streets, buildings and the rings, with shrubs.
   const islandNodes: Kn5MeshNode[] = [];
@@ -1161,6 +1180,7 @@ export async function buildTrack(
         group("RAILS", [...railsClear.nodes, ...rails.posts]),
         group("GUIDEPOSTS", posts),
         group("BUILDINGS", houses),
+        group("SHOPS", shopMeshes),
         group("FENCES", keepOffRoute(barriers, onRoad).nodes),
         group("PATHS", pathMeshes),
         group("LOTS", keepOffRoute(lots, onRoad).nodes),
@@ -1310,6 +1330,8 @@ export async function buildTrack(
       poles: utilities.poles,
       carsPainted,
       housesLooked,
+      shops: shopStats(shopfronts).shops,
+      verandahs: shopStats(shopfronts).verandahs,
       carParkIslands: islandCount,
       footpathMetres: verge ? (verge.paths[0].filter(Boolean).length + verge.paths[1].filter(Boolean).length) * opts.spacing : 0,
       driveways: verge?.drives.length ?? 0,

@@ -7,7 +7,7 @@ Output: public/dem/wa/15/{x}/{y}.png, Web Mercator tiles at zoom 15 (about 4 m
         (h = R*256 + G + B/256 - 32768); transparent pixels have no data.
 
     python3 -I scripts/dem/make_wa_tiles.py /path/to/waz50.zip
-    python3 -I scripts/dem/make_wa_tiles.py /path/to/waz50.zip --box 115.2 -33.74 115.48 -33.58
+    python3 -I scripts/dem/make_wa_tiles.py /path/to/waz50.zip --box 115.2 -33.74 115.54 -33.56
 
 The box must match STATE_DEMS.wa.box in src/services/tiles.ts.
 """
@@ -75,7 +75,7 @@ def encode(h):
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("source", help="waz50.zip or the GeoTIFF inside it")
-    ap.add_argument("--box", nargs=4, type=float, default=[115.2, -33.74, 115.48, -33.58],
+    ap.add_argument("--box", nargs=4, type=float, default=[115.2, -33.74, 115.54, -33.56],
                     metavar=("WEST", "SOUTH", "EAST", "NORTH"))
     ap.add_argument("--out", default=os.path.join(os.path.dirname(__file__), "..", "..", "public", "dem", "wa"))
     args = ap.parse_args()

@@ -1,0 +1,27 @@
+{
+  "name": "Busselton Town",
+  "loop": true,
+  "pins": [
+    [115.34384, -33.64768],
+    [115.3447, -33.6505],
+    [115.3469, -33.65172],
+    [115.34966, -33.65064],
+    [115.3488, -33.6479],
+    [115.3459, -33.6463]
+  ],
+  "options": {
+    "imagery": "high",
+    "banking": false
+  },
+  "build": {
+    "noTrace": [
+      { "at": [115.3443, -33.649], "radius": 130 },
+      { "at": [115.3451, -33.6515], "radius": 130 }
+    ],
+    "terrainStep": 1.5,
+    "terrainUnderRoad": 0.12,
+    "traceGuard": false,
+    "traffic": true
+  },
+  "_note": "The town centre: Queen St south from Marine Tce to Albert St, Albert St and Brown St, back along Marine Tce. Queen St keeps the OSM line (the photo trace locks onto the angled parking)."
+}

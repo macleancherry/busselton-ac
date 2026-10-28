@@ -200,8 +200,8 @@ const STATE_DEMS = {
     url: `${import.meta.env?.BASE_URL ?? "/"}dem/wa`,
     credit: "Elevation: Digital Elevation Model of Australia derived from LiDAR 5 m grid (c) Commonwealth of Australia (Geoscience Australia), CC BY 4.0",
     label: "WA 5 m",
-    // The tiled area: Busselton, Vasse, Broadwater and the coast either side.
-    box: [115.2, -33.74, 115.48, -33.58],
+    // The tiled area: Busselton, Vasse, Broadwater, the coast either side, and east to Ludlow (Tuart Drive).
+    box: [115.2, -33.74, 115.54, -33.56],
   },
 } as const;
 type LercModule = typeof import("lerc");
