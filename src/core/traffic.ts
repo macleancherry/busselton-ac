@@ -188,19 +188,40 @@ export function trafficGraph(roadsIn: TrafficRoad[], roundabouts: TrafficRoundab
       }
     }
   }
-  // Merge junctions that overlap into one.
-  const merged: Junction[] = [];
-  for (const j of junctions) {
-    const m = merged.find((k) => dist(k.c, j.c) < k.r + j.r - 2);
-    if (!m) {
-      merged.push({ ...j });
-      continue;
+  // Overlapping polygons confuse the planner (a lane can't be in two at
+  // once), so any that touch become one circle around both, until none do.
+  type Spot = Junction & { turn?: boolean };
+  const mergeAll = (list: Spot[]): Spot[] => {
+    const out = list.map((j) => ({ ...j }));
+    for (let again = true; again;) {
+      again = false;
+      for (let a = 0; a < out.length && !again; a++) {
+        for (let b = a + 1; b < out.length; b++) {
+          const A = out[a], B = out[b], d = dist(A.c, B.c);
+          if (d >= A.r + B.r + 0.5) continue;
+          const big = d + A.r <= B.r ? B : d + B.r <= A.r ? A : null;
+          const r = big ? big.r : (d + A.r + B.r) / 2;
+          const c: Vec2 = big ? big.c : [A.c[0] + ((B.c[0] - A.c[0]) * (r - A.r)) / d, A.c[1] + ((B.c[1] - A.c[1]) * (r - A.r)) / d];
+          out[a] = { c, r, h: (A.h + B.h) / 2, turn: !!A.turn && !!B.turn };
+          out.splice(b, 1);
+          again = true;
+          break;
+        }
+      }
     }
-    // One polygon around both: centred between them, reaching past each.
-    const c: Vec2 = [(m.c[0] + j.c[0]) / 2, (m.c[1] + j.c[1]) / 2];
-    m.r = Math.max(dist(c, m.c) + m.r, dist(c, j.c) + j.r);
-    m.c = c;
+    return out;
+  };
+  let merged: Spot[] = mergeAll(junctions);
+  // Dead ends: where a road stops away from any junction, somewhere to turn round.
+  for (const r of roads) {
+    if (r.closed) continue;
+    for (const end of [0, r.pts.length - 1]) {
+      const p = r.pts[end];
+      if (merged.some((j) => dist(p, j.c) < j.r - 1) || nearRing(p, 6)) continue;
+      merged.push({ c: p, r: r.width / 2 + 1.5, h: r.h[end], turn: true });
+    }
   }
+  merged = mergeAll(merged);
 
   // 3. Lanes, both ways, on the left.
   const lanes: Lane[] = [];
@@ -236,6 +257,7 @@ export function trafficGraph(roadsIn: TrafficRoad[], roundabouts: TrafficRoundab
   // 4. Roundabouts: a clockwise ring lane, and an intersection where each road meets it.
   const intersections: Intersection[] = [];
   let interId = 1;
+  const ringReach = roundabouts.map((rb) => rb.rOut + 4);
   roundabouts.forEach((rb, k) => {
     const rr = (rb.rIn + rb.rOut) / 2;
     const n = Math.max(16, Math.round((2 * Math.PI * rr) / 3));
@@ -252,38 +274,69 @@ export function trafficGraph(roadsIn: TrafficRoad[], roundabouts: TrafficRoundab
       points: ring.map((a) => ac([rb.c[0] + Math.cos(a) * rr, rb.c[1] + Math.sin(a) * rr], rb.h)),
       params: { allowLaneChanges: false },
     });
+    // Each road end at the ring is an arm: an angular range from inside the
+    // ring lane out past the end. Arms that overlap (a road and a side street
+    // meeting the ring together) become one, so no two polygons overlap.
+    const r0 = rr - 2;
+    const arms: { a0: number; a1: number; r1: number }[] = [];
     for (const r of roads) {
       if (r.closed) continue;
       for (const end of [0, r.pts.length - 1]) {
         const p = r.pts[end];
         if (dist(p, rb.c) > rb.rOut + 6) continue;
-        // A box across the ring where the arm meets it: from inside the ring lane out past the arm's end.
         const a = Math.atan2(p[1] - rb.c[1], p[0] - rb.c[0]);
-        const u: Vec2 = [Math.cos(a), Math.sin(a)], v: Vec2 = [-u[1], u[0]];
-        const r0 = rr - 2, r1 = Math.max(rb.rOut + 4, dist(p, rb.c) + 3), half = r.width / 2 + 3;
-        const at = (rad: number, side: number): Vec2 => [rb.c[0] + u[0] * rad + v[0] * side, rb.c[1] + u[1] * rad + v[1] * side];
-        intersections.push({
-          name: `Roundabout ${k + 1} arm`,
-          id: interId++,
-          points: [at(r0, -half), at(r1, -half), at(r1, half), at(r0, half)].map((q) => ac(q, rb.h)),
-        });
+        const r1 = Math.max(rb.rOut + 4, dist(p, rb.c) + 3);
+        const half = Math.atan2(r.width / 2 + 3, r0);
+        arms.push({ a0: a - half, a1: a + half, r1 });
       }
     }
-  });
-
-  for (const j of merged) intersections.push({ name: `Junction ${interId}`, id: interId++, points: polygon(j.c, j.r, j.h) });
-
-  // 5. Dead ends: somewhere to turn round.
-  const inside = (p: Vec2) =>
-    merged.some((j) => dist(p, j.c) < j.r) || roundabouts.some((rb) => dist(p, rb.c) < rb.rOut + 6);
-  for (const r of roads) {
-    if (r.closed) continue;
-    for (const end of [0, r.pts.length - 1]) {
-      const p = r.pts[end];
-      if (inside(p)) continue;
-      intersections.push({ name: `Turn ${interId}`, id: interId++, points: polygon(p, r.width / 2 + 1.5, r.h[end], 6) });
+    // A junction just off the ring (a side street meeting the road as it
+    // arrives) can't sit beside the arm without overlapping it: it joins it.
+    merged = merged.filter((j) => {
+      const d = dist(j.c, rb.c);
+      if (d >= rb.rOut + 4 + j.r + 0.5) return true;
+      const a = Math.atan2(j.c[1] - rb.c[1], j.c[0] - rb.c[0]);
+      const half = Math.asin(Math.min(1, j.r / Math.max(d, j.r)));
+      arms.push({ a0: a - half, a1: a + half, r1: d + j.r });
+      return false;
+    });
+    arms.sort((x, y) => x.a0 - y.a0);
+    const groups: { a0: number; a1: number; r1: number }[] = [];
+    for (const arm of arms) {
+      const g = groups[groups.length - 1];
+      if (g && arm.a0 < g.a1 + 0.15) {
+        g.a1 = Math.max(g.a1, arm.a1);
+        g.r1 = Math.max(g.r1, arm.r1);
+      } else groups.push({ ...arm });
     }
-  }
+    // Wrapping round past +pi into the first group.
+    if (groups.length > 1 && groups[groups.length - 1].a1 + 0.15 > groups[0].a0 + Math.PI * 2) {
+      const last = groups.pop()!;
+      groups[0] = { a0: last.a0 - Math.PI * 2, a1: Math.max(groups[0].a1, last.a1 - Math.PI * 2), r1: Math.max(groups[0].r1, last.r1) };
+    }
+    for (const g of groups) {
+      // Arms all round a small ring: leave a gap so the sector doesn't close on itself.
+      g.a1 = Math.min(g.a1, g.a0 + Math.PI * 2 - 0.3);
+      // An annular sector: arcs at r0 (inside the ring lane) and r1, so the
+      // ring lane runs in at one end and out at the other however wide it is.
+      const steps = Math.max(1, Math.ceil((g.a1 - g.a0) / 0.2));
+      const arc = (rad: number) => Array.from({ length: steps + 1 }, (_, i): Vec2 => {
+        const a = g.a0 + ((g.a1 - g.a0) * i) / steps;
+        return [rb.c[0] + Math.cos(a) * rad, rb.c[1] + Math.sin(a) * rad];
+      });
+      intersections.push({
+        name: `Roundabout ${k + 1} arm`,
+        id: interId++,
+        points: [...arc(g.r1), ...arc(r0).reverse()].map((q) => ac(q, rb.h)),
+      });
+      ringReach[k] = Math.max(ringReach[k], g.r1);
+    }
+  });
+  // Junctions clear of every roundabout's arms.
+  merged = merged.filter((j) => !roundabouts.some((rb, k) => dist(j.c, rb.c) < ringReach[k] + j.r + 0.5));
+
+  for (const j of merged) intersections.push({ name: `${j.turn ? "Turn" : "Junction"} ${interId}`, id: interId++, points: polygon(j.c, j.r, j.h, j.turn ? 6 : 8) });
+
   return { lanes, intersections };
 }
 

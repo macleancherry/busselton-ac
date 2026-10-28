@@ -23,17 +23,26 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from surface_check import CELL, raster  # noqa: E402
 
 
+def _cross(p, q, r, s):
+    d = (q[0] - p[0]) * (s[1] - r[1]) - (q[1] - p[1]) * (s[0] - r[0])
+    if abs(d) < 1e-12:
+        return False
+    t = ((r[0] - p[0]) * (s[1] - r[1]) - (r[1] - p[1]) * (s[0] - r[0])) / d
+    u = ((r[0] - p[0]) * (q[1] - p[1]) - (r[1] - p[1]) * (q[0] - p[0])) / d
+    return 0 < t < 1 and 0 < u < 1
+
+
 def overlap(a, b):
-    """Separating-axis test for two convex polygons (lists of (x, z))."""
-    for poly in (a, b):
-        for i in range(len(poly)):
-            p, q = poly[i], poly[(i + 1) % len(poly)]
-            n = (q[1] - p[1], p[0] - q[0])
-            pa = [n[0] * x + n[1] * z for x, z in a]
-            pb = [n[0] * x + n[1] * z for x, z in b]
-            if max(pa) < min(pb) or max(pb) < min(pa):
-                return False
-    return True
+    """Two simple polygons (lists of (x, z)) overlap: edges cross, or one holds the other."""
+    xa, za = zip(*a)
+    xb, zb = zip(*b)
+    if max(xa) < min(xb) or max(xb) < min(xa) or max(za) < min(zb) or max(zb) < min(za):
+        return False
+    for i in range(len(a)):
+        for j in range(len(b)):
+            if _cross(a[i], a[(i + 1) % len(a)], b[j], b[(j + 1) % len(b)]):
+                return True
+    return inside(a, b[0]) or inside(b, a[0])
 
 
 def inside(poly, pt):
