@@ -21,9 +21,10 @@ param(
   [int]$Minutes = 9,
   [string]$Share = $env:BUSSELTON_TEST_SHARE,
   [string]$AcPath = $env:BUSSELTON_AC_PATH,
-  # Where the Drive button is in AC's window (client pixels): the top icon of the left-hand bar.
-  [int]$DriveX = 26,
-  [int]$DriveY = 88
+  # Where the Drive button is in AC's window, as a fraction of its width and height: the top icon
+  # of the left-hand bar (AC scales its menus with the resolution; measured on the workstation's 4K screen).
+  [double]$DriveX = 0.013,
+  [double]$DriveY = 0.080
 )
 $ErrorActionPreference = "Stop"
 $repo = Resolve-Path (Join-Path $PSScriptRoot "..\..")
@@ -86,7 +87,8 @@ try {
   $proc = Start-Process -FilePath (Join-Path $AcPath "acs.exe") -WorkingDirectory $AcPath -PassThru
   # AC opens on its setup screen and waits for the Drive button (top of the left-hand bar). The
   # track's test script presses it too; as a fallback, click it here a few times while AC loads.
-  # AC's menu bar is a fixed size in pixels, so the button sits at the same spot at any resolution.
+  # Its position is a fraction of the window, and the click is DPI-aware so Windows' display
+  # scaling (150-200% on a 4K screen) doesn't move it.
   Add-Type @"
 using System; using System.Runtime.InteropServices;
 public static class BtClick {
@@ -95,14 +97,20 @@ public static class BtClick {
   [DllImport("user32.dll")] public static extern bool ClientToScreen(IntPtr h, ref POINT p);
   [DllImport("user32.dll")] public static extern bool SetCursorPos(int x, int y);
   [DllImport("user32.dll")] public static extern void mouse_event(uint f, uint x, uint y, uint d, UIntPtr e);
-  public static void Click(IntPtr h, int x, int y) {
+  [DllImport("user32.dll")] public static extern bool SetProcessDPIAware();
+  [StructLayout(LayoutKind.Sequential)] public struct RECT { public int L, T, R, B; }
+  [DllImport("user32.dll")] public static extern bool GetClientRect(IntPtr h, out RECT r);
+  public static void Click(IntPtr h, double fx, double fy) {
+    SetProcessDPIAware();
     SetForegroundWindow(h); System.Threading.Thread.Sleep(300);
-    POINT p; p.X = x; p.Y = y; ClientToScreen(h, ref p); SetCursorPos(p.X, p.Y);
+    RECT r; GetClientRect(h, out r);
+    POINT p; p.X = (int)Math.Round(fx * (r.R - r.L)); p.Y = (int)Math.Round(fy * (r.B - r.T));
+    ClientToScreen(h, ref p); SetCursorPos(p.X, p.Y);
     System.Threading.Thread.Sleep(150); mouse_event(2, 0, 0, 0, UIntPtr.Zero); System.Threading.Thread.Sleep(80); mouse_event(4, 0, 0, 0, UIntPtr.Zero);
   }
 }
 "@ -ErrorAction SilentlyContinue
-  foreach ($wait in @(25, 10, 10, 10)) {
+  foreach ($wait in @(30, 15, 15, 15, 15, 15)) {
     if ($proc.WaitForExit($wait * 1000)) { break }
     $proc.Refresh()
     if ($proc.MainWindowHandle -ne [IntPtr]::Zero) {
