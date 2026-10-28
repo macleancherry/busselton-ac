@@ -13,6 +13,8 @@
 //   }
 //
 // Writes out/<slug>.zip and out/<slug>.stats.json. Needs `npx playwright install chromium` once.
+// Stops without writing anything when data didn't arrive after retries (Overpass, map tiles):
+// ALLOW_MISSING_DATA=1 keeps such a build.
 //
 // SHOTS=0.1,0.35,0.6 (fractions of the lap, or lng:lat:lookLng:lookLat:height) also saves driver's-eye renders from the
 // three.js preview as out/<slug>.shot<n>.png (the photo ground only: no ksMultilayer or CSP).
@@ -140,6 +142,12 @@ try {
   }
   const buildErr = await page.locator("#build-error").evaluate((e) => (e.hidden ? "" : e.textContent));
   if (buildErr) throw new Error(buildErr);
+  // Data that never arrived (after retries) makes a quietly different track: stop, unless asked not to.
+  const missing = await page.evaluate(() => window.__app.dataWarnings());
+  if (missing.length) {
+    log("MISSING DATA:", missing.join("; "));
+    if (!process.env.ALLOW_MISSING_DATA) throw new Error("build is missing data (build again, or set ALLOW_MISSING_DATA=1 to keep it)");
+  }
 
   // The zip comes out of the page in pieces: one base64 string of a few hundred MB crashes it.
   const zipLength = await page.evaluate(async () => {

@@ -1,3 +1,4 @@
+import { clearDataWarnings, dataWarnings, warnMissing } from "../services/dataWarnings";
 import { pathKind } from "../core/paths";
 import { GROUND_LAYERS, type GroundDetail, type GroundLayer } from "../core/ground";
 import "leaflet/dist/leaflet.css";
@@ -440,19 +441,26 @@ $("build").onclick = async () => {
   };
   try {
     await report("Fetching OpenStreetMap data");
+    clearDataWarnings();
     const token = $<HTMLInputElement>("mapillaryToken").value.trim();
     saveToken(token);
     let seenError = "";
     const [osm, tiles, seen, coast] = await Promise.all([
       fetchOsm(current.coords),
-      fetchTileFeatures(paddedBounds(current.coords, (opts.buildingRadius ?? 250) + 50)).catch(() => null),
+      fetchTileFeatures(paddedBounds(current.coords, (opts.buildingRadius ?? 250) + 50)).catch(() => {
+        warnMissing("all map tiles (buildings, streets, shops)");
+        return null;
+      }),
       token
         ? fetchSeen(paddedBounds(current.coords, (opts.corridor ?? 90) + 20), token).catch((e) => {
           seenError = (e as Error).message;
           return [];
         })
         : Promise.resolve([]),
-      opts.sea !== false ? fetchCoast(paddedBounds(current.coords, (opts.horizon ?? 1500) + 1200)).catch(() => undefined) : Promise.resolve(undefined),
+      opts.sea !== false ? fetchCoast(paddedBounds(current.coords, (opts.horizon ?? 1500) + 1200)).catch(() => {
+        warnMissing("all coast tiles (sea, piers, beaches)");
+        return undefined;
+      }) : Promise.resolve(undefined),
     ]);
     if (tiles) osm.features.buildings = tiles.buildings;
     // Overpass widths when it answered; otherwise widths by road class from the tiles.
@@ -506,6 +514,10 @@ $("build").onclick = async () => {
     showStats(result, !widthAt && !opts.widthOverride, usedImagery, usedDem);
     if (token) {
       $("result-stats").insertAdjacentHTML("beforeend", `<div><dt>Mapillary</dt><dd>${seenError ? escapeHtml(seenError) : `${seen.length} objects`}</dd></div>`);
+    }
+    if (dataWarnings.length) {
+      // The track built, but without some data: say so, it will differ from a full build.
+      $("result-stats").insertAdjacentHTML("beforeend", `<div><dt>Missing data</dt><dd>${dataWarnings.map(escapeHtml).join("; ")}. Build again for a complete track.</dd></div>`);
     }
     await report("Done", 1);
     $("result").hidden = false;
@@ -591,6 +603,7 @@ if (import.meta.env.DEV) {
     },
     result: () => lastResult,
     preview: () => preview,
+    dataWarnings: () => [...dataWarnings],
   };
 }
 
