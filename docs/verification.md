@@ -48,6 +48,8 @@ track loads and drives. Use a short road (1–3 km) for the first test.
 
 ## Known unknowns
 
+- **AI drives off (open, 28 Oct).** Mac's first test: the AI drove straight
+  off to the left and crashed or stopped. See ROADMAP.md, Phase 1, for the suspects.
 - **AI line grid.** We write `fast_lane.ai` with no spatial lookup grid
   (`hasGrid = 0`). Content Manager reads that fine. If AI misbehaves, record a
   line in game (AI line helper or CSP's AI tools) as a workaround, and we'll

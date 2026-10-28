@@ -53,6 +53,12 @@ Sources: [OverTake: six real-road maps for free roaming](https://racedepartment.
 Get the base right before adding more.
 
 - ⬜ **Merge upstream.** Take honestjams' houses, poles and wires, photo-read footpaths and driveways, culling and draw distances, road-edge ramp, U-turn spur removal and replay cameras. Keep ours where it's South West specific.
+- ⬜ **Fix the AI driving off the road.** First in-game test (28 Oct): the AI "drove straight off to the left and crashed". Suspects, most likely first:
+  - `fast_lane.ai` has no spatial lookup grid. The layout is known from Content Manager's `AiSplineGrid`, but not the values the game expects.
+  - There's no `pit_lane.ai` for AI starting from the pit boxes.
+  - Grid slots sit a quarter of the road width off the centreline.
+
+  Needs: which track and mode, where it left the road, and the AI/spline lines from `log.txt`. CSP's traffic planner doesn't use `fast_lane.ai`, so traffic isn't affected; AI Flood is.
 - ⬜ **In-game check of v0.4.** Ground detail scale, Grass FX on dry verges, water edge, frame rate on the RTX 4060.
 - ⬜ **Terrain level of detail.** Fine grid near the road, coarser behind. Terrain is two thirds of the triangles now.
 - ⬜ **Performance budget per track.** Triangles, draw calls and texture memory, reported by every build and checked against limits.
