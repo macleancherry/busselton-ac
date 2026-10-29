@@ -152,8 +152,9 @@ def hip_roof(name, x0, y0, x1, y1, z, pitch_deg, mat, collection, kind="hip"):
         a, b, c, e = (bm.verts.new(p) for p in [(x0, y0, z), (x1, y0, z), (x1, y1, z), (x0, y1, z)])
         bm.faces.new((a, b, r1, r0))
         bm.faces.new((c, e, r0, r1))
-        bm.faces.new((b, c, r1))
-        bm.faces.new((e, a, r0))
+        if kind == "hip":  # a gable's ends are walls, not roof
+            bm.faces.new((b, c, r1))
+            bm.faces.new((e, a, r0))
     else:
         h = w / 2 * t
         inset = w / 2 if kind == "hip" else 0.0
@@ -162,8 +163,9 @@ def hip_roof(name, x0, y0, x1, y1, z, pitch_deg, mat, collection, kind="hip"):
         a, b, c, e = (bm.verts.new(p) for p in [(x0, y0, z), (x1, y0, z), (x1, y1, z), (x0, y1, z)])
         bm.faces.new((b, c, r1, r0))
         bm.faces.new((e, a, r0, r1))
-        bm.faces.new((a, b, r0))
-        bm.faces.new((c, e, r1))
+        if kind == "hip":
+            bm.faces.new((a, b, r0))
+            bm.faces.new((c, e, r1))
     # Underside (the eaves' soffit) so the roof isn't see-through from below.
     bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
     ob = obj_from_bmesh(name, bm, mat, collection)
@@ -327,7 +329,186 @@ def build(spec):
     return s, (x0, y0, x1, y1, yk)
 
 
-def lights_and_camera(view, bounds, res):
+# ---------------------------------------------------------------- parts mode: a house of several blocks
+
+def leafy(ob, k, depth):
+    """Round and leafy, not a brick (hedges)."""
+    bev = ob.modifiers.new("round", "BEVEL")
+    bev.width, bev.segments = min(0.2, depth * 0.25), 3
+    rem = ob.modifiers.new("dense", "REMESH")
+    rem.mode, rem.voxel_size = "VOXEL", 0.08
+    tex = bpy.data.textures.new(f"hedge_noise_{k}", "CLOUDS")
+    tex.noise_scale, tex.noise_depth = 0.18, 3
+    disp = ob.modifiers.new("leafy", "DISPLACE")
+    disp.texture, disp.strength, disp.texture_coords = tex, 0.12, "GLOBAL"
+
+
+def tree(k, tx, ty, th, spread, m_bark, m_leaf, coll):
+    trunk = bmesh.new()
+    bmesh.ops.create_cone(trunk, cap_ends=True, segments=10, radius1=0.16, radius2=0.1, depth=th * 0.6)
+    tr = obj_from_bmesh(f"trunk_{k}", trunk, m_bark, coll)
+    tr.location = (tx, ty, th * 0.3)
+    for j, (ox, oy, oz, r) in enumerate([(0, 0, 0.72, 0.5), (0.3, 0.2, 0.62, 0.38), (-0.32, -0.1, 0.6, 0.36), (0.05, -0.3, 0.82, 0.32)]):
+        blob(f"canopy_{k}_{j}", (tx + ox * spread, ty + oy * spread, th * oz), spread * r, m_leaf, coll, squash=0.8, seed=j)
+
+
+def build_parts(spec):
+    """A house made of blocks (each with its walls and its own hip or gable roof, which meet like a real
+    roof when they share a pitch and eave height), with a gable end, a verandah, doors and windows where
+    the spec puts them, fences, an outbuilding, hedges and trees, then the street.
+
+    Coordinates in metres: x across the front, left to right as seen from the street; y back from the
+    house's front-most wall (y = 0); the street is towards -y. See scripts/blender/example_parts.json."""
+    s = merged(spec)
+    scene = bpy.context.scene
+    for ob in list(bpy.data.objects):
+        bpy.data.objects.remove(ob, do_unlink=True)
+    house = bpy.data.collections.new("House")
+    street = bpy.data.collections.new("Street")
+    scene.collection.children.link(house)
+    scene.collection.children.link(street)
+
+    finishes = s.get("finishes", {})
+    mats = {}
+
+    def wall_mat(key):
+        if key not in mats:
+            f = finishes.get(key, s["walls"] if key == "main" else {"kind": "render", "colour": "#e8e8e5"})
+            kind = f.get("kind", "render")
+            bump = ("bands", f.get("lap", 0.15)) if kind == "weatherboard" else ("vbands", 0.15) if kind == "timber" else ("noise", 40)
+            if bump[0] == "vbands":
+                bump = ("noise", 25)
+            mats[key] = material(f"wall_{key}", f["colour"], rough=0.6, bump=bump)
+        return mats[key]
+
+    m_trim = material("trim", s["trim"], rough=0.4)
+    roof = s["roof"]
+    m_roof = material("roof", roof["colour"], rough=0.45, metal=0.0, bump=("bands", 0.25))
+    m_glass = material("glass", "#1c2328", rough=0.05, metal=0.2)
+    m_hedge = material("hedge", s["hedge"]["colour"], rough=0.9, bump=("noise", 18), noise=0.5)
+    m_leaf = material("leaves", "#4a6233", rough=0.85, bump=("noise", 12), noise=0.6)
+    m_bark = material("bark", "#6b5d4f", rough=0.95, bump=("noise", 25))
+    m_lawn = material("lawn", s["lawn"], rough=0.95, bump=("noise", 80), noise=0.5)
+    m_concrete = material("concrete", s["driveway"], rough=0.85, bump=("noise", 50), noise=0.25)
+    m_footpath = material("footpath", "#cfccc4", rough=0.85, bump=("noise", 50), noise=0.15)
+    m_asphalt = material("asphalt", "#3a3b3d", rough=0.9, bump=("noise", 90), noise=0.3)
+    m_kerb = material("kerb", "#c9c6bd", rough=0.8)
+    m_deck = material("deck", "#8a6a4f", rough=0.7, bump=("bands", 0.14), noise=0.3)
+
+    pitch, ev = roof.get("pitch", 24), roof.get("eaves", 0.45)
+    xs, ys = [], []
+    for b in s["blocks"]:
+        H = b.get("wallHeight", s["wallHeight"])
+        x0, x1, y0, y1 = b["x0"], b["x1"], b["y0"], b["y1"]
+        xs += [x0, x1]
+        ys += [y0, y1]
+        box(f"walls_{b['name']}", x0, y0, 0, x1, y1, H, wall_mat(b.get("walls", "main")), house)
+        if b.get("roof", "hip") == "none":
+            continue
+        rm = material(f"roof_{b['name']}", b["roofColour"], rough=0.45, bump=("bands", 0.25)) if b.get("roofColour") else m_roof
+        bev = b.get("eaves", ev)
+        kind = b.get("roof", "hip")
+        _, rise = hip_roof(f"roof_{b['name']}", x0 - bev, y0 - bev, x1 + bev, y1 + bev, H, b.get("pitch", pitch), rm, house, kind)
+        box(f"soffit_{b['name']}", x0 - bev, y0 - bev, H - 0.02, x1 + bev, y1 + bev, H, m_trim, house)
+        for nm, (a0, b0, a1, b1) in {"f": (x0 - bev, y0 - bev - 0.02, x1 + bev, y0 - bev + 0.03), "b": (x0 - bev, y1 + bev - 0.03, x1 + bev, y1 + bev + 0.02),
+                                     "l": (x0 - bev - 0.02, y0 - bev, x0 - bev + 0.03, y1 + bev), "r": (x1 + bev - 0.03, y0 - bev, x1 + bev + 0.02, y1 + bev)}.items():
+            box(f"fascia_{b['name']}_{nm}", a0, b0, H - 0.2, a1, b1, H, m_trim, house)
+        if kind == "gable":
+            # Fill the gable ends with the block's walls, and white barge boards along the rakes.
+            w, d = x1 - x0, y1 - y0
+            along_y = d > w
+            for end in (0, 1):
+                bm = bmesh.new()
+                if along_y:
+                    yy = (y0, y1)[end]
+                    pts = [(x0, yy, H), (x1, yy, H), ((x0 + x1) / 2, yy, H + w / 2 * math.tan(math.radians(b.get("pitch", pitch))))]
+                else:
+                    xx = (x0, x1)[end]
+                    pts = [(xx, y0, H), (xx, y1, H), (xx, (y0 + y1) / 2, H + d / 2 * math.tan(math.radians(b.get("pitch", pitch))))]
+                bm.faces.new([bm.verts.new(p) for p in pts])
+                g = obj_from_bmesh(f"gable_{b['name']}_{end}", bm, wall_mat(b.get("walls", "main")), house)
+                g.modifiers.new("thick", "SOLIDIFY").thickness = 0.05
+            if along_y:
+                half = (x1 - x0) / 2 + bev
+                top = H + half * math.tan(math.radians(b.get("pitch", pitch)))
+                cx = (x0 + x1) / 2
+                for sgn in (-1, 1):
+                    bm = bmesh.new()
+                    p0, p1 = Vector((cx + sgn * half, y0 - bev - 0.03, H - 0.05)), Vector((cx, y0 - bev - 0.03, top))
+                    bmesh.ops.create_cube(bm, size=1.0)
+                    ob = obj_from_bmesh(f"barge_{b['name']}_{sgn}", bm, m_trim, house)
+                    ob.location = (p0 + p1) / 2
+                    ob.scale = ((p1 - p0).length, 0.06, 0.22)
+                    ob.rotation_euler = (0, -math.atan2(p1.z - p0.z, p1.x - p0.x), 0)
+
+    # Wall panels in another finish (a strip of cladding by the door, say).
+    for k, pn in enumerate(s.get("panels", [])):
+        box(f"panel_{k}", pn["x0"], pn["y0"], pn.get("z0", 0), pn["x1"], pn["y1"], pn.get("z1", s["wallHeight"]), wall_mat(pn["walls"]), house)
+
+    # Verandah: deck, posts and a skillion roof off the wall.
+    for k, v in enumerate(s.get("verandahs", [])):
+        H = v.get("wallHeight", s["wallHeight"])
+        lo = v.get("height", H - 0.25)
+        box(f"deck_{k}", v["x0"], v["y0"], 0, v["x1"], v["y1"], v.get("deckHeight", 0.25), m_deck, house)
+        for j, px in enumerate(v.get("posts", [])):
+            box(f"post_{k}_{j}", px - 0.06, v["y0"] + 0.1, 0, px + 0.06, v["y0"] + 0.22, lo, m_trim, house)
+        box(f"beam_{k}", v["x0"], v["y0"] + 0.08, lo - 0.18, v["x1"], v["y0"] + 0.24, lo, m_trim, house)
+        bm = bmesh.new()
+        a, b2, c, d = (bm.verts.new(p) for p in [(v["x0"], v["y0"] - 0.2, lo), (v["x1"], v["y0"] - 0.2, lo), (v["x1"], v["y1"], H + 0.15), (v["x0"], v["y1"], H + 0.15)])
+        bm.faces.new((a, b2, c, d))
+        vr = obj_from_bmesh(f"verandah_roof_{k}", bm, m_roof, house)
+        vr.modifiers.new("thick", "SOLIDIFY").thickness = 0.05
+
+    # Doors: garage (sectional, in a frame), front, roller (outbuildings). On a wall facing the street.
+    for k, d in enumerate(s.get("doors", [])):
+        y, z1 = d["y"], d.get("height", 2.3 if d["type"] != "front" else 2.2)
+        col = d.get("colour", "#ecebe6" if d["type"] == "garage" else "#2f2b28")
+        m = material(f"door_{k}", col, rough=0.45, bump=("bands", 0.5 if d["type"] == "garage" else 0.1) if d["type"] != "front" else None)
+        z0 = d.get("z0", 0.0 if d["type"] != "front" else 0.25)
+        box(f"door_{k}", d["x0"], y - 0.04, z0, d["x1"], y + 0.02, z1, m, house)
+        if d["type"] == "front":
+            box(f"door_{k}_glass", d["x0"] + 0.1, y - 0.05, z0 + 0.2, d["x0"] + 0.25, y - 0.03, z1 - 0.2, m_glass, house)
+        box(f"door_{k}_head", d["x0"] - 0.06, y - 0.06, z1, d["x1"] + 0.06, y + 0.02, z1 + 0.08, m_trim, house)
+
+    # Windows: centre x (front/back) or y (sides), facing the street ("front"), "left", "right" or "back".
+    for k, w in enumerate(s.get("windows", [])):
+        ww, wh, sill = w.get("width", 1.4), w.get("height", 1.4), w.get("sill", 0.9)
+        along_x = w["facing"] in ("front", "back")
+        cx, cy = (w["at"], w["wall"]) if along_x else (w["wall"], w["at"])
+        def at(half_in, half_out):
+            hx, hy = (half_in, half_out) if along_x else (half_out, half_in)
+            return cx - hx, cy - hy, cx + hx, cy + hy
+        f0, f1, f2, f3 = at(ww / 2 + 0.07, 0.06)
+        box(f"window_{k}_frame", f0, f1, sill - 0.07, f2, f3, sill + wh + 0.07, m_trim, house)
+        g0, g1, g2, g3 = at(ww / 2, 0.08)
+        box(f"window_{k}", g0, g1, sill, g2, g3, sill + wh, m_glass, house)
+
+    # The block and the street.
+    road = s["road"]
+    yb = -s["setback"]
+    yk = yb - road["verge"]
+    X0, X1 = min(xs) - 6, max(xs) + 6
+    box("lawn", X0, yb, -0.05, X1, max(ys) + 10, 0.0, m_lawn, street)
+    for k, dr in enumerate(s.get("driveways", [])):
+        box(f"driveway_{k}", dr["x0"], yk, 0.0, dr["x1"], dr.get("y1", 0), 0.03, m_concrete, street)
+    for k, f in enumerate(s.get("fences", [])):
+        m = material(f"fence_{k}", f.get("colour", "#ecebe6"), rough=0.4, bump=("bands", 0.08))
+        box(f"fence_{k}", f["x0"], f["y0"], 0, f["x1"], f["y1"], f.get("height", 1.8), m, street)
+    for k, hd in enumerate(s.get("hedges", [])):
+        h = box(f"hedge_{k}", hd["x0"], hd["y0"], 0, hd["x1"], hd["y0"] + hd.get("depth", 0.9), hd.get("height", 1.2), m_hedge, street)
+        leafy(h, k, hd.get("depth", 0.9))
+    for k, t in enumerate(s["trees"]):
+        tree(k, t["x"], t["y"], t["height"], t.get("spread", t["height"] * 0.7), m_bark, m_leaf, street)
+    box("verge", X0 - 30, yk, -0.05, X1 + 30, yb, 0.0, m_lawn, street)
+    box("footpath", X0 - 30, yb - 2.0, 0.0, X1 + 30, yb - 0.4, 0.04, m_footpath, street)
+    box("kerb", X0 - 30, yk - 0.3, -0.2, X1 + 30, yk, 0.12, m_kerb, street)
+    box("road", X0 - 30, yk - 0.3 - road["width"], -0.2, X1 + 30, yk - 0.3, 0.0, m_asphalt, street)
+    box("far_verge", X0 - 30, yk - 0.3 - road["width"] - 10, -0.2, X1 + 30, yk - 0.3 - road["width"], 0.12, m_lawn, street)
+    box("ground", -400, -400, -0.3, 400, 400, -0.06, m_lawn, street)
+    return s, (min(xs), 0.0, max(xs), max(ys), yk)
+
+
+def lights_and_camera(view, bounds, res, sun_from=None):
     x0, y0, x1, y1, yk = bounds
     scene = bpy.context.scene
     world = bpy.data.worlds.new("sky")
@@ -352,7 +533,10 @@ def lights_and_camera(view, bounds, res):
     sun_data.energy = 3.2
     sun_data.angle = math.radians(1.5)
     sun = bpy.data.objects.new("sun", sun_data)
-    sun.rotation_euler = (math.radians(50), 0, math.radians(215))
+    # Where the sun comes from (x right along the street, y back from it, z up): from the spec, or
+    # high and to the front left by default.
+    frm = Vector(sun_from or (-0.5, -0.8, 1.1)).normalized()
+    sun.rotation_euler = (-frm).to_track_quat("-Z", "Y").to_euler()
     scene.collection.objects.link(sun)
 
     cam_data = bpy.data.cameras.new("camera")
@@ -373,7 +557,7 @@ def lights_and_camera(view, bounds, res):
     w, h = res
     scene.render.resolution_x, scene.render.resolution_y = w, h
     # A touch darker than Blender's default: the first test came out washed out in the WA sun.
-    scene.view_settings.exposure = -0.7
+    scene.view_settings.exposure = -1.0
 
 
 def render_settings(samples, cpu):
@@ -413,8 +597,8 @@ def main():
     a = ap.parse_args(argv)
     spec = json.load(open(a.spec, encoding="utf-8"))
     spec = spec.get("blender", spec)
-    s, bounds = build(spec)
-    lights_and_camera(a.view, bounds, tuple(int(v) for v in a.res.lower().split("x")))
+    s, bounds = build_parts(spec) if "blocks" in spec else build(spec)
+    lights_and_camera(a.view, bounds, tuple(int(v) for v in a.res.lower().split("x")), spec.get("sunFrom"))
     render_settings(a.samples, a.cpu)
     bpy.context.scene.render.image_settings.file_format = "PNG"
     bpy.context.scene.render.filepath = a.out

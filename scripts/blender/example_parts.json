@@ -1,0 +1,20 @@
+{
+  "note": "A made-up house in parts mode, for trying scripts/blender/house.py: a double garage on the left, a hip-roofed main block and a gabled room at the front right with a verandah. Coordinates in metres: x left to right as seen from the street, y back from the front-most wall.",
+  "walls": { "kind": "render", "colour": "#d9d2c3" },
+  "finishes": { "cladding": { "kind": "weatherboard", "colour": "#e9e6dc", "lap": 0.15 } },
+  "roof": { "type": "hip", "pitch": 22, "colour": "#55585b" },
+  "blocks": [
+    { "name": "main", "x0": 0, "x1": 15, "y0": 5, "y1": 18, "roof": "hip" },
+    { "name": "garage", "x0": 0, "x1": 6.4, "y0": 1.5, "y1": 8, "roof": "hip" },
+    { "name": "front", "x0": 9, "x1": 15, "y0": 0, "y1": 8, "roof": "gable", "walls": "cladding" }
+  ],
+  "verandahs": [{ "x0": 9, "x1": 15, "y0": -2.4, "y1": 0, "posts": [9.1, 14.9] }],
+  "doors": [
+    { "type": "garage", "x0": 0.6, "x1": 5.8, "y": 1.46 },
+    { "type": "front", "x0": 7.2, "x1": 8.1, "y": 4.96 }
+  ],
+  "windows": [{ "facing": "front", "wall": 0, "at": 12, "width": 2.0, "height": 1.6, "sill": 0.6 }],
+  "driveways": [{ "x0": 0.4, "x1": 6.0, "y1": 1.5 }],
+  "hedges": [{ "x0": 9, "x1": 15.5, "y0": -4.5, "depth": 0.8, "height": 0.9 }],
+  "trees": [{ "x": 17, "y": -4, "height": 5, "spread": 3.5 }]
+}
