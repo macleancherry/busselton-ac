@@ -22,10 +22,10 @@ The town and Foreshore overlap, and the linking roads add some back, so a combin
 
 ## Steps
 
-1. **Area builds from a boundary.** Build every street inside a polygon (from a route file: `area: [[lng, lat], ...]`), not a corridor round one route. Every street is road (`1ROAD`, valid track) rather than a side street. Ground, photo and scenery cover the polygon; the horizon starts at its edge.
-2. **Layouts.** The shared world goes in one kn5 with no start, pit or timing dummies. Each layout gets a small kn5 of its own with its dummies (and any layout-only walls), listed with the shared one in `models_<layout>.ini`, plus `<layout>/ai/fast_lane.ai`, `<layout>/data/*` (surfaces, AI hints, map, cameras, challenges) and `ui/<layout>/ui_track.json`. Layouts: the Foreshore circuit, the town loop, the estate loop, and free roam.
-3. **Spawn points.** Free roam's grid and pit spots in real car parks (the foreshore, the shopping centre, the jetty), so you can start anywhere.
-4. **Traffic** over the whole network (it already builds from every street the track has).
-5. **A budget pass** on the combined build: coarser terrain and thinner scenery away from the streets until it's under 1.5M triangles.
+1. ✅ **Area builds from a boundary** (29 Oct). `build.area: [[lng, lat], ...]` in a route file builds every street inside the polygon, with ground, photo, trees, fences and houses over all of it, and the streets count as track (`STREET` is `IS_VALID_TRACK=1`). Inside the area the streets come from OSM itself (Overpass) rather than the map tiles, whose lines can sit 10 to 20 m off and leave a street out. Code: `src/core/area.ts`. Streets away from the route aren't traced from the photo yet; they follow OSM's centre lines and widths by class.
+2. ✅ **Layouts** (29 Oct). `layout: { id, name }` names the route's own drive; `layouts: [...]` adds more, each `{ id, name, pins, loop? }` (a route over the world's roads) or `{ id, name, spawns: [{ at: [lng, lat], heading }] }` (free roam). The world goes in `<slug>.kn5` with no dummies; each layout gets `layout_<id>.kn5`, `models_<id>.ini`, `<id>/ai`, `<id>/data`, `<id>/map.png` and `ui/<id>/`. Extra layouts are laid on the world's own road surface (`src/core/layouts.ts`). Check with `npx tsx scripts/check/layout_check.ts out/<slug>.zip`: spawns on the road, AI lines on the road. The test run takes `-Layout <id>`.
+3. 🔨 **Spawn points.** Free roam has spawns on the streets round the Foreshore and town. Still to do: real car parks (the foreshore, the shopping centre, the jetty).
+4. ✅ **Traffic** over the whole network: it builds from every street the world has, and every layout shares it.
+5. **Budget.** First combined build (Foreshore and town centre as one 1.9 x 1.1 km area, three layouts): 1.21M triangles, 2,207 draw calls, 120 MB video memory, 142 MB kn5: within the RTX 4060 limits without a thinning pass. Adding the estate will need one.
 
-The estate stays private (`routes/private/`), so the combined map's route file does too, and its builds never go anywhere public.
+The first one-map route is `routes/busselton.json` (public: the Foreshore and town centre). The estate stays private (`routes/private/`), so a map with it in does too, and its builds never go anywhere public.

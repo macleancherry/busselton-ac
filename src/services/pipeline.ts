@@ -81,13 +81,33 @@ export async function runBuild(job: BuildJob, report: Report, traceProgress: (te
   const widthAt = opts.widthOverride
     ? undefined
     : osm.widthAt ?? (tileWidths.length ? widthLookup(tileWidths, coords[0][1]) : undefined);
+  // Busselton fork: inside an area, streets from OSM itself (exact geometry; the tiles' lines can sit
+  // metres off and leave a street out), keeping the tiles' paths and everything outside the area.
+  const areaStreets = (lines: NonNullable<typeof tiles>["roads"]) => {
+    const area = opts.area && opts.area.length >= 3 ? opts.area : null;
+    if (!area || !osm.roads?.length) return lines;
+    const inside = (p: LngLat) => {
+      let c = false;
+      for (let i = 0, j = area.length - 1; i < area.length; j = i++) {
+        const [xi, yi] = area[i], [xj, yj] = area[j];
+        if (yi > p[1] !== yj > p[1] && p[0] < ((xj - xi) * (p[1] - yi)) / (yj - yi) + xi) c = !c;
+      }
+      return c;
+    };
+    const drivable = new Set(osm.roads.map((r) => r.cls));
+    const mid = (pts: LngLat[]) => pts[Math.floor(pts.length / 2)];
+    return [
+      ...lines.filter((l) => !drivable.has(l.cls) || !inside(mid(l.pts))),
+      ...osm.roads.filter((r) => inside(mid(r.pts))),
+    ];
+  };
   const result = await buildTrack(coords, opts, {
     dem: (proj, bounds, z) => loadDem(proj, bounds, z, undefined, usedDem),
     imagery: opts.imageryZoom ? (proj, chunk, z, size) => loadChunkImagery(proj, chunk, z, size, chunkImages, chain, usedImagery) : undefined,
     widthAt,
     osm: osm.features,
     roundabouts: job.roundabouts,
-    streets: tiles ? { lines: tiles.roads, names: tiles.names } : undefined,
+    streets: tiles ? { lines: areaStreets(tiles.roads), names: tiles.names } : undefined,
     pois: tiles?.pois,
     seen,
     renderArt,

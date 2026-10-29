@@ -146,7 +146,16 @@ export interface OsmData {
   /** Asphalt width at a point; undefined when Overpass was unreachable. */
   widthAt?: (p: LngLat) => number | undefined;
   features: OsmFeatures;
+  /** Busselton fork: the drivable roads as street lines, in the vector tiles' classes (exact OSM geometry, for area builds). */
+  roads?: { pts: LngLat[]; cls: string; brunnel?: string; oneway?: 1 | -1; service?: string }[];
 }
+
+/** OSM highway=* to the vector tiles' road classes (OpenMapTiles), for the ways a car can drive. */
+const TILE_CLASS: Record<string, string> = {
+  motorway: "motorway", trunk: "trunk", primary: "primary", primary_link: "primary", secondary: "secondary", secondary_link: "secondary",
+  tertiary: "tertiary", tertiary_link: "tertiary", residential: "minor", unclassified: "minor", living_street: "minor", road: "minor",
+  service: "service", track: "track",
+};
 
 /**
  * One Overpass query for the road ways under the route (for widths) and
@@ -204,6 +213,7 @@ export async function fetchOsm(routeCoords: LngLat[], area?: LngLat[]): Promise<
   if (!elements) return { features };
 
   const ways: Way[] = [];
+  const roads: NonNullable<OsmData["roads"]> = [];
   for (const e of elements) {
     const tags = e.tags ?? {};
     if (e.type === "node") {
@@ -230,9 +240,15 @@ export async function fetchOsm(routeCoords: LngLat[], area?: LngLat[]): Promise<
     } else if (tags.highway) {
       const width = wayWidth(tags);
       if (width !== undefined) ways.push({ width, pts });
+      const cls = TILE_CLASS[tags.highway];
+      if (cls && tags.area !== "yes" && tags.access !== "no" && tags.access !== "private") {
+        const oneway = tags.oneway === "yes" || tags.oneway === "1" ? 1 : tags.oneway === "-1" ? -1 : undefined;
+        const brunnel = tags.bridge && tags.bridge !== "no" ? "bridge" : tags.tunnel && tags.tunnel !== "no" ? "tunnel" : undefined;
+        roads.push({ pts, cls, ...(brunnel ? { brunnel } : {}), ...(oneway ? { oneway } : {}), ...(tags.service ? { service: tags.service } : {}) });
+      }
     }
   }
-  return { features, widthAt: ways.length ? widthLookup(ways, routeCoords[0][1]) : undefined };
+  return { features, widthAt: ways.length ? widthLookup(ways, routeCoords[0][1]) : undefined, roads };
 }
 
 export function widthLookup(ways: Way[], lat: number): (p: LngLat) => number | undefined {

@@ -47,6 +47,10 @@ Busselton is flat, so town routes use `"banking": false` in options, plus `terra
 
 House looks: `HOUSE_LOOKS=out/<slug>.looks.json,routes/private/<file>.json` (comma-separated, later files win) gives particular houses their facade (a wall kind like `weatherboard`, or an upstream facade name like `wb_blue`), front hedge and height, and front-yard trees; `place: true` builds the house (15 x 13 m, facing the nearest road) when the photo didn't give one. `scripts/mapillary/house_looks.py out/<slug>.houses.json [--sequence <id>] [--min-photos 1]` makes the photo looks from Mapillary. A look with `specFile` (a spec in `scripts/blender/house.py`'s parts mode, `scripts/blender/example_parts.json`) builds that house from the spec instead, facing its street, in place of the generated one; the same spec renders in Blender. An area's own mix goes in the route's `build.houseStyle` (`{ "facades": { "wb_white": 3, ... } }`).
 
+Area builds and layouts (docs/one-map.md): `build.area` (a polygon) builds every street inside it, drivable; `layout` and `layouts` in a route file put several layouts on one world (`layout_<id>.kn5`, `models_<id>.ini`, `<id>/ai`, `<id>/data`, `ui/<id>`). Check them with `npx tsx scripts/check/layout_check.ts out/<slug>.zip`. The house photo walk is `scripts/houses/photo_walk.py` (match, draft, render, review, looks; see scripts/capture/README.md).
+
+Don't edit `src/` while a build is running from this checkout: Vite reloads the build's page and it fails. Build from a copy of the repo (node_modules and out/ linked back) when working on code alongside.
+
 Pins snap to the nearest road. A pin near a car park, side street or the far carriageway of a divided road makes a detour or a U-turn spike. Put pins mid-block on the road you want, or leave them out and let the route follow the road.
 
 ## Upstream
