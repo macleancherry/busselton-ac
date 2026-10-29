@@ -18,7 +18,7 @@ One track folder with the town centre, the Foreshore and a residential estate, t
 | **Sum** | **1.94M** (limit 1.5M) | 2,599 (limit 4,000) | 331 MB (limit 1,500) | 312 MB (limit 600) |
 | Tuart Drive (separate) | 1.25M | 1,922 | 190 MB | 218 MB |
 
-The town and Foreshore overlap, and the linking roads add some back, so a combined map lands around 1.8 to 2M triangles: over. Everything else fits. So the combined build needs detail thinned where nobody drives: a coarser terrain grid and fewer trees and houses away from the streets (the terrain is the biggest group in every build).
+Estimated from the separate builds, a combined map looked over. Built for real as one area (29 Oct) the Foreshore and town come to 1.26M triangles, inside the limit: they overlap, and an area build has no duplicate corridor ground. The estate on top will need detail thinned where nobody drives.
 
 ## Steps
 
@@ -26,6 +26,7 @@ The town and Foreshore overlap, and the linking roads add some back, so a combin
 2. ✅ **Layouts** (29 Oct). `layout: { id, name }` names the route's own drive; `layouts: [...]` adds more, each `{ id, name, pins, loop? }` (a route over the world's roads) or `{ id, name, spawns: [{ at: [lng, lat], heading }] }` (free roam). The world goes in `<slug>.kn5` with no dummies; each layout gets `layout_<id>.kn5`, `models_<id>.ini`, `<id>/ai`, `<id>/data`, `<id>/map.png` and `ui/<id>/`. Extra layouts are laid on the world's own road surface (`src/core/layouts.ts`). Check with `npx tsx scripts/check/layout_check.ts out/<slug>.zip`: spawns on the road, AI lines on the road. The test run takes `-Layout <id>`.
 3. 🔨 **Spawn points.** Free roam has spawns on the streets round the Foreshore and town. Still to do: real car parks (the foreshore, the shopping centre, the jetty).
 4. ✅ **Traffic** over the whole network: it builds from every street the world has, and every layout shares it.
-5. **Budget.** First combined build (Foreshore and town centre as one 1.9 x 1.1 km area, three layouts): 1.21M triangles, 2,207 draw calls, 120 MB video memory, 142 MB kn5: within the RTX 4060 limits without a thinning pass. Adding the estate will need one.
+5. **Budget.** First combined build (Foreshore and town centre as one 1.9 x 1.1 km area, three layouts): about 1.26M triangles, 2,200 draw calls, 120 MB video memory, 142 MB kn5: within the RTX 4060 limits without a thinning pass. Adding the estate will need one.
+6. ⬜ **Roundabouts on every street.** Only the main route's roundabouts are built as rings; on the other streets the roads cross straight through. The town layout's AI goes round three of them on bare street (about 5% of its line off the road in `layout_check.ts`). Next job for area builds.
 
 The first one-map route is `routes/busselton.json` (public: the Foreshore and town centre). The estate stays private (`routes/private/`), so a map with it in does too, and its builds never go anywhere public.

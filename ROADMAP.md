@@ -123,7 +123,7 @@ Make town feel like town before going regional.
 
 Go from "a route" to "a town you can drive anywhere in".
 
-- 🔨 **One Busselton map.** `routes/busselton.json`: the Foreshore and the town centre as one area with every street drivable, and three layouts (the Foreshore circuit, the town loop, free roam), within the RTX 4060 budget (1.21M triangles). Next: the estate and the roads between (private, so that map stays private), a thinning pass if it needs one, and spawns in real car parks. Tuart Drive stays its own track; it goes in a South West map later. [docs/one-map.md](docs/one-map.md)
+- 🔨 **One Busselton map.** `routes/busselton.json`: the Foreshore and the town centre as one area with every street drivable, and three layouts (the Foreshore circuit, the town loop, free roam), within the RTX 4060 budget (1.21M triangles). Next: roundabouts on every street (only the main route's are rings yet), the estate and the roads between (private, so that map stays private), a thinning pass if it needs one, and spawns in real car parks. Tuart Drive stays its own track; it goes in a South West map later. [docs/one-map.md](docs/one-map.md)
 
 - ✅ **Area builds** (29 Oct): `build.area`, a polygon whose every street is built and drivable, streets from OSM's own geometry. Still to do: tracing those streets from the photo.
 - ⬜ **Spawn points around town:** grid and pit spots in real car parks (foreshore, shopping centre, the jetty), so you can start anywhere.
