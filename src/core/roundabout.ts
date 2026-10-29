@@ -236,7 +236,7 @@ export interface IslandPhoto { material: string; minX: number; maxY: number; spa
  * Circulating carriageway, island (kerb + mound) and outer verge. With a photo the island shows what's
  * really on it (mulch, plantings, paving, a lawn) instead of plain grass.
  */
-export function buildRingMeshes(rb: Roundabout, k: number, opts: BuildOptions, roadMaterial: string, photo?: IslandPhoto): RingMeshes {
+export function buildRingMeshes(rb: Roundabout, k: number, opts: BuildOptions, roadMaterial: string, photo?: IslandPhoto, groundAt?: (x: number, y: number) => number): RingMeshes {
   const Ro = outerRadius(rb), Ri = innerRadius(rb);
   const N = Math.max(48, Math.ceil((2 * Math.PI * Ro) / 1.5));
   const at = (rho: number, a: number, z: number): [number, number, number] =>
@@ -298,12 +298,13 @@ export function buildRingMeshes(rb: Roundabout, k: number, opts: BuildOptions, r
       if (toGap(a0) < gapM || toGap(a1) < gapM) continue;
       const zo = zi - 0.2;
       const i = verge.vertexCount;
-      verge.vertex(at(Ro, a0, zi), 1, 0);
-      verge.vertex(at(vo, a0, zo), 0.1, 0);
-      verge.vertex(at(vo, a1, zo), 0.1, 1);
-      verge.vertex(at(Ro, a1, zi), 1, 1);
-      verge.vertex(at(vo, a0, zo - 0.8), 0, 0);
-      verge.vertex(at(vo, a1, zo - 0.8), 0, 1);
+      const vv = (p: [number, number, number], u: number, v: number) => verge.vertex(p, ...(photo ? uv(p[0], p[1]) : [u, v] as [number, number]));
+      vv(at(Ro, a0, zi), 1, 0);
+      vv(at(vo, a0, zo), 0.1, 0);
+      vv(at(vo, a1, zo), 0.1, 1);
+      vv(at(Ro, a1, zi), 1, 1);
+      vv(at(vo, a0, zo - 0.8), 0, 0);
+      vv(at(vo, a1, zo - 0.8), 0, 1);
       verge.quad(i, i + 1, i + 2, i + 3);
       verge.quad(i + 1, i + 4, i + 5, i + 2);
     }
@@ -322,14 +323,26 @@ export function buildRingMeshes(rb: Roundabout, k: number, opts: BuildOptions, r
       const k0 = Math.max(0, Math.min(1, (toGap(a0) - gapM) / 2)), k1 = Math.max(0, Math.min(1, (toGap(a1) - gapM) / 2));
       if (k0 === 0 && k1 === 0) continue;
       const P0 = profile(k0), P1 = profile(k1);
+      // Slope the grass down to the ground at its outer edge, rather than ending in a step where the
+      // ground round the ring is lower than the kerb (30-40 cm in a flat estate).
+      if (groundAt) {
+        for (const [P, a] of [[P0, a0], [P1, a1]] as const) {
+          const o = at(vo, a, 0);
+          const top = Math.max(zi - 0.25, Math.min(P[3].q[1], groundAt(o[0], o[1]) + 0.03));
+          P[3].q = [vo, top];
+          P[4].p = [vo, top];
+          P[4].q = [vo, top - 1];
+        }
+      }
       P0.forEach((g, j) => {
         const h = P1[j];
         const v0 = (a0 * Ro) / 3, v1 = (a1 * Ro) / 3;
         const i = g.mb.vertexCount;
-        g.mb.vertex(at(g.p[0], a0, g.p[1]), 0, v0);
-        g.mb.vertex(at(g.q[0], a0, g.q[1]), 1, v0);
-        g.mb.vertex(at(h.q[0], a1, h.q[1]), 1, v1);
-        g.mb.vertex(at(h.p[0], a1, h.p[1]), 0, v1);
+        const vx = (p: [number, number, number], u: number, v: number) => g.mb.vertex(p, ...(photo && g.mb === verge ? uv(p[0], p[1]) : [u, v] as [number, number]));
+        vx(at(g.p[0], a0, g.p[1]), 0, v0);
+        vx(at(g.q[0], a0, g.q[1]), 1, v0);
+        vx(at(h.q[0], a1, h.q[1]), 1, v1);
+        vx(at(h.p[0], a1, h.p[1]), 0, v1);
         g.mb.quad(i, i + 1, i + 2, i + 3);
       });
     }
@@ -340,7 +353,7 @@ export function buildRingMeshes(rb: Roundabout, k: number, opts: BuildOptions, r
   return {
     road: road.toKn5(`1ROAD_RB${k}`, roadMaterial),
     island: island.toKn5(`1GRASS_RBISLAND${k}`, photo?.material ?? "grass"),
-    verge: verge.toKn5(`1GRASS_RBVERGE${k}`, rb.kerbed ? "grass" : "verge"),
+    verge: verge.toKn5(`1GRASS_RBVERGE${k}`, photo?.material ?? (rb.kerbed ? "grass" : "verge")),
     kerb,
   };
 }

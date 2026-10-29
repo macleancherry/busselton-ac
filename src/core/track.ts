@@ -1078,16 +1078,37 @@ export async function buildTrack(
       ] : []),
     ])
     : [];
+  /** A square photo texture centred on a roundabout, out to its verge's outer edge, or undefined with no photo there. */
+  const ringPhoto = (rb: (typeof plan.roundabouts)[number], k: number) => {
+    if (!photo) return undefined;
+    const half = vergeOuterRadius(rb, opts) + 1, size = 256;
+    const rgba = new Uint8Array(size * size * 4);
+    let seen = 0;
+    for (let py = 0; py < size; py++) {
+      for (let px = 0; px < size; px++) {
+        const c = photo(rb.c[0] - half + ((px + 0.5) / size) * 2 * half, rb.c[1] + half - ((py + 0.5) / size) * 2 * half);
+        const i = (py * size + px) * 4;
+        if (c) seen++;
+        rgba[i] = Math.round((c?.[0] ?? 0.45) * 255);
+        rgba[i + 1] = Math.round((c?.[1] ?? 0.45) * 255);
+        rgba[i + 2] = Math.round((c?.[2] ?? 0.4) * 255);
+        rgba[i + 3] = 255;
+      }
+    }
+    if (seen < size * size * 0.9) return undefined;
+    const name = `rbphoto_${k}`, tex = `${name}.dds`;
+    textures.push({ name: tex, data: encodeDdsDxt1(rgba, size, size) });
+    materials.push(photoGroundMaterial(name, tex, { rgba, width: size, height: size }));
+    return { material: name, minX: rb.c[0] - half, maxY: rb.c[1] + half, span: 2 * half };
+  };
+  const ringGround = meshTop(terrainAt, opts);
   // The full circulating carriageway and island of each roundabout.
   const ringNodes: Kn5Node[] = [];
   plan.roundabouts.forEach((rb, k) => {
     const nearest = plan.samples.reduce((a, s) => (Math.abs(s.s - rb.sIn) < Math.abs(a.s - rb.sIn) ? s : a));
-    // The island in the aerial photo, when it sits wholly inside one photo-textured chunk.
-    const ri = innerRadius(rb);
-    const ch = chunks.find((c) => textured.has(c.key)
-      && rb.c[0] - ri >= c.minX && rb.c[0] + ri <= c.maxX && rb.c[1] - ri >= c.minY && rb.c[1] + ri <= c.maxY);
-    const photo = ch ? { material: `terrain_${ch.key}`, minX: ch.minX, maxY: ch.maxY, span: ch.maxX - ch.minX } : undefined;
-    const m = buildRingMeshes(rb, k, opts, roadMaterial(Math.floor(plan.samples.indexOf(nearest) / 120), rb.w, nearest), photo);
+    // Busselton fork: the island and the grass round the ring in their own aerial photo (mulch,
+    // plantings, paving, lawn), cut from the photos around the ring, instead of plain bright grass.
+    const m = buildRingMeshes(rb, k, opts, roadMaterial(Math.floor(plan.samples.indexOf(nearest) / 120), rb.w, nearest), ringPhoto(rb, k), ringGround);
     ringNodes.push(m.road, m.island, m.verge, ...m.kerb);
     const paint = opts.markings ? buildRingMarkings(rb, k) : null;
     if (paint) markings.push(paint);
@@ -1589,7 +1610,10 @@ export async function buildTrack(
     [`${slug}/data/cameras_1.ini`]: enc.encode(camerasIni(cameras)),
     // The automatic test run (scripts/windows/run-test.ps1): a track script that only wakes up for a
     // driver named "Busselton Test". Track scripts need the scripting physics traffic turns on.
-    ...(opts.traffic ? { [`${slug}/extension/autotest.lua`]: enc.encode(autotestLua.replace("__CLOSED__", plan.closed ? "true" : "false")) } : {}),
+    ...(opts.traffic ? { [`${slug}/extension/autotest.lua`]: enc.encode(autotestLua
+      .replace("__CLOSED__", plan.closed ? "true" : "false")
+      // The speed limit at each 1% of the lap, km/h, so the test drives at the limit.
+      .replace("__LIMITS__", Array.from({ length: 100 }, (_, k) => speedAt(Math.min(nS - 1, Math.round(((k + 0.5) / 100) * (nS - 1))))).join(", "))) } : {}),
     [`${slug}/extension/ext_config.ini`]: enc.encode(extConfig(utilities.lights, {
       autotest: opts.traffic,
       // A town's glow at night where most of the route is built up.

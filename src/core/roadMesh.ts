@@ -162,7 +162,14 @@ export function buildRoadMeshes(
       }
       if (area < 0) poly = poly.reverse();
       const mb = new MeshBuilder();
-      for (const p of poly) mb.vertex(p, Math.hypot(p[0] - R[0], p[1] - R[1]) / s.width, sAt(end) / SEAL_LENGTH);
+      // The same texture layout as the road it carries on from: u across (0 on the left edge, 1 on the
+      // right), v along in metres of seal. (It used one v for the whole patch, which smeared the seal
+      // texture into stripes across every roundabout entry and exit.)
+      for (const p of poly) {
+        const dx = p[0] - s.pos[0], dy = p[1] - s.pos[1];
+        const across = dx * s.left[0] + dy * s.left[1], along = dx * s.tan[0] + dy * s.tan[1];
+        mb.vertex(p, (half - across) / s.width, (sAt(end) + along) / SEAL_LENGTH);
+      }
       const tris = earcut(poly.flatMap((p) => [p[0], p[1]]));
       for (let t = 0; t < tris.length; t += 3) {
         const [p0, p1, p2] = [poly[tris[t]], poly[tris[t + 1]], poly[tris[t + 2]]];

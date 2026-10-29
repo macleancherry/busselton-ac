@@ -9,6 +9,10 @@
 
 local MAX_TIME = 480
 local CLOSED = __CLOSED__ -- filled in by the build: a circuit (true) or point to point
+-- The speed limit at each 1% of the lap, km/h (filled in by the build). The AI hints only slow it for
+-- corners, so on a straight it floors it (128 km/h on estate streets); this holds it to the limit.
+local LIMITS = { __LIMITS__ }
+local capWarned = false
 local active = ac.getDriverName(0) == 'Busselton Test'
 ac.log('BTEST,loaded,0,0,0,0,0,0,0,0,driver=' .. tostring(ac.getDriverName(0)) .. (active and ' (test run)' or ' (idle)'))
 local t, lastLog, lastShot, offFor, stuckFor = 0, -1, -1, 0, 0
@@ -83,6 +87,15 @@ function script.update(dt)
     log(finishing and 'after' or 'pos')
   end
   if finishing then return end
+  -- Hold the AI to the speed limit (plus a little, as people drive).
+  local lim = LIMITS[math.min(#LIMITS, math.floor(car.splinePosition * 100) + 1)]
+  if lim then
+    local ok, err = pcall(physics.setAITopSpeed, 0, lim + 5)
+    if not ok and not capWarned then
+      capWarned = true
+      log('note', 'speed cap failed: ' .. tostring(err):gsub(',', ';'))
+    end
+  end
   fpsFrames, fpsTime, fpsWorst = fpsFrames + 1, fpsTime + dt, math.max(fpsWorst, dt)
   allFrames, allTime, allWorst = allFrames + 1, allTime + dt, math.max(allWorst, dt)
   if fpsTime >= 5 then
