@@ -37,6 +37,8 @@ export function challengeCheckpoints(
   pois: ChallengePoi[],
   routeNames: (string | undefined)[],
   want = 6,
+  /** Named side streets meeting the route, by distance along it: a fill-in near one is "Corner of <name>". */
+  corners: { s: number; name?: string }[] = [],
 ): Checkpoint[] {
   const S = plan.samples;
   const length = S[S.length - 1].s;
@@ -67,8 +69,19 @@ export function challengeCheckpoints(
       if (g > bestGap) { bestGap = g; bestSeg = seg; }
     }
     if (bestSeg < 0) break;
+    // The nearest named corner not used yet (within 80 m), moving the checkpoint onto it; else the street.
+    const sHere = S[bestSeg].s;
+    const corner = corners
+      .filter((c) => c.name && Math.abs(c.s - sHere) < 80 && !picked.some((p) => p.name === `Corner of ${c.name}`))
+      .sort((a, b) => Math.abs(a.s - sHere) - Math.abs(b.s - sHere))[0];
+    if (corner) {
+      const seg = Math.max(0, S.findIndex((x) => x.s >= corner.s));
+      picked.push({ name: `Corner of ${corner.name}`, s: S[seg].s, pos: at(seg) });
+      continue;
+    }
     const name = routeNames[bestSeg];
-    picked.push({ name: name ? `Get to ${name}` : `Checkpoint ${picked.length + 1}`, s: S[bestSeg].s, pos: at(bestSeg) });
+    const label = name && !picked.some((p) => p.name === `Get to ${name}`) ? `Get to ${name}` : `Checkpoint ${picked.length + 1}`;
+    picked.push({ name: label, s: sHere, pos: at(bestSeg) });
   }
   return picked.sort((a, b) => a.s - b.s);
 }

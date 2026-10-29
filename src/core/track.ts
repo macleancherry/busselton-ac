@@ -1098,6 +1098,7 @@ export async function buildTrack(
     if (seen < size * size * 0.9) return undefined;
     const name = `rbphoto_${k}`, tex = `${name}.dds`;
     textures.push({ name: tex, data: encodeDdsDxt1(rgba, size, size) });
+    previewTextures[tex] = { rgba, width: size, height: size };
     materials.push(photoGroundMaterial(name, tex, { rgba, width: size, height: size }));
     return { material: name, minX: rb.c[0] - half, maxY: rb.c[1] + half, span: 2 * half };
   };
@@ -1606,7 +1607,7 @@ export async function buildTrack(
     // Busselton fork: checkpoints for the Busselton Challenges app (apps/lua/BusseltonChallenges).
     [`${slug}/data/challenges.ini`]: enc.encode(challengesIni(opts.name, challengeCheckpoints(plan,
       (x, y, r) => index.nearest(x, y, r),
-      (sources.pois ?? []).map((p) => ({ ...p, at: proj.toLocal(p.at) })), streetPlan.routeNames))),
+      (sources.pois ?? []).map((p) => ({ ...p, at: proj.toLocal(p.at) })), streetPlan.routeNames, 6, streetPlan.junctions))),
     [`${slug}/data/cameras_1.ini`]: enc.encode(camerasIni(cameras)),
     // The automatic test run (scripts/windows/run-test.ps1): a track script that only wakes up for a
     // driver named "Busselton Test". Track scripts need the scripting physics traffic turns on.

@@ -27,7 +27,9 @@ describe("checkpoint challenges", () => {
     expect(named).toContain("Victoria Square");
     expect(named).not.toContain("Too Far Away");
     expect(named).not.toContain("Too Close Cafe");
-    expect(named.filter((n) => n === "Get to Queen St").length).toBe(3);
+    // The street once, then numbered: every checkpoint has its own name.
+    expect(named.filter((n) => n === "Get to Queen St").length).toBe(1);
+    expect(new Set(named).size).toBe(named.length);
     for (let k = 1; k < cps.length; k++) expect(cps[k].s - cps[k - 1].s).toBeGreaterThanOrEqual(250);
     // AC coordinates: z is south.
     const jetty = cps.find((c) => c.name === "The Jetty")!;
@@ -37,6 +39,11 @@ describe("checkpoint challenges", () => {
     const ini = challengesIni("Test", cps);
     expect(ini).toContain("COUNT = 5");
     expect(ini).toContain("NAME = The Jetty");
+  });
+
+  it("names fill-ins after the side street at the corner", () => {
+    const cps = challengeCheckpoints(plan, nearest, [], samples.map(() => "Queen St"), 3, [{ s: 1500, name: "Kent St" }]);
+    expect(cps.map((c) => c.name)).toContain("Corner of Kent St");
   });
 
   it("gives a short track none", () => {
