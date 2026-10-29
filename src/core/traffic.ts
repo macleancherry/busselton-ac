@@ -341,6 +341,16 @@ export function trafficGraph(roadsIn: TrafficRoad[], roundabouts: TrafficRoundab
         again = true;
       }
     }
+    // A junction left outside (past the limit) that an arm still reaches: pull the arm's outer edge
+    // back short of it, so the two polygons don't overlap.
+    for (const g of groups) {
+      for (const j of merged) {
+        const o = { c: j.c, r: outer(j) };
+        if (!touches(g, o)) continue;
+        const near = dist(j.c, rb.c) - o.r - 0.5;
+        if (near > rb.rOut + 4) g.r1 = Math.min(g.r1, near);
+      }
+    }
     for (const g of groups) {
       // Arms all round a small ring: leave a gap so the sector doesn't close on itself.
       g.a1 = Math.min(g.a1, g.a0 + Math.PI * 2 - 0.3);
