@@ -166,7 +166,8 @@ What makes a map look great at any time of day and in any weather.
   - ✅ house windows lit at random
   - ✅ light pollution over town
   - ✅ distant emissives on the street lights
-  - shop signs, car park lights and the jetty lights
+  - ✅ shop signs lit and shop windows glowing (the fork's named fascias)
+  - car park lights and the jetty lights
 - ⬜ **Water:** CSP's water shader for the bay, waves at the beach, boats at moorings.
 - ⬜ **Audio:** surf at the beach, magpies and kookaburras in the morning, wind in the she-oaks, the jetty train (CSP track audio).
 - ⬜ **Baked ambient occlusion.** CSP's AO bakery ([acc-bakeryoptix](https://github.com/ac-custom-shaders-patch/acc-bakeryoptix)) bakes it on the player's PC; upstream's research says CSP expects tracks to have it and nothing does more for how solid a scene looks. A workstation job, run from a script in the repo after each install.

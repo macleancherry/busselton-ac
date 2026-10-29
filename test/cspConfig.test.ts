@@ -12,6 +12,9 @@ describe("CSP night lighting", () => {
     expect(ini).toMatch(/MATERIALS = lamp\r\nCONDITION = NIGHT_SMOOTH\r\nKEY_0 = ksEmissive/);
     // Grass FX on the photo's grass, never through the road.
     expect(ini).toMatch(/\[GRASS_FX\]\r\nGRASS_MATERIALS = terrain_\?, strip_photo_\?/);
+    // Shop signs lit and shop windows glowing at night.
+    expect(ini).toMatch(/MATERIALS = shop_sign\r\nCONDITION = NIGHT_SMOOTH\r\nKEY_0 = ksEmissive/);
+    expect(ini).toMatch(/MATERIALS = shop_window\r\nCONDITION = NIGHT_SMOOTH\r\nKEY_0 = ksEmissive/);
     expect(ini).toContain("OCCLUDING_MATERIALS = road_?, side_photo_?, concrete");
     // Every section header is unique.
     const heads = ini.match(/^\[[^\]]+\]/gm)!;
