@@ -129,6 +129,8 @@ export function buildTerrainChunk(
   opts: BuildOptions,
   textured: boolean,
   area: Area | null = null,
+  /** Busselton fork: true near a side street, where the ground keeps the near tolerance (streets lie on it). */
+  nearStreet?: (x: number, y: number) => boolean,
 ): Kn5MeshNode | null {
   const size = chunk.maxX - chunk.minX;
   const cells = Math.max(1, Math.round(size / opts.terrainStep));
@@ -139,6 +141,7 @@ export function buildTerrainChunk(
   const hs = new Float32Array(P * P);
   const inside = new Uint8Array(P * P);
   const dists = new Float32Array(P * P);
+  const tight = new Uint8Array(P * P);
   for (let j = 0; j < P; j++) {
     for (let i = 0; i < P; i++) {
       const x = chunk.minX + (i - 1) * step, y = chunk.minY + (j - 1) * step;
@@ -146,6 +149,7 @@ export function buildTerrainChunk(
       hs[j * P + i] = s.h;
       inside[j * P + i] = s.dist <= opts.corridor || (area && area.inside(x, y)) ? 1 : 0;
       dists[j * P + i] = s.dist;
+      if (nearStreet && nearStreet(x, y)) tight[j * P + i] = 1;
     }
   }
   const id = (i: number, j: number) => (j + 1) * P + (i + 1);
@@ -172,7 +176,7 @@ export function buildTerrainChunk(
           else {
             const u = (i - i0) / K, v = (j - j0) / K;
             const flat = h00 * (1 - u) * (1 - v) + h10 * u * (1 - v) + h01 * (1 - u) * v + h11 * u * v;
-            if (Math.abs(hs[id(i, j)] - flat) > (dists[id(i, j)] < LOD_FAR ? LOD_TOL : LOD_TOL_FAR)) ok = false;
+            if (Math.abs(hs[id(i, j)] - flat) > (dists[id(i, j)] < LOD_FAR || tight[id(i, j)] ? LOD_TOL : (opts.terrainLodFarTol ?? LOD_TOL_FAR))) ok = false;
           }
         }
       }
@@ -199,7 +203,7 @@ export function buildTerrainChunk(
           if (dists[id(i, j)] < LOD_FAR) { ok = false; break; }
           const u = (i - i0) / KS, v = (j - j0) / KS;
           const flat = h00 * (1 - u) * (1 - v) + h10 * u * (1 - v) + h01 * (1 - u) * v + h11 * u * v;
-          if (Math.abs(hs[id(i, j)] - flat) > LOD_TOL_FAR) ok = false;
+          if (Math.abs(hs[id(i, j)] - flat) > (tight[id(i, j)] ? LOD_TOL : (opts.terrainLodFarTol ?? LOD_TOL_FAR))) ok = false;
         }
       }
       sup[sj * B2 + si] = ok ? 1 : 0;

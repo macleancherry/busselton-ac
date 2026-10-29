@@ -1157,7 +1157,7 @@ export async function buildTrack(
   const terrainNodes: Kn5Node[] = [];
   for (const [i, chunk] of chunks.entries()) {
     await progress("Building road and terrain meshes", i / chunks.length);
-    const mesh = buildTerrainChunk(chunk, terrainAt, opts, textured.has(chunk.key), area);
+    const mesh = buildTerrainChunk(chunk, terrainAt, opts, textured.has(chunk.key), area, (x, y) => streetIndex.clearance(x, y) < 4);
     if (mesh) terrainNodes.push(mesh);
   }
   const backdropNodes: Kn5Node[] = [];

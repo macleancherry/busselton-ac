@@ -144,6 +144,11 @@ export interface BuildOptions {
   carParkIslands: boolean;
   /** No level-of-detail blocks within this distance of the road's centreline, metres. */
   terrainLodNear: number;
+  /**
+   * Busselton fork: how far (metres) the ground may sit off the true surface where it's drawn in
+   * bigger blocks, more than 40 m from the route (default 0.05). Larger thins a big area build.
+   */
+  terrainLodFarTol?: number;
   /** Kerb and gutter where the photos (or a built-up area) show them, instead of a gravel verge. */
   kerbs: boolean;
   /**
