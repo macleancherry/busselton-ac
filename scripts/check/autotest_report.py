@@ -66,6 +66,13 @@ def main():
         if far:
             r, a, b = far[0]
             print(f"first more than 4 m off the line: {r['t']:.1f} s, {a:.0f} m round the lap ({b:.1f} m off, {r['kmh']:.0f} km/h)")
+    fps = [r for r in rows if r["kind"] == "fps"]
+    whole = next((r for r in rows if r["kind"] == "fpsall"), None)
+    if fps or whole:
+        avgs = [float(r["note"].split()[1].rstrip(";")) for r in fps]
+        low = min(fps, key=lambda r: float(r["note"].split()[1].rstrip(";"))) if fps else None
+        print(f"frame rate: {whole['note'] if whole else 'no total'}"
+              + (f"; worst 5 s {min(avgs):.0f} fps at {where(low['x'], low['z'])[0]:.0f} m round" if low else ""))
     for r in rows:
         if r["kind"] in ("offroad", "finish") and r["note"] != "lap":
             a, b = where(r["x"], r["z"])

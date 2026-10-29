@@ -16,6 +16,8 @@ local started, offNow, finishing, quitAt = false, false, false, nil
 local laps0 = 0
 local menuWait = 0
 local pastHalf = false -- a lap only counts once the car has been halfway round
+-- Frame rate: frames and the slowest frame over each 5 s, and over the whole drive.
+local fpsFrames, fpsTime, fpsWorst, allFrames, allTime, allWorst = 0, 0, 0, 0, 0, 0
 
 local function onRoad()
   local n = 0
@@ -41,6 +43,9 @@ end
 local function finish(why)
   if finishing then return end
   finishing = true
+  if allTime > 0 then
+    log('fpsall', string.format('avg %.1f; slowest frame %.0f ms', allFrames / allTime, allWorst * 1000))
+  end
   log('finish', why)
   shot('finish')
   quitAt = t + 3
@@ -78,6 +83,12 @@ function script.update(dt)
     log(finishing and 'after' or 'pos')
   end
   if finishing then return end
+  fpsFrames, fpsTime, fpsWorst = fpsFrames + 1, fpsTime + dt, math.max(fpsWorst, dt)
+  allFrames, allTime, allWorst = allFrames + 1, allTime + dt, math.max(allWorst, dt)
+  if fpsTime >= 5 then
+    log('fps', string.format('avg %.1f; slowest frame %.0f ms', fpsFrames / fpsTime, fpsWorst * 1000))
+    fpsFrames, fpsTime, fpsWorst = 0, 0, 0
+  end
   local sp = car.splinePosition
   -- Count laps from halfway round: the car starts behind the line, so its first crossing
   -- (a few seconds in) isn't a lap.
