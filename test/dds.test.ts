@@ -39,3 +39,19 @@ describe("DXT5 alpha indices", async () => {
     }
   });
 });
+
+import { decodeDds, encodeDdsDxt1 as enc1, encodeDdsDxt5 as enc5 } from "../src/core/dds";
+describe("DDS decoding", () => {
+  it("reads back what the encoders wrote, near enough", () => {
+    const w = 16, h = 8, rgba = new Uint8Array(w * h * 4);
+    for (let i = 0; i < w * h; i++) rgba.set([(i * 13) % 256, 120, 200 - (i % 50), i % 2 ? 255 : 128], i * 4);
+    for (const [enc, alpha] of [[enc1, false], [enc5, true]] as const) {
+      const d = decodeDds(enc(rgba, w, h));
+      expect([d.width, d.height]).toEqual([w, h]);
+      let err = 0;
+      for (let i = 0; i < w * h * 4; i++) if (alpha || i % 4 !== 3) err = Math.max(err, Math.abs(d.rgba[i] - rgba[i]));
+      expect(err).toBeLessThan(80);
+      expect(d.rgba[1]).toBeGreaterThan(100); // green stays about 120
+    }
+  });
+});

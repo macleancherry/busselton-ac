@@ -77,7 +77,11 @@ After every tranche of work, before reporting back to Mac:
 - Physics meshes are named with a digit then a surface key from the track's `data/surfaces.ini`, then anything: `1ROAD_...`, `1KERB_...`, `1GRASS_...`, `1STREET_...`. Check that file for the keys a build uses. Visual-only meshes have no digit prefix.
 - Dummies (empties): `AC_START_0..n` (grid), `AC_PIT_0..n`, `AC_TIME_0_L` / `AC_TIME_0_R` (start/finish on a circuit), `AC_HOTLAP_START_0`. Point-to-point tracks use `AC_AB_START_L/R` and `AC_AB_FINISH_L/R`.
 - Hand-made detail goes in its own .kn5, layered over the generated one (models.ini), so rebuilding the base never wipes it. Put `<name>.kn5` and a sidecar `<name>.json` (`{ "replaces": [{ "at": [lng, lat], "radius": m, "trees": false? }] }`) in a layers folder, list the folder in the route's `"layers"` (or `LAYERS=dir,dir`): the build clears the generated and spec houses (and trees) in those circles, adds the layer to the zip and writes models.ini. Private layers go in `routes/private/layers/`. The route needs a fixed `build.origin` (every route has one) so layers stay lined up; `scripts/check/make_test_layer.ts` makes a marker box to test with.
-- Blender: script every step (`blender --background --python ...`) so it can be rerun. Export FBX, then ksEditor makes the .kn5.
+- Blender: script every step (`blender --background --python ...`) so it can be rerun. No ksEditor needed: our own glTF converters go both ways, in the track's own coordinates.
+  1. `npx tsx scripts/blender/export_base.ts out/<slug>.zip base.glb --route <route.json> --at <lng,lat> [--radius 120]`: the generated track around the spot, with textures.
+  2. `blender --background --python scripts/blender/new_layer.py -- --base base.glb --out layer.blend`: the base as a locked reference, and an empty "Layer" collection to model in.
+  3. Model in "Layer" (object names `1WALL_...` etc. for physics), then `blender --background layer.blend --python scripts/blender/export_layer.py -- --out layer.glb`.
+  4. `npx tsx scripts/blender/make_layer.ts layer.glb <layers dir> <name> --replaces <lng,lat,radius>`: the layer's .kn5 and sidecar, ready for the route's `"layers"`.
 
 ## Privacy
 

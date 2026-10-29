@@ -165,3 +165,51 @@ export function encodeDdsDxt5(rgba: Uint8Array | Uint8ClampedArray, width: numbe
   }
   return w.finish();
 }
+
+/** Decodes the top mip of a DXT1 or DXT5 DDS to RGBA (for exporting a track's textures, e.g. to Blender). */
+export function decodeDds(data: Uint8Array): { rgba: Uint8Array; width: number; height: number } {
+  const v = new DataView(data.buffer, data.byteOffset, data.byteLength);
+  if (v.getUint32(0, true) !== 0x20534444) throw new Error("not a DDS file");
+  const height = v.getUint32(12, true), width = v.getUint32(16, true);
+  const four = String.fromCharCode(data[84], data[85], data[86], data[87]);
+  const dxt5 = four === "DXT5";
+  if (!dxt5 && four !== "DXT1") throw new Error(`DDS ${four} not supported`);
+  const rgba = new Uint8Array(width * height * 4);
+  let o = 128;
+  for (let by = 0; by < height; by += 4) {
+    for (let bx = 0; bx < width; bx += 4) {
+      const alpha = new Uint8Array(16).fill(255);
+      if (dxt5) {
+        const a0 = data[o], a1 = data[o + 1];
+        const pal = [a0, a1];
+        if (a0 > a1) for (let k = 1; k < 7; k++) pal.push(Math.round(((7 - k) * a0 + k * a1) / 7));
+        else { for (let k = 1; k < 5; k++) pal.push(Math.round(((5 - k) * a0 + k * a1) / 5)); pal.push(0, 255); }
+        // 16 three-bit indices in 6 bytes (two 24-bit halves).
+        for (let half = 0; half < 2; half++) {
+          const bits = data[o + 2 + half * 3] | (data[o + 3 + half * 3] << 8) | (data[o + 4 + half * 3] << 16);
+          for (let k = 0; k < 8; k++) alpha[half * 8 + k] = pal[(bits >> (3 * k)) & 7];
+        }
+        o += 8;
+      }
+      const c0 = v.getUint16(o, true), c1 = v.getUint16(o + 2, true), bits = v.getUint32(o + 4, true);
+      o += 8;
+      const p0 = from565(c0), p1 = from565(c1);
+      const cols: [number, number, number, number][] = [[...p0, 255], [...p1, 255]];
+      if (c0 > c1 || dxt5) {
+        cols.push([0, 1, 2].map((k) => Math.round((2 * p0[k] + p1[k]) / 3)).concat(255) as [number, number, number, number]);
+        cols.push([0, 1, 2].map((k) => Math.round((p0[k] + 2 * p1[k]) / 3)).concat(255) as [number, number, number, number]);
+      } else {
+        cols.push([0, 1, 2].map((k) => Math.round((p0[k] + p1[k]) / 2)).concat(255) as [number, number, number, number]);
+        cols.push([0, 0, 0, 0]);
+      }
+      for (let k = 0; k < 16; k++) {
+        const x = bx + (k & 3), y = by + (k >> 2);
+        if (x >= width || y >= height) continue;
+        const c = cols[(bits >> (2 * k)) & 3], d = (y * width + x) * 4;
+        rgba[d] = c[0]; rgba[d + 1] = c[1]; rgba[d + 2] = c[2];
+        rgba[d + 3] = dxt5 ? alpha[k] : c[3];
+      }
+    }
+  }
+  return { rgba, width, height };
+}
