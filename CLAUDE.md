@@ -51,7 +51,11 @@ Pins snap to the nearest road. A pin near a car park, side street or the far car
 
 ## Upstream
 
-honestjams/ac-track-builder moves fast and often builds things we also want. After every tranche of work, before reporting back to Mac:
+honestjams/ac-track-builder moves fast and often builds things we also want. It's a general tool for any road; we're one place. So general looks and scenery (buildings, materials, shaders, ground and road detail, lighting, race dressing) are upstream's: take them by merging, don't build our own. Ours is what a general tool won't do (the single Busselton map, layouts, open world, traffic, AI, testing and checks, our own data, the South West, kids' modes); see "Who builds what" in ROADMAP.md.
+
+Before starting anything general, check upstream's `docs/roadmap.md` and recent commits. If it's on their list, wait for it or build it as a PR for them.
+
+After every tranche of work, before reporting back to Mac:
 
 1. `git fetch upstream` (add it with `git remote add upstream https://github.com/honestjams/ac-track-builder.git` if missing) and `git log main..upstream/main`.
 2. If there's anything new, tell Mac what it is, then merge: take upstream's version where both sides built the same thing, keep the fork's South West work on top, rerun the tests and the checks, and rebuild.

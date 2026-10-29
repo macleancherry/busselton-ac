@@ -63,6 +63,16 @@ Sources: [OverTake: six real-road maps for free roaming](https://racedepartment.
 
 ---
 
+## Who builds what: us and upstream
+
+Upstream ([honestjams/ac-track-builder](https://github.com/honestjams/ac-track-builder)) is a general tool: any real road, anywhere, as a time-trial track, built in the browser. It moves fast (about 50 commits in four days in late October), almost all on looks and scenery: houses and building types, ground and road detail shaders, CSP lighting, race-day dressing. Its research is deep where it works ([docs/realism.md](docs/realism.md) reads the CSP shaders from source) and its in-game checklist is thorough ([docs/verification.md](docs/verification.md)). Its own plan ([docs/roadmap.md](docs/roadmap.md)): time trials tested in game, CSP 3D trees, a pit lane, front fences, balconies, shareable builds with open imagery.
+
+So we split the work:
+
+- **Upstream's:** general looks and scenery (buildings, materials, shaders, ground and road detail, lighting quality, race dressing, general road furniture). We take these in by merging and don't build our own. If we need one before they get to it, we build it as a PR for them.
+- **Ours:** what a general road tool won't do. One Busselton map with layouts, open world and spawn points; traffic; the AI driving like a local; headless builds, automatic checks and the workstation test; our own data (WA heights, Mapillary footage, house looks, local trees, the coast); the South West tracks; fun modes for the kids.
+- **Before starting anything general,** check upstream's roadmap and recent commits (`git log main..upstream/main`). If it's on their list, wait for it or send it to them.
+
 ## Phase 1: Foundations 🔨
 
 Get the base right before adding more.
@@ -74,10 +84,12 @@ Get the base right before adding more.
   - (29 Oct) hints slowing it to the speed limit (50 in town), roundabouts found where the route goes straight over them, and the workstation test now driving an everyday hatch instead of a GT3 (which hit 174 km/h on a suburban street)
 
   The AI now gets 2.4 km round the Foreshore (past the 2.1 km corner and the first roundabout), then beaches on the nature strip at the exit of the second roundabout. A GT3 car on kerbed town streets will keep finding kerbs, so this is about good enough: traffic is what fills the streets.
+  - ❓ The AI line is written without its lookup grid (`hasGrid = 0`, a "known unknown" in upstream's checklist), and every test log warns `IDEAL LINE FROM AI LINE` / `NO POSITION DATA FOUND`. Check whether they're linked, and write the grid if so.
 - 🔨 **In-game check.** Done: roundabout lip (fixed), power poles, night lighting. Still to check: ground detail scale, Grass FX on dry verges, the water edge, frame rate on the RTX 4060.
+  - ⬜ A full pass of upstream's 36-item checklist ([docs/verification.md](docs/verification.md)) on one town build, by the workstation: map position, signs and markings the right way round, kerbs, Grass FX, rain, night windows, replay cameras. Our automatic test only covers the driving.
 - ✅ **Terrain level of detail.** Fine grid near the road, flat blocks drawn as fans further out: the Foreshore went from 1.0M to 0.75M triangles.
 - ✅ **Performance budget per track.** `scripts/check/budget.ts`: triangles, draw calls, texture memory and kn5 size per build, checked against limits, with the biggest groups listed.
-- ⬜ **Layouts.** One track folder with several layouts (circuit, sprint, free roam), the way Kunos and the big mods do it.
+- ⬜ **Layouts.** One track folder with several layouts (circuit, sprint, free roam), the way Kunos and the big mods do it. First use: the single Busselton map (Phase 3).
 - ⬜ **Export for Blender.** FBX (and maybe `.blend`) of the generated base, so hand-made detail lines up exactly and survives rebuilds (layered with `models.ini`).
 
 ## Phase 2: Busselton, properly 🔨
@@ -107,6 +119,8 @@ Make town feel like town before going regional.
 ## Phase 3: Open world ⬜
 
 Go from "a route" to "a town you can drive anywhere in".
+
+- ⬜ **One Busselton map.** The town centre, the Foreshore and the estate with the roads between them, in one track with layouts: the Foreshore circuit, the town loop, the estate loop, and free roam with traffic. The Foreshore and town loops overlap on Queen St and Marine Tce, so this builds the streets once with proper junctions. AC loads a whole map at once, so a test build comes first to see what fits the RTX 4060's budget. Tuart Drive stays its own track (15 km out, mostly forest); it goes in a South West map later. Needs the three items below.
 
 - 🔨 **Area builds:** the whole road network inside a boundary, not just one route. ✅ First version: a loop round an estate with a wide corridor builds every street inside it (a whole estate, private). Still to do: a boundary instead of a loop, and spawn points spread round the area.
 - ⬜ **Spawn points around town:** grid and pit spots in real car parks (foreshore, shopping centre, the jetty), so you can start anywhere.
@@ -155,11 +169,8 @@ What makes a map look great at any time of day and in any weather.
   - shop signs, car park lights and the jetty lights
 - ⬜ **Water:** CSP's water shader for the bay, waves at the beach, boats at moorings.
 - ⬜ **Audio:** surf at the beach, magpies and kookaburras in the morning, wind in the she-oaks, the jetty train (CSP track audio).
-- ⬜ **Lighting quality:**
-  - vertex AO (VAO) on buildings and under trees
-  - local cubemaps in the town centre
-  - per-pixel fog
-  - tree alignment fixes
+- ⬜ **Baked ambient occlusion.** CSP's AO bakery ([acc-bakeryoptix](https://github.com/ac-custom-shaders-patch/acc-bakeryoptix)) bakes it on the player's PC; upstream's research says CSP expects tracks to have it and nothing does more for how solid a scene looks. A workstation job, run from a script in the repo after each install.
+- Lighting quality otherwise (local cubemaps, fog, detail normal maps): upstream's area, taken in by merging.
 - ⬜ **Pure:** tune Pure's lighting per track so the bright WA sun and glare off the bay look right.
 - ⬜ **Animated objects:** flags, swaying trees, the jetty train.
 
@@ -209,7 +220,7 @@ Each needs its own trees, ground and roadside:
   - Armco on bends and drop-offs
   - farm driveways and mailboxes on posts
 - 🔨 Long roads: ✅ 16 km builds within budget (coarser terrain grid and horizon per route); still to check: 30+ km, draw distances.
-- ⬜ Proper trees: CSP's tree system, or mesh trees for karri and tuart, with LODs.
+- ⬜ Proper trees: CSP's 3D trees (instanced, with LODs; next on upstream's list). Ours to add: tuart, karri, peppermint and she-oak models and where each grows.
 - ⬜ Vineyard generator.
 - ⬜ Landmarks: lighthouses, wineries and cellar doors, surf car parks (Yallingup, Surfers Point), the caves' entrances.
 
@@ -253,13 +264,15 @@ Real photos beat procedural textures. Everything we capture ourselves can also g
 
 [honestjams/ac-track-builder](https://github.com/honestjams/ac-track-builder) is the generator. We send back anything that isn't South West specific, and take its improvements in. Sent so far: kerb and roundabout fixes, the U-turn warning, `terrainUnderRoad` and no-trace zones, and Landgate imagery (all merged). Open (28 Oct): #6 spawn direction, roundabout mouths and AI corner hints; #7 terrain level of detail; #8 CSP traffic lanes; #9 the coast (sea, jetties, seawall, groynes).
 
+Open (29 Oct): #10 retrying map data, and saying when it's missing.
+
 Candidates to send next:
 
-- `ksMultilayer` ground detail
 - dry-grass Grass FX tuning
 - house lots
 - the AI line through roundabouts
 - headless builds, the check scripts and the automatic AI test (his repo has no headless tooling yet)
+- Australian guideposts and kangaroo signs, one-way streets in the traffic lanes, roundabout islands from the photo
 
 ## Data and sharing
 
