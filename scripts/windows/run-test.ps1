@@ -147,6 +147,11 @@ public static class BtClick {
     System.Threading.Thread.Sleep(150); mouse_event(2, 0, 0, 0, UIntPtr.Zero); System.Threading.Thread.Sleep(80); mouse_event(4, 0, 0, 0, UIntPtr.Zero);
     return "front before: '" + before + "', after: '" + after + "', at " + p.X + "," + p.Y;
   }
+  // AC's own screenshot key (F8), pressed with AC in front: track scripts can't take screenshots.
+  public static void Key(IntPtr h, byte vk) {
+    Front(h); System.Threading.Thread.Sleep(200);
+    keybd_event(vk, 0, 0, UIntPtr.Zero); System.Threading.Thread.Sleep(60); keybd_event(vk, 0, 2, UIntPtr.Zero);
+  }
 }
 "@ -ErrorAction SilentlyContinue
   # The track script's lines in CSP's log tell us when the drive has started and finished.
@@ -177,7 +182,19 @@ public static class BtClick {
   # Wait for the script's finish line (AC can't always quit itself), then a little more logging,
   # then close AC the normal way so it saves the replay; force it only if that doesn't work.
   $deadline = (Get-Date).AddMinutes($Minutes + 2)
+  $shotsTaken = 0
   while (-not $proc.HasExited -and (Get-Date) -lt $deadline) {
+    # Each "shot" line the script logs: press F8 for it.
+    if ((Test-Path $cspLog) -and (Get-Item $cspLog).LastWriteTime -ge $started) {
+      $shots = @(Select-String -Path $cspLog -Pattern "BTEST,shot" -SimpleMatch -ErrorAction SilentlyContinue).Count
+      $proc.Refresh()
+      while ($shotsTaken -lt $shots -and $proc.MainWindowHandle -ne [IntPtr]::Zero) {
+        [BtClick]::Key($proc.MainWindowHandle, 0x77)
+        $shotsTaken++
+        Add-Content $clickLog "$(Get-Date -Format HH:mm:ss) pressed F8 (shot $shotsTaken)"
+        Start-Sleep -Milliseconds 700
+      }
+    }
     if (Test-Logged "BTEST,finish") {
       Write-Host "  run finished: closing AC" -ForegroundColor Cyan
       Start-Sleep -Seconds 8
@@ -185,7 +202,7 @@ public static class BtClick {
       if (-not $proc.WaitForExit(30000)) { Stop-Process -Id $proc.Id -Force }
       break
     }
-    Start-Sleep -Seconds 5
+    Start-Sleep -Seconds 1
   }
   if (-not $proc.HasExited) {
     Write-Host "Still running after $Minutes min: closing AC." -ForegroundColor Yellow
