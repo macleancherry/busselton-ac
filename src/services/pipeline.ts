@@ -112,7 +112,7 @@ export async function runBuild(job: BuildJob, report: Report, traceProgress: (te
     pois: tiles?.pois,
     seen,
     renderArt,
-    raster: (proj, path, reach) => loadRouteRaster(proj, path, reach, chain, 20, (d, t) => traceProgress(`Tracing the road in the aerial photos (${Math.round((d / t) * 100)}%)`)),
+    raster: (proj, path, reach, maxZoom) => loadRouteRaster(proj, path, reach, chain, maxZoom ?? 20, (d, t) => traceProgress(`Tracing the road in the aerial photos (${Math.round((d / t) * 100)}%)`)),
     roadClassAt: tiles ? roadClassLookup(tiles.roads, coords[0][1]) : undefined,
     // Busselton fork: coast, paths, house looks and shop signs.
     coast,

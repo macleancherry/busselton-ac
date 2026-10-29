@@ -85,7 +85,7 @@ export interface DataSources {
   /** Draws the sign artwork atlas; without one, signs are left out. */
   renderArt?: ArtRenderer;
   /** Sharpest aerial imagery within `reach` metres of the path, for tracing the road. */
-  raster?(proj: LocalProjection, path: Vec2[], reach: number): Promise<RasterSampler | null>;
+  raster?(proj: LocalProjection, path: Vec2[] | Vec2[][], reach: number, maxZoom?: number): Promise<RasterSampler | null>;
   /** Roundabouts the router says the route goes round. */
   roundabouts?: RoundaboutHint[];
   /** Road class at a point (OpenMapTiles: motorway, primary, minor, ...). */
@@ -770,7 +770,19 @@ export async function buildTrack(
   const streetPlan = planSideStreets(
     opts.sideStreets ? sources.streets?.lines ?? [] : [], sources.streets?.names ?? [], plan, index, opts, proj, area,
   );
-  const sideTraced = raster && opts.traceRoads ? traceSideStreets(streetPlan.streets, raster, opts, index) : 0;
+  // Busselton fork: an area build's streets away from the route get their own photo (one zoom level
+  // coarser, to keep the download and memory down) so they're traced too, not left on OSM's line.
+  let streetRaster = raster;
+  if (area && raster && opts.traceRoads && sources.raster) {
+    await progress("Tracing the area's streets in the aerial photos");
+    const far = streetPlan.streets.filter((st) => st.pts.some(([x, y]) => !index.nearest(x, y, 60))).map((st) => st.pts);
+    const extra = far.length ? await sources.raster(proj, far, 14, 19) : null;
+    if (extra) {
+      const both = (a: RasterSampler, b: RasterSampler): RasterSampler => (x, y) => a(x, y) ?? b(x, y);
+      streetRaster = Object.assign(both(raster, extra), { display: both(displayOf(raster), displayOf(extra)) });
+    }
+  }
+  const sideTraced = streetRaster && opts.traceRoads ? traceSideStreets(streetPlan.streets, streetRaster, opts, index) : 0;
   const streetIndex = new LineIndex(streetPlan.streets);
   const mouth = (side: 1 | -1, sd: number) => streetPlan.junctions.some((j) => j.side === side && Math.abs(j.s - sd) < j.width / 2 + 1.5);
 
@@ -1058,13 +1070,13 @@ export async function buildTrack(
       : [],
   );
   const sideStreets = buildSideStreets(streetPlan.streets, plan, index, opts, (x, y) => terrainAt(x, y).h, (st, i) => {
-    if (photoStreets.has(st) && st.traced && raster) {
+    if (photoStreets.has(st) && st.traced && streetRaster) {
       const sub = st.traced.plan, conf = st.traced.conf;
       const name = `side_photo_${String(i).padStart(3, "0")}`;
       // 128 px across; about 12 cm per pixel along, in a power of two.
       let h = 64;
       while (h < sub.length / 0.12 && h < 2048) h *= 2;
-      const tex = photoRoadTexture(sub, displayOf(raster), 0, sub.samples.length - 1, (k) => conf[k] > 0.7, 128, h);
+      const tex = photoRoadTexture(sub, displayOf(streetRaster), 0, sub.samples.length - 1, (k) => conf[k] > 0.7, 128, h);
       textures.push({ name: `${name}.dds`, data: encodeDdsDxt1(tex.rgba, tex.width, tex.height) });
       previewTextures[`${name}.dds`] = tex;
       materials.push(material(name, `${name}.dds`, { ambient: 0.42, diffuse: 0.45, specular: 0.06, exp: 20 }));

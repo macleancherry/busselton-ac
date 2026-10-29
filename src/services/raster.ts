@@ -9,7 +9,7 @@ import { colourBalance, IMAGERY, loadBitmap, tileUrl, type ImagerySource } from 
 
 export async function loadRouteRaster(
   proj: LocalProjection,
-  path: Vec2[],
+  path: Vec2[] | Vec2[][],
   reach: number,
   chain: ImagerySource[],
   maxZoom = 20,
@@ -20,8 +20,10 @@ export async function loadRouteRaster(
   // Tiles within `reach` of any point along the path (sampled every 5 m).
   const need = new Set<string>();
   const r = reach / mpp;
-  for (let i = 0; i < path.length; i++) {
-    const a = path[i], b = path[Math.min(path.length - 1, i + 1)];
+  // Busselton fork: several lines (an area build's streets) as well as one route.
+  const lines = (Array.isArray(path[0]?.[0]) ? path : [path]) as Vec2[][];
+  for (const line of lines) for (let i = 0; i < line.length; i++) {
+    const a = line[i], b = line[Math.min(line.length - 1, i + 1)];
     const steps = Math.max(1, Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / 5));
     for (let k = 0; k < steps; k++) {
       const p: Vec2 = [a[0] + ((b[0] - a[0]) * k) / steps, a[1] + ((b[1] - a[1]) * k) / steps];
