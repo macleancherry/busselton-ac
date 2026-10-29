@@ -46,7 +46,7 @@ import { facadeForLook, facadeForStyle } from "./houseLooks";
 import { buildSpecHouse, type HouseSpec } from "./specHouse";
 import { camerasIni, placeCameras } from "./cameras";
 import { cullable } from "./cull";
-import { extConfig } from "./cspConfig";
+import { bakedShadowParams, extConfig } from "./cspConfig";
 import { buildBarriers } from "./fences";
 import { chunkPhotoSampler, frontageHouses } from "./frontage";
 import { ArtList, type ArtRenderer } from "./art";
@@ -1708,7 +1708,7 @@ export async function buildTrack(
       const last = aiPoints[aiPoints.length - 1], total = last.distance + last.length;
       return speedAt(Math.min(nS - 1, Math.max(0, Math.round((d / total) * (nS - 1)))));
     }, !plan.closed)),
-    [`${slug}/data/surfaces.ini`]: enc.encode(surfacesIni(opts.traffic, opts.streetsValid ?? !!area)),
+    [`${slug}/data/surfaces.ini`]: enc.encode(surfacesIni(opts.traffic, opts.streetsValid ?? !!area, centre)),
     ...(opts.traffic ? { [`${slug}/data/traffic.json`]: enc.encode(trafficText) } : {}),
     [`${slug}/data/map.ini`]: enc.encode(map.ini),
     // Busselton fork: checkpoints for the Busselton Challenges app (apps/lua/BusseltonChallenges).
@@ -1724,8 +1724,13 @@ export async function buildTrack(
       .replace("__CLOSED__", plan.closed ? "true" : "false")
       // The speed limit at each 1% of the lap, km/h, so the test drives at the limit.
       .replace("__LIMITS__", Array.from({ length: 100 }, (_, k) => speedAt(Math.min(nS - 1, Math.round(((k + 0.5) / 100) * (nS - 1))))).join(", "))) } : {}),
+    // Busselton fork: the AO bakery's settings, next to the models_*.ini it bakes (bake-vao.ps1).
+    [`${slug}/baked_shadow_params.ini`]: enc.encode(bakedShadowParams()),
     [`${slug}/extension/ext_config.ini`]: enc.encode(extConfig([...utilities.lights, ...carPark.lights, ...jettyLamps.lights], {
       autotest: opts.traffic,
+      // Busselton fork: south-west WA's dry summer, and the bay.
+      drySummer: centre[0] > 112 && centre[0] < 119.5 && centre[1] < -30 && centre[1] > -36,
+      sea: ocean.length > 0,
       // A town's glow at night where most of the route is built up.
       builtUp: town.filter((t) => t >= 1).length > town.length / 2,
       radiusKm: Math.max(...outline2d.map((p) => Math.hypot(p[0] - outline2d[0][0], p[1] - outline2d[0][1]))) / 2000,

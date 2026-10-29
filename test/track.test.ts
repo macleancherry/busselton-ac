@@ -56,6 +56,7 @@ describe("buildTrack (synthetic terrain)", async () => {
     expect(names).toEqual([
       "test_hairpin/README.txt",
       "test_hairpin/ai/fast_lane.ai",
+      "test_hairpin/baked_shadow_params.ini",
       "test_hairpin/data/ai_hints.ini",
       "test_hairpin/data/cameras_1.ini",
       "test_hairpin/data/challenges.ini",
