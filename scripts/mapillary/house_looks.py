@@ -1,7 +1,7 @@
 """What each house's walls are made of, from Mapillary street photos.
 
     python3 -I scripts/mapillary/house_looks.py out/<slug>.houses.json [--since 2024-01-01] [--user maccherry]
-        [--sequence <id>[,<id>...]]
+        [--sequence <id>[,<id>...]] [--min-photos 2]
 
 --sequence takes the photos from those sequences instead of searching the area: new uploads can
 be public for days before the area search finds them. A sequence id is in the photo's details on
@@ -154,6 +154,8 @@ def main():
     path = sys.argv[1]
     arg = lambda k: sys.argv[sys.argv.index(k) + 1] if k in sys.argv else None
     since, user = arg("--since"), arg("--user")
+    # Photos that must agree on a house: 2 by default; 1 for sparse footage (one clear frame per house).
+    min_photos = int(arg("--min-photos") or 2)
     houses = json.load(open(path))
     if not houses:
         sys.exit("no houses in " + path)
@@ -267,9 +269,9 @@ def main():
             share = votes[top] / sum(votes.values())
             n = sum(1 for _ in votes)
             mid = ((h["front"][0][0] + h["front"][1][0]) / 2, (h["front"][0][1] + h["front"][1][1]) / 2)
-            if not (share >= 0.6 and photos[top] >= 2):
+            if not (share >= 0.6 and photos[top] >= min_photos):
                 why["house: photos disagree or only one"] += 1
-            if share >= 0.6 and photos[top] >= 2:
+            if share >= 0.6 and photos[top] >= min_photos:
                 looks.append({"at": [round(mid[0], 7), round(mid[1], 7)], "facade": top, "confidence": round(share, 2), "photo": best[1] if best else None})
             if best and len(sheet) < 48:
                 sheet.append((best, top, share, h["facade"]))
