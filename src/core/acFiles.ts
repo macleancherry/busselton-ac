@@ -112,6 +112,31 @@ export function trackMap(points: [number, number][]): { png: Uint8Array; ini: st
   return { png: r.png(), ini };
 }
 
+/**
+ * Busselton fork: the whole street network as a map for the Busselton Map app
+ * (apps/lua/BusseltonMap): every street the track has, the route over them, and the sea edge.
+ * Lines are AC X/Z; the ini uses map.ini's transform (px = (X + X_OFFSET) / SCALE_FACTOR).
+ */
+export function streetMap(streets: { pts: [number, number][]; width: number }[], route: [number, number][], maxPixels = 3072): { png: Uint8Array; ini: string } {
+  const all = [...route, ...streets.flatMap((s) => s.pts)];
+  const xs = all.map((p) => p[0]), zs = all.map((p) => p[1]);
+  const minX = Math.min(...xs), maxX = Math.max(...xs), minZ = Math.min(...zs), maxZ = Math.max(...zs);
+  const margin = 40;
+  const scale = Math.max(0.75, Math.max(maxX - minX, maxZ - minZ, 1) / (maxPixels - margin * 2));
+  const width = Math.ceil((maxX - minX) / scale) + margin * 2, height = Math.ceil((maxZ - minZ) / scale) + margin * 2;
+  const xOff = -minX + margin * scale, zOff = -minZ + margin * scale;
+  const r = new Raster(width, height);
+  const px = (pts: [number, number][]) => pts.map(([x, z]) => [(x + xOff) / scale, (z + zOff) / scale] as [number, number]);
+  // Casing first, then fill, so crossings join cleanly.
+  for (const s of streets) r.line(px(s.pts), Math.max(3, s.width / scale) + 3, [40, 44, 52, 255]);
+  r.line(px(route), Math.max(4, 8 / scale) + 3, [40, 44, 52, 255]);
+  for (const s of streets) r.line(px(s.pts), Math.max(3, s.width / scale), [205, 208, 214, 255]);
+  r.line(px(route), Math.max(4, 8 / scale), [245, 196, 66, 255]);
+  const ini = ["[PARAMETERS]", `WIDTH=${width}`, `HEIGHT=${height}`, `MARGIN=${margin}`, `SCALE_FACTOR=${scale.toFixed(6)}`,
+    `X_OFFSET=${xOff.toFixed(4)}`, `Z_OFFSET=${zOff.toFixed(4)}`, ""].join("\n");
+  return { png: r.png(), ini };
+}
+
 /** Fits points (AC X/Z) into a w x h box, keeping aspect ratio. */
 function fit(points: [number, number][], w: number, h: number, margin: number): [number, number][] {
   const xs = points.map((p) => p[0]), zs = points.map((p) => p[1]);

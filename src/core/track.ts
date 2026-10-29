@@ -18,7 +18,7 @@ import { Area, areaRings, makeCover } from "./area";
 import { asLayout, dummiesKn5 } from "./layouts";
 import { BACKDROP_CHUNK, backdropHeight, buildBackdropChunk, planBackdrop } from "./backdrop";
 import { writeFastLaneAi } from "./aiSpline";
-import { outlinePng, previewPng, readme, slugify, surfacesIni, trackMap, uiTrackJson, type TrackMeta } from "./acFiles";
+import { outlinePng, previewPng, readme, slugify, streetMap, surfacesIni, trackMap, uiTrackJson, type TrackMeta } from "./acFiles";
 import type { HeightFn } from "./elevation";
 import { boundsOf, LocalProjection, type Bounds, type LngLat, type Vec2 } from "./geo";
 import { frameTransform, IDENTITY, writeKn5, type Kn5GroupNode, type Kn5Material, type Kn5MeshNode, type Kn5Model, type Kn5Node, type Kn5Texture } from "./kn5";
@@ -1715,6 +1715,12 @@ export async function buildTrack(
       radiusKm: Math.max(...outline2d.map((p) => Math.hypot(p[0] - outline2d[0][0], p[1] - outline2d[0][1]))) / 2000,
     })),
     [`${slug}/map.png`]: map.png,
+    // Busselton fork: the whole street network for the Busselton Map app (shared by every layout).
+    ...(() => {
+      const sm = streetMap(streetPlan.streets.map((st) => ({ pts: st.pts.map(([x, y]) => [x, -y] as [number, number]), width: st.width })),
+        plan.samples.map((s) => [s.pos[0], -s.pos[1]] as [number, number]).concat(plan.closed ? [[plan.samples[0].pos[0], -plan.samples[0].pos[1]]] : []));
+      return { [`${slug}/extension/street_map.png`]: sm.png, [`${slug}/extension/street_map.ini`]: enc.encode(sm.ini) };
+    })(),
     [`${slug}/ui/ui_track.json`]: enc.encode(uiTrackJson(trackMeta, {
       length: timedLength(), width: meanWidth, pitboxes: opts.pitCount, closed: plan.closed, centre,
     })),
