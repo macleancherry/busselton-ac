@@ -93,12 +93,13 @@ Make town feel like town before going regional.
   - jetty precinct buildings: waiting on Mac's Mapillary footage for their fronts
 - ⬜ **Jetty precinct:** the Interpretive Centre, the jetty train line, the Underwater Observatory at the far end, and jetty lights at night.
 - 🔨 **Queen St and the town centre:** ✅ its own route, ✅ shopfronts with verandahs, posts, signs and windows, ✅ real shop names on the signs, ✅ parked cars where the photo had them. Still to do: kerbside parking bays marked out.
-- ⬜ **WA road details:**
+- 🔨 **WA road details:**
   - ✅ give-way lines at roundabouts; stop and give-way lines where street photos saw them (side streets show their own lines in the aerial photo)
   - bike lanes and bicycle symbols
-  - bus stops and WA-style guideposts
-  - street name blades in the WA style
-  - kangaroo signs out of town
+  - ✅ bus stops: a post and plate, and a shelter where there's room (from the map's bus stops)
+  - ✅ Australian guideposts: white, a red reflector facing traffic on your side and a white one facing the other way
+  - ✅ street name blades, white on blue
+  - ✅ kangaroo signs on country stretches: one each way about 300 m in, then every 4 km
 - 🔨 **Parked cars:** ✅ low-poly cars put back where the photo had parked cars (same spot, angle and roughly the colour), with collision boxes and none in a traffic lane. Still to do: better car models (CSP or our own, with LODs), and car parks beyond the detailed ground.
 - 🔨 **Roundabout landscaping:** ✅ each island shows its real aerial photo (when it sits inside one photo tile), plus a tree and a ring of shrubs. Still to do: 3D garden beds and limestone edging from the photo.
 - ⬜ **Landmarks list:** the buildings and spots locals would point at, each modelled by hand or from photos.
@@ -128,7 +129,8 @@ Plan:
   - ✅ speeds from OSM `maxspeed` (shared with the AI hints)
   - ✅ (29 Oct) no overlaps or loose lane ends on the whole-estate build: junction zones near a roundabout no longer spread down side streets
   - an in-game test with the planner (steps in [docs/traffic-test.md](docs/traffic-test.md))
-  - lanes from OSM `lanes` and `oneway`
+  - ✅ one-way streets (from the map tiles): lanes all one way, across the whole road
+  - lanes from OSM `lanes`
 - ⬜ **Generate per-lane AI splines**, both directions, for AI Flood.
 - ⬜ **Traffic density zones:** busy Bussell Hwy and Queen St, quiet estates, school-zone speeds.
 - ⬜ **An Aussie traffic car pack:**
@@ -226,7 +228,7 @@ Real photos beat procedural textures. Everything we capture ourselves can also g
 
 - ✅ Build checks: photo overlay, DEM heights, hairpin spikes, surface bumps and edge steps.
 - ✅ Driver's-eye renders from the headless build.
-- ⬜ **Before/after render sets on every build,** to catch visual regressions.
+- 🔨 **Before/after render sets,** to catch visual regressions: ✅ `scripts/check/render_diff.py` compares a build's shots with the last saved set and makes a before/after/changed sheet. Still to do: a standard set of views per track.
 - ✅ **CI on GitHub:** tests, type-check and build on every push.
 - 🔨 **Automated in-game test** (`scripts/windows/run-test.ps1`, run on the workstation):
   - ✅ it loads, presses Drive, hands the car to the AI, logs the drive, saves the replay and closes AC

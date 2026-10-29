@@ -21,7 +21,7 @@
 // car0..car9 looks at parked cars spread through the list.
 
 import { spawn } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium } from "playwright";
@@ -199,6 +199,8 @@ try {
   if (process.env.SHOTS) {
     // Each shot is a lap fraction, or "lng:lat:lookLng:lookLat:height" for a fixed view.
     const fracs = process.env.SHOTS.split(",");
+    // Clear this track's shots from earlier builds, so a set never mixes old and new views.
+    for (const f of readdirSync(out)) if (f.startsWith(`${slug}.shot`) && f.endsWith(".png")) rmSync(join(out, f));
     for (const [n, f] of fracs.entries()) {
       const png = await page.evaluate((f) => {
         const r = window.__app.result(), pv = window.__app.preview();

@@ -22,11 +22,11 @@ On top of upstream's builder (roads, roundabouts, building types, ground detail,
 - **WA data.** Landgate's free Locate mosaic for imagery anywhere in WA, and Geoscience Australia's 5 m bare-earth DEM from Busselton to Ludlow, shipped in `public/dem/wa`.
 - **Headless builds.** `scripts/headless/build-track.mjs` builds a track from a route file in headless Chromium: the same code as the UI, no clicking. It retries map data and stops if any is still missing ("MISSING DATA"), so a build never comes out quietly different.
 - **Checks on every build.** Road over the aerial photo and heights against the DEM (`check_build.py`), bumps, tilt and edge steps (`surface_check.py`), traffic lanes (`traffic_check.py`, including no parked car in a lane) and a performance budget for the RTX 4060 (`budget.ts`). The checks work on long tracks (16 km and up).
-- **Renders.** `SHOTS=0.1,0.5` (lap fractions, `lng:lat:lookLng:lookLat:height`, or `car0`..`car9` to look at parked cars) saves views from the preview.
+- **Renders.** `SHOTS=0.1,0.5` (lap fractions, `lng:lat:lookLng:lookLat:height`, or `car0`..`car9` to look at parked cars) saves views from the preview. `scripts/check/render_diff.py <slug>` compares them with the last saved set (`--save`), before and after.
 - **Smooth town roads.** No banking, kerbs at the right height, flat roundabouts, and options for flat ground (`terrainUnderRoad`, a finer `terrainStep`). Roundabouts the route goes straight over are found from the mapped rings, not just the routing, and each island shows its own aerial photo.
 - **AI that drives like a local.** Spawn points facing the right way, a smoothed line through roundabouts, and `ai_hints.ini` slowing the AI for tight corners and to the speed limit (50 in town).
 - **Automatic AI tests.** `scripts/windows/run-test.ps1` drives a build unattended on the workstation in an everyday car and collects logs, replay, screenshots (it presses F8), the frame rate and a drive log; `autotest_report.py` reads the result.
-- **CSP traffic.** `data/traffic.json` for CSP's traffic planner: lanes on the route and side streets, roundabouts with priority, speeds from the speed limit, checked for overlapping junctions and loose lane ends.
+- **CSP traffic.** `data/traffic.json` for CSP's traffic planner: lanes on the route and side streets, roundabouts with priority, speeds from the speed limit, one-way streets one way, checked for overlapping junctions and loose lane ends.
 - **Local trees.** Peppermint, she-oak, Norfolk pine, tuart and palm, drawn procedurally; grey-olive gum canopy read from the photo as trees, so Tuart Forest is a forest.
 - **The coast.** The bay as water, the 1.8 km jetty, the rock seawall and groynes, Norfolk pines and palms along the foreshore.
 - **Car parks.** Parked cars painted out of the ground photo, then put back as simple 3D cars in the same spots and roughly the same colour, with something to hit.
@@ -34,6 +34,7 @@ On top of upstream's builder (roads, roundabouts, building types, ground detail,
 - **Lots.** Colorbond fences, limestone or brick front walls or a hedge, driveways and garden beds.
 - **House looks.** What particular houses look like, from Mapillary street photos (`scripts/mapillary/house_looks.py`, wall kind and colour) or set by hand (facade, front hedge and its height, front-yard trees), plus an area's own mix of facades (`houseStyle`), on upstream's building styles.
 - **Whole-area builds.** A loop round an estate with a wide corridor builds every street inside it as drivable road.
+- **Australian roadsides.** White guideposts with red and white reflectors, kangaroo signs on country roads, bus stops with shelters.
 - **Paths, street lights, power poles and signs** from OpenStreetMap and Mapillary detections, with CSP night lighting.
 - **Private routes.** Anything in `routes/private/` stays out of git.
 
