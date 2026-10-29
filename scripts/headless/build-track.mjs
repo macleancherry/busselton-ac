@@ -311,10 +311,10 @@ try {
     // Each shot is a lap fraction, or "lng:lat:lookLng:lookLat:height" for a fixed view.
     // SHOTS=auto: the same views on every build of a track, for before/after comparisons
     // (render_diff.py): five spots round the drive, and each roundabout (up to six) from above.
-    const fracs = process.env.SHOTS === "auto"
-      ? ["0.02", "0.2", "0.4", "0.6", "0.8", ...(await page.evaluate(() =>
-        window.__app.result().plan.roundabouts.slice(0, 6).map((rb) => `L:${rb.c[0]}:${rb.c[1] - 30}:${rb.c[0]}:${rb.c[1]}:${rb.hc + 16}:${rb.hc}`)))]
-      : process.env.SHOTS.split(",");
+    // "auto" can also be one item of a list: SHOTS=auto,L:...
+    const auto = ["0.02", "0.2", "0.4", "0.6", "0.8", ...(await page.evaluate(() =>
+      window.__app.result().plan.roundabouts.slice(0, 6).map((rb) => `L:${rb.c[0]}:${rb.c[1] - 30}:${rb.c[0]}:${rb.c[1]}:${rb.hc + 16}:${rb.hc}`)))];
+    const fracs = process.env.SHOTS.split(",").flatMap((f) => (f.trim() === "auto" ? auto : [f.trim()]));
     // Clear this track's shots from earlier builds, so a set never mixes old and new views.
     for (const f of readdirSync(out)) if (f.startsWith(`${slug}.shot`) && f.endsWith(".png")) rmSync(join(out, f));
     for (const [n, f] of fracs.entries()) {
