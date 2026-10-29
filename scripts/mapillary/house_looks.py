@@ -1,6 +1,11 @@
 """What each house's walls are made of, from Mapillary street photos.
 
     python3 -I scripts/mapillary/house_looks.py out/<slug>.houses.json [--since 2024-01-01] [--user maccherry]
+        [--sequence <id>[,<id>...]]
+
+--sequence takes the photos from those sequences instead of searching the area: new uploads can
+be public for days before the area search finds them. A sequence id is in the photo's details on
+mapillary.com, or from https://graph.mapillary.com/<image id>?fields=sequence.
 
 Reads the house fronts a build wrote (out/<slug>.houses.json), finds the street photos that see
 each front, samples the wall between the fence tops and the eaves, and votes on the facade
@@ -65,6 +70,19 @@ def images_in(box, tok, user=None, since=None):
         d = json.loads(fetch(url))
         out += d.get("data", [])
         url = d.get("paging", {}).get("next")
+    return out
+
+
+def images_in_sequences(ids, tok):
+    """Every photo in the sequences (the API wants their ids, then the fields per image)."""
+    fields = "id,captured_at,creator,computed_geometry,geometry,computed_compass_angle,compass_angle,camera_type,camera_parameters,width,height,thumb_1024_url,is_pano"
+    out = []
+    for seq in ids:
+        url = "https://graph.mapillary.com/images?" + urllib.parse.urlencode({"access_token": tok, "sequence_ids": seq, "fields": "id", "limit": 2000})
+        image_ids = [d["id"] for d in json.loads(fetch(url)).get("data", [])]
+        for k in range(0, len(image_ids), 50):
+            url = "https://graph.mapillary.com/?" + urllib.parse.urlencode({"access_token": tok, "ids": ",".join(image_ids[k:k + 50]), "fields": fields})
+            out += list(json.loads(fetch(url)).values())
     return out
 
 
@@ -148,7 +166,12 @@ def main():
     pad = 0.0004
     w0, e0, s0, n0 = pts[:, 0].min() - pad, pts[:, 0].max() + pad, pts[:, 1].min() - pad, pts[:, 1].max() + pad
     images = {}
-    x = w0
+    sequences = arg("--sequence")
+    if sequences:
+        for im in images_in_sequences(sequences.split(","), tok):
+            if im.get("thumb_1024_url") and not im.get("is_pano"):
+                images[im["id"]] = im
+    x = w0 if not sequences else e0
     while x < e0:
         y = s0
         while y < n0:
@@ -167,6 +190,7 @@ def main():
         grid[(int(c.c[0] // 40), int(c.c[1] // 40))].append(k)
 
     looks, sheet = [], []
+    why = defaultdict(int)  # what each photo or house fell at, printed at the end
     for hi, h in enumerate(houses):
         A, B = np.array(to_local(*h["front"][0])), np.array(to_local(*h["front"][1]))
         M = (A + B) / 2
@@ -188,12 +212,21 @@ def main():
                     d = cam.c - M
                     dist = float(np.linalg.norm(d))
                     # In front of the wall (either face: we don't know which way the house faces),
-                    # 5 to 22 m away, and not edge-on. Further off, the whole wall spans a degree or
+                    # 5 to 35 m away, and not edge-on. Further off, the whole wall spans a degree or
                     # two round the horizon and a little camera pitch puts the samples on the roof.
                     side = float(d @ nrm) / max(dist, 1e-6)
-                    if not (5 <= dist <= 22) or abs(side) < 0.35:
+                    if not (5 <= dist <= 35) or abs(side) < 0.3:
+                        continue
+                    # ...and in the shot: a forward-facing phone sees a house beside the road only
+                    # while it's still ahead, so the nearest photos are often the useless ones.
+                    im = images[k]
+                    size = (1024, int(1024 * im.get("height", 768) / max(1, im.get("width", 1024))))
+                    inside = sum(1 for t, z in band if cam.project(A + (B - A) * t, z, size)) / len(band)
+                    if inside < 0.6:
                         continue
                     seen.append((k, dist, abs(side)))
+        if not seen:
+            why["house: no photo 5-35 m away with it in shot"] += 1
         seen.sort(key=lambda s: s[1])
         best = None
         for k, dist, facing in seen[:12]:
@@ -206,12 +239,14 @@ def main():
             uv = [cam.project(A + (B - A) * t, z, img.size) for t, z in band]
             got = [px[int(v), int(u)] for p in uv if p for u, v in [p]]
             if len(got) < len(band) * 0.6:
+                why["photo: wall out of frame"] += 1
                 continue
             got = np.array(got)
             r, g, b = got[:, 0], got[:, 1], got[:, 2]
             lum = got.mean(1)
             ok = ((2 * g - r - b) < 0.06) & ~((b > r + 0.08) & (lum > 0.55)) & (lum > 0.1)  # not leaves, sky or shadow
             if ok.mean() < 0.5:
+                why["photo: wall hidden (leaves, sky, shadow)"] += 1
                 continue
             wall = got[ok]
             med = np.median(wall, axis=0)
@@ -220,6 +255,8 @@ def main():
             loud = (max(med) - min(med)) / (max(med) + 1e-6) > 0.5
             f = classify(med) if spread < 0.12 and not loud else None
             weight = facing * ok.mean() * (1 / (1 + dist / 15))
+            if not f:
+                why["photo: wall not one material"] += 1
             if f:
                 votes[f] += weight
                 photos[f] += 1
@@ -230,6 +267,8 @@ def main():
             share = votes[top] / sum(votes.values())
             n = sum(1 for _ in votes)
             mid = ((h["front"][0][0] + h["front"][1][0]) / 2, (h["front"][0][1] + h["front"][1][1]) / 2)
+            if not (share >= 0.6 and photos[top] >= 2):
+                why["house: photos disagree or only one"] += 1
             if share >= 0.6 and photos[top] >= 2:
                 looks.append({"at": [round(mid[0], 7), round(mid[1], 7)], "facade": top, "confidence": round(share, 2), "photo": best[1] if best else None})
             if best and len(sheet) < 48:
@@ -240,6 +279,8 @@ def main():
     for lk in looks:
         counts[lk["facade"]] += 1
     print(f"looks for {len(looks)} houses: {dict(counts)} -> {out}.looks.json")
+    for k, v in sorted(why.items()):
+        print(f"   {v:5d}  {k}")
 
     # Contact sheet: each house's best photo, cropped round the wall samples, labelled.
     if sheet:
