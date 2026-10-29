@@ -125,7 +125,7 @@ Go from "a route" to "a town you can drive anywhere in".
 
 - 🔨 **One Busselton map.** `routes/busselton.json`: the Foreshore and the town centre as one area with every street and roundabout drivable, and three layouts (the Foreshore circuit, the town loop, free roam from the car parks), about 1.28M triangles. A private whole map adds the estate, joined by the Home Run: five layouts, 1.31M triangles after a thinning pass. Every check passes on both. Next: test them in game. Tuart Drive stays its own track; it goes in a South West map later. [docs/one-map.md](docs/one-map.md)
 
-- ✅ **Area builds** (29 Oct): `build.area`, a polygon whose every street is built and drivable, streets from OSM's own geometry. Still to do: tracing those streets from the photo.
+- ✅ **Area builds** (29 Oct): `build.area`, a polygon whose every street is built and drivable, streets from OSM's own geometry. Every street is traced from the photo (30 Oct).
 - ✅ **Spawn points around town** (30 Oct): free roam starts in the ten biggest car parks.
 - ⬜ **Traffic lights** where OSM maps them, with working phases (CSP).
 - ⬜ **Points of interest:** viewpoints and places to stop, as in Arrabassada.
