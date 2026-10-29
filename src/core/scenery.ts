@@ -260,7 +260,7 @@ export function buildTrees(spots: TreeSpot[], ground: HeightFn, name = "TREES"):
  * Axis-aligned-to-the-road box: `along` is the unit direction of its length.
  * Faces wind counter-clockwise from outside.
  */
-export function box(mb: MeshBuilder, c: Vec2, along: Vec2, length: number, depth: number, z0: number, z1: number): void {
+export function box(mb: MeshBuilder, c: Vec2, along: Vec2, length: number, depth: number, z0: number, z1: number, faceU?: [number, number][]): void {
   const ax = along[0] * length / 2, ay = along[1] * length / 2;
   const bx = -along[1] * depth / 2, by = along[0] * depth / 2;
   const corners: Vec2[] = [
@@ -275,10 +275,12 @@ export function box(mb: MeshBuilder, c: Vec2, along: Vec2, length: number, depth
     const ex = q[0] - p[0], ey = q[1] - p[1], el = Math.hypot(ex, ey) || 1;
     const n: Vec3 = [ey / el, -ex / el, 0];
     const i = mb.vertexCount;
-    mb.vertex([p[0], p[1], z0], 0, 1);
-    mb.vertex([q[0], q[1], z0], 1, 1);
-    mb.vertex([q[0], q[1], z1], 1, 0);
-    mb.vertex([p[0], p[1], z1], 0, 0);
+    // Which part of the texture each side shows (sides 1 and 3 face along the box), the whole width by default.
+    const [u0, u1] = faceU?.[k] ?? [0, 1];
+    mb.vertex([p[0], p[1], z0], u0, 1);
+    mb.vertex([q[0], q[1], z0], u1, 1);
+    mb.vertex([q[0], q[1], z1], u1, 0);
+    mb.vertex([p[0], p[1], z1], u0, 0);
     for (let j = 0; j < 4; j++) mb.normals!.push(...n);
     mb.quad(i, i + 1, i + 2, i + 3);
   }
@@ -405,6 +407,13 @@ export function buildGuardRails(
   return { rails, posts: posts.all().map((m, i) => m.toKn5(`RAILPOSTS_${pad(i)}`, "steel")) };
 }
 
+/**
+ * Australian guide posts (AS 1742.2): white, every 50 m each side, except where a rail runs. Each shows a
+ * red reflector to traffic with the post on its left and a white one to traffic with it on the right.
+ * Texture: the left third has the red reflector, the middle third the white one, the right third is plain.
+ */
+const POST_RED: [number, number] = [0.02, 0.31], POST_WHITE: [number, number] = [0.35, 0.64], POST_PLAIN: [number, number] = [0.7, 0.98];
+
 /** White guide posts every 50 m each side, except where a rail runs. */
 export function buildGuidePosts(plan: RoadPlan, opts: BuildOptions, needs: [boolean[], boolean[]]): Kn5MeshNode[] {
   const out = new ChunkedMesh(20);
@@ -419,7 +428,12 @@ export function buildGuidePosts(plan: RoadPlan, opts: BuildOptions, needs: [bool
       const half = p.width / 2;
       const t = sign * (half + opts.vergeWidth * 0.75);
       const z = surfaceHeight(p, sign * half, opts.crown) - 0.2 * 0.75;
-      box(out.next(), [p.pos[0] + p.left[0] * t, p.pos[1] + p.left[1] * t], p.tan, 0.1, 0.05, z - 0.3, z + 1.0);
+      // Flat face to the traffic: 5 cm along the road, 10 cm across. Side 3 faces back down the road (traffic
+      // going along it, with a left-hand post on its left), side 1 faces traffic coming the other way.
+      const faces: [number, number][] = side === 0
+        ? [POST_PLAIN, POST_WHITE, POST_PLAIN, POST_RED]
+        : [POST_PLAIN, POST_RED, POST_PLAIN, POST_WHITE];
+      box(out.next(), [p.pos[0] + p.left[0] * t, p.pos[1] + p.left[1] * t], p.tan, 0.05, 0.1, z - 0.3, z + 1.0, faces);
     }
   }
   return out.all().map((m, i) => m.toKn5(`GUIDEPOSTS_${pad(i)}`, "guidepost"));

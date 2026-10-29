@@ -397,14 +397,16 @@ export function railTexture(): Uint8Array {
   }), w, h, { alpha: false });
 }
 
-/** Guide post: white with a black band near the top and a reflector. */
+/** Guide post, Australian style: white, red reflector on one face and white on the other. */
 export function postTexture(): Uint8Array {
-  const w = 16, h = 64;
+  // Australian guide post, 1.3 m: white all over, a reflector near the top (18 x 5 cm, about 40 to 50 cm
+  // of it down from the top on the 64-pixel height). Left third: red reflector; middle: white; right: plain.
+  const w = 48, h = 64;
   return encodePng(fill(w, h, (x, y) => {
-    if (y < 6) return [30, 30, 30];
-    if (y >= 8 && y < 16) return x < 8 ? [230, 40, 30] : [240, 170, 30];
-    if (y < 22) return [25, 25, 25];
-    return [232, 232, 226];
+    const third = Math.floor(x / 16), inX = x % 16;
+    if (third < 2 && y >= 3 && y < 12 && inX >= 3 && inX < 13) return third === 0 ? [215, 25, 25] : [250, 250, 250];
+    const shade = third < 2 && (y === 2 || y === 12) ? 0.9 : 1;
+    return [236 * shade, 236 * shade, 230 * shade];
   }), w, h, { alpha: false });
 }
 
