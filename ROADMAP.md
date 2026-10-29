@@ -8,23 +8,23 @@ Status key: ✅ done · 🔨 in progress · ⬜ planned · ❓ needs checking fi
 
 ---
 
-## Where we are (v0.6, 29 October 2026)
+## Where we are (v0.7, 29 October 2026)
 
-Four tracks build from route files with one command, then pass automatic checks:
+Five tracks build from route files with one command, then pass automatic checks:
 
 - **Busselton Foreshore**: a 4.3 km circuit along Geographe Bay Rd, Queen St and Marine Tce.
 - **Busselton town centre**: a 2.2 km loop down Queen St, along Albert St and back by Marine Tce, with shopfronts and traffic.
 - **Tuart Drive, Ludlow**: 16.6 km point to point through Tuart Forest, from Wonnerup to Ludlow.
-- **A 3.6 km point-to-point sprint** through the western suburbs (its route file is private).
+- **A 3.6 km point-to-point sprint** through the western suburbs, and **a whole-estate build** where every street inside the estate is drivable (both route files private).
 
 What a build has today:
 
 - ✅ Landgate aerial imagery and Geoscience Australia's 5 m LiDAR heights for Busselton, Vasse and Broadwater
 - ✅ Smooth town roads: no banking, kerbs at the right height, flat roundabouts
-- ✅ Close-up ground detail (`ksMultilayer`), with Grass FX tuned for straw-coloured verges
+- ✅ Close-up ground detail (`ksMultilayer`, upstream's grass, dirt and paving), with Grass FX tuned for straw-coloured verges
 - ✅ Local trees: she-oak, Norfolk pine, peppermint and tuart
 - ✅ The red shared path and footpaths
-- ✅ WA houses (hip roofs, brick and render, garages), plus Colorbond fences, front walls, hedges and garden beds
+- ✅ Upstream's building types (about 60 wall finishes, 20 roofs, shops, flats, sheds), plus Colorbond fences, front walls, hedges and garden beds
 - ✅ Street lights with CSP night lighting
 - ✅ The bay as water, and the 1.8 km jetty
 - ✅ Horizon tree lines
@@ -37,6 +37,10 @@ What a build has today:
 - ✅ Shopfronts: verandahs on posts, fascia signs and shop windows where the photo and map show shops
 - ✅ Forest: grey-olive tuart and eucalypt canopy read from the photo as trees (Tuart Drive went from 1,700 to about 8,000)
 - ✅ A performance budget check on every build, and checks that work on long tracks
+- ✅ Parked cars back where the photo had them, real shop names on the verandah signs
+- ✅ Builds that retry map data and stop if any is still missing, so they come out the same every time
+- ✅ House looks: wall kind and colour from street photos or set by hand, front hedges and trees, and an area's own mix of facades
+- ✅ The AI slowed to the speed limit (50 in town) and for tight corners, tested in an everyday car
 
 ---
 
@@ -66,6 +70,7 @@ Get the base right before adding more.
 - 🔨 **The AI driving off the road.** The main cause was found and fixed on 28 Oct: spawn points faced backwards, so the AI's first move was a U-turn. Since then:
   - corner hints (`ai_hints.ini`) for tight corners, and the AI kept a metre off the kerbs
   - a smoothed line through roundabouts
+  - (29 Oct) hints slowing it to the speed limit (50 in town), roundabouts found where the route goes straight over them, and the workstation test now driving an everyday hatch instead of a GT3 (which hit 174 km/h on a suburban street)
 
   The AI now gets 2.4 km round the Foreshore (past the 2.1 km corner and the first roundabout), then beaches on the nature strip at the exit of the second roundabout. A GT3 car on kerbed town streets will keep finding kerbs, so this is about good enough: traffic is what fills the streets.
 - 🔨 **In-game check.** Done: roundabout lip (fixed), power poles, night lighting. Still to check: ground detail scale, Grass FX on dry verges, the water edge, frame rate on the RTX 4060.
@@ -101,7 +106,7 @@ Make town feel like town before going regional.
 
 Go from "a route" to "a town you can drive anywhere in".
 
-- ⬜ **Area builds:** the whole road network inside a boundary, not just one route. Every junction, roundabout and side street is drivable. Street2Sim sells this as area builds; we'd build it from the OSM road graph.
+- 🔨 **Area builds:** the whole road network inside a boundary, not just one route. ✅ First version: a loop round an estate with a wide corridor builds every street inside it (a whole estate, private). Still to do: a boundary instead of a loop, and spawn points spread round the area.
 - ⬜ **Spawn points around town:** grid and pit spots in real car parks (foreshore, shopping centre, the jetty), so you can start anywhere.
 - ⬜ **Traffic lights** where OSM maps them, with working phases (CSP).
 - ⬜ **Points of interest:** viewpoints and places to stop, as in Arrabassada.

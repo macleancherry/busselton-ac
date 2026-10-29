@@ -36,14 +36,16 @@ Both Windows machines can run AC at the same time; LAN racing uses Content Manag
    - road edges on the real road in the overlay: look at it, at least the corners and start/finish
 4. Install (workstation): `scripts\windows\install-track.ps1` unzips into AC and optionally copies to the rig.
 4b. Surface check: `npx tsx scripts/check/dump_surface.ts out/<slug>.zip out/<slug>.surface.json` then `python3 -I scripts/check/surface_check.py out/<slug>.surface.json`. Driving line kinks should be 0, max tilt about 3%, and edge steps around kerb height (15 to 20 cm median).
-4c. Renders: add `SHOTS=0.02,0.25,0.5` (lap fractions, or `lng:lat:lookLng:lookLat:height`) to the build command for driver's-eye PNGs in `out/`. They come from the three.js preview: photo ground only, no ksMultilayer detail or CSP.
+4c. Renders: add `SHOTS=0.02,0.25,0.5` (lap fractions, `lng:lat:lookLng:lookLat:height`, or `car0`..`car9` to look at parked cars) to the build command for driver's-eye PNGs in `out/`. They come from the three.js preview: photo ground only, no ksMultilayer detail or CSP.
 4d. Traffic (when the route has `traffic: true`): `python3 -I scripts/check/traffic_check.py out/<slug>.zip out/<slug>.surface.json` must pass (no overlapping intersections, no loose lane ends, lanes on asphalt, no parked car in a lane).
 4e. Budget: `npx tsx scripts/check/budget.ts out/<slug>.zip` (triangles, draw calls, texture memory, kn5 size against limits for the RTX 4060) must pass.
 5. Smoke test (workstation, reported back, never fixed there): it loads, the car spawns on the grid, timing and pits work, and AI completes a lap.
 5b. Traffic test (workstation or rig): `docs/traffic-test.md`.
-5c. Automatic AI test (workstation, unattended): `scripts\windows\run-test.ps1 -Zip <zip>` installs the build, starts a practice session with the AI driving the player's car (the build's `extension/autotest.lua` track script, active only for a driver named "Busselton Test"), logs the drive and takes screenshots, quits, and puts logs, screenshots, replay and `btest.csv` in `$env:BUSSELTON_TEST_SHARE\<date>-<slug>` plus a zip. Mac attaches the zip here; read it with `python3 -I scripts/check/autotest_report.py <zip> out/<slug>.surface.json`.
+5c. Automatic AI test (workstation, unattended): `scripts\windows\run-test.ps1 -Zip <zip>` installs the build, starts a practice session with the AI driving the player's car (an Abarth 500 at AI level 75 by default: town streets, not a race; `-Car`, `-AiLevel` change it) (the build's `extension/autotest.lua` track script, active only for a driver named "Busselton Test"), logs the drive and takes screenshots, quits, and puts logs, screenshots, replay and `btest.csv` in `$env:BUSSELTON_TEST_SHARE\<date>-<slug>` plus a zip. Mac attaches the zip here; read it with `python3 -I scripts/check/autotest_report.py <zip> out/<slug>.surface.json`.
 
 Busselton is flat, so town routes use `"banking": false` in options, plus `terrainStep: 1.5` and `terrainUnderRoad: 0.12` in `build`. The upstream defaults are for hilly roads: up to 6% banking, a 3 m terrain grid and ground sunk 0.6 m under the road, which together made tilted corners and 40 to 60 cm drops at the road edges here.
+
+House looks: `HOUSE_LOOKS=out/<slug>.looks.json,routes/private/<file>.json` (comma-separated, later files win) gives particular houses their facade (a wall kind like `weatherboard`, or an upstream facade name like `wb_blue`), front hedge and height, and front-yard trees. `scripts/mapillary/house_looks.py out/<slug>.houses.json [--sequence <id>] [--min-photos 1]` makes the photo looks from Mapillary. An area's own mix goes in the route's `build.houseStyle` (`{ "facades": { "wb_white": 3, ... } }`).
 
 Pins snap to the nearest road. A pin near a car park, side street or the far carriageway of a divided road makes a detour or a U-turn spike. Put pins mid-block on the road you want, or leave them out and let the route follow the road.
 
@@ -60,7 +62,9 @@ honestjams/ac-track-builder moves fast and often builds things we also want. Aft
 - `src/core/`: the pipeline (no DOM, runs in Node tests). `track.ts` is `buildTrack(route, options, sources)`.
 - `src/services/tiles.ts`: imagery sources (`IMAGERY`, WA = Landgate Locate ImageServer by bbox) and elevation (`STATE_DEMS`, WA = static Terrarium tiles in `public/dem/wa/15`).
 - `src/services/osm.ts`: OSRM routing (reports `uturns`), Overpass, geocoding.
-- `src/ui/main.ts`: the browser UI. In dev mode it exposes `window.__app` (addPin, result), which the headless script uses.
+- `src/services/pipeline.ts`: the build from fetching data to files, run in a Web Worker (`src/ui/buildWorker.ts`). Data sources the fork adds (coast, paths, house looks, shop signs, missing-data warnings) go here, not in main.ts; anything from the page reaches it through the `BuildJob`.
+- `src/ui/main.ts`: the browser UI. In dev mode it exposes `window.__app` (addPin, result, preview, dataWarnings), which the headless script uses.
+- `src/core/buildingStyles.ts` (upstream): facades, roofs and building types. `src/core/houseLooks.ts` (fork) maps house looks and `houseStyle` onto them.
 - `scripts/dem/make_wa_tiles.py`: regenerates the DEM tiles from GA's 5 m mosaic. The box must match `STATE_DEMS.wa.box`.
 - Tests: `npx vitest run`. Type-check: `npx tsc --noEmit`. Run both before committing.
 
@@ -73,7 +77,7 @@ honestjams/ac-track-builder moves fast and often builds things we also want. Aft
 
 ## Privacy
 
-The fork is public. Never commit anything that locates Mac's home: street names, pins or notes near it. Personal routes live in `routes/private/` (gitignored), including the Home Run. Commit as `macleancherry <2775263+macleancherry@users.noreply.github.com>`, never a personal email.
+The fork is public. Never commit anything that locates Mac's home: street names, pins or notes near it. Personal routes live in `routes/private/` (gitignored), including the Home Run, the estate build and the hand-set look of Mac's house. Builds of those, and their renders, never go anywhere public. Commit as `macleancherry <2775263+macleancherry@users.noreply.github.com>`, never a personal email.
 
 ## Data rules
 
