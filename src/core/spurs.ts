@@ -46,6 +46,16 @@ export function trimSpurs(coords: LngLat[], uturns: LngLat[]): Trimmed {
 
   const ranges: [number, number][] = [];
   const cut: LngLat[] = [], kept: LngLat[] = [];
+  // Where each reported U-turn is along the route.
+  const turnsAt = uturns.map((u) => {
+    const up = local(u);
+    let s = 0, bd = Infinity;
+    for (const q of samples) {
+      const d = Math.hypot(q.p[0] - up[0], q.p[1] - up[1]);
+      if (d < bd) [bd, s] = [d, q.s];
+    }
+    return bd <= 30 ? s : -1;
+  });
   for (const u of uturns) {
     const up = local(u);
     // The U-turn's place on the route: the nearest sample.
@@ -58,7 +68,7 @@ export function trimSpurs(coords: LngLat[], uturns: LngLat[]): Trimmed {
       if (best > 30) kept.push(u);
       continue;
     }
-    const span = spurAround(samples, k, total);
+    const span = spurAround(samples, k, total, turnsAt);
     if (!span) {
       kept.push(u);
       continue;
@@ -95,7 +105,7 @@ function resample(pts: [number, number][], cum: number[], total: number): Sample
  * The longest stretch [s0, s1] around sample k whose ends run alongside each
  * other (or the route's own start or end, for a spur at a pin at either end).
  */
-function spurAround(samples: Sample[], k: number, total: number): [number, number] | null {
+function spurAround(samples: Sample[], k: number, total: number, turnsAt: number[] = []): [number, number] | null {
   // Search a little past the limit: a spur whose arms still run alongside
   // there is longer than the limit, and is left alone rather than cut short.
   const limit = Math.min(MAX_CUT, total * MAX_SHARE);
@@ -110,7 +120,12 @@ function spurAround(samples: Sample[], k: number, total: number): [number, numbe
       if (b.s - a.s < MIN_SPAN) break;
       if (found && b.s - a.s <= found[1] - found[0]) break;
       const d = Math.hypot(a.p[0] - b.p[0], a.p[1] - b.p[1]);
-      const par = Math.abs(a.dir[0] * b.dir[0] + a.dir[1] * b.dir[1]);
+      // Out and back, the arms run opposite ways; out, back and out again (two U-turns between
+      // them), the same way. Two points the same way along one road either side of a single spur
+      // up a side street are not its arms: taking them cut a corner across a block.
+      const dot = a.dir[0] * b.dir[0] + a.dir[1] * b.dir[1];
+      const turns = turnsAt.filter((t) => t > a.s && t < b.s).length;
+      const par = turns >= 2 ? Math.abs(dot) : -dot;
       if (d <= SEP && par > 0.8) {
         found = [a.s, b.s];
         break;

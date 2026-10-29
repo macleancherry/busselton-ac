@@ -54,6 +54,17 @@ describe("U-turn spurs", () => {
     expect(length(t.coords)).toBeLessThan(1010);
   });
 
+  it("cuts a spur up a side street without cutting the corner before it", () => {
+    // North up one street, left along another, up a side street to a pin, back, and on west.
+    const route = line([0, -300], [0, 0], [-100, 0], [-100, 60], [-100, 0], [-400, 0]);
+    const t = trimSpurs(route, [ll([-100, 60])]);
+    expect(t.cut).toHaveLength(1);
+    const pts = t.coords.map(xy);
+    // The corner at (0, 0) is still there, and nothing goes up the side street.
+    expect(pts.some((p) => Math.hypot(p[0], p[1]) < 2)).toBe(true);
+    expect(Math.max(...pts.map((p) => p[1]))).toBeLessThan(15);
+  });
+
   it("leaves a long out-and-back alone rather than cut it short", () => {
     // Out on the near side, round, back on the far side and on south from there.
     const route = line([0, 0], [0, 300], [0, 600], [10, 600], [10, 300], [10, 0], [10, -500]);
