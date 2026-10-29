@@ -90,6 +90,7 @@ Get the base right before adding more.
 - ✅ **Terrain level of detail.** Fine grid near the road, flat blocks drawn as fans further out: the Foreshore went from 1.0M to 0.75M triangles.
 - ✅ **Performance budget per track.** `scripts/check/budget.ts`: triangles, draw calls, texture memory and kn5 size per build, checked against limits, with the biggest groups listed.
 - ⬜ **Layouts.** One track folder with several layouts (circuit, sprint, free roam), the way Kunos and the big mods do it. First use: the single Busselton map (Phase 3).
+- 🔨 **Blender trial** (29 Oct): `scripts/blender/house.py` builds and renders a house from a spec (sizes, cladding, roof, garage, windows, hedge, trees, street) with Cycles on the workstation's GPU, and can export it as glTF for AC later.
 - ⬜ **Export for Blender.** FBX (and maybe `.blend`) of the generated base, so hand-made detail lines up exactly and survives rebuilds (layered with `models.ini`).
 
 ## Phase 2: Busselton, properly 🔨

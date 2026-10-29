@@ -1,0 +1,10 @@
+{
+  "note": "A made-up WA estate house for trying scripts/blender/house.py. Real houses' specs are private (routes/private/).",
+  "width": 16,
+  "depth": 14,
+  "walls": { "kind": "weatherboard", "colour": "#e9e6dc" },
+  "roof": { "type": "hip", "pitch": 24, "colour": "#55585b" },
+  "garage": { "side": "right" },
+  "hedge": { "height": 0 },
+  "trees": [{ "x": -4, "y": -3.5, "height": 5, "spread": 3.5 }]
+}
