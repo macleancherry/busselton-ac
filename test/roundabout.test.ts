@@ -164,3 +164,14 @@ describe("rings the route crosses without a routing hint", () => {
     expect(ringsOnRoute([ring(0, 0, 10)], road, [{ c: [1, 0], r: 10 }])).toHaveLength(0);
   });
 });
+
+describe("AI hints from speed limits", () => {
+  it("slows town streets to the limit and keeps the lower of corner and limit", async () => {
+    const { aiHintsIni } = await import("../src/core/aiLine");
+    const pts = Array.from({ length: 100 }, (_, i) => ({ distance: i * 10, length: 10, radius: i === 50 ? 15 : 1000 })) as never[];
+    const ini = aiHintsIni(pts, () => 50);
+    expect(ini).toMatch(/VALUE=0\.5\n/);
+    expect(ini).not.toMatch(/VALUE=0\.6\n/); // the corner's 0.6 is above the town's 0.5
+    expect(aiHintsIni(pts, () => 100)).toMatch(/VALUE=0\.6\n/);
+  });
+});

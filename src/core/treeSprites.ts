@@ -164,29 +164,51 @@ function norfolk(cv: Canvas, r: () => number): void {
 }
 
 function tuart(cv: Canvas, r: () => number): void {
-  const bark: RGB = [178, 172, 160];
-  const tx = 256, fork = 640;
-  cv.line(tx, 1024, tx + 6, fork, 26, 18, (t) => shade(jitter(bark, r, 0.18), 0.8 + 0.2 * t));
-  const ends: [number, number][] = [];
-  for (let i = 0; i < 4; i++) {
-    const ex = Math.max(110, Math.min(402, tx + (i - 1.5) * 110 + (r() - 0.5) * 50)), ey = 420 - r() * 160;
-    cv.line(tx + 6, fork, ex, ey, 14, 5, () => shade(jitter(bark, r, 0.2), 0.95));
-    for (let j = 0; j < 3; j++) {
-      const bx = ex + (r() - 0.5) * 170, by = ey - 30 - r() * 110;
-      cv.line(ex, ey, bx, by, 5, 2, () => jitter(bark, r, 0.2));
-      ends.push([bx, by]);
+  // Rough grey, fissured bark (not the white of a ghost gum), a stout trunk forking low into
+  // crooked limbs, and a broad, lumpy crown that hides most of them.
+  const bark: RGB = [116, 110, 100];
+  const tx = 256, fork = 700;
+  // Trunk: rounded shading across it and dark vertical fissures, a little flared at the foot.
+  const streak = Array.from({ length: 64 }, () => 0.72 + r() * 0.4);
+  for (let y = fork; y <= 1024; y++) {
+    const t = (y - fork) / (1024 - fork);
+    const w = 15 + t * 5 + (t > 0.9 ? (t - 0.9) * 60 : 0);
+    const cx = tx + 4 * (1 - t);
+    for (let dx = -w; dx <= w; dx++) {
+      const round = 0.62 + 0.38 * Math.cos((dx / w) * 1.3 - 0.35);
+      const fissure = streak[Math.floor((dx + w) / 3) % streak.length];
+      cv.put(cx + dx, y, jitter(shade(bark, round * fissure), r, 0.12));
     }
   }
-  // Open crown of separate olive clumps with sky between them.
-  const leafC: RGB = [84, 98, 60];
+  // Limbs: crooked, each in three bends, forking again near the top.
+  const ends: [number, number][] = [];
+  const limbs = 5 + Math.floor(r() * 2);
+  for (let i = 0; i < limbs; i++) {
+    let x = tx + 4, y = fork + 10, ang = (i / (limbs - 1) - 0.5) * 1.5 + (r() - 0.5) * 0.3, w = 10;
+    for (let seg = 0; seg < 3; seg++) {
+      const len = 70 + r() * 60;
+      ang += (r() - 0.5) * 0.6;
+      const nx = x + Math.sin(ang) * len, ny = y - Math.cos(ang) * len;
+      cv.line(x, y, nx, ny, w, w - 2.5, () => shade(jitter(bark, r, 0.25), 0.85));
+      [x, y, w] = [nx, ny, w - 2.5];
+    }
+    for (let j = 0; j < 3; j++) {
+      const bx = x + (r() - 0.5) * 140, by = y - 40 - r() * 90;
+      cv.line(x, y, bx, by, 3, 1.5, () => jitter(bark, r, 0.25));
+      ends.push([Math.max(80, Math.min(432, bx)), by]);
+    }
+  }
+  // Crown: many olive clumps round the branch ends and down along the outer limbs, overlapping,
+  // darker underneath, with a few gaps for sky.
+  const leafC: RGB = [74, 92, 52];
   for (const [ex, ey] of ends) {
-    const clumps = 5 + Math.floor(r() * 3);
+    const clumps = 4 + Math.floor(r() * 3);
     for (let k = 0; k < clumps; k++) {
-      const cx = Math.max(70, Math.min(442, ex + (r() - 0.5) * 120)), cy = ey + (r() - 0.3) * 110, rad = 34 + r() * 34;
-      for (let j = 0; j < 320; j++) {
+      const cx = Math.max(64, Math.min(448, ex + (r() - 0.5) * 130)), cy = ey + (r() - 0.25) * 120, rad = 40 + r() * 36;
+      for (let j = 0; j < 300; j++) {
         const a = r() * Math.PI * 2, d = Math.sqrt(r()) * rad;
-        const x = cx + Math.cos(a) * d, y = cy + Math.sin(a) * d * 0.7;
-        leaf(cv, x, y, 4 + r() * 6, (r() - 0.5) * 0.8, lit(leafC, y, 40, 640, (cy - y) / rad, r));
+        const x = cx + Math.cos(a) * d, y = cy + Math.sin(a) * d * 0.72;
+        leaf(cv, x, y, 4 + r() * 6, (r() - 0.5) * 0.9, lit(leafC, y, 60, 700, (cy - y) / rad, r));
       }
     }
   }

@@ -112,6 +112,12 @@ export interface BuildOptions {
   carParks: boolean;
   /** Low-poly cars where the photo had parked cars (needs carParks). */
   parkedCars: boolean;
+  /**
+   * The look of houses in this area, when it isn't a typical Australian mix: weights per facade
+   * (e.g. a weatherboard estate) and wall colours to pick from. Street-photo and hand-set looks
+   * still win house by house.
+   */
+  houseStyle?: { facades: Partial<Record<"brick" | "weatherboard" | "render" | "creambrick" | "fibro", number>>; colours?: [number, number, number][] };
   /** Raise car parks' planted islands behind kerbs, read off the photo (experimental: tree canopy still fools it). */
   carParkIslands: boolean;
   /** No level-of-detail blocks within this distance of the road's centreline, metres. */

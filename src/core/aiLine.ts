@@ -124,24 +124,41 @@ export function buildAiLine(plan: RoadPlan): AiPoint[] {
 }
 
 /**
- * data/ai_hints.ini: the AI slows to VALUE x its own speed between START and END (fractions of the
- * lap). AC's AI works out its own corner speeds and takes town corners too fast for kerbed
- * streets, so tight corners (radius under 40 m) get a hint from 60 m before to 20 m after.
+ * AI hints (data/ai_hints.ini): the AI slows to VALUE x its own speed between START and END
+ * (fractions of the lap). AC's AI works out its own speeds, flat out between corners, so slow it
+ * where a person would. Tight corners (radius under
+ * 40 m: 0.72, under 20 m: 0.6, from 60 m before to 20 m after), and, given `limitAt` (the speed
+ * limit in km/h at a distance along the line), town streets: VALUE scales the AI's pace, so a
+ * 50 zone gets 0.5, a 60 zone 0.6, and 90 and up nothing. The lower of the two wins.
  */
-export function aiHintsIni(points: AiPoint[]): string {
+export function aiHintsIni(points: AiPoint[], limitAt?: (distance: number) => number | undefined): string {
   const total = points.length ? points[points.length - 1].distance + points[points.length - 1].length : 0;
   if (!total) return "";
-  const hints: { s0: number; s1: number; value: number }[] = [];
+  const value = points.map(() => 1);
   for (const p of points) {
     if (p.radius >= 40) continue;
-    const value = p.radius < 20 ? 0.6 : 0.72;
-    const s0 = p.distance - 60, s1 = p.distance + 20;
-    const last = hints[hints.length - 1];
-    if (last && s0 <= last.s1) {
-      last.s1 = s1;
-      last.value = Math.min(last.value, value);
-    } else hints.push({ s0, s1, value });
+    const v = p.radius < 20 ? 0.6 : 0.72;
+    points.forEach((q, j) => {
+      let d = q.distance - p.distance;
+      if (d > total / 2) d -= total;
+      if (d < -total / 2) d += total;
+      if (d >= -60 && d <= 20) value[j] = Math.min(value[j], v);
+    });
   }
+  if (limitAt) {
+    points.forEach((p, j) => {
+      const limit = limitAt(p.distance);
+      if (limit && limit < 90) value[j] = Math.min(value[j], Math.max(0.45, Math.round(limit / 10) / 10));
+    });
+  }
+  // Runs of the same value become one hint.
+  const hints: { s0: number; s1: number; value: number }[] = [];
+  points.forEach((p, j) => {
+    if (value[j] >= 1) return;
+    const last = hints[hints.length - 1];
+    if (last && last.value === value[j] && p.distance - last.s1 < 1.5 * (p.length || 1)) last.s1 = p.distance + p.length;
+    else hints.push({ s0: p.distance, s1: p.distance + p.length, value: value[j] });
+  });
   // One across the start line becomes two, each inside 0..1.
   const spans: [number, number, number][] = [];
   for (const h of hints) {

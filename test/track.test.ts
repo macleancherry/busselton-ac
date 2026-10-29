@@ -178,7 +178,9 @@ describe("buildTrack (synthetic terrain)", async () => {
     const ai = readFastLaneAi(result.files["test_hairpin/ai/fast_lane.ai"]);
     // The hairpin gets a slow-down hint for the AI, inside the lap.
     const hints = new TextDecoder().decode(result.files["test_hairpin/data/ai_hints.ini"]);
-    expect(hints).toMatch(/\[HINT_0\]\nSTART=0\.\d+\nEND=0\.\d+\nVALUE=0\.6/);
+    expect(hints).toMatch(/\[HINT_\d+\]\nSTART=0\.\d+\nEND=0\.\d+\nVALUE=0\.6\n/);
+    // ...and the rest of this country road its 80 km/h limit (no town here).
+    expect(hints).toMatch(/VALUE=0\.8\n/);
     expect(ai.length).toBe(result.plan.samples.length);
     // distances run along the 3D road, so slightly longer than the map length
     expect(ai[ai.length - 1].distance).toBeGreaterThan(result.plan.length * 0.99);

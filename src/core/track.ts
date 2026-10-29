@@ -756,6 +756,13 @@ export async function buildTrack(
     const houses = centres.filter(near(150)).length, grid = streets.filter((st) => st.pts.some(near(120))).length;
     town.push(houses >= 20 || grid >= 5 ? 2 : houses >= 8 || grid >= 3 ? 1 : 0);
   });
+  // Speed limit at a sample, km/h, by road class and how built-up it is (traffic and the AI's hints).
+  const speedAt = (i: number) => {
+    const cls = sources.roadClassAt?.(proj.toLngLat(plan.samples[i].pos)) ?? "";
+    if (/^(motorway|trunk)/.test(cls)) return town[i] ? 70 : 100;
+    if (/^primary/.test(cls)) return town[i] ? 60 : 90;
+    return town[i] >= 1 ? 50 : 80;
+  };
   let kerbs: [number[], number[]] = [new Array(nS).fill(0), new Array(nS).fill(0)];
   if (opts.kerbs) {
     const tr = trace;
@@ -1122,6 +1129,24 @@ export async function buildTrack(
   };
   const shown = opts.horizon > 0 ? kept : kept.filter((b) => b.ring.every(([x, y]) => index.nearest(x, y, opts.corridor - 1)));
   const homes = shown.filter((b) => b.ring.length === 4 && b.roof !== "flat" && b.height <= 7.5);
+  if (opts.houseStyle) {
+    // The area's own mix of facades and wall colours, the same for a house every build.
+    const kinds = Object.entries(opts.houseStyle.facades).filter(([k, w]) => FACADES.includes(k as (typeof FACADES)[number]) && (w ?? 0) > 0) as [(typeof FACADES)[number], number][];
+    const total = kinds.reduce((a, [, w]) => a + w, 0);
+    const colours = opts.houseStyle.colours ?? [];
+    for (const b of homes) {
+      const c = centroid(b.ring);
+      const h = (n: number) => ((Math.round(c[0] * 10) * 73856093) ^ (Math.round(c[1] * 10) * 19349663) ^ n) >>> 0;
+      let pick = (h(1) % 10000) / 10000 * total;
+      for (const [k, w] of kinds) {
+        if ((pick -= w) < 0) {
+          b.facade = FACADES.indexOf(k);
+          break;
+        }
+      }
+      if (colours.length && FACADES[b.facade] !== "brick" && FACADES[b.facade] !== "creambrick") b.wallColour = colours[h(2) % colours.length];
+    }
+  }
   for (const b of homes) {
     if (b.front) continue;
     let best = -1, bestGap = 25;
@@ -1146,6 +1171,29 @@ export async function buildTrack(
       const m = frontMid(b);
       const d = m ? Math.hypot(m[0] - x, m[1] - y) : Infinity;
       if (d < bestD) [best, bestD] = [b, d];
+    }
+    // A house whose street wall wasn't worked out: matched by being inside it (or its middle near).
+    if (!best) {
+      best = homes.find((b) => pointInRing(x, y, b.ring)) ?? null;
+      if (!best) {
+        let bd = 6;
+        for (const b of homes) {
+          const c = centroid(b.ring), d = Math.hypot(c[0] - x, c[1] - y);
+          if (d < bd) [best, bd] = [b, d];
+        }
+      }
+      // Its street wall: the long-enough edge nearest a road.
+      if (best && !best.front) {
+        const ring = best.ring;
+        let bi = -1, bg = Infinity;
+        for (let k = 0; k < ring.length; k++) {
+          const p = ring[k], q = ring[(k + 1) % ring.length];
+          if (Math.hypot(q[0] - p[0], q[1] - p[1]) < 4) continue;
+          const g = roadGap((p[0] + q[0]) / 2, (p[1] + q[1]) / 2);
+          if (g < bg) [bi, bg] = [k, g];
+        }
+        if (bi >= 0) best.front = [ring[bi], ring[(bi + 1) % ring.length]];
+      }
     }
     if (!best) continue;
     const f = look.facade ? FACADES.indexOf(look.facade as (typeof FACADES)[number]) : -1;
@@ -1295,12 +1343,6 @@ export async function buildTrack(
       }
       return n * 2 > m;
     };
-    const speedAt = (i: number) => {
-      const cls = sources.roadClassAt?.(proj.toLngLat(plan.samples[i].pos)) ?? "";
-      if (/^(motorway|trunk)/.test(cls)) return town[i] ? 70 : 100;
-      if (/^primary/.test(cls)) return town[i] ? 60 : 90;
-      return town[i] >= 1 ? 50 : 80;
-    };
     let run: number[] = [];
     const flush = () => {
       if (run.length >= 2) {
@@ -1367,7 +1409,10 @@ export async function buildTrack(
   const files: Record<string, Uint8Array> = {
     [`${slug}/${slug}.kn5`]: kn5,
     [`${slug}/ai/fast_lane.ai`]: ai,
-    [`${slug}/data/ai_hints.ini`]: enc.encode(aiHintsIni(aiPoints)),
+    [`${slug}/data/ai_hints.ini`]: enc.encode(aiHintsIni(aiPoints, (d) => {
+      const last = aiPoints[aiPoints.length - 1], total = last.distance + last.length;
+      return speedAt(Math.min(nS - 1, Math.max(0, Math.round((d / total) * (nS - 1)))));
+    })),
     [`${slug}/data/surfaces.ini`]: enc.encode(surfacesIni(opts.traffic)),
     ...(opts.traffic ? { [`${slug}/data/traffic.json`]: enc.encode(trafficText) } : {}),
     [`${slug}/data/map.ini`]: enc.encode(map.ini),
