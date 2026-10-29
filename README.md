@@ -36,6 +36,7 @@ On top of upstream's builder (roads, roundabouts, building types, ground detail,
 - **Whole-area builds.** A loop round an estate with a wide corridor builds every street inside it as drivable road.
 - **Australian roadsides.** White guideposts with red and white reflectors, kangaroo signs on country roads, bus stops with shelters.
 - **Paths, street lights, power poles and signs** from OpenStreetMap and Mapillary detections, with CSP night lighting.
+- **Checkpoint challenges.** Each build lists up to six checkpoints along the drive (`data/challenges.ini`); the Busselton Challenges Lua app (`apps/lua/BusseltonChallenges`, copied into AC by `install-track.ps1`) times you round them.
 - **Private routes.** Anything in `routes/private/` stays out of git.
 
 ## Sent upstream

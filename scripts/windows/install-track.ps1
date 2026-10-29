@@ -103,4 +103,13 @@ if ($RigTracks) {
   if (Test-Path $RigTracks) { Install-Into $RigTracks }
   else { Write-Warning "Rig share $RigTracks isn't reachable; skipped. Is the rig on?" }
 }
+# The Busselton Challenges app (checkpoints against the clock; each build ships its checkpoints).
+$app = Join-Path $repo "apps\lua\BusseltonChallenges"
+if (Test-Path $app) {
+  $appDest = Join-Path $AcPath "apps\lua\BusseltonChallenges"
+  New-Item -ItemType Directory -Force -Path $appDest | Out-Null
+  Copy-Item (Join-Path $app "*") $appDest -Recurse -Force
+  Write-Host "Installed the Busselton Challenges app -> $appDest" -ForegroundColor Green
+}
 Write-Host "Done. In Content Manager, refresh the track list (or restart it) to see $slug."
+Write-Host "In game, open Busselton Challenges from the apps bar on the right to drive the checkpoints."

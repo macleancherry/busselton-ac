@@ -47,6 +47,7 @@ import { extConfig } from "./cspConfig";
 import { buildBarriers } from "./fences";
 import { chunkPhotoSampler, frontageHouses } from "./frontage";
 import { ArtList, type ArtRenderer } from "./art";
+import { challengeCheckpoints, challengesIni } from "./challenges";
 import { buildPieces, gateSigns, kangarooSigns, landmarks, mergeSightings, seenFeatures, streetSigns } from "./furniture";
 import { barrierConcreteTexture, catchFenceTexture, crowdTexture, raceDressing, tyreWallTexture } from "./raceDress";
 import { placeUtilities } from "./utilities";
@@ -1581,6 +1582,10 @@ export async function buildTrack(
     [`${slug}/data/surfaces.ini`]: enc.encode(surfacesIni(opts.traffic)),
     ...(opts.traffic ? { [`${slug}/data/traffic.json`]: enc.encode(trafficText) } : {}),
     [`${slug}/data/map.ini`]: enc.encode(map.ini),
+    // Busselton fork: checkpoints for the Busselton Challenges app (apps/lua/BusseltonChallenges).
+    [`${slug}/data/challenges.ini`]: enc.encode(challengesIni(opts.name, challengeCheckpoints(plan,
+      (x, y, r) => index.nearest(x, y, r),
+      (sources.pois ?? []).map((p) => ({ ...p, at: proj.toLocal(p.at) })), streetPlan.routeNames))),
     [`${slug}/data/cameras_1.ini`]: enc.encode(camerasIni(cameras)),
     // The automatic test run (scripts/windows/run-test.ps1): a track script that only wakes up for a
     // driver named "Busselton Test". Track scripts need the scripting physics traffic turns on.

@@ -240,9 +240,9 @@ Real photos beat procedural textures. Everything we capture ourselves can also g
   - ⬜ a traffic planner run (the manual steps in docs/traffic-test.md first)
 - ⬜ **One-click install:** a Content Manager install link for the LAN rig.
 
-## Phase 9: Fun stuff ⬜
+## Phase 9: Fun stuff 🔨
 
-- ⬜ **Checkpoint challenges** (CSP Lua): find the jetty, the lighthouse, the big tuart. Good for the kids.
+- 🔨 **Checkpoint challenges** (CSP Lua): find the jetty, the lighthouse, the big tuart. Good for the kids. ✅ First version: every build ships up to six checkpoints (named places by the road, or streets), and the Busselton Challenges app (`apps/lua/BusseltonChallenges`, installed with each track) shows the next one, warmer or colder, a beacon over it, the clock and your best time. Still to check in game, then: hand-picked checkpoints per track.
 - ⬜ **Point-to-point time trials** between towns, with leaderboards on the LAN.
 - ⬜ **Cruise mode:** traffic on, no timing, start anywhere.
 - ⬜ **Drift spots:** empty car parks and industrial areas as area builds (Street2Sim's drift lots idea).
