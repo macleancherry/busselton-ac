@@ -145,6 +145,8 @@ export interface TrackResult {
   houses: { front: [LngLat, LngLat]; height: number; facade: string; source: string }[];
   /** Parked cars placed (local metres), for checking renders. */
   parked: { at: [number, number]; dir: [number, number] }[];
+  /** What the traffic graph was built from, for checking it offline. */
+  trafficInput?: { roads: TrafficRoad[]; roundabouts: { c: Vec2; h: number; rIn: number; rOut: number }[] };
   /** Raw pixels for textures the browser can't decode (DDS), keyed by texture name. */
   previewTextures: Record<string, { rgba: Uint8Array; width: number; height: number }>;
   stats: {
@@ -1480,6 +1482,7 @@ export async function buildTrack(
 
   // Traffic for CSP's traffic planner, on the roads the track has: the route
   // (split where it changes between two and four lanes) and the side streets.
+  let trafficInput: { roads: TrafficRoad[]; roundabouts: { c: Vec2; h: number; rIn: number; rOut: number }[] } | undefined;
   const trafficData = () => {
     const routeRoads: TrafficRoad[] = [];
     const wide = plan.samples.map((smp) => smp.width >= 12);
@@ -1523,9 +1526,10 @@ export async function buildTrack(
     const streetRoads: TrafficRoad[] = streetPlan.streets.map((st) => ({
       pts: st.pts, h: st.pts.map(([x, y]) => terrainAt(x, y).h + 0.1), width: st.width, speed: 50,
     }));
-    return trafficJson([...routeRoads, ...streetRoads], plan.roundabouts.map((rb) => ({
-      c: rb.c, h: rb.hc, rIn: innerRadius(rb), rOut: outerRadius(rb),
-    })));
+    const rbs = plan.roundabouts.map((rb) => ({ c: rb.c, h: rb.hc, rIn: innerRadius(rb), rOut: outerRadius(rb) }));
+    // Kept for checking the traffic graph offline (the headless build writes it out).
+    trafficInput = { roads: [...routeRoads, ...streetRoads], roundabouts: rbs };
+    return trafficJson([...routeRoads, ...streetRoads], rbs);
   };
 
   const trafficText = opts.traffic ? trafficData() : "";
@@ -1595,6 +1599,7 @@ export async function buildTrack(
   return {
     slug, files, model, plan, proj, previewTextures,
     parked: parked.map((c) => ({ at: c.at, dir: c.dir })),
+    trafficInput,
     houses: homes.filter((b) => b.front).map((b) => ({
       front: [proj.toLngLat(b.front![0]), proj.toLngLat(b.front![1])] as [LngLat, LngLat],
       height: b.height,

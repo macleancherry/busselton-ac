@@ -188,6 +188,9 @@ try {
   writeFileSync(join(root, "out", `${slug}.centreline.json`), JSON.stringify({ sampleKeys, centreline }));
   // House fronts, for matching to street photos (scripts/mapillary/house_looks.py).
   writeFileSync(join(root, "out", `${slug}.houses.json`), JSON.stringify(houses ?? []));
+  // What the traffic graph was built from, to rework it offline (scripts/check/traffic_rebuild.ts).
+  const trafficInput = await page.evaluate(() => window.__app.result().trafficInput);
+  if (trafficInput) writeFileSync(join(root, "out", `${slug}.traffic-input.json`), JSON.stringify(trafficInput));
 
   const out = join(root, "out");
   mkdirSync(out, { recursive: true });

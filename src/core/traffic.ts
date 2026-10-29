@@ -191,6 +191,10 @@ export function trafficGraph(roadsIn: TrafficRoad[], roundabouts: TrafficRoundab
   // Overlapping polygons confuse the planner (a lane can't be in two at
   // once), so any that touch become one circle around both, until none do.
   type Spot = Junction & { turn?: boolean };
+  // Busselton fork: the polygon written out for a spot has flat sides inside its circle (8 sides, 6
+  // for a turn-round), so it's drawn round the circle instead, and spots merge at that size, or a
+  // lane ending just inside a circle could still fall outside its polygon.
+  const outer = (j: Spot) => j.r / Math.cos(Math.PI / (j.turn ? 6 : 8));
   const mergeAll = (list: Spot[]): Spot[] => {
     const out = list.map((j) => ({ ...j }));
     for (let again = true; again;) {
@@ -198,7 +202,7 @@ export function trafficGraph(roadsIn: TrafficRoad[], roundabouts: TrafficRoundab
       for (let a = 0; a < out.length && !again; a++) {
         for (let b = a + 1; b < out.length; b++) {
           const A = out[a], B = out[b], d = dist(A.c, B.c);
-          if (d >= A.r + B.r + 0.5) continue;
+          if (d >= outer(A) + outer(B) + 0.5) continue;
           const big = d + A.r <= B.r ? B : d + B.r <= A.r ? A : null;
           const r = big ? big.r : (d + A.r + B.r) / 2;
           const c: Vec2 = big ? big.c : [A.c[0] + ((B.c[0] - A.c[0]) * (r - A.r)) / d, A.c[1] + ((B.c[1] - A.c[1]) * (r - A.r)) / d];
@@ -324,7 +328,10 @@ export function trafficGraph(roadsIn: TrafficRoad[], roundabouts: TrafficRoundab
     let groups = group(arms);
     for (let again = true; again;) {
       again = false;
-      const idx = merged.findIndex((j) => dist(j.c, rb.c) < rb.rOut + 4 + j.r + 0.5 || groups.some((g) => touches(g, j)));
+      // Only junctions within 25 m of the ring: each one absorbed lengthens its arm, and without a limit
+      // that ran down a side street swallowing junctions and turn-rounds 60 m away, whose lanes
+      // then ended outside every polygon.
+      const idx = merged.findIndex((j) => dist(j.c, rb.c) - j.r < rb.rOut + 25 && (dist(j.c, rb.c) < rb.rOut + 4 + outer(j) + 0.5 || groups.some((g) => touches(g, j))));
       if (idx >= 0) {
         const j = merged[idx];
         const s = span(j);
@@ -352,7 +359,7 @@ export function trafficGraph(roadsIn: TrafficRoad[], roundabouts: TrafficRoundab
     }
   });
 
-  for (const j of merged) intersections.push({ name: `${j.turn ? "Turn" : "Junction"} ${interId}`, id: interId++, points: polygon(j.c, j.r, j.h, j.turn ? 6 : 8) });
+  for (const j of merged) intersections.push({ name: `${j.turn ? "Turn" : "Junction"} ${interId}`, id: interId++, points: polygon(j.c, outer(j), j.h, j.turn ? 6 : 8) });
 
   return { lanes, intersections };
 }
