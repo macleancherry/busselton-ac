@@ -412,3 +412,55 @@ export function rockTexture(): Uint8Array {
     return [Math.min(255, 196 * v + 18 * best.warm), Math.min(255, 186 * v + 10 * best.warm), Math.min(255, 162 * v)];
   }), w, h);
 }
+
+/**
+ * Busselton fork: lamp posts along a jetty, every 45 m round its railed edges (so staggered down both
+ * sides, following the jetty wherever it bends), set 0.35 m in from the rail, each with a lantern that
+ * lights the deck at night (the light positions go to the CSP config). Only jetties over 100 m long,
+ * and only over the sea.
+ */
+export function jettyLights(polys: CoastPolygon[], ground: HeightFn, sea: SeaMask): { nodes: Kn5MeshNode[]; lights: [number, number, number][] } {
+  const posts = new ChunkedMesh(0), heads = new ChunkedMesh(0);
+  const lights: [number, number, number][] = [];
+  for (const p of polys) {
+    const ring = p.rings[0];
+    if (ring.length < 3) continue;
+    const ax = axis(ring);
+    let a0 = Infinity, a1 = -Infinity;
+    for (const [x, y] of ring) {
+      const u = x * ax[0] + y * ax[1];
+      a0 = Math.min(a0, u); a1 = Math.max(a1, u);
+    }
+    if (a1 - a0 < 100) continue;
+    const deckZ = (x: number, y: number) => Math.max(SEA_LEVEL + DECK, sea.has(x, y) ? 0 : ground(x, y) + 0.25);
+    let next = 20;
+    for (let k = 0; k < ring.length; k++) {
+      const a = ring[k], b = ring[(k + 1) % ring.length];
+      const len = Math.hypot(b[0] - a[0], b[1] - a[1]);
+      if (!p.edge[0][k] || len < 1e-6) {
+        continue;
+      }
+      const t: Vec2 = [(b[0] - a[0]) / len, (b[1] - a[1]) / len];
+      let d = next;
+      for (; d < len; d += 45) {
+        const e: Vec2 = [a[0] + t[0] * d, a[1] + t[1] * d];
+        // In from the rail, whichever side the deck is.
+        const inL: Vec2 = [e[0] - t[1] * 0.35, e[1] + t[0] * 0.35], inR: Vec2 = [e[0] + t[1] * 0.35, e[1] - t[0] * 0.35];
+        const at = inside(inL[0], inL[1], ring) ? inL : inside(inR[0], inR[1], ring) ? inR : null;
+        if (!at || !sea.has(at[0], at[1])) continue;
+        const z = deckZ(at[0], at[1]);
+        box(posts.next(20), at, t, 0.12, 0.12, z, z + 3.6);
+        box(heads.next(20), at, t, 0.3, 0.3, z + 3.6, z + 4.0);
+        lights.push([at[0], at[1], z + 3.55]);
+      }
+      next = d - len;
+    }
+  }
+  return {
+    nodes: [
+      ...posts.all().map((m, i) => m.toKn5(`JETTY_LAMPPOST_${pad(i)}`, "steel")),
+      ...heads.all().map((m, i) => m.toKn5(`JETTY_LAMP_${pad(i)}`, "lamp")),
+    ],
+    lights,
+  };
+}

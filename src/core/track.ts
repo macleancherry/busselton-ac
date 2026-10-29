@@ -11,7 +11,7 @@ import { buildShopfronts, findShopfronts, shopSignTexture, shopStats, shopWindow
 import { buildIslands, findIslands, footprintMask, lineMask, paintOutCars } from "./carpark";
 import { trafficJson, type TrafficRoad } from "./traffic";
 import autotestLua from "./lua/autotest.lua?raw";
-import { buildGroynes, buildPiers, buildSea, buildSeawall, deckTexture, rockTexture, SeaMask, seaTexture, withSeabed, type CoastPolygon } from "./coast";
+import { buildGroynes, buildPiers, buildSea, jettyLights, buildSeawall, deckTexture, rockTexture, SeaMask, seaTexture, withSeabed, type CoastPolygon } from "./coast";
 import type { GroundDetail, GroundLayer } from "./ground";
 import { aiHintsIni, buildAiLine } from "./aiLine";
 import { BACKDROP_CHUNK, backdropHeight, buildBackdropChunk, planBackdrop } from "./backdrop";
@@ -1264,6 +1264,8 @@ export async function buildTrack(
     },
     utilities.lights,
   );
+  // Busselton fork: lamp posts along the jetty, lit at night.
+  const jettyLamps = piers.length ? jettyLights(piers, buildingGround, sea) : { nodes: [], lights: [] };
   // Signs and street furniture; their artwork is drawn in one atlas.
   const art = new ArtList();
   // Race day: barriers, fences, banners, gantries, a grandstand and crowds where the road is the race.
@@ -1511,7 +1513,7 @@ export async function buildTrack(
         group("PATHS", pathMeshes),
         group("LOTS", keepOffRoute(lots, onRoad).nodes),
         group("CARPARKS", islandNodes),
-        group("JETTY", piers.length ? buildPiers(piers, buildingGround, sea) : []),
+        group("JETTY", piers.length ? [...buildPiers(piers, buildingGround, sea), ...jettyLamps.nodes] : []),
         group("SEAWALL", ocean.length ? [
           ...buildSeawall(beaches, buildingGround, sea, (x, y) => !!index.nearest(x, y, 250), piers),
           ...buildGroynes((sources.osm?.groynes ?? []).map((l) => l.map((p) => proj.toLocal(p))), buildingGround),
@@ -1630,7 +1632,7 @@ export async function buildTrack(
       .replace("__CLOSED__", plan.closed ? "true" : "false")
       // The speed limit at each 1% of the lap, km/h, so the test drives at the limit.
       .replace("__LIMITS__", Array.from({ length: 100 }, (_, k) => speedAt(Math.min(nS - 1, Math.round(((k + 0.5) / 100) * (nS - 1))))).join(", "))) } : {}),
-    [`${slug}/extension/ext_config.ini`]: enc.encode(extConfig([...utilities.lights, ...carPark.lights], {
+    [`${slug}/extension/ext_config.ini`]: enc.encode(extConfig([...utilities.lights, ...carPark.lights, ...jettyLamps.lights], {
       autotest: opts.traffic,
       // A town's glow at night where most of the route is built up.
       builtUp: town.filter((t) => t >= 1).length > town.length / 2,

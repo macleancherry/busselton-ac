@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildGroynes, buildPiers, buildSea, buildSeawall, SEA_LEVEL, SeaMask, withSeabed, type CoastPolygon } from "../src/core/coast";
+import { buildGroynes, buildPiers, buildSea, buildSeawall, jettyLights, SEA_LEVEL, SeaMask, withSeabed, type CoastPolygon } from "../src/core/coast";
 
 // Sea north of y = 100; a jetty 6 m wide from the beach (y = 80) 400 m out.
 const ocean: CoastPolygon = { rings: [[[-500, 100], [500, 100], [500, 1000], [-500, 1000]]], edge: [[true, true, true, true]] };
@@ -35,6 +35,23 @@ describe("coast", () => {
     for (let i = 0; i < timber.positions.length; i += 3) {
       if (timber.positions[i + 1] < 0) expect(-timber.positions[i + 2]).toBeGreaterThan(100);
     }
+  });
+
+  it("puts lamp posts along a long jetty, over the sea, on alternating edges", () => {
+    const g = withSeabed(land, sea);
+    const { nodes, lights } = jettyLights([jetty], g, sea);
+    // Two 400 m sides, 380 m of each over the sea: a lamp every 45 m round the edge.
+    expect(lights.length).toBeGreaterThanOrEqual(14);
+    for (const [x, y, z] of lights) {
+      expect(y).toBeGreaterThan(100);
+      expect(Math.abs(x)).toBeLessThan(3);
+      expect(z).toBeGreaterThan(SEA_LEVEL + 3);
+    }
+    expect(new Set(lights.map(([x]) => Math.sign(x))).size).toBe(2);
+    expect(nodes.some((n) => n.name.startsWith("JETTY_LAMP_"))).toBe(true);
+    // A short pier gets none.
+    const short: CoastPolygon = { rings: [[[-3, 120], [3, 120], [3, 180], [-3, 180]]], edge: [[true, true, true, true]] };
+    expect(jettyLights([short], g, sea).lights).toHaveLength(0);
   });
 
   // A beach from y = 60 (its back) to the water at y = 100, both ways round.
