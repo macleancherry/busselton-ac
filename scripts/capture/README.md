@@ -65,4 +65,16 @@ The aerial photo gives each house's outline, roofs, driveway and size. What it c
 - **Pace:** about 20 houses takes 15 minutes.
 - **Skip** any house whose owner asked to be left generic.
 
-Then each house gets a draft spec from its photo and the aerial photo, and a review page shows the photo beside a render of the draft to correct.
+Then, with the photos in a private folder (e.g. `routes/private/walk/photos/`) and a build with that street in it:
+
+```
+P=scripts/houses/photo_walk.py; W=routes/private/walk
+python3 -I $P match out/<slug>.houses.json $W/photos --out $W   # which house each photo shows
+python3 -I $P draft $W                                          # a draft spec per house, from its outline
+# Claude reads each photo and fills in its spec: blocks, roofs, walls, garage, doors, windows, verandah
+python3 -I $P render $W                                         # a street view of each spec (Blender or bpy)
+python3 -I $P review $W                                         # $W/review.html: photo beside render and plan
+python3 -I $P looks $W --out routes/private/walk-looks.json     # then HOUSE_LOOKS=...,routes/private/walk-looks.json
+```
+
+Matching uses each photo's position and, when the phone records it, its compass heading (iPhones do; many Android phones don't). Without a heading it assumes the photo is of the far side of the street, and the review page says so. On the review page Mac marks each house "looks right", "needs fixing" (with a note) or "leave out", and copies the notes back here. A spec with `"optOut": true` becomes a plain generic house.
