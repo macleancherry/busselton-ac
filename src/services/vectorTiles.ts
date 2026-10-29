@@ -116,10 +116,17 @@ export async function fetchTileFeatures(bbox: [number, number, number, number]):
   const names: TileName[] = [];
   const pois: TilePoi[] = [];
   const jobs: Promise<void>[] = [];
+  // Each tile's features in its own slot, joined in tile order at the end: pushing into the shared
+  // lists as tiles arrived put them in a different order every build, and everything chosen at random
+  // per house or tree after that (facades, species) came out different on each rebuild.
+  const slots: { buildings: TileBuilding[]; roads: TileRoad[]; names: TileName[]; pois: TilePoi[] }[] = [];
   let missing = 0;
   for (let ty = y0; ty <= y1; ty++) {
     for (let tx = x0; tx <= x1; tx++) {
+      const slot = { buildings: [] as TileBuilding[], roads: [] as TileRoad[], names: [] as TileName[], pois: [] as TilePoi[] };
+      slots.push(slot);
       jobs.push((async () => {
+        const { buildings, roads, names, pois } = slot;
         const r = await fetchRetry(url.replace("{z}", String(Z)).replace("{x}", String(tx)).replace("{y}", String(ty)));
         if (!r?.ok) {
           if (r?.status !== 404) missing++;
@@ -182,6 +189,12 @@ export async function fetchTileFeatures(bbox: [number, number, number, number]):
     }
   }
   await Promise.all(jobs);
+  for (const slot of slots) {
+    buildings.push(...slot.buildings);
+    roads.push(...slot.roads);
+    names.push(...slot.names);
+    pois.push(...slot.pois);
+  }
   if (missing) warnMissing(`${missing} map tiles (buildings, streets, shops)`);
   return { buildings, roads, names, pois };
 }

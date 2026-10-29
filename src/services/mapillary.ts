@@ -40,13 +40,18 @@ export async function fetchSeen(bbox: [number, number, number, number], token: s
   const a = lngLatToPixel([w, n], Z), b = lngLatToPixel([e, s], Z);
   const x0 = Math.floor(a[0] / 256), x1 = Math.floor(b[0] / 256), y0 = Math.floor(a[1] / 256), y1 = Math.floor(b[1] / 256);
   if ((x1 - x0 + 1) * (y1 - y0 + 1) > 200) return [];
-  const out: { at: LngLat; value: string }[] = [];
+  const slots: { at: LngLat; value: string }[][] = [];
   let answered = 0;
   const jobs: Promise<void>[] = [];
   for (let ty = y0; ty <= y1; ty++) {
     for (let tx = x0; tx <= x1; tx++) {
       for (const L of LAYERS) {
+        // Each tile's detections in its own slot, joined in a fixed order (merging repeat sightings
+        // depends on the order, so arrival order made each build place them slightly differently).
+        const slot: { at: LngLat; value: string }[] = [];
+        slots.push(slot);
         jobs.push((async () => {
+          const out = slot;
           const r = await fetch(`${L.url}/${Z}/${tx}/${ty}?access_token=${encodeURIComponent(token)}`);
           if (!r.ok) return;
           answered++;
@@ -65,6 +70,7 @@ export async function fetchSeen(bbox: [number, number, number, number], token: s
     }
   }
   await Promise.all(jobs);
+  const out = slots.flat();
   // A bad token gets 401/403 without CORS headers, so it surfaces as failed requests.
   if (!answered && jobs.length) throw new Error("Mapillary didn't answer: check the token");
   return out;

@@ -241,7 +241,7 @@ Real photos beat procedural textures. Everything we capture ourselves can also g
 
 - ✅ Build checks: photo overlay, DEM heights, hairpin spikes, surface bumps and edge steps.
 - ✅ Driver's-eye renders from the headless build.
-- 🔨 **Before/after render sets,** to catch visual regressions: ✅ `scripts/check/render_diff.py` compares a build's shots with the last saved set and makes a before/after/changed sheet. Still to do: a standard set of views per track.
+- 🔨 **Before/after render sets,** to catch visual regressions: ✅ `scripts/check/render_diff.py` compares a build's shots with the last saved set and makes a before/after/changed sheet. ✅ `SHOTS=auto` renders the same views on every build (five along the drive, each roundabout from above). ✅ Builds come out the same each time near the road: map tiles and Mapillary detections were joined in arrival order, which changed houses' facades and trees' species between rebuilds.
 - ✅ **CI on GitHub:** tests, type-check and build on every push.
 - 🔨 **Automated in-game test** (`scripts/windows/run-test.ps1`, run on the workstation):
   - ✅ it loads, presses Drive, hands the car to the AI, logs the drive, saves the replay and closes AC

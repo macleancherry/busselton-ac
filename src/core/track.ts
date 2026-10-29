@@ -1446,6 +1446,8 @@ export async function buildTrack(
     if (streetCentres.clearance(x, y) < 2.4) return false;
     // Inside a side street the track builds (and runs traffic on).
     if (streetIndex.clearance(x, y) < -0.3) return false;
+    // Not on a roundabout or its island (a car the photo caught going round isn't parked).
+    if (plan.roundabouts.some((rb) => Math.hypot(x - rb.c[0], y - rb.c[1]) < outerRadius(rb) + 2.5)) return false;
     return !shown.some((b) => pointInRing(x, y, b.ring));
   });
   const houses = buildBuildings(shown, buildingGround);

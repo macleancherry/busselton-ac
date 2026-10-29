@@ -16,7 +16,8 @@
 // Stops without writing anything when data didn't arrive after retries (Overpass, map tiles):
 // ALLOW_MISSING_DATA=1 keeps such a build.
 //
-// SHOTS=0.1,0.35,0.6 (fractions of the lap, or lng:lat:lookLng:lookLat:height) also saves driver's-eye renders from the
+// SHOTS=0.1,0.35,0.6 (fractions of the lap, lng:lat:lookLng:lookLat:height, or L:x:y:lookX:lookY:height in local
+// metres) also saves renders, and SHOTS=auto a standard set (the drive and every roundabout); from the
 // three.js preview as out/<slug>.shot<n>.png (the photo ground only: no ksMultilayer or CSP).
 // car0..car9 looks at parked cars spread through the list.
 //
@@ -246,7 +247,12 @@ try {
   writeFileSync(join(out, `${slug}.stats.json`), JSON.stringify({ route: basename(routeFile), stats, table }, null, 2));
   if (process.env.SHOTS) {
     // Each shot is a lap fraction, or "lng:lat:lookLng:lookLat:height" for a fixed view.
-    const fracs = process.env.SHOTS.split(",");
+    // SHOTS=auto: the same views on every build of a track, for before/after comparisons
+    // (render_diff.py): five spots round the drive, and each roundabout (up to six) from above.
+    const fracs = process.env.SHOTS === "auto"
+      ? ["0.02", "0.2", "0.4", "0.6", "0.8", ...(await page.evaluate(() =>
+        window.__app.result().plan.roundabouts.slice(0, 6).map((rb) => `L:${rb.c[0]}:${rb.c[1] - 30}:${rb.c[0]}:${rb.c[1]}:${rb.hc + 16}:${rb.hc}`)))]
+      : process.env.SHOTS.split(",");
     // Clear this track's shots from earlier builds, so a set never mixes old and new views.
     for (const f of readdirSync(out)) if (f.startsWith(`${slug}.shot`) && f.endsWith(".png")) rmSync(join(out, f));
     for (const [n, f] of fracs.entries()) {
@@ -260,6 +266,12 @@ try {
           const g = r.plan.samples[0].h;
           const e = [c.at[0] - c.dir[1] * 10 + c.dir[0] * 4, c.at[1] + c.dir[0] * 10 + c.dir[1] * 4];
           pv.view([e[0], g + 4, -e[1]], [c.at[0], g, -c.at[1]]);
+          return document.getElementById("preview-canvas").toDataURL("image/png").split(",")[1];
+        }
+        if (f.startsWith("L:")) {
+          // Local metres (x east, y north): L:x:y:lookX:lookY:height[:lookHeight].
+          const [x, y, lx, ly, h, lh] = f.slice(2).split(":").map(Number);
+          pv.view([x, h, -y], [lx, Number.isFinite(lh) ? lh : h * 0.6, -ly]);
           return document.getElementById("preview-canvas").toDataURL("image/png").split(",")[1];
         }
         if (f.includes(":")) {
