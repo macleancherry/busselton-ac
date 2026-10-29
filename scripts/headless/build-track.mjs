@@ -19,8 +19,13 @@
 // SHOTS=0.1,0.35,0.6 (fractions of the lap, or lng:lat:lookLng:lookLat:height) also saves driver's-eye renders from the
 // three.js preview as out/<slug>.shot<n>.png (the photo ground only: no ksMultilayer or CSP).
 // car0..car9 looks at parked cars spread through the list.
+//
+// Downloads (aerial photos, map tiles, Overpass, routing, Mapillary) are cached in out/cache for
+// CACHE_DAYS (default 14), so a rebuild only fetches what's new. NO_CACHE=1 fetches everything fresh
+// (and refreshes the cache); BUILD_CACHE=<dir> puts it somewhere else.
 
 import { spawn } from "node:child_process";
+import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -71,22 +76,52 @@ try {
     if (m.type() === "error") log("page error:", m.text());
   });
   page.on("pageerror", (e) => log("page exception:", e.message));
-  if (process.env.CORS_SHIM) {
-    // Some networks (proxies) strip CORS headers from third-party APIs; fetch those
-    // outside the page and hand them back with the header put back.
-    await page.route(/^https:\/\//, async (r) => {
-      // NET_LOG=1 logs each outside request as it starts and ends (for hangs).
-      const url = r.request().url();
-      if (process.env.NET_LOG) log("net start", url.slice(0, 160));
+  // Every outside request goes through here: answered from the cache when it can be, otherwise
+  // fetched outside the page (some networks' proxies strip CORS headers from third-party APIs, so the
+  // header is put back) and cached.
+  const cacheDir = process.env.BUILD_CACHE ?? join(root, "out", "cache");
+  const cacheDays = Number(process.env.CACHE_DAYS ?? 14);
+  const useCache = !process.env.NO_CACHE && cacheDays > 0;
+  mkdirSync(cacheDir, { recursive: true });
+  let hits = 0, misses = 0;
+  await page.route(/^https:\/\//, async (r) => {
+    // NET_LOG=1 logs each outside request as it starts and ends (for hangs).
+    const req = r.request();
+    const url = req.url();
+    const key = createHash("sha256").update(`${req.method()} ${url} ${req.postData() ?? ""}`).digest("hex");
+    const body = join(cacheDir, `${key}.bin`), meta = join(cacheDir, `${key}.json`);
+    if (useCache && existsSync(meta) && existsSync(body)) {
       try {
-        const res = await r.fetch({ timeout: 120_000 });
-        if (process.env.NET_LOG) log("net done", res.status(), url.slice(0, 100));
-        await r.fulfill({ response: res, headers: { ...res.headers(), "access-control-allow-origin": "*" } });
+        const m = JSON.parse(readFileSync(meta, "utf8"));
+        if (Date.now() - m.at < cacheDays * 86_400_000) {
+          hits++;
+          await r.fulfill({ status: m.status, headers: { ...m.headers, "access-control-allow-origin": "*" }, body: readFileSync(body) });
+          return;
+        }
       } catch {
-        await r.abort().catch(() => {});
+        // a broken entry: fetch it again
       }
-    });
-  }
+    }
+    if (process.env.NET_LOG) log("net start", url.slice(0, 160));
+    try {
+      const res = await r.fetch({ timeout: 120_000 });
+      if (process.env.NET_LOG) log("net done", res.status(), url.slice(0, 100));
+      const bytes = await res.body();
+      misses++;
+      // Only good answers are kept: not errors, and not Overpass's "timed out" replies (a 200 with a remark).
+      const bad = /overpass|interpreter/.test(url) && bytes.length < 400_000 && /"remark"/.test(bytes.toString("utf8"));
+      if (res.status() === 200 && !bad) {
+        const headers = { ...res.headers() };
+        delete headers["set-cookie"];
+        writeFileSync(body, bytes);
+        // No URL stored: some carry an API token.
+        writeFileSync(meta, JSON.stringify({ at: Date.now(), status: res.status(), headers }));
+      }
+      await r.fulfill({ status: res.status(), headers: { ...res.headers(), "access-control-allow-origin": "*" }, body: bytes });
+    } catch {
+      await r.abort().catch(() => {});
+    }
+  });
   await page.goto(`http://localhost:${PORT}/`, { waitUntil: "load" });
   await page.waitForFunction(() => window.__app);
 
@@ -242,7 +277,7 @@ try {
     }
     log(`wrote ${fracs.length} shots`);
   }
-  log(`wrote out/${slug}.zip (${(zipBytes.length / 1e6).toFixed(1)} MB)`);
+  log(`wrote out/${slug}.zip (${(zipBytes.length / 1e6).toFixed(1)} MB); downloads: ${hits} from the cache, ${misses} fetched`);
   for (const [k, v] of table) log(`  ${k}: ${v}`);
 } finally {
   await browser.close();

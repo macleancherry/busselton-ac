@@ -29,7 +29,7 @@ Both Windows machines can run AC at the same time; LAN racing uses Content Manag
 ## Build loop
 
 1. Route file in `routes/` (pins as `[lng, lat]`; `loop: true` for a circuit).
-2. `node scripts/headless/build-track.mjs routes/<name>.json` writes `out/<slug>.zip`, `.stats.json` and `.centreline.json`. It stops if Overpass or map tiles still fail after retries ("MISSING DATA"); just build again. Overpass is often busy.
+2. `node scripts/headless/build-track.mjs routes/<name>.json` writes `out/<slug>.zip`, `.stats.json` and `.centreline.json`. It stops if Overpass or map tiles still fail after retries ("MISSING DATA"); just build again. Overpass is often busy. Downloads are cached in `out/cache` for 14 days (`CACHE_DAYS`), so rebuilds take about half the time; `NO_CACHE=1` fetches everything fresh, e.g. after OSM edits. A build with no progress for 10 minutes stops so a retry loop can run it again.
 3. `python3 -I scripts/check/check_build.py out/<slug>.centreline.json` checks the build. It must pass before Mac sees a build:
    - no hairpin spikes (exits non-zero and circles them in magenta on `out/<slug>.overlay.png`)
    - road height minus DEM: 95% within 0.3 m
