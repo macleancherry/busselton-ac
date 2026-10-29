@@ -43,7 +43,10 @@ writer looks them up (`TEXTURE_REGISTER` in `kn5.ts`).
 - **`ksMultilayer` / `ksMultilayer_fresnel_nm`**: the classic terrain and
   road shader. `txMask`'s four channels place four tiling details
   (`txDetailR..A`, scaled by `multR..multA`), blended by `magicMult`. The
-  details are projected from above, so it's only for flat-ish ground.
+  details are projected from above in world metres (`posW.xz * multR`), so
+  it's only for flat-ish ground. Exactly: `diffuse *= (Σ detailX *
+  mask.X) * magicMult`, so where the mask's weights add to 1 and the
+  details are white, the diffuse is unchanged.
 - **`ksTree`, `ksGrass`**: Kunos's tree and grass-tuft shaders.
 
 ## What we use
@@ -52,10 +55,18 @@ writer looks them up (`TEXTURE_REGISTER` in `kn5.ts`).
   seal texture with alpha 0 everywhere (DXT5), aggregate stones as the
   detail (~0.8 m a tile), drawn squashed 3:1 because road UVs run 24 m along
   for about 8 m across, so on the road they come out round.
-- **Ground** (`terrain_*`): `ksPerPixelMultiMap`, the aerial photo with an
-  alpha mask from its colour (0 on lawns, dry grass and bare earth; 255 on
-  roofs, roads, concrete, water), grass blades as the detail (~0.9 m a
-  tile).
+- **Ground** (`terrain_*`, the photo nature strips `strip_photo_*`,
+  `sidestrips_photo`, `returns_photo`, and the plain `grass` and `verge`):
+  `ksMultilayer`, the standard way photo-textured tracks get close-up
+  detail. The aerial photo gives the colour; three tiling details give the
+  texture: grass blades (a tile every 1.6 m), dirt with clods, pebbles and
+  cracks (2.4 m) and a faint grain for paving and the rest (2 m). Each is
+  mid grey on average and `magicMult` is 2, so from a distance the photo is
+  unchanged and up close the ground has detail the photo (30 cm a pixel at
+  best) can't. A small mask per photo (256 px at most a side, ~43 KB) says
+  which is where, from the photo's colour: green or dry yellow grass (R),
+  red-brown earth or sand (G), everything else (B). A is unused and its
+  detail black, because a DXT1 mask reads 1 there.
 - **Road relief**: each seal texture's normal map comes from its own
   shading, brightness as height, so cracks and patch edges are grooves
   (DirectX convention, green down).
@@ -65,9 +76,11 @@ writer looks them up (`TEXTURE_REGISTER` in `kn5.ts`).
 - **Windows**: glass panes over the painted windows (`window` material),
   which CSP turns into lit rooms at night.
 - Turned off with **Detail shaders** in the options, everything is plain
-  `ksPerPixel` as before. The cost is file size: the ground's grass mask
-  needs DXT5 (alpha) instead of DXT1, about 25 MB more on a 1.8 km
-  suburban build at high imagery.
+  `ksPerPixel` as before. The cost is small now: the road seals carry an
+  alpha channel (DXT5), each ground photo a small mask, and the three
+  ground details are 512 px DXT1 (about 170 KB each). (An earlier
+  version put the grass mask in the ground photo's alpha, which needed DXT5
+  for every photo and added about 25 MB to a 1.8 km suburban build.)
 
 ## Custom Shaders Patch
 
@@ -101,8 +114,8 @@ Most players run CSP. A track can ship its own config at
 - **Ambient occlusion**: CSP expects tracks to have it, and nothing does
   more for how solid a scene looks. It is baked on the player's PC with
   CSP's AO bakery (any hardware), so the README tells players how.
-- **`ksMultilayer` terrain**: four details by mask (grass, dirt, gravel,
-  concrete) instead of one.
+- **Ground normal maps**: `ksMultilayer_fresnel_nm` adds a normal map per
+  detail, so grass and clods catch the light.
 
 ## Sources
 

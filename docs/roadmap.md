@@ -26,15 +26,26 @@ Rough priority order. Each chunk is a self-contained change.
 8. ~~Close-range detail without CSP~~: detail-mapped road and ground
    (ksPerPixelMultiMap, set up from the shader source). ~~CSP rain, lit
    windows, light pollution, shadow fixes~~. Done; see
-   [realism.md](realism.md). Next from that research: a CSP tree list for
-   instanced 3D trees, ksMultilayer terrain (grass, dirt, gravel, concrete
-   by mask), normal maps for the road and walls.
-9. **Scenery.** Multi-lane roundabouts, front fences where OSM has none
-   (read off the photo), house windows lit at night.
+   [realism.md](realism.md). ~~ksMultilayer ground~~ (grass, dirt and
+   paving detail over the photo by a small mask, on the terrain and the
+   nature strips) and ~~normal maps for the road and walls~~. Next from that
+   research: a CSP tree list for instanced 3D trees, normal maps on the
+   ground details.
+9. **Scenery.** ~~Multi-lane roundabouts~~ (wider ring, lane line, give-way
+   lines at every entry), ~~house windows lit at night~~, ~~many building
+   types and finishes~~ (houses, Queenslanders, flats, apartments, towers,
+   shops, offices, warehouses, halls). Still open: front fences where OSM
+   has none (read off the photo), balconies as geometry on apartments.
+
+9b. ~~**Race day.**~~ Barriers, debris fence and sponsor banners on the
+   start straight and the outside of tight corners, tyre walls, gantries,
+   grandstand and crowds, marshal posts (Done). Next: a pit lane and garages
+   where a car park or wide street allows, a full-circuit option that
+   closes the side streets.
 
 ## Later
 
-10. **Build in a Web Worker** so the page stays responsive on long roads.
+10. ~~**Build in a Web Worker** so the page stays responsive on long roads.~~ Done.
 11. **Higher-resolution elevation abroad.** USGS 3DEP 1 m, Japan GSI 5 m.
     (Done for Queensland, NSW and Victoria.)
 12. **CSP extras.** `ext_config.ini` with rain puddles and track lighting.

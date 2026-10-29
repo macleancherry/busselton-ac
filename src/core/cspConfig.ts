@@ -76,7 +76,7 @@ export function extConfig(lights: Vec3[], opts: CspOptions = {}): string {
     "",
     // Thin two-sided geometry: fences, sign faces, tree sprites.
     "[SHADER_REPLACEMENT_0]",
-    "MATERIALS = barrier_colorbond, barrier_paling, signart, trees, fence_?, shrubs",
+    "MATERIALS = barrier_colorbond, barrier_paling, signart, trees, fence_?, shrubs, race_fence, race_crowd, race_spectators",
     "DOUBLE_FACE_SHADOW_BIASED = 1",
     "",
     "[Material_RoomWindows]",

@@ -1,20 +1,17 @@
-import { clearDataWarnings, dataWarnings, warnMissing } from "../services/dataWarnings";
-import { pathKind } from "../core/paths";
-import { GROUND_LAYERS, type GroundDetail, type GroundLayer } from "../core/ground";
 import "leaflet/dist/leaflet.css";
 import "./style.css";
 import L from "leaflet";
-import type { LngLat } from "../core/geo";
-import { buildTrack, type TrackResult } from "../core/track";
+import { LocalProjection, type LngLat } from "../core/geo";
+import type { TrackResult } from "../core/track";
 import { zipTrack } from "../core/zip";
 import type { BuildOptions } from "../core/options";
-import { fetchOsm, reverseGeocode, route, widthLookup, searchPlaces, type Place, type Route } from "../services/osm";
-import { DEM_CREDIT, DEM_LABEL, IMAGERY, imageryChain, loadChunkImagery, loadDem, tileUrl, type DemSource, type ImagerySource } from "../services/tiles";
+import { reverseGeocode, route, searchPlaces, type Place, type Route } from "../services/osm";
+import { DEM_LABEL, IMAGERY, tileUrl, type DemSource, type ImagerySource } from "../services/tiles";
 import { createPreview, type PreviewScene } from "./preview";
-import { renderArt } from "../services/art";
-import { loadRouteRaster } from "../services/raster";
-import { fetchSeen, savedToken, saveToken } from "../services/mapillary";
-import { classWidths, fetchCoast, fetchTileFeatures, roadClassLookup } from "../services/vectorTiles";
+import { savedToken, saveToken } from "../services/mapillary";
+import { decodeSession, encodeSession } from "./session";
+import { runBuild, type BuildJob, type BuildOutcome, type Report as BuildReport } from "../services/pipeline";
+import type { WorkerMessage } from "./buildWorker";
 
 const MAX_KM = 30;
 
@@ -127,6 +124,7 @@ function renderPins(): void {
   });
   $<HTMLButtonElement>("reverse").disabled = pins.length < 2;
   $<HTMLButtonElement>("clear").disabled = pins.length === 0;
+  saveSession();
   $("pin-hint").textContent = pins.length === 0
     ? "Click the map where the road starts, then where it finishes. More clicks extend the route through those points."
     : pins.length === 1
@@ -151,6 +149,7 @@ function renderZones(): void {
     ? "Click the map to place it."
     : `${zones.length} no-trace ${zones.length === 1 ? "zone" : "zones"}: click one to remove it.`;
   $("add-zone").setAttribute("aria-pressed", String(zoneMode));
+  saveSession();
 }
 function addZone(at: LngLat): void {
   const circle = L.circle([at[1], at[0]], { radius: ZONE_RADIUS, color: "#e0457b", weight: 2, fillOpacity: 0.12 }).addTo(map);
@@ -266,7 +265,10 @@ async function suggestName(r: Route): Promise<void> {
     // names are a nicety
   }
 }
-$("name").addEventListener("input", () => (nameTouched = true));
+$("name").addEventListener("input", () => {
+  nameTouched = true;
+  saveSession();
+});
 
 function updateBuildButton(): void {
   const ok = !!current && current.distance >= 300 && current.distance <= MAX_KM * 1000 && !building;
@@ -352,6 +354,8 @@ function escapeHtml(s: string): string {
 
 let building = false;
 let lastResult: TrackResult | null = null;
+/** Busselton fork: data the last build went without (the headless build stops on it). */
+let lastMissing: string[] = [];
 let preview: PreviewScene | null = null;
 let downloadUrl: string | null = null;
 
@@ -384,15 +388,10 @@ function readOptions(): Partial<BuildOptions> {
     traceRoads: $<HTMLInputElement>("traceRoads").checked,
     kerbs: $<HTMLInputElement>("kerbs").checked,
     detailShaders: $<HTMLInputElement>("detailShaders").checked,
+    raceDress: $<HTMLInputElement>("raceDress").checked,
+    sponsors: $<HTMLInputElement>("sponsors").value,
     noTrace: zones.map((z) => ({ at: z.at, radius: ZONE_RADIUS })),
   };
-}
-
-/** [west, south, east, north] around the route, padded by `metres`. */
-function paddedBounds(coords: LngLat[], metres: number): [number, number, number, number] {
-  const lats = coords.map((p) => p[1]), lngs = coords.map((p) => p[0]);
-  const dLat = metres / 111320, dLng = metres / (111320 * Math.cos((lats[0] * Math.PI) / 180));
-  return [Math.min(...lngs) - dLng, Math.min(...lats) - dLat, Math.max(...lngs) + dLng, Math.max(...lats) + dLat];
 }
 
 const nextFrame = () => new Promise<void>((r) => requestAnimationFrame(() => r()));
@@ -417,6 +416,64 @@ const STAGES: Record<string, [number, number]> = {
   Done: [1, 1],
 };
 
+/* ---------------- building, off the page's thread ---------------- */
+
+const UNSUPPORTED = new Error("Build worker unavailable");
+
+/** Build in a worker so the page stays responsive; on the page where a worker can't. */
+async function build(job: BuildJob, report: BuildReport): Promise<BuildOutcome> {
+  if (typeof Worker !== "undefined") {
+    try {
+      return await buildInWorker(job, report);
+    } catch (e) {
+      if (e !== UNSUPPORTED) throw e;
+    }
+  }
+  return runBuild(job, report, (text) => setProgress(text));
+}
+
+function buildInWorker(job: BuildJob, report: BuildReport): Promise<BuildOutcome> {
+  return new Promise((resolve, reject) => {
+    let worker: Worker;
+    try {
+      worker = new Worker(new URL("./buildWorker.ts", import.meta.url), { type: "module" });
+    } catch {
+      reject(UNSUPPORTED);
+      return;
+    }
+    let heard = false;
+    // Failing to load at all means no worker here: build on the page instead.
+    worker.onerror = (e) => {
+      worker.terminate();
+      reject(heard ? new Error(e.message || "The build stopped unexpectedly") : UNSUPPORTED);
+    };
+    worker.onmessage = (e: MessageEvent<WorkerMessage>) => {
+      heard = true;
+      const m = e.data;
+      if (m.type === "progress") void report(m.stage, m.fraction);
+      else if (m.type === "trace") setProgress(m.text);
+      else {
+        worker.terminate();
+        if (m.type === "unsupported") reject(UNSUPPORTED);
+        else if (m.type === "error") reject(new Error(m.message));
+        else {
+          // Classes don't survive the trip: rebuild the projection; the photos come back as bitmaps.
+          const result = { ...m.outcome.result, proj: new LocalProjection(m.outcome.result.proj.origin) };
+          const chunkImages = new Map<string, OffscreenCanvas>();
+          for (const [k, bmp] of m.images) {
+            const c = new OffscreenCanvas(bmp.width, bmp.height);
+            c.getContext("2d")!.drawImage(bmp, 0, 0);
+            bmp.close();
+            chunkImages.set(k, c);
+          }
+          resolve({ ...m.outcome, result, chunkImages });
+        }
+      }
+    };
+    worker.postMessage(job);
+  });
+}
+
 $("build").onclick = async () => {
   if (!current || building) return;
   building = true;
@@ -430,70 +487,26 @@ $("build").onclick = async () => {
 
   // Build options the UI has no control for (set by the headless build from a route file).
   const opts = { ...readOptions(), ...((window as unknown as { __buildOptions?: Partial<BuildOptions> }).__buildOptions ?? {}) };
-  const chunkImages = new Map<string, OffscreenCanvas>();
-  const usedImagery = new Set<ImagerySource>();
-  const usedDem = new Set<DemSource>();
-  const chain = imageryChain(current.coords[Math.floor(current.coords.length / 2)], $<HTMLSelectElement>("imagerySource").value as ImagerySource | "auto");
   const report = async (stage: string, f = 0) => {
     const [a, b] = STAGES[stage] ?? [0, 1];
     setProgress(stage === "Fetching aerial imagery" ? `${stage} (${Math.round(f * 100)}%)` : stage, a + (b - a) * f);
     await nextFrame();
   };
   try {
-    await report("Fetching OpenStreetMap data");
-    clearDataWarnings();
     const token = $<HTMLInputElement>("mapillaryToken").value.trim();
     saveToken(token);
-    let seenError = "";
-    const [osm, tiles, seen, coast] = await Promise.all([
-      fetchOsm(current.coords),
-      fetchTileFeatures(paddedBounds(current.coords, (opts.buildingRadius ?? 250) + 50)).catch(() => {
-        warnMissing("all map tiles (buildings, streets, shops)");
-        return null;
-      }),
-      token
-        ? fetchSeen(paddedBounds(current.coords, (opts.corridor ?? 90) + 20), token).catch((e) => {
-          seenError = (e as Error).message;
-          return [];
-        })
-        : Promise.resolve([]),
-      opts.sea !== false ? fetchCoast(paddedBounds(current.coords, (opts.horizon ?? 1500) + 1200)).catch(() => {
-        warnMissing("all coast tiles (sea, piers, beaches)");
-        return undefined;
-      }) : Promise.resolve(undefined),
-    ]);
-    if (tiles) osm.features.buildings = tiles.buildings;
-    // Overpass widths when it answered; otherwise widths by road class from the tiles.
-    const tileWidths = tiles ? classWidths(tiles.roads) : [];
-    const widthAt = opts.widthOverride
-      ? undefined
-      : osm.widthAt ?? (tileWidths.length ? widthLookup(tileWidths, current.coords[0][1]) : undefined);
-    const result = await buildTrack(current.coords, opts, {
-      dem: (proj, bounds, z) => loadDem(proj, bounds, z, undefined, usedDem),
-      imagery: opts.imageryZoom ? (proj, chunk, z, size) => loadChunkImagery(proj, chunk, z, size, chunkImages, chain, usedImagery) : undefined,
-      widthAt,
-      osm: osm.features,
+    const job: BuildJob = {
+      coords: current.coords,
       roundabouts: current.roundabouts,
-      streets: tiles ? { lines: tiles.roads, names: tiles.names } : undefined,
-      pois: tiles?.pois,
-      seen,
-      houseLooks: (window as unknown as { __houseLooks?: { at: [number, number]; facade?: string }[] }).__houseLooks,
-      drawSigns,
-      renderArt,
-      raster: (proj, path, reach) => loadRouteRaster(proj, path, reach, chain, 20, (d, t) => setProgress(`Tracing the road in the aerial photos (${Math.round((d / t) * 100)}%)`)),
-      roadClassAt: tiles ? roadClassLookup(tiles.roads, current.coords[0][1]) : undefined,
-      groundDetails: loadGroundDetails,
-      coast,
-      paths: tiles
-        ? tiles.roads.filter((r) => r.cls === "path" && r.brunnel !== "bridge" && r.brunnel !== "tunnel")
-          .flatMap((r) => {
-            const kind = pathKind(r.subclass, r.bicycle);
-            return kind ? [{ pts: r.pts, kind }] : [];
-          })
-        : undefined,
-      imageryCredit: () => [...[...usedImagery].map((k) => IMAGERY[k].credit), ...[...usedDem].map((k) => DEM_CREDIT[k])].join("; "),
-    }, placeMeta, report);
-
+      opts,
+      token,
+      imagerySource: $<HTMLSelectElement>("imagerySource").value as ImagerySource | "auto",
+      placeMeta,
+      // Busselton fork: what particular houses look like (set by the headless build).
+      houseLooks: (window as unknown as { __houseLooks?: BuildJob["houseLooks"] }).__houseLooks,
+    };
+    const { result, chunkImages, usedImagery, usedDem, widthFallback, seen, seenError, missing } = await build(job, report);
+    lastMissing = missing;
     await report("Rendering preview");
     preview = await createPreview($<HTMLCanvasElement>("preview-canvas"), result.model, result.plan, chunkImages, result.previewTextures);
     try {
@@ -511,13 +524,13 @@ $("build").onclick = async () => {
     a.download = `${result.slug}.zip`;
     a.textContent = `Download ${result.slug}.zip (${(zip.length / 1e6).toFixed(1)} MB)`;
     lastResult = result;
-    showStats(result, !widthAt && !opts.widthOverride, usedImagery, usedDem);
+    showStats(result, widthFallback, usedImagery, usedDem);
     if (token) {
-      $("result-stats").insertAdjacentHTML("beforeend", `<div><dt>Mapillary</dt><dd>${seenError ? escapeHtml(seenError) : `${seen.length} objects`}</dd></div>`);
+      $("result-stats").insertAdjacentHTML("beforeend", `<div><dt>Mapillary</dt><dd>${seenError ? escapeHtml(seenError) : `${seen} objects`}</dd></div>`);
     }
-    if (dataWarnings.length) {
+    if (missing.length) {
       // The track built, but without some data: say so, it will differ from a full build.
-      $("result-stats").insertAdjacentHTML("beforeend", `<div><dt>Missing data</dt><dd>${dataWarnings.map(escapeHtml).join("; ")}. Build again for a complete track.</dd></div>`);
+      $("result-stats").insertAdjacentHTML("beforeend", `<div><dt>Missing data</dt><dd>${missing.map(escapeHtml).join("; ")}. Build again for a complete track.</dd></div>`);
     }
     await report("Done", 1);
     $("result").hidden = false;
@@ -532,31 +545,12 @@ $("build").onclick = async () => {
   }
 };
 
-/** The tiled ground textures shipped in public/textures/ground (see scripts/textures/make_ground_details.py). */
-let groundCache: Promise<Record<GroundLayer, GroundDetail> | null> | null = null;
-function loadGroundDetails(): Promise<Record<GroundLayer, GroundDetail> | null> {
-  groundCache ??= Promise.all(GROUND_LAYERS.map(async (layer) => {
-    const res = await fetch(`${import.meta.env.BASE_URL}textures/ground/${layer}.jpg`);
-    if (!res.ok) throw new Error(`ground texture ${layer}: HTTP ${res.status}`);
-    const bmp = await createImageBitmap(await res.blob());
-    const c = new OffscreenCanvas(bmp.width, bmp.height).getContext("2d", { willReadFrequently: true })!;
-    c.drawImage(bmp, 0, 0);
-    return [layer, { rgba: c.getImageData(0, 0, bmp.width, bmp.height).data, width: bmp.width, height: bmp.height }] as const;
-  }))
-    .then((pairs) => Object.fromEntries(pairs) as Record<GroundLayer, GroundDetail>)
-    .catch((e) => {
-      console.warn("ground textures unavailable, using plain photo terrain:", e);
-      return null;
-    });
-  return groundCache;
-}
-
-function showStats(r: TrackResult, widthFallback: boolean, usedImagery: Set<ImagerySource>, usedDem: Set<DemSource>): void {
+function showStats(r: TrackResult, widthFallback: boolean, usedImagery: ImagerySource[], usedDem: DemSource[]): void {
   const s = r.stats;
   const rows: [string, string][] = [
     ["Length", s.closed ? `${(s.length / 1000).toFixed(2)} km` : `${(s.timedLength / 1000).toFixed(2)} km timed, ${(s.length / 1000).toFixed(2)} km with run-up and run-off`],
     ["Layout", s.closed ? "Circuit" : "A to B"],
-    ["Elevation", `${Math.round(s.minElevation)}–${Math.round(s.maxElevation)} m${usedDem.size ? ` (${[...usedDem].map((k) => DEM_LABEL[k]).join(" + ")} bare-earth model)` : ""}`],
+    ["Elevation", `${Math.round(s.minElevation)}–${Math.round(s.maxElevation)} m${usedDem.length ? ` (${[...usedDem].map((k) => DEM_LABEL[k]).join(" + ")} bare-earth model)` : ""}`],
     ["Climb", `${Math.round(s.climb)} m`],
     ["Avg width", `${s.meanWidth.toFixed(1)} m${widthFallback ? " (default)" : ""}`],
     ["Trees", s.trees.toLocaleString()],
@@ -570,6 +564,7 @@ function showStats(r: TrackResult, widthFallback: boolean, usedImagery: Set<Imag
     ["Poles & lights", `${s.poles} power poles, ${s.streetLights} street lights`],
     ...(s.carsPainted !== undefined ? [["Car parks", `${s.carsPainted} parked cars painted out, ${s.carParkIslands ?? 0} islands`] as [string, string]] : []),
     ["Guard rail", `${Math.round(s.railMetres)} m`],
+    ...(s.race ? [["Race day", `${s.race.barrierMetres.toLocaleString()} m of barriers${s.race.grandstand ? ", a grandstand" : ""}, ${s.race.spectators.toLocaleString()} spectators`] as [string, string]] : []),
     ["Triangles", s.triangles.toLocaleString()],
   ];
   $("result-stats").innerHTML = rows.map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join("");
@@ -589,7 +584,78 @@ document.addEventListener("keydown", (e) => {
   if (e.key === "Escape" && !$("preview").hidden) $("preview-close").click();
 });
 
+/* ---------------- the session in the address ---------------- */
+
+// Every setting except the search box, the loop and name (kept separately) and secrets.
+const NOT_SAVED = new Set(["search", "loop", "name", "mapillaryToken"]);
+type Control = HTMLInputElement | HTMLSelectElement;
+const controls = (): Control[] => [...document.querySelectorAll<Control>("input[id], select[id]")]
+  .filter((c) => !NOT_SAVED.has(c.id) && c.type !== "password");
+const valueOf = (c: Control) => (c instanceof HTMLInputElement && c.type === "checkbox" ? (c.checked ? "1" : "0") : c.value);
+const defaults = new Map(controls().map((c) => [c.id, valueOf(c)]));
+let restoring = true; // nothing is saved until the last session is back
+
+function saveSession(): void {
+  if (restoring) return;
+  const options: Record<string, string> = {};
+  for (const c of controls()) if (valueOf(c) !== defaults.get(c.id)) options[c.id] = valueOf(c);
+  const hash = encodeSession({
+    pins, loop: $<HTMLInputElement>("loop").checked, zones: zones.map((z) => z.at),
+    name: nameTouched ? $<HTMLInputElement>("name").value.trim() : "", options,
+  });
+  history.replaceState(null, "", hash ? `#${hash}` : location.pathname + location.search);
+  try {
+    localStorage.setItem("act:session", hash);
+  } catch {
+    // private mode: the address still has it
+  }
+}
+
+function restoreSession(): void {
+  let hash = location.hash.length > 1 ? location.hash : "";
+  if (!hash) {
+    try {
+      hash = localStorage.getItem("act:session") ?? "";
+    } catch {
+      hash = "";
+    }
+  }
+  const s = decodeSession(hash);
+  for (const c of controls()) {
+    const v = s.options[c.id];
+    if (v === undefined) continue;
+    if (c instanceof HTMLInputElement && c.type === "checkbox") c.checked = v === "1";
+    else c.value = v;
+  }
+  $<HTMLInputElement>("loop").checked = s.loop;
+  if (s.name) {
+    $<HTMLInputElement>("name").value = s.name;
+    nameTouched = true;
+  }
+  s.zones.forEach(addZone);
+  pins = s.pins;
+  if (pins.length) map.fitBounds(L.latLngBounds(pins.map(([lng, lat]) => [lat, lng] as [number, number])).pad(0.3));
+}
+
+document.addEventListener("change", (e) => {
+  if ((e.target as Element | null)?.matches?.("input[id], select[id]")) saveSession();
+});
+$("share").onclick = async () => {
+  const btn = $<HTMLButtonElement>("share");
+  try {
+    await navigator.clipboard.writeText(location.href);
+    btn.textContent = "Link copied";
+  } catch {
+    btn.textContent = "Copy the address bar";
+  }
+  setTimeout(() => (btn.textContent = "Copy link"), 2000);
+};
+
+restoreSession();
+restoring = false;
 renderPins();
+renderZones();
+if (pins.length >= 2) refreshRoute();
 $<HTMLInputElement>("mapillaryToken").value = savedToken();
 
 // Test hook for the browser smoke test (dev server only).
@@ -603,47 +669,6 @@ if (import.meta.env.DEV) {
     },
     result: () => lastResult,
     preview: () => preview,
-    dataWarnings: () => [...dataWarnings],
+    dataWarnings: () => [...lastMissing],
   };
 }
-
-/** Shop names for their fascia signs, drawn with the browser's fonts: one w x h row each. */
-function drawSigns(
-  names: { text: string; bg: [number, number, number]; ink: [number, number, number]; squeeze: number }[], w: number, h: number,
-): Uint8ClampedArray {
-  const canvas = document.createElement("canvas");
-  canvas.width = w;
-  canvas.height = h * names.length;
-  const ctx = canvas.getContext("2d")!;
-  const rgb = (c: [number, number, number]) => `rgb(${c[0]},${c[1]},${c[2]})`;
-  names.forEach((n, i) => {
-    const y = i * h;
-    ctx.fillStyle = rgb(n.bg);
-    ctx.fillRect(0, y, w, h);
-    // A thin border in a mix of the two colours.
-    ctx.strokeStyle = rgb([0, 1, 2].map((k) => n.ink[k] * 0.6 + n.bg[k] * 0.4) as [number, number, number]);
-    ctx.lineWidth = 3;
-    ctx.strokeRect(1.5, y + 1.5, w - 3, h - 3);
-    ctx.save();
-    ctx.translate(w / 2, y + h / 2);
-    // Squeezed across, so the letters come out square once stretched along the fascia.
-    ctx.scale(n.squeeze, 1);
-    ctx.fillStyle = rgb(n.ink);
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    let size = Math.round(h * 0.62);
-    const font = (px: number) => `bold ${px}px "Helvetica Neue", Arial, "Liberation Sans", sans-serif`;
-    ctx.font = font(size);
-    // Shrink long names to fit inside the border.
-    const room = (w - 24) / n.squeeze;
-    const width = ctx.measureText(n.text).width;
-    if (width > room) {
-      size = Math.max(10, Math.floor((size * room) / width));
-      ctx.font = font(size);
-    }
-    ctx.fillText(n.text, 0, 2);
-    ctx.restore();
-  });
-  return ctx.getImageData(0, 0, w, canvas.height).data;
-}
-

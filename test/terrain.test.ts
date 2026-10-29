@@ -83,7 +83,7 @@ describe("terrain at a roundabout mouth", () => {
       });
       const c: Vec2 = [150, 0.3];
       const span = 0.5;
-      plan.roundabouts.push({ c, r: 12, w: 8, hc: 10, sIn: 0, sOut: 0, crossings: [0, Math.PI], kerbed: true, openings: [[-span, span], [Math.PI - span, Math.PI + span]] });
+      plan.roundabouts.push({ c, r: 12, w: 8, hc: 10, sIn: 0, sOut: 0, crossings: [0, Math.PI], kerbed: true, lanes: 1, openings: [[-span, span], [Math.PI - span, Math.PI + span]] });
       const terrain = makeTerrainFn(plan, new SegmentIndex(plan), () => 10 + KERB_H, o);
       const mesh = meshAt(terrain, step);
       let poke = -Infinity;

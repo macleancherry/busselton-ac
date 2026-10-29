@@ -30,6 +30,7 @@
             <button id="reverse" type="button" disabled>Reverse</button>
             <label class="toggle"><input id="loop" type="checkbox" /> Loop back to start</label>
             <button id="clear" type="button" disabled>Clear</button>
+            <button id="share" type="button" title="A link to this road and these settings (your Mapillary token is never in it)">Copy link</button>
           </div>
           <div class="route-stats" id="route-stats" hidden>
             <div><b id="route-length">–</b><small>routed length</small></div>
@@ -124,7 +125,7 @@
             <div class="checks">
               <label class="toggle"><input id="traceRoads" type="checkbox" checked /> Trace road from aerial photos</label>
               <label class="toggle"><input id="kerbs" type="checkbox" checked /> Kerb &amp; gutter</label>
-              <label class="toggle" title="Asphalt stones and grass blades up close, through Assetto Corsa's detail-map shader. Turn off if the road or grass looks wrong in game."><input id="detailShaders" type="checkbox" checked /> Detail shaders</label>
+              <label class="toggle" title="Asphalt stones, grass blades and dirt up close over the aerial photo, through Assetto Corsa's detail-map and multilayer shaders. Turn off if the road or grass looks wrong in game."><input id="detailShaders" type="checkbox" checked /> Detail shaders</label>
               <label class="toggle"><input id="markings" type="checkbox" checked /> Line markings</label>
               <label class="toggle"><input id="sideStreets" type="checkbox" checked /> Side streets</label>
               <label class="toggle"><input id="streetSigns" type="checkbox" checked /> Street signs</label>
@@ -133,6 +134,15 @@
               <label class="toggle"><input id="guidePosts" type="checkbox" checked /> Guide posts</label>
             </div>
           </div>
+          <details id="race-box" open>
+            <summary>Race day</summary>
+            <p class="hint">Dresses the road like a street circuit on race weekend: concrete barriers with debris fencing and sponsor banners along the start/finish straight and the outside of tight corners, tyre walls, a start gantry with lights, a grandstand and spectators where there's room, marshal posts and flags. The rest of the street, and its side streets, stay open.</p>
+            <label class="toggle"><input id="raceDress" type="checkbox" /> Race-day dressing</label>
+            <label class="field">Sponsors (comma-separated; names only, drawn as text in each brand's colours)
+              <input id="sponsors" type="text" value="Supercheap Auto, Repco, Bob Jane T-Marts, Penrite, Nulon, Ampol, Autobarn, Coates, Castrol, Shell V-Power" />
+            </label>
+            <p class="hint">Real brand names are fine for your own use; if you share a track publicly, consider swapping in made-up ones.</p>
+          </details>
           <details id="mapillary-box">
             <summary>Street-level detail (Mapillary)</summary>
             <p class="hint">Places real traffic signs, power poles, street lights and traffic lights where Mapillary's street photos have found them. Needs a free client token from <a href="https://www.mapillary.com/dashboard/developers" target="_blank" rel="noopener">mapillary.com/dashboard/developers</a> (register an app, copy its client token). It is stored only in this browser.</p>

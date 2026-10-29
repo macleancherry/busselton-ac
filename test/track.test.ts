@@ -89,7 +89,7 @@ describe("buildTrack (synthetic terrain)", async () => {
     const names = nodes.map((n) => n.name);
     for (const m of meshes) {
       // physical surfaces, or non-collidable horizon and scenery
-      expect(m.name).toMatch(/^(1(ROAD|STREET|GRASS|WALL|KERB)_|BACKDROP_|TREES_|GUIDEPOSTS_|RAILPOSTS_|ROOF_|MARKINGS_|RRPM_|FURNITURE_)/);
+      expect(m.name).toMatch(/^(1(ROAD|STREET|GRASS|WALL|KERB)_|BACKDROP_|TREES_|GUIDEPOSTS_|RAILPOSTS_|ROOF_|MARKINGS_|RRPM_|FURNITURE_|RACE_)/);
       if (m.kind !== "mesh") continue;
       expect(m.positions.every(Number.isFinite)).toBe(true);
       expect(m.normals.every(Number.isFinite)).toBe(true);
@@ -225,3 +225,43 @@ describe("start and finish on a long road drawn with jitter", async () => {
   });
 });
 
+
+describe("buildTrack (aerial imagery, detail shaders)", async () => {
+  const { encodePng } = await import("../src/core/png");
+  const lat0 = -27.92, lng0 = 153.19, mPerDegLng = 111_320 * Math.cos((lat0 * Math.PI) / 180);
+  const route: LngLat[] = [0, 300, 600].map((x) => [lng0 + x / mPerDegLng, lat0]);
+  // Every chunk's photo: lawn on the left half, asphalt grey on the right.
+  const photo = (size: number) => {
+    const rgba = new Uint8Array(size * size * 4);
+    for (let i = 0; i < size * size; i++) rgba.set(i % size < size / 2 ? [70, 110, 50, 255] : [90, 90, 95, 255], i * 4);
+    return rgba;
+  };
+  const result = await buildTrack(route, { name: "Photo Ground", imageryZoom: 17, corridor: 60 }, {
+    ...sources,
+    imagery: async (_p, _c, _z, size) => {
+      const rgba = photo(size);
+      return { data: encodePng(rgba, size, size), ext: "png", rgba };
+    },
+  });
+  const kn5 = readKn5(result.files["photo_ground/photo_ground.kn5"]);
+
+  it("lays grass, dirt and plain detail over the photo by a small mask, the photo left without alpha", () => {
+    const ground = kn5.materials.filter((m) => m.name.startsWith("terrain_") || m.name === "grass" || m.name === "verge");
+    expect(ground.length).toBeGreaterThan(2);
+    for (const m of ground) {
+      expect(m.shader).toBe("ksMultilayer");
+      expect(m.registers).toEqual({ txDiffuse: 0, txMask: 1, txDetailR: 2, txDetailG: 3, txDetailB: 4, txDetailA: 5 });
+      expect([m.textures.txDetailR, m.textures.txDetailG, m.textures.txDetailB, m.textures.txDetailA])
+        .toEqual(["ground_grass.dds", "ground_dirt.dds", "ground_plain.dds", "black.png"]);
+      expect(m.properties.find((p) => p.name === "multR")?.a).toBeCloseTo(1 / 1.6, 4);
+      expect(m.properties.find((p) => p.name === "magicMult")?.a).toBe(2);
+      expect(kn5.textures.some((t) => t.name === m.textures.txMask)).toBe(true);
+    }
+    for (const m of ground.filter((g) => g.name.startsWith("terrain_"))) {
+      const mask = kn5.textures.find((t) => t.name === m.textures.txMask)!;
+      expect(mask.data.length).toBeLessThan(50_000); // 256 px DXT1 with mipmaps
+      // Busselton fork: with parked cars painted out the photo is re-encoded as DXT1.
+      expect(m.textures.txDiffuse).toMatch(/\.(png|dds)$/);
+    }
+  });
+});

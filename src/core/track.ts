@@ -4,7 +4,7 @@
 
 import { buildPaths, footPathTexture, sharedPathTexture, type PathLine } from "./paths";
 import { pickSpecies, treeSpeciesAtlas } from "./treeSprites";
-import { FENCE_COLOURS, facadeTexture, fenceTexture, frontWallTexture, hedgeTexture, mulchTexture, shrubAtlas } from "./houseTextures";
+import { FENCE_COLOURS, fenceTexture, frontWallTexture, hedgeTexture, mulchTexture, shrubAtlas } from "./houseTextures";
 import { buildLots, shrub } from "./lots";
 import { buildParkedCars, carTexture, paintFor, type ParkedCar } from "./parkedCars";
 import { buildShopfronts, findShopfronts, shopSignTexture, shopStats, shopWindowTexture, type SignDrawer } from "./shops";
@@ -12,7 +12,7 @@ import { buildIslands, findIslands, footprintMask, lineMask, paintOutCars } from
 import { trafficJson, type TrafficRoad } from "./traffic";
 import autotestLua from "./lua/autotest.lua?raw";
 import { buildGroynes, buildPiers, buildSea, buildSeawall, deckTexture, rockTexture, SeaMask, seaTexture, withSeabed, type CoastPolygon } from "./coast";
-import { GROUND_LAYERS, GROUND_TILE_METRES, groundMask, type GroundDetail, type GroundLayer } from "./ground";
+import type { GroundDetail, GroundLayer } from "./ground";
 import { aiHintsIni, buildAiLine } from "./aiLine";
 import { BACKDROP_CHUNK, backdropHeight, buildBackdropChunk, planBackdrop } from "./backdrop";
 import { writeFastLaneAi } from "./aiSpline";
@@ -26,7 +26,7 @@ import { simplify } from "./polyline";
 import { applyElevation, inRoundabout, isLoop, planRoad, surfaceHeight, SegmentIndex, type RoadPlan, type RoadSample } from "./road";
 import { extendRoute, pathLength } from "./extend";
 import { keepOffRoute, onRoute } from "./clearance";
-import { buildRingMeshes, buildRingWall, innerRadius, outerRadius, resolveRoundabouts, ringsOnRoute, ringHeight, vergeOuterRadius, type RoundaboutHint } from "./roundabout";
+import { buildRingMarkings, buildRingMeshes, buildRingWall, innerRadius, outerRadius, resolveRoundabouts, ringsOnRoute, ringHeight, vergeOuterRadius, type RoundaboutHint } from "./roundabout";
 import { buildRoadMeshes, buildWalls, type RoadMaterialFn } from "./roadMesh";
 import { buildKerbReturns, buildKerbs, KERB_BACK, KERB_H, kerbEvidence, planKerbs, STRIP_EXTRA, stripPhotoTexture, type StripMaterialFn } from "./kerbs";
 import { photoRoadTexture } from "./photoSurface";
@@ -34,11 +34,13 @@ import { encodeDdsDxt1, encodeDdsDxt5 } from "./dds";
 import { decodeOwnPng, encodePng } from "./png";
 import { buildMarkings, type DiscreteMark } from "./markings";
 import { buildTerrainChunk, makeTerrainFn, meshTop, planTerrainChunks, type TerrainChunk } from "./terrain";
-import { BARRIERS, barrierTexture, detailTexture, normalFromHeight, windowTexture, flatNormalTexture, grassAlpha, mapsTexture, FACADES, paintTexture, sealTexture, type SealKind, garageTexture, grassTexture, concreteTexture, postTexture, railTexture, ROOF_COLOURS, roofTexture, solidTexture, vergeTexture } from "./textures";
+import { BARRIERS, barrierTexture, detailTexture, normalFromHeight, windowTexture, flatNormalTexture, GROUND_TILE, groundDetail, groundMask, type GroundKind, mapsTexture, paintTexture, sealTexture, type SealKind, garageTexture, grassTexture, concreteTexture, postTexture, railTexture, solidTexture, vergeTexture } from "./textures";
 import {
   buildGuardRails, buildGuidePosts, buildTrees, treeTrunks, filterTrees, railNeeds, rng, treeSpotsFromImagery, type TreeSpot,
 } from "./scenery";
-import { buildBuildings, centroid, detectBuildings, facadeMaterial, filterBuildings, fromOsm, pointInRing, type Building } from "./buildings";
+import { buildBuildings, centroid, detectBuildings, filterBuildings, fromOsm, isRectangle, pointInRing, ringArea, usedFinishes, type Building } from "./buildings";
+import { dressBuilding, FACADES, facadeTexture, ROOF_COLOURS, roofTexture } from "./buildingStyles";
+import { facadeForLook, facadeForStyle } from "./houseLooks";
 import { camerasIni, placeCameras } from "./cameras";
 import { cullable } from "./cull";
 import { extConfig } from "./cspConfig";
@@ -46,6 +48,7 @@ import { buildBarriers } from "./fences";
 import { chunkPhotoSampler, frontageHouses } from "./frontage";
 import { ArtList, type ArtRenderer } from "./art";
 import { buildPieces, gateSigns, landmarks, mergeSightings, seenFeatures, streetSigns } from "./furniture";
+import { barrierConcreteTexture, catchFenceTexture, crowdTexture, raceDressing, tyreWallTexture } from "./raceDress";
 import { placeUtilities } from "./utilities";
 import { buildVergeConcrete, laybacks, letterboxes, readVerge } from "./footpaths";
 import { findLines, paintCandidates, type ImageLine } from "./paintLines";
@@ -116,8 +119,8 @@ export interface OsmFeatures {
   /** Footprints (first point not repeated) with OSM / vector tile tags. */
   buildings: { ring: LngLat[]; tags: Record<string, string> }[];
   guardRails: LngLat[][];
-  /** OSM junction=roundabout ways near the route. */
-  roundaboutRings?: LngLat[][];
+  /** OSM junction=roundabout ways near the route, with their circulating lanes when tagged. */
+  roundaboutRings?: { pts: LngLat[]; lanes?: number }[];
   /** Fences, walls and hedges near the route (OSM barrier=*). */
   barriers?: { pts: LngLat[]; kind: "fence" | "wall" | "hedge" | "retaining_wall"; fenceType?: string; material?: string; height?: number }[];
   /** Power poles, street lamps and distribution power lines (on poles) near the route. */
@@ -172,6 +175,8 @@ export interface TrackResult {
     /** Power poles and street lights placed. */
     poles: number;
     streetLights: number;
+    /** Race-day dressing: metres of barrier, a grandstand or not, people. */
+    race: { barrierMetres: number; grandstand: boolean; spectators: number } | null;
     /** Footpath read off the photo, metres (both sides), and driveway crossovers. */
     footpathMetres: number;
     driveways: number;
@@ -305,32 +310,6 @@ function material(name: string, texture: string, light: { ambient: number; diffu
   };
 }
 
-/** A photo material turned ksMultilayer: the photo times masked, tiled ground detail (see ground.ts). */
-function multilayerMaterial(photo: Kn5Material, mask: string, chunkMetres: number): Kn5Material {
-  // Terrain UVs run 0..1 across a chunk, so a detail's UV scale is repeats per chunk.
-  const mult = (layer: GroundLayer) => chunkMetres / GROUND_TILE_METRES[layer];
-  return {
-    ...photo,
-    shader: "ksMultilayer",
-    properties: [
-      ...photo.properties,
-      { name: "magicMult", a: 2 },
-      { name: "multR", a: mult("lawn") },
-      { name: "multG", a: mult("rough") },
-      { name: "multB", a: mult("sand") },
-      { name: "multA", a: mult("litter") },
-    ],
-    textures: {
-      txDiffuse: photo.textures.txDiffuse,
-      txMask: mask,
-      txDetailR: "ground_lawn.dds",
-      txDetailG: "ground_rough.dds",
-      txDetailB: "ground_sand.dds",
-      txDetailA: "ground_litter.dds",
-    },
-  };
-}
-
 /** A normal-mapped material (ksPerPixelNM): relief without reflections. Parameter names as the shader declares them. */
 function nmMaterial(name: string, diffuse: string, normal: string, light: { ambient: number; diffuse: number; specular: number; exp: number }): Kn5Material {
   const base = material(name, diffuse, light);
@@ -386,6 +365,109 @@ function multiMapMaterial(
   };
 }
 
+type Layer = { texture: string; metres: number };
+
+/**
+ * A ksMultilayer material: the diffuse texture multiplied by four tiling
+ * details, weighted by txMask's R, G, B and A, then by `magicMult`. The
+ * details are projected from above in world metres (one tile every
+ * `metres`), so they keep their scale on every chunk. Parameter names as
+ * the game's shader declares them (multA is a float2).
+ */
+function multilayerMaterial(
+  name: string,
+  diffuse: string,
+  mask: string,
+  light: { ambient: number; diffuse: number; specular: number; exp: number },
+  [r, g, b, a]: [Layer, Layer, Layer, Layer],
+  magicMult: number,
+): Kn5Material {
+  return {
+    name,
+    shader: "ksMultilayer",
+    properties: [
+      { name: "ksAmbient", a: light.ambient },
+      { name: "ksDiffuse", a: light.diffuse },
+      { name: "ksSpecular", a: light.specular },
+      { name: "ksSpecularEXP", a: light.exp },
+      { name: "ksEmissive", c: [0, 0, 0] },
+      { name: "ksAlphaRef", a: 0 },
+      { name: "multR", a: 1 / r.metres },
+      { name: "multG", a: 1 / g.metres },
+      { name: "multB", a: 1 / b.metres },
+      { name: "multA", b: [1 / a.metres, 1 / a.metres] },
+      { name: "magicMult", a: magicMult },
+    ],
+    textures: { txDiffuse: diffuse, txMask: mask, txDetailR: r.texture, txDetailG: g.texture, txDetailB: b.texture, txDetailA: a.texture },
+  };
+}
+
+const groundLayer = (k: GroundKind): Layer => ({ texture: `ground_${k}.dds`, metres: GROUND_TILE[k] });
+
+/**
+ * Ground under a photo (or a plain grass or gravel texture): grass, dirt
+ * and plain detail by the mask's R, G and B, each mid grey on average and
+ * doubled, so from a distance the photo is unchanged and up close it has
+ * blades, clods and grain. A is black: a DXT1 mask reads 1 there.
+ */
+function groundMaterial(name: string, diffuse: string, mask: string, light: { ambient: number; diffuse: number; specular: number; exp: number }): Kn5Material {
+  return multilayerMaterial(name, diffuse, mask, light, [groundLayer("grass"), groundLayer("dirt"), groundLayer("plain"), { texture: "black.png", metres: 1 }], 2);
+}
+
+/**
+ * Decides what each building is (buildingStyles.ts) from what's known: its
+ * OSM type and height, a point of interest inside it, the roof colour in
+ * the photo, and which wall faces the street (found here when the footprint
+ * didn't come with one) and how far back it sits.
+ */
+function dressBuildings(buildings: Building[], ctx: {
+  /** Distance from a point to the nearest road edge (route or street), metres. */
+  roadEdge: (x: number, y: number) => number;
+  pois: { at: Vec2; cls: string; subclass: string }[];
+  queensland: boolean;
+}): void {
+  const SHOPLIKE = /^(shop|grocery|clothing_store|cafe|restaurant|fast_food|bar|pub)$/;
+  buildings.forEach((b, i) => {
+    if (!b.front && b.ring.length >= 3) {
+      // The wall nearest a road that faces it.
+      let best = -1, bestD = 25;
+      const ccw = ringArea(b.ring) >= 0;
+      b.ring.forEach((p, k) => {
+        const q = b.ring[(k + 1) % b.ring.length];
+        const len = Math.hypot(q[0] - p[0], q[1] - p[1]);
+        if (len < 3) return;
+        const m: Vec2 = [(p[0] + q[0]) / 2, (p[1] + q[1]) / 2];
+        const out: Vec2 = ccw ? [(q[1] - p[1]) / len, -(q[0] - p[0]) / len] : [-(q[1] - p[1]) / len, (q[0] - p[0]) / len];
+        const d = ctx.roadEdge(m[0], m[1]);
+        if (d < bestD && ctx.roadEdge(m[0] + out[0] * 2, m[1] + out[1] * 2) < d - 1) {
+          bestD = d;
+          best = k;
+        }
+      });
+      if (best >= 0) {
+        b.front = [b.ring[best], b.ring[(best + 1) % b.ring.length]];
+        b.setback = bestD;
+      }
+    }
+    const inside = ctx.pois.filter((p) => pointInRing(p.at[0], p.at[1], b.ring));
+    const poi = inside.find((p) => SHOPLIKE.test(p.cls)) ?? inside[0];
+    const tags = b.tags ?? {};
+    const knownHeight = !!(tags.height || tags["building:levels"] || (tags.render_height && tags.render_height !== "5"));
+    const dress = dressBuilding({
+      height: b.source === "osm" && knownHeight ? b.height : undefined,
+      kind: tags.building,
+      area: Math.abs(ringArea(b.ring)),
+      poi: poi?.cls,
+      photoRoof: b.source !== "osm" || tags["roof:colour"] ? b.roofColour : undefined,
+      queensland: ctx.queensland,
+      rectangle: isRectangle(b.ring),
+      fronted: b.setback !== undefined && b.setback < 15,
+      seed: 7919 + i * 31 + Math.round(Math.abs(b.ring[0][0]) * 13),
+    });
+    Object.assign(b, dress, { garage: dress.garage ?? b.garage });
+  });
+}
+
 function countGeometry(node: Kn5Node): { v: number; t: number } {
   if (node.kind === "mesh") return { v: node.positions.length / 3, t: node.indices.length / 3 };
   return node.children.map(countGeometry).reduce((a, b) => ({ v: a.v + b.v, t: a.t + b.t }), { v: 0, t: 0 });
@@ -413,7 +495,7 @@ export async function buildTrack(
   const tileRings = (sources.streets?.lines ?? [])
     .filter((l) => l.pts.length > 5 && Math.hypot(l.pts[0][0] - l.pts[l.pts.length - 1][0], l.pts[0][1] - l.pts[l.pts.length - 1][1]) < 2e-5)
     .map((l) => l.pts.map((p) => proj.toLocal(p)));
-  const circles = [...hinted, ...ringsOnRoute([...(sources.osm?.roundaboutRings ?? []).map((r) => r.map((p) => proj.toLocal(p))), ...tileRings], local, hinted)];
+  const circles = [...hinted, ...ringsOnRoute([...(sources.osm?.roundaboutRings ?? []).map((r) => r.pts.map((p) => proj.toLocal(p))), ...tileRings], local, hinted)];
   // Point to point: room to line up and get going before the start pin, and to brake after the finish pin.
   const rows = Math.ceil(opts.pitCount / 2);
   const ext = !isLoop(local) && (opts.runUp > 0 || opts.runOff > 0)
@@ -479,9 +561,22 @@ export async function buildTrack(
     material("grass", "grass.png", { ambient: 0.45, diffuse: 0.4, specular: 0, exp: 1 }),
     material("wall", "wall.png", { ambient: 0.4, diffuse: 0.4, specular: 0, exp: 1 }),
   ];
+  // Raw pixels of the DDS textures, for the 3D preview (browsers can't decode DDS).
+  const previewTextures: TrackResult["previewTextures"] = {};
   const addScenery = (tex: string, data: Uint8Array, mat: Kn5Material) => {
     textures.push({ name: tex, data });
     materials.push(mat);
+  };
+  /** A ground mask for a photo texture (see groundMask); returns the mask's texture name. */
+  const photoMask = (name: string, rgba: Uint8Array | Uint8ClampedArray, w: number, h: number) => {
+    const mask = groundMask(rgba, w, h);
+    textures.push({ name: `${name}_mask.dds`, data: encodeDdsDxt1(mask.rgba, mask.width, mask.height) });
+    return `${name}_mask.dds`;
+  };
+  /** A photo of the ground beside the road: ground detail on it with detail shaders, else plain. */
+  const photoGroundMaterial = (name: string, tex: string, img: { rgba: Uint8Array; width: number; height: number }) => {
+    const light = { ambient: 0.6, diffuse: 0.2, specular: 0, exp: 1 };
+    return opts.detailShaders ? groundMaterial(name, tex, photoMask(name, img.rgba, img.width, img.height), light) : material(name, tex, light);
   };
   addScenery("trees.png", treeSpeciesAtlas(), {
     ...material("trees", "trees.png", { ambient: 0.55, diffuse: 0.35, specular: 0, exp: 1 }),
@@ -512,7 +607,14 @@ export async function buildTrack(
   addScenery("letterbox.png", solidTexture([168, 52, 40]), material("letterbox", "letterbox.png", { ambient: 0.45, diffuse: 0.45, specular: 0.25, exp: 25 }));
   // Shared textures for detail-mapped materials.
   if (opts.detailShaders) {
-    for (const k of ["asphalt", "chipseal", "grass"] as const) textures.push({ name: `detail_${k}.png`, data: detailTexture(k) });
+    for (const k of ["asphalt", "chipseal"] as const) textures.push({ name: `detail_${k}.png`, data: detailTexture(k) });
+    for (const k of ["grass", "dirt", "plain"] as const) textures.push({ name: `ground_${k}.dds`, data: encodeDdsDxt1(groundDetail(k), 512, 512) });
+    textures.push({ name: "black.png", data: solidTexture([0, 0, 0]) });
+    // The plain grass and gravel textures: all grass, all dirt.
+    textures.push({ name: "mask_grass.png", data: solidTexture([255, 0, 0]) }, { name: "mask_dirt.png", data: solidTexture([0, 255, 0]) });
+    const swap = (m: Kn5Material) => materials.splice(materials.findIndex((x) => x.name === m.name), 1, m);
+    swap(groundMaterial("grass", "grass.png", "mask_grass.png", { ambient: 0.45, diffuse: 0.4, specular: 0, exp: 1 }));
+    swap(groundMaterial("verge", "verge.png", "mask_dirt.png", { ambient: 0.45, diffuse: 0.4, specular: 0, exp: 1 }));
     textures.push({ name: "flat_nm.png", data: flatNormalTexture() });
     textures.push({ name: "maps_ground.png", data: mapsTexture(0.1, 0.15, 0) });
     textures.push({ name: "maps_asphalt.png", data: mapsTexture(0.7, 0.5, 0.35) });
@@ -529,10 +631,6 @@ export async function buildTrack(
   for (const c of FENCE_COLOURS) {
     reliefScenery(`fence_${c.name}`, fenceTexture(c.rgb), { ambient: 0.45, diffuse: 0.45, specular: 0.2, exp: 25 }, 2);
   }
-  // Facades (ours, 64 px per metre, windows where buildings.ts puts the glass), with relief.
-  for (const f of FACADES) {
-    reliefScenery(`facade_${f}`, facadeTexture(f), { ambient: 0.45, diffuse: 0.45, specular: 0.05, exp: 10 }, 3);
-  }
   reliefScenery("frontwall_limestone", frontWallTexture("limestone"), matte, 3);
   reliefScenery("frontwall_brick", frontWallTexture("brick"), matte, 3);
   addScenery("hedge.png", hedgeTexture(), material("hedge", "hedge.png", { ambient: 0.5, diffuse: 0.4, specular: 0, exp: 1 }));
@@ -542,9 +640,7 @@ export async function buildTrack(
     shader: "ksPerPixelAT",
     alphaTested: true,
   });
-  for (const c of ROOF_COLOURS) {
-    reliefScenery(`roof_${c.name}`, roofTexture(c), { ambient: 0.45, diffuse: 0.45, specular: c.tile ? 0.05 : 0.25, exp: 25 }, 4);
-  }
+
   const detected: Building[] = [];
   const treeSpots: TreeSpot[] = [];
   const farTreeSpots: TreeSpot[] = [];
@@ -561,14 +657,6 @@ export async function buildTrack(
   const photos: Parameters<typeof chunkPhotoSampler>[0] = [];
 
   const textured = new Set<string>();
-  // Tiled ground detail for ksMultilayer terrain, shared by every chunk.
-  const details = opts.groundDetail && sources.groundDetails && opts.imageryZoom > 0 ? await sources.groundDetails() : null;
-  if (details) {
-    for (const layer of GROUND_LAYERS) {
-      const d = details[layer];
-      textures.push({ name: `ground_${layer}.dds`, data: encodeDdsDxt1(d.rgba, d.width, d.height) });
-    }
-  }
   if (sources.imagery && opts.imageryZoom > 0) {
     const jobs = [
       ...chunks.map((c) => ({ chunk: c, zoom: opts.imageryZoom, size: opts.textureSize, prefix: "terrain" })),
@@ -612,21 +700,11 @@ export async function buildTrack(
       const photoData = clean ? encodeDdsDxt1(clean.rgba, job.size, job.size) : img.data;
       // Aerial photos carry their own light and shadow, so lean on ambient.
       const photoLight = { ambient: 0.6, diffuse: 0.2, specular: 0, exp: 1 };
-      if (details && photo && job.prefix === "terrain") {
-        // Busselton fork: four ground details (lawn, dry grass, sand, mulch) mixed by a mask read off the photo (ksMultilayer).
+      if (opts.detailShaders && photo && job.prefix === "terrain") {
+        // Grass, dirt and plain detail where the photo shows them, placed by a small mask; the photo
+        // (with parked cars painted out) stays DXT1.
         textures.push({ name: tex, data: photoData });
-        const maskName = `${job.prefix}_${job.chunk.key}_mask.png`;
-        textures.push({ name: maskName, data: encodePng(groundMask(photo, job.size, 256), 256, 256) });
-        materials.push(multilayerMaterial(material(`${job.prefix}_${job.chunk.key}`, tex, photoLight), maskName, job.chunk.maxX - job.chunk.minX));
-      } else if (opts.detailShaders && photo && job.prefix === "terrain") {
-        // Grass detail on the photo's lawns and dry grass (alpha 0 there), a blade every few centimetres.
-        const alpha = grassAlpha(photo, job.size, job.size);
-        const rgba = new Uint8Array(photo);
-        for (let i = 0; i < alpha.length; i++) rgba[i * 4 + 3] = alpha[i];
-        textures.push({ name: tex, data: encodeDdsDxt5(rgba, job.size, job.size) });
-        materials.push(multiMapMaterial(`${job.prefix}_${job.chunk.key}`, tex, photoLight, {
-          normal: "flat_nm.png", maps: "maps_ground.png", detail: "detail_grass.png", detailUV: opts.chunkSize / 0.9,
-        }));
+        materials.push(groundMaterial(`${job.prefix}_${job.chunk.key}`, tex, photoMask(`${job.prefix}_${job.chunk.key}`, photo, job.size, job.size), photoLight));
       } else {
         textures.push({ name: tex, data: photoData });
         materials.push(material(`${job.prefix}_${job.chunk.key}`, tex, photoLight));
@@ -682,12 +760,44 @@ export async function buildTrack(
     .filter((b) => !b.ring.some(([x, y]) => inRoundabout(plan, x, y, opts.vergeWidth + 2)))
     // Detected roofs on a street are paving, not houses; mapped ones get a little more benefit of the doubt.
     .filter((b) => !b.ring.some(([x, y]) => streetIndex.clearance(x, y) < (b.source !== "osm" ? 1 : -0.5)));
+  dressBuildings(kept, {
+    roadEdge: (x, y) => {
+      const n = index.nearest(x, y, 40);
+      return Math.min(n ? n.dist - index.at(n).width / 2 : Infinity, streetIndex.clearance(x, y));
+    },
+    pois: (sources.pois ?? []).map((p) => ({ at: proj.toLocal(p.at), cls: p.cls, subclass: p.subclass })),
+    queensland: proj.origin[1] > -29.2 && proj.origin[1] < -10 && proj.origin[0] > 138,
+  });
+  // Only the wall and roof finishes these buildings wear go in the file.
+  const finishes = usedFinishes(kept);
+  // As DXT1 (a sixth of the PNG's size for these noisy textures), with a normal map from their shading.
+  const buildingScenery = (name: string, png: Uint8Array, light: { ambient: number; diffuse: number; specular: number; exp: number }, strength: number) => {
+    const { rgba, width, height } = decodeOwnPng(png);
+    textures.push({ name: `${name}.dds`, data: encodeDdsDxt1(rgba, width, height) });
+    previewTextures[`${name}.dds`] = { rgba, width, height };
+    if (!opts.detailShaders) {
+      materials.push(material(name, `${name}.dds`, light));
+      return;
+    }
+    textures.push({ name: `${name}_nm.dds`, data: encodeDdsDxt1(normalFromHeight(rgba, width, height, strength), width, height) });
+    materials.push(nmMaterial(name, `${name}.dds`, `${name}_nm.dds`, light));
+  };
+  const facadeScenery = (fi: number) => {
+    const fc = FACADES[fi];
+    buildingScenery(`facade_${fc.name}`, facadeTexture(fc), fc.wall === "glass"
+      ? { ambient: 0.35, diffuse: 0.35, specular: 0.6, exp: 60 }
+      : { ambient: 0.45, diffuse: 0.45, specular: 0.05, exp: 10 }, fc.wall === "glass" ? 1 : 3);
+  };
+  for (const fi of finishes.facades) facadeScenery(fi);
+  for (const ri of finishes.roofs) {
+    const c = ROOF_COLOURS[ri];
+    buildingScenery(`roof_${c.name}`, roofTexture(c), { ambient: 0.45, diffuse: 0.45, specular: c.kind === "metal" ? 0.25 : 0.05, exp: 25 }, 4);
+  }
 
   await progress("Building road and terrain meshes");
   // Road surface per chunk: dense asphalt on major roads and in built-up
   // areas, chip seal on rural roads (the usual Australian split).
   const centres = kept.map((b) => b.ring[0]);
-  const previewTextures: TrackResult["previewTextures"] = {};
   const surfaceMaterials = new Set<string>();
   const roadMaterial = (ci: number, meanWidth: number, mid: RoadSample): string => {
     let kind: SealKind;
@@ -824,7 +934,7 @@ export async function buildTrack(
     const tex = stripPhotoTexture(plan, displayOf(raster), opts, a, b);
     textures.push({ name: `${name}.dds`, data: encodeDdsDxt1(tex.rgba, tex.width, tex.height) });
     previewTextures[`${name}.dds`] = tex;
-    materials.push(material(name, `${name}.dds`, { ambient: 0.6, diffuse: 0.2, specular: 0, exp: 1 }));
+    materials.push(photoGroundMaterial(name, `${name}.dds`, tex));
     return { material: name, photo: true };
   };
   // Kerbs round the corners into side streets, carrying on along each one's first 40 m; then along the road.
@@ -874,12 +984,12 @@ export async function buildTrack(
   if (returns?.sideAtlas) {
     textures.push({ name: "sidestrips_photo.dds", data: encodeDdsDxt1(returns.sideAtlas.rgba, returns.sideAtlas.width, returns.sideAtlas.height) });
     previewTextures["sidestrips_photo.dds"] = returns.sideAtlas;
-    materials.push(material("sidestrips_photo", "sidestrips_photo.dds", { ambient: 0.6, diffuse: 0.2, specular: 0, exp: 1 }));
+    materials.push(photoGroundMaterial("sidestrips_photo", "sidestrips_photo.dds", returns.sideAtlas));
   }
   if (returns?.atlas) {
     textures.push({ name: "returns_photo.dds", data: encodeDdsDxt1(returns.atlas.rgba, returns.atlas.width, returns.atlas.height) });
     previewTextures["returns_photo.dds"] = returns.atlas;
-    materials.push(material("returns_photo", "returns_photo.dds", { ambient: 0.6, diffuse: 0.2, specular: 0, exp: 1 }));
+    materials.push(photoGroundMaterial("returns_photo", "returns_photo.dds", returns.atlas));
   }
   // Footpaths and driveway crossovers in the nature strip, where the photo shows them; the kerb lays back at each driveway.
   const stripOuter = opts.vergeWidth + STRIP_EXTRA;
@@ -966,6 +1076,8 @@ export async function buildTrack(
     const nearest = plan.samples.reduce((a, s) => (Math.abs(s.s - rb.sIn) < Math.abs(a.s - rb.sIn) ? s : a));
     const m = buildRingMeshes(rb, k, opts, roadMaterial(Math.floor(plan.samples.indexOf(nearest) / 120), rb.w, nearest));
     ringNodes.push(m.road, m.island, m.verge, ...m.kerb);
+    const paint = opts.markings ? buildRingMarkings(rb, k) : null;
+    if (paint) markings.push(paint);
   });
   const terrainNodes: Kn5Node[] = [];
   for (const [i, chunk] of chunks.entries()) {
@@ -1105,12 +1217,32 @@ export async function buildTrack(
   }, plan, index, opts, (i) => town[i], (x, y) => streetIndex.clearance(x, y) < 1 || kept.some((b) => pointInRing(x, y, b.ring)));
   // Signs and street furniture; their artwork is drawn in one atlas.
   const art = new ArtList();
+  // Race day: barriers, fences, banners, gantries, a grandstand and crowds where the road is the race.
+  const race = opts.raceDress ? raceDressing(plan, opts, art, {
+    ground,
+    blocked: (x, y) => {
+      const n = index.nearest(x, y, 30);
+      return (!!n && n.dist < index.at(n).width / 2 + 0.2) || streetIndex.clearance(x, y) < 0.8 || kept.some((b) => pointInRing(x, y, b.ring));
+    },
+  }, opts.sponsors) : null;
+  if (race) {
+    const plainLight = { ambient: 0.45, diffuse: 0.45, specular: 0.05, exp: 10 };
+    addScenery("race_concrete.png", barrierConcreteTexture(), material("race_concrete", "race_concrete.png", plainLight));
+    addScenery("race_tyres.png", tyreWallTexture(), material("race_tyres", "race_tyres.png", { ambient: 0.4, diffuse: 0.4, specular: 0.1, exp: 15 }));
+    addScenery("marshal.png", solidTexture([236, 110, 24]), material("marshal", "marshal.png", plainLight));
+    const cutout = (name: string, png: Uint8Array, light = { ambient: 0.5, diffuse: 0.4, specular: 0.05, exp: 10 }) =>
+      addScenery(`${name}.png`, png, { ...material(name, `${name}.png`, light), shader: "ksPerPixelAT", alphaTested: true });
+    cutout("race_fence", catchFenceTexture(), { ambient: 0.45, diffuse: 0.45, specular: 0.3, exp: 30 });
+    cutout("race_crowd", crowdTexture(false));
+    cutout("race_spectators", crowdTexture(true));
+  }
   const pieces = [
     ...(opts.streetSigns ? streetSigns(streetPlan, plan, opts, art) : []),
     ...(opts.landmarks ? landmarks((sources.pois ?? []).map((p) => ({ ...p, at: proj.toLocal(p.at) })), plan, index, opts, art,
       (x, y) => Math.min(streetIndex.clearance(x, y), ...kept.map((b) => (pointInside(x, y, b.ring) ? -1 : Infinity)))) : []),
     ...seenFeatures((sources.seen ?? []).map((f) => ({ ...f, at: proj.toLocal(f.at) })), plan, index, opts, art),
-    ...gateSigns(plan, opts, art),
+    // The race gantries replace the plain START and FINISH signs.
+    ...(race ? race.pieces : gateSigns(plan, opts, art)),
     ...utilities.pieces,
     ...(verge ? letterboxes(plan, verge, vergeGround) : []),
   ];
@@ -1130,21 +1262,11 @@ export async function buildTrack(
   const shown = opts.horizon > 0 ? kept : kept.filter((b) => b.ring.every(([x, y]) => index.nearest(x, y, opts.corridor - 1)));
   const homes = shown.filter((b) => b.ring.length === 4 && b.roof !== "flat" && b.height <= 7.5);
   if (opts.houseStyle) {
-    // The area's own mix of facades and wall colours, the same for a house every build.
-    const kinds = Object.entries(opts.houseStyle.facades).filter(([k, w]) => FACADES.includes(k as (typeof FACADES)[number]) && (w ?? 0) > 0) as [(typeof FACADES)[number], number][];
-    const total = kinds.reduce((a, [, w]) => a + w, 0);
-    const colours = opts.houseStyle.colours ?? [];
+    // The area's own mix of facades (upstream's, by name), the same for a house every build.
     for (const b of homes) {
-      const c = centroid(b.ring);
-      const h = (n: number) => ((Math.round(c[0] * 10) * 73856093) ^ (Math.round(c[1] * 10) * 19349663) ^ n) >>> 0;
-      let pick = (h(1) % 10000) / 10000 * total;
-      for (const [k, w] of kinds) {
-        if ((pick -= w) < 0) {
-          b.facade = FACADES.indexOf(k);
-          break;
-        }
-      }
-      if (colours.length && FACADES[b.facade] !== "brick" && FACADES[b.facade] !== "creambrick") b.wallColour = colours[h(2) % colours.length];
+      if (b.type !== "house") continue;
+      const f = facadeForStyle(opts.houseStyle.facades, centroid(b.ring));
+      if (f !== undefined) b.facade = f;
     }
   }
   for (const b of homes) {
@@ -1196,9 +1318,9 @@ export async function buildTrack(
       }
     }
     if (!best) continue;
-    const f = look.facade ? FACADES.indexOf(look.facade as (typeof FACADES)[number]) : -1;
-    if (f >= 0) best.facade = f;
-    if (look.colour) best.wallColour = look.colour;
+    // The facade of the look's wall kind nearest its colour (upstream's facades are a kind in a colour).
+    const f = look.facade || look.colour ? facadeForLook(look.facade, look.colour, best.facade) : undefined;
+    if (f !== undefined) best.facade = f;
     if (look.front) best.frontKind = look.front;
     if (look.hedgeHeight) best.hedgeHeight = look.hedgeHeight;
     if (look.trees && best.front) {
@@ -1213,12 +1335,14 @@ export async function buildTrack(
         houseTrees.push({ x: m[0] + o[0] * out + (c[0] - a[0]) * t * 0.6, y: m[1] + o[1] * out + (c[1] - a[1]) * t * 0.6, scale: 0.85, variant: 0 });
       }
     }
-    if (f >= 0 || look.colour || look.front || look.trees) housesLooked++;
+    if (f !== undefined || look.front || look.trees) housesLooked++;
   }
-  // Wall materials for houses in their own colour.
-  for (const mat of new Set(homes.filter((b) => b.wallColour).map(facadeMaterial))) {
-    const b = homes.find((h) => facadeMaterial(h) === mat)!;
-    reliefScenery(mat, facadeTexture(FACADES[b.facade], b.wallColour), { ambient: 0.45, diffuse: 0.45, specular: 0.05, exp: 10 }, 3);
+  // Facades the area style and the looks switched houses to, that nothing else wears.
+  for (const b of homes) {
+    if (!finishes.facades.has(b.facade)) {
+      finishes.facades.add(b.facade);
+      facadeScenery(b.facade);
+    }
   }
   // Shops: verandahs over the footpath, a fascia sign and shop windows on the street side.
   const homeSet = new Set(homes);
@@ -1297,6 +1421,7 @@ export async function buildTrack(
         group("ROAD", roadMeshes.road),
         group("SIDESTREETS", sideStreets),
         group("FURNITURE", furniture),
+        group("RACE", race?.nodes ?? []),
         group("WIRES", utilities.wires),
         group("ROUNDABOUTS", [...ringsClear.nodes, ...shrubs, ...ringWalls]),
         group("MARKINGS", markings),
@@ -1446,7 +1571,7 @@ export async function buildTrack(
     houses: homes.filter((b) => b.front).map((b) => ({
       front: [proj.toLngLat(b.front![0]), proj.toLngLat(b.front![1])] as [LngLat, LngLat],
       height: b.height,
-      facade: FACADES[b.facade],
+      facade: FACADES[b.facade].name,
       source: b.source,
     })),
     junctions: streetPlan.junctions.map((j) => ({ s: j.s, side: j.side })),
@@ -1482,6 +1607,7 @@ export async function buildTrack(
       footpathMetres: verge ? (verge.paths[0].filter(Boolean).length + verge.paths[1].filter(Boolean).length) * opts.spacing : 0,
       driveways: verge?.drives.length ?? 0,
       streetLights: utilities.lights.length,
+      race: race?.stats ?? null,
       streetSigns: pieces.filter((p) => p.kind === "blade").length,
       signs: pieces.filter((p) => p.kind === "face").length,
       railMetres: needs.reduce((n, side) => n + side.filter(Boolean).length * opts.spacing, 0),

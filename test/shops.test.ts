@@ -6,7 +6,7 @@ import { buildShopfronts, findShopfronts, SIGN_COUNT, SIGN_H, shopSignTexture, s
 const gap = (_x: number, y: number) => Math.max(0, y - 5);
 const flat = () => 2;
 const box = (x0: number, y0: number, w: number, d: number, roof: Building["roof"] = "flat", height = 4): Building => ({
-  ring: [[x0, y0], [x0 + w, y0], [x0 + w, y0 + d], [x0, y0 + d]], height, roof, roofColour: 0, facade: 2, source: "osm",
+  ring: [[x0, y0], [x0 + w, y0], [x0 + w, y0 + d], [x0, y0 + d]], type: "house", pitch: 22, height, roof, roofColour: 0, facade: 2, source: "osm",
 });
 
 describe("shopfronts", () => {

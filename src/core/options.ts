@@ -1,6 +1,8 @@
 // Everything a build can be tuned by. Defaults aim at a two-lane mountain
 // road; the UI exposes the ones people actually change.
 
+import { DEFAULT_SPONSORS } from "./sponsors";
+
 export interface BuildOptions {
   /** Track name shown in Content Manager. */
   name: string;
@@ -113,11 +115,11 @@ export interface BuildOptions {
   /** Low-poly cars where the photo had parked cars (needs carParks). */
   parkedCars: boolean;
   /**
-   * The look of houses in this area, when it isn't a typical Australian mix: weights per facade
-   * (e.g. a weatherboard estate) and wall colours to pick from. Street-photo and hand-set looks
-   * still win house by house.
+   * The look of houses in this area, when it isn't the usual mix: weights per facade, by name
+   * from buildingStyles.ts (e.g. a weatherboard estate: { wb_white: 3, wb_grey: 2, wb_blue: 1 }).
+   * Street-photo and hand-set looks still win house by house.
    */
-  houseStyle?: { facades: Partial<Record<"brick" | "weatherboard" | "render" | "creambrick" | "fibro", number>>; colours?: [number, number, number][] };
+  houseStyle?: { facades: Record<string, number> };
   /** Raise car parks' planted islands behind kerbs, read off the photo (experimental: tree canopy still fools it). */
   carParkIslands: boolean;
   /** No level-of-detail blocks within this distance of the road's centreline, metres. */
@@ -129,6 +131,14 @@ export interface BuildOptions {
    * and grass on the aerial photo's lawns, sharp up close.
    */
   detailShaders: boolean;
+  /**
+   * Race-day dressing: barriers, debris fence and sponsor banners along the
+   * start/finish straight and the outside of tight corners, tyre walls,
+   * gantries, a grandstand and spectators, marshal posts.
+   */
+  raceDress: boolean;
+  /** Sponsors on the banners and flags, comma-separated. */
+  sponsors: string;
 }
 
 export const DEFAULT_OPTIONS: BuildOptions = {
@@ -182,6 +192,8 @@ export const DEFAULT_OPTIONS: BuildOptions = {
   terrainLodNear: 25,
   kerbs: true,
   detailShaders: true,
+  raceDress: false, // Busselton fork: off; these are cruising roads, not race days (tick it in the UI for a race)
+  sponsors: DEFAULT_SPONSORS,
 };
 
 export function withDefaults(partial: Partial<BuildOptions>): BuildOptions {

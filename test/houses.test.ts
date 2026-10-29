@@ -6,7 +6,7 @@ const flat = () => 10;
 // 14 m x 10 m house, front wall along y = 0, street to the south; garage at the start (west) end.
 const house = (x = 0): Building => ({
   ring: [[x, 0], [x + 14, 0], [x + 14, 10], [x, 10]],
-  height: 2.8, roof: "hip", roofColour: 1, facade: 0, source: "frontage",
+  height: 2.8, type: "house", pitch: 22, roof: "hip", roofColour: 1, facade: 0, source: "frontage",
   front: [[x, 0], [x + 14, 0]], garage: true, setback: 9,
 });
 // The road's edge runs along y = -9.

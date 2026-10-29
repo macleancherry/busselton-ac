@@ -1,26 +1,30 @@
 import { describe, expect, it } from "vitest";
-import { buildBuildings, facadeMaterial, type Building } from "../src/core/buildings";
-import { facadeTexture } from "../src/core/houseTextures";
-import { decodeOwnPng } from "../src/core/png";
+import { FACADES } from "../src/core/buildingStyles";
+import { facadeForLook, facadeForStyle } from "../src/core/houseLooks";
 
-const house = (extra: Partial<Building> = {}): Building => ({
-  ring: [[0, 0], [12, 0], [12, 10], [0, 10]], height: 2.8, roof: "hip", roofColour: 0, facade: 1, source: "osm", ...extra,
-});
+const name = (i: number | undefined) => (i === undefined ? undefined : FACADES[i].name);
 
-describe("hand-set house looks", () => {
-  it("gives a coloured house its own wall material", () => {
-    expect(facadeMaterial(house())).toBe("facade_weatherboard");
-    const blue = house({ wallColour: [110, 140, 170] });
-    expect(facadeMaterial(blue)).toBe("facade_weatherboard_6e8caa");
-    const mats = buildBuildings([house(), blue], () => 0).filter((m) => m.name.startsWith("1WALL_BLD")).map((m) => m.material);
-    expect(new Set(mats)).toEqual(new Set(["facade_weatherboard", "facade_weatherboard_6e8caa"]));
+describe("house looks on upstream's facades", () => {
+  it("picks the facade of the look's wall kind nearest its colour", () => {
+    // Mac's house: blue weatherboard.
+    expect(name(facadeForLook("weatherboard", [112, 138, 162], 0))).toBe("wb_blue");
+    expect(name(facadeForLook("weatherboard", [240, 238, 230], 0))).toBe("wb_white");
+    expect(name(facadeForLook("creambrick", undefined, 0))).toBe("brick_cream");
+    // ...or one named outright.
+    expect(name(facadeForLook("wb_blue", undefined, 0))).toBe("wb_blue");
   });
 
-  it("paints the facade pattern in the colour", () => {
-    const { rgba, width } = decodeOwnPng(facadeTexture("weatherboard", [110, 140, 170]));
-    // A plain wall pixel near the top left (above the windows): blue, not white.
-    const i = (10 * width + 10) * 4;
-    expect(rgba[i + 2]).toBeGreaterThan(rgba[i] + 30);
-    expect(rgba[i]).toBeLessThan(150);
+  it("keeps the current facade when it's already the right kind, and ignores kinds it doesn't know", () => {
+    const sage = FACADES.findIndex((f) => f.name === "wb_sage");
+    expect(facadeForLook("weatherboard", undefined, sage)).toBe(sage);
+    expect(facadeForLook("thatch", undefined, sage)).toBeUndefined();
+  });
+
+  it("gives an area its own mix, the same pick for a house every time", () => {
+    const style = { wb_white: 3, wb_grey: 1, nonsense: 5 };
+    const a = facadeForStyle(style, [10, 20]), b = facadeForStyle(style, [10, 20]);
+    expect(a).toBe(b);
+    const picks = new Set(Array.from({ length: 200 }, (_, i) => name(facadeForStyle(style, [i * 13.7, i * 7.1]))));
+    expect([...picks].sort()).toEqual(["wb_grey", "wb_white"]);
   });
 });
