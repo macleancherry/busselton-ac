@@ -498,7 +498,7 @@ export async function buildTrack(
 
   await progress("Laying out the road");
   const lngs = route.map((p) => p[0]), lats = route.map((p) => p[1]);
-  const centre: LngLat = [(Math.min(...lngs) + Math.max(...lngs)) / 2, (Math.min(...lats) + Math.max(...lats)) / 2];
+  const centre: LngLat = opts.origin ?? [(Math.min(...lngs) + Math.max(...lngs)) / 2, (Math.min(...lats) + Math.max(...lats)) / 2];
   const proj = new LocalProjection(centre);
   const local = route.map((p) => proj.toLocal(p));
   const widthFn = sources.widthAt ? (x: number, y: number) => sources.widthAt!(proj.toLngLat([x, y])) : undefined;

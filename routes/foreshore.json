@@ -47,7 +47,11 @@
     "terrainStep": 1.5,
     "terrainUnderRoad": 0.12,
     "traceGuard": false,
-    "traffic": true
+    "traffic": true,
+    "origin": [
+      115.33807,
+      -33.6506
+    ]
   },
   "_note": "Queen St keeps the OSM line between Adelaide St and Albert St: the photo trace locks onto the angled parking there."
 }

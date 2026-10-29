@@ -120,6 +120,11 @@ export interface BuildOptions {
    * Street-photo and hand-set looks still win house by house.
    */
   houseStyle?: { facades: Record<string, number> };
+  /**
+   * Busselton fork: the map's fixed centre [lng, lat]. Without it the map is centred on the route, so
+   * changing the route moves everything; hand-made models layered over the track need it fixed.
+   */
+  origin?: [number, number];
   /** Raise car parks' planted islands behind kerbs, read off the photo (experimental: tree canopy still fools it). */
   carParkIslands: boolean;
   /** No level-of-detail blocks within this distance of the road's centreline, metres. */
