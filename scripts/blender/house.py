@@ -172,13 +172,15 @@ def hip_roof(name, x0, y0, x1, y1, z, pitch_deg, mat, collection, kind="hip"):
     return ob, h
 
 
-def blob(name, centre, radius, mat, collection, squash=1.0, seed=0, detail=2):
+def blob(name, centre, radius, mat, collection, squash=1.0, seed=0, detail=3):
     """A lumpy ball (tree canopy, shrub): an icosphere pushed about by noise."""
     bm = bmesh.new()
     bmesh.ops.create_icosphere(bm, subdivisions=detail + 2, radius=radius)
     for v in bm.verts:
         v.co.z *= squash
     ob = obj_from_bmesh(name, bm, mat, collection)
+    for f in ob.data.polygons:
+        f.use_smooth = True
     ob.location = centre
     tex = bpy.data.textures.new(f"{name}_noise", "CLOUDS")
     tex.noise_scale = radius * 0.45
@@ -213,7 +215,8 @@ def build(spec):
     m_wall = material("walls", walls["colour"], rough=0.55, bump=("bands", lap) if lap else ("noise", 40))
     m_plinth = material("plinth", s["plinth"]["colour"], rough=0.8, bump=("noise", 60))
     m_trim = material("trim", s["trim"], rough=0.4)
-    m_roof = material("roof", s["roof"]["colour"], rough=0.55, metal=0.3, bump=("bands", 0.25))
+    # Colorbond is painted steel: a painted (not metallic) finish, or it mirrors the sky and reads white.
+    m_roof = material("roof", s["roof"]["colour"], rough=0.45, metal=0.0, bump=("bands", 0.25))
     m_glass = material("glass", "#1c2328", rough=0.05, metal=0.2)
     m_garage = material("garage_door", s["garage"]["colour"], rough=0.45, metal=0.3, bump=("bands", 0.12))
     m_door = material("front_door", s["door"]["colour"], rough=0.5)
@@ -257,9 +260,14 @@ def build(spec):
     ww, wh, sill = win["width"], win["height"], 0.95
 
     def window(name, cx, cy, along_x):
-        hx, hy = (ww / 2, 0.05) if along_x else (0.05, ww / 2)
-        box(name + "_frame", cx - hx - 0.06, cy - hy - 0.02, sill - 0.06, cx + hx + 0.06, cy + hy + 0.02, sill + wh + 0.06, m_trim, house)
-        box(name, cx - hx, cy - hy - 0.04, sill, cx + hx, cy + hy + 0.04, sill + wh, m_glass, house)
+        """A window on a wall: a white frame round it, and the glass standing just proud of the frame."""
+        def at(half_in_plane, half_out):
+            hx, hy = (half_in_plane, half_out) if along_x else (half_out, half_in_plane)
+            return cx - hx, cy - hy, cx + hx, cy + hy
+        fx0, fy0, fx1, fy1 = at(ww / 2 + 0.07, 0.06)
+        box(name + "_frame", fx0, fy0, sill - 0.07, fx1, fy1, sill + wh + 0.07, m_trim, house)
+        gx0, gy0, gx1, gy1 = at(ww / 2, 0.08)
+        box(name, gx0, gy0, sill, gx1, gy1, sill + wh, m_glass, house)
 
     front_free = [x for x in [rest0 + (rest1 - rest0) * (k + 0.5) / max(1, win["front"]) for k in range(win["front"])]
                   if not (dx - 0.8 < x < dx + 1.8)]
@@ -286,7 +294,7 @@ def build(spec):
         spans = sorted([(gx0 - 0.3, gx1 + 0.3), (dx - 0.4, dx + 1.4)])
         a = x0 - 4
         for k, (g0, g1) in enumerate(spans + [(x1 + 4, x1 + 4)]):
-            if g0 - a > 0.5:
+            if g0 - a > 2.0:  # shorter stubs between the gaps look like cubes, not hedge
                 h = box(f"hedge_{k}", a, yb, 0, g0, yb + hd["depth"], hd["height"], m_hedge, street)
                 # Rounded and leafy, not a brick.
                 bev = h.modifiers.new("round", "BEVEL")
@@ -314,6 +322,8 @@ def build(spec):
     box("kerb", x0 - 30, yk - 0.3, -0.2, x1 + 30, yk, 0.12, m_kerb, street)
     box("road", x0 - 30, yk - 0.3 - road["width"], -0.2, x1 + 30, yk - 0.3, 0.0, m_asphalt, street)
     box("far_verge", x0 - 30, yk - 0.3 - road["width"] - 10, -0.2, x1 + 30, yk - 0.3 - road["width"], 0.12, m_lawn, street)
+    # Ground out to the horizon, so no view runs off the edge of the world.
+    box("ground", -400, -400, -0.3, 400, 400, -0.06, m_lawn, street)
     return s, (x0, y0, x1, y1, yk)
 
 
