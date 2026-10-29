@@ -13,6 +13,21 @@ local CLOSED = __CLOSED__ -- filled in by the build: a circuit (true) or point t
 -- corners, so on a straight it floors it (128 km/h on estate streets); this holds it to the limit.
 local LIMITS = { __LIMITS__ }
 local capWarned = false
+-- On a map with several layouts the track script is shared, so each layout's own data/autotest.ini
+-- (CLOSED=, LIMITS=comma list) wins over the values above, which are the main layout's.
+pcall(function ()
+  local path = ac.getTrackDataFilename('autotest.ini')
+  local text = path and io.load(path)
+  if type(text) ~= 'string' then return end
+  local closed = string.match(text, 'CLOSED%s*=%s*(%a+)')
+  if closed then CLOSED = closed == 'true' or closed == '1' end
+  local list = string.match(text, 'LIMITS%s*=%s*([%d%.,%s]+)')
+  if list then
+    local lim = {}
+    for v in string.gmatch(list, '[%d%.]+') do lim[#lim + 1] = tonumber(v) end
+    if #lim > 0 then LIMITS = lim end
+  end
+end)
 local active = ac.getDriverName(0) == 'Busselton Test'
 ac.log('BTEST,loaded,0,0,0,0,0,0,0,0,driver=' .. tostring(ac.getDriverName(0)) .. (active and ' (test run)' or ' (idle)'))
 local t, lastLog, lastShot, offFor, stuckFor = 0, -1, -1, 0, 0

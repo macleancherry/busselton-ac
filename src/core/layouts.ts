@@ -120,36 +120,48 @@ export interface World {
    * is pulled onto them, since the router's line and the built street can sit metres apart.
    */
   lines?: Vec2[][];
+  /** Each line's speed limit, km/h, for the layouts' AI hints. */
+  speeds?: number[];
   rings?: { c: Vec2; rOut: number }[];
 }
 
-/** Moves each point onto the nearest centreline within `reach` metres (not near a roundabout). */
-export function snapToLines(pts: Vec2[], lines: Vec2[][], rings: { c: Vec2; rOut: number }[] = [], reach = 8): Vec2[] {
-  const CELL = 10;
-  const grid = new Map<string, [Vec2, Vec2][]>();
-  for (const l of lines) {
-    for (let i = 1; i < l.length; i++) {
-      const a = l[i - 1], b = l[i];
-      const x0 = Math.floor((Math.min(a[0], b[0]) - reach) / CELL), x1 = Math.floor((Math.max(a[0], b[0]) + reach) / CELL);
-      const y0 = Math.floor((Math.min(a[1], b[1]) - reach) / CELL), y1 = Math.floor((Math.max(a[1], b[1]) + reach) / CELL);
-      for (let cx = x0; cx <= x1; cx++) for (let cy = y0; cy <= y1; cy++) {
-        const k = `${cx},${cy}`;
-        const list = grid.get(k);
-        if (list) list.push([a, b]); else grid.set(k, [[a, b]]);
+/** Nearest point on any of a set of lines, by a grid of their segments. */
+class LineGrid {
+  private grid = new Map<string, [Vec2, Vec2, number][]>();
+  constructor(lines: Vec2[][], private reach: number, private cell = 10) {
+    lines.forEach((l, k) => {
+      for (let i = 1; i < l.length; i++) {
+        const a = l[i - 1], b = l[i];
+        const x0 = Math.floor((Math.min(a[0], b[0]) - reach) / cell), x1 = Math.floor((Math.max(a[0], b[0]) + reach) / cell);
+        const y0 = Math.floor((Math.min(a[1], b[1]) - reach) / cell), y1 = Math.floor((Math.max(a[1], b[1]) + reach) / cell);
+        for (let cx = x0; cx <= x1; cx++) for (let cy = y0; cy <= y1; cy++) {
+          const key = `${cx},${cy}`;
+          const list = this.grid.get(key);
+          if (list) list.push([a, b, k]); else this.grid.set(key, [[a, b, k]]);
+        }
       }
-    }
+    });
   }
-  return pts.map((p) => {
-    if (rings.some((r) => Math.hypot(p[0] - r.c[0], p[1] - r.c[1]) < r.rOut + 6)) return p;
-    let best: Vec2 = p, bd = reach;
-    for (const [a, b] of grid.get(`${Math.floor(p[0] / CELL)},${Math.floor(p[1] / CELL)}`) ?? []) {
+
+  nearest(p: Vec2): { q: Vec2; d: number; line: number } | null {
+    let best: { q: Vec2; d: number; line: number } | null = null;
+    for (const [a, b, k] of this.grid.get(`${Math.floor(p[0] / this.cell)},${Math.floor(p[1] / this.cell)}`) ?? []) {
       const dx = b[0] - a[0], dy = b[1] - a[1];
       const t = Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / (dx * dx + dy * dy || 1)));
       const q: Vec2 = [a[0] + dx * t, a[1] + dy * t];
       const d = Math.hypot(q[0] - p[0], q[1] - p[1]);
-      if (d < bd) [bd, best] = [d, q];
+      if (d <= this.reach && (!best || d < best.d)) best = { q, d, line: k };
     }
     return best;
+  }
+}
+
+/** Moves each point onto the nearest centreline within `reach` metres (not near a roundabout). */
+export function snapToLines(pts: Vec2[], lines: Vec2[][], rings: { c: Vec2; rOut: number }[] = [], reach = 8): Vec2[] {
+  const grid = new LineGrid(lines, reach);
+  return pts.map((p) => {
+    if (rings.some((r) => Math.hypot(p[0] - r.c[0], p[1] - r.c[1]) < r.rOut + 6)) return p;
+    return grid.nearest(p)?.q ?? p;
   });
 }
 
@@ -197,7 +209,22 @@ export function layoutFiles(world: World, layout: LayoutSpec, trackObjects: (pla
     length = plan.length;
     const ai = buildAiLine(plan);
     files[`${base}/ai/fast_lane.ai`] = writeFastLaneAi(ai);
-    files[`${base}/data/ai_hints.ini`] = enc.encode(aiHintsIni(ai, undefined, !plan.closed));
+    // Speed limits from the street each stretch is on (the world's), so the AI drives a town street
+    // at 50 rather than at the grip limit.
+    let limitAt: ((d: number) => number | undefined) | undefined;
+    if (world.lines?.length && world.speeds?.length) {
+      const grid = new LineGrid(world.lines, 12);
+      const lim = plan.samples.map((smp) => { const n = grid.nearest(smp.pos); return n ? world.speeds![n.line] : undefined; });
+      const total = ai.length ? ai[ai.length - 1].distance + ai[ai.length - 1].length : 1;
+      limitAt = (d) => lim[Math.max(0, Math.min(lim.length - 1, Math.round((d / total) * (lim.length - 1))))];
+    }
+    files[`${base}/data/ai_hints.ini`] = enc.encode(aiHintsIni(ai, limitAt, !plan.closed));
+    // The automatic test's limits for this layout (autotest.lua reads it; 50 where unknown).
+    const pct = Array.from({ length: 100 }, (_, k) => {
+      const ap = ai[Math.min(ai.length - 1, Math.round(((k + 0.5) / 100) * (ai.length - 1)))];
+      return Math.round((limitAt?.(ap?.distance ?? 0)) ?? 50);
+    });
+    files[`${base}/data/autotest.ini`] = enc.encode(`[AUTOTEST]\nCLOSED=${plan.closed}\nLIMITS=${pct.join(",")}\n`);
     files[`${slug}/layout_${layout.id}.kn5`] = dummiesKn5(layout.id, trackObjects(plan, opts));
     const ground = (x: number, y: number) => height(x, y) ?? hs[0];
     files[`${base}/data/cameras_1.ini`] = enc.encode(camerasIni(placeCameras(plan, opts, ground, () => false)));

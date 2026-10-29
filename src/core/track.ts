@@ -1718,6 +1718,8 @@ export async function buildTrack(
     [`${slug}/data/cameras_1.ini`]: enc.encode(camerasIni(cameras)),
     // The automatic test run (scripts/windows/run-test.ps1): a track script that only wakes up for a
     // driver named "Busselton Test". Track scripts need the scripting physics traffic turns on.
+    // The same values as a data file, per layout (autotest.lua reads it when it's there).
+    ...(opts.traffic ? { [`${slug}/data/autotest.ini`]: enc.encode(`[AUTOTEST]\nCLOSED=${plan.closed}\nLIMITS=${Array.from({ length: 100 }, (_, k) => speedAt(Math.min(nS - 1, Math.round(((k + 0.5) / 100) * (nS - 1))))).join(",")}\n`) } : {}),
     ...(opts.traffic ? { [`${slug}/extension/autotest.lua`]: enc.encode(autotestLua
       .replace("__CLOSED__", plan.closed ? "true" : "false")
       // The speed limit at each 1% of the lap, km/h, so the test drives at the limit.
