@@ -132,17 +132,30 @@ try {
   log("route", await page.textContent("#route-length"), await page.textContent("#route-kind"));
 
   await page.click("#build");
-  let last = "";
+  let last = "", changed = Date.now();
+  // A build that shows no progress for this long has hung (seen once: a download that never finished
+  // or failed); stop it so a retry loop can build again.
+  const STALL = Number(process.env.BUILD_STALL_MIN ?? 10) * 60_000;
+  let stalled = () => {};
+  const stall = new Promise((_, fail) => { stalled = fail; });
   const progress = setInterval(async () => {
     const t = await page.textContent("#progress-text").catch(() => "");
-    if (t && t !== last) log(" ", (last = t));
+    if (t && t !== last) {
+      log(" ", (last = t));
+      changed = Date.now();
+    } else if (Date.now() - changed > STALL) {
+      stalled(new Error(`build stalled: no progress for ${STALL / 60_000} min at "${last}"`));
+    }
   }, 2000);
   try {
-    await page.waitForFunction(
-      () => !document.getElementById("result").hidden || !document.getElementById("build-error").hidden,
-      undefined,
-      { timeout: TIMEOUT, polling: 1000 },
-    );
+    await Promise.race([
+      page.waitForFunction(
+        () => !document.getElementById("result").hidden || !document.getElementById("build-error").hidden,
+        undefined,
+        { timeout: TIMEOUT, polling: 1000 },
+      ),
+      stall,
+    ]);
   } finally {
     clearInterval(progress);
   }
