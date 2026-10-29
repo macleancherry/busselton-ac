@@ -41,6 +41,7 @@ import {
 import { buildBuildings, centroid, detectBuildings, filterBuildings, fromOsm, houseRoof, isRectangle, plainHouse, pointInRing, ringArea, usedFinishes, type Building } from "./buildings";
 import { dressBuilding, FACADES, facadeTexture, ROOF_COLOURS, roofTexture } from "./buildingStyles";
 import { facadeForLook, facadeForStyle } from "./houseLooks";
+import { buildSpecHouse, type HouseSpec } from "./specHouse";
 import { camerasIni, placeCameras } from "./cameras";
 import { cullable } from "./cull";
 import { extConfig } from "./cspConfig";
@@ -108,6 +109,8 @@ export interface DataSources {
     trees?: number;
     /** Build a house here (15 x 13 m, facing the nearest road) when the photo didn't give one. */
     place?: boolean;
+    /** Build this house from a spec (scripts/blender/house.py's parts mode), centred on `at` and facing the nearest road, in place of the generated one. */
+    spec?: HouseSpec;
   }[];
   /** Draws shop names for their signs (needs a canvas: the browser passes one in). */
   drawSigns?: SignDrawer;
@@ -1341,8 +1344,32 @@ export async function buildTrack(
   const frontMid = (b: Building) => b.front ? [(b.front[0][0] + b.front[1][0]) / 2, (b.front[0][1] + b.front[1][1]) / 2] : null;
   let housesLooked = 0;
   const houseTrees: TreeSpot[] = [];
-  for (const look of sources.houseLooks ?? []) {
+  const specNodes: Kn5MeshNode[] = [];
+  for (const [k, look] of (sources.houseLooks ?? []).entries()) {
     const [x, y] = proj.toLocal(look.at);
+    // Busselton fork: a house we have a spec for is built from it, facing its street, and the
+    // generated house (and anything placed) there goes.
+    if (look.spec && Number.isFinite(roadGap(x, y))) {
+      const gx = roadGap(x + 1, y) - roadGap(x - 1, y), gy = roadGap(x, y + 1) - roadGap(x, y - 1);
+      const gl = Math.hypot(gx, gy) || 1;
+      const sh = buildSpecHouse(look.spec, { centre: [x, y], toRoad: [-gx / gl, -gy / gl], z: buildingGround(x, y) + 0.05 }, String(k));
+      const inside = (b: Building) => {
+        const c = centroid(b.ring);
+        return sh.footprints.some((f) => pointInRing(c[0], c[1], f)) || b.ring.some(([px, py]) => sh.footprints.some((f) => pointInRing(px, py, f)));
+      };
+      for (const list of [shown, homes]) for (let i = list.length - 1; i >= 0; i--) if (inside(list[i])) list.splice(i, 1);
+      for (const fc of sh.facades) buildingScenery(`facade_${fc.name}`, facadeTexture(fc), { ambient: 0.45, diffuse: 0.45, specular: 0.05, exp: 10 }, 3);
+      if (!finishes.roofs.has(sh.roof)) {
+        finishes.roofs.add(sh.roof);
+        const c = ROOF_COLOURS[sh.roof];
+        buildingScenery(`roof_${c.name}`, roofTexture(c), { ambient: 0.45, diffuse: 0.45, specular: 0.25, exp: 25 }, 4);
+      }
+      for (const so of sh.solids) addScenery(`${so.name}.png`, solidTexture(so.rgb), material(so.name, `${so.name}.png`, { ambient: 0.45, diffuse: 0.45, specular: 0.1, exp: 10 }));
+      specNodes.push(...sh.nodes);
+      houseTrees.push(...sh.trees);
+      housesLooked++;
+      continue;
+    }
     let best: Building | null = null, bestD = 8;
     for (const b of homes) {
       const m = frontMid(b);
@@ -1509,7 +1536,7 @@ export async function buildTrack(
         group("TREES", [...trees, ...(houseTrees.length ? buildTrees(houseTrees, ground, "HOUSETREES") : [])]),
         group("RAILS", [...railsClear.nodes, ...rails.posts]),
         group("GUIDEPOSTS", posts),
-        group("BUILDINGS", houses),
+        group("BUILDINGS", [...houses, ...specNodes]),
         group("SHOPS", shopMeshes),
         group("FENCES", keepOffRoute(barriers, onRoad).nodes),
         group("PATHS", pathMeshes),

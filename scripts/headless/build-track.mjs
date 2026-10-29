@@ -147,12 +147,13 @@ try {
     if (!ok) throw new Error(`no control #${id} in the UI`);
   }
   // What houses look like: HOUSE_LOOKS=out/<slug>.looks.json (from house_looks.py), and/or hand-set looks
-  // ({at, facade?, colour?, front?, hedgeHeight?, trees?} each), comma-separated.
+  // ({at, facade?, colour?, front?, hedgeHeight?, trees?, specFile?} each), comma-separated.
   // Several files, comma-separated: later ones win (e.g. photo looks, then hand-set ones).
   if (process.env.HOUSE_LOOKS) {
     const looks = process.env.HOUSE_LOOKS.split(",").flatMap((f) => {
       const l = JSON.parse(readFileSync(resolve(root, f.trim()), "utf8"));
-      return l.houses ?? l;
+      // A look with "specFile" is built from that spec (scripts/blender/house.py's parts mode).
+      return (l.houses ?? l).map((h) => (h.specFile ? { ...h, spec: JSON.parse(readFileSync(resolve(root, h.specFile), "utf8")) } : h));
     });
     await page.evaluate((l) => { window.__houseLooks = l; }, looks);
   }
