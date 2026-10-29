@@ -1,7 +1,12 @@
 """What each house's walls are made of, from Mapillary street photos.
 
     python3 -I scripts/mapillary/house_looks.py out/<slug>.houses.json [--since 2024-01-01] [--user maccherry]
-        [--sequence <id>[,<id>...]] [--min-photos 2]
+        [--sequence <id>[,<id>...]] [--min-photos 2] [--no-colour]
+
+Each look carries the wall's colour as photographed (the median of the photos that agreed, with
+the road ahead as a grey reference for exposure), which the build paints the facade in. Walls in
+shade (under a verandah) give no colour, and the build's palette decides; so does --no-colour.
+Bricks get no colour (their texture has its own).
 
 --sequence takes the photos from those sequences instead of searching the area: new uploads can
 be public for days before the area search finds them. A sequence id is in the photo's details on
@@ -156,6 +161,7 @@ def main():
     since, user = arg("--since"), arg("--user")
     # Photos that must agree on a house: 2 by default; 1 for sparse footage (one clear frame per house).
     min_photos = int(arg("--min-photos") or 2)
+    colour = "--no-colour" not in sys.argv
     houses = json.load(open(path))
     if not houses:
         sys.exit("no houses in " + path)
@@ -204,6 +210,7 @@ def main():
         eave = min(h["height"], 2.8)
         band = [(t, z) for t in np.linspace(0.15, 0.85, 9) for z in np.linspace(1.3, eave - 0.5, 4)]
         votes = defaultdict(float)
+        colours = defaultdict(list)  # facade -> wall colours (0-1) from the photos that said so
         photos = defaultdict(int)
         seen = []
         gx, gy = int(M[0] // 40), int(M[1] // 40)
@@ -238,6 +245,13 @@ def main():
             except Exception:  # noqa: BLE001
                 continue
             px = np.asarray(img, dtype=np.float32) / 255
+            # Exposure and colour cast: the road just ahead of the bonnet is near-neutral grey asphalt,
+            # about 0.42 bright in daylight. Phone footage through a windscreen comes out dark and
+            # blue-green; scale each channel so that patch reads as that grey.
+            H_, W_ = px.shape[:2]
+            road = px[int(H_ * 0.58):int(H_ * 0.66), int(W_ * 0.42):int(W_ * 0.58)].reshape(-1, 3)
+            rmed = np.median(road, axis=0)
+            gain = np.clip(0.42 / np.maximum(rmed, 0.05), 0.6, 3.0) if (rmed.max() - rmed.min()) < 0.08 else None
             uv = [cam.project(A + (B - A) * t, z, img.size) for t, z in band]
             got = [px[int(v), int(u)] for p in uv if p for u, v in [p]]
             if len(got) < len(band) * 0.6:
@@ -259,7 +273,13 @@ def main():
             weight = facing * ok.mean() * (1 / (1 + dist / 15))
             if not f:
                 why["photo: wall not one material"] += 1
-            if f:
+            # Only walls in sun: under a verandah a white wall photographs dark grey.
+            if f and gain is not None:
+                c = np.clip(med * gain, 0, 1)
+                if c.mean() >= 0.35:
+                    colours[f].append(c)
+                else:
+                    why["photo: wall in shade, no colour taken"] += 1
                 votes[f] += weight
                 photos[f] += 1
             if best is None or weight > best[0]:
@@ -272,7 +292,10 @@ def main():
             if not (share >= 0.6 and photos[top] >= min_photos):
                 why["house: photos disagree or only one"] += 1
             if share >= 0.6 and photos[top] >= min_photos:
-                looks.append({"at": [round(mid[0], 7), round(mid[1], 7)], "facade": top, "confidence": round(share, 2), "photo": best[1] if best else None})
+                look = {"at": [round(mid[0], 7), round(mid[1], 7)], "facade": top, "confidence": round(share, 2), "photo": best[1] if best else None}
+                if colour and top not in ("brick", "creambrick") and colours[top]:
+                    look["colour"] = [int(round(min(255, max(0, v * 255)))) for v in np.median(np.array(colours[top]), axis=0)]
+                looks.append(look)
             if best and len(sheet) < 48:
                 sheet.append((best, top, share, h["facade"]))
     out = os.path.splitext(path)[0].replace(".houses", "")
