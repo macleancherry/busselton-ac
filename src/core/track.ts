@@ -14,6 +14,8 @@ import autotestLua from "./lua/autotest.lua?raw";
 import { buildGroynes, buildPiers, buildSea, jettyLights, buildSeawall, deckTexture, rockTexture, SeaMask, seaTexture, withSeabed, type CoastPolygon } from "./coast";
 import type { GroundDetail, GroundLayer } from "./ground";
 import { aiHintsIni, buildAiLine } from "./aiLine";
+import { Area, makeCover } from "./area";
+import { asLayout, dummiesKn5 } from "./layouts";
 import { BACKDROP_CHUNK, backdropHeight, buildBackdropChunk, planBackdrop } from "./backdrop";
 import { writeFastLaneAi } from "./aiSpline";
 import { outlinePng, previewPng, readme, slugify, surfacesIni, trackMap, uiTrackJson, type TrackMeta } from "./acFiles";
@@ -146,7 +148,7 @@ export interface TrackResult {
   /** Where side streets meet the route (distance along it, side 1 = left). */
   junctions: { s: number; side: 1 | -1 }[];
   /** Houses with a known front wall, for matching to street photos. */
-  houses: { front: [LngLat, LngLat]; height: number; facade: string; source: string }[];
+  houses: { front: [LngLat, LngLat]; height: number; facade: string; source: string; ring: LngLat[]; roof: string; pitch: number; roofRgb?: [number, number, number] }[];
   /** Parked cars placed (local metres), for checking renders. */
   parked: { at: [number, number]; dir: [number, number] }[];
   /** What the traffic graph was built from, for checking it offline. */
@@ -256,7 +258,7 @@ function dummy(name: string, transform: number[]): Kn5GroupNode {
 }
 
 /** Spawn points and timing gates. */
-function trackObjects(plan: RoadPlan, opts: BuildOptions): Kn5GroupNode[] {
+export function trackObjects(plan: RoadPlan, opts: BuildOptions): Kn5GroupNode[] {
   const out: Kn5GroupNode[] = [];
   const width = plan.samples[0].width;
   const rows = Math.ceil(opts.pitCount / 2);
@@ -504,6 +506,9 @@ export async function buildTrack(
   // Busselton fork: areas hand-made layers cover (see opts.clears).
   const clears = (opts.clears ?? []).map((c) => ({ c: proj.toLocal(c.at), r: c.radius, trees: c.trees !== false }));
   const cleared = (x: number, y: number, trees = false) => clears.some((k) => (!trees || k.trees) && Math.hypot(x - k.c[0], y - k.c[1]) < k.r);
+  // Busselton fork: an area build also builds everything inside this polygon (see area.ts).
+  const area = opts.area && opts.area.length >= 3 ? new Area(opts.area.map((p) => proj.toLocal(p))) : null;
+  const areaPts: Vec2[] = area ? area.ring : [];
   const widthFn = sources.widthAt ? (x: number, y: number) => sources.widthAt!(proj.toLngLat([x, y])) : undefined;
   const hinted = resolveRoundabouts(sources.roundabouts ?? [], sources.osm?.roundaboutRings ?? [], proj);
   // Plus rings the route crosses that routing didn't mention (straight over a small roundabout):
@@ -548,10 +553,10 @@ export async function buildTrack(
   }
 
   await progress("Fetching elevation");
-  const bounds = boundsOf(plan.samples.map((s) => s.pos), opts.corridor + opts.terrainBlend + 60);
+  const bounds = boundsOf([...plan.samples.map((s) => s.pos), ...areaPts], opts.corridor + opts.terrainBlend + 60);
   const landDem = await sources.dem(proj, bounds, opts.demZoom);
   // The horizon only needs coarse heights; a separate low-zoom DEM keeps the download small.
-  const farBounds = boundsOf(plan.samples.map((s) => s.pos), opts.horizon + BACKDROP_CHUNK);
+  const farBounds = boundsOf([...plan.samples.map((s) => s.pos), ...areaPts], opts.horizon + BACKDROP_CHUNK);
   const landFarDem = opts.horizon > 0 ? await sources.dem(proj, farBounds, Math.min(opts.demZoom, 12)) : landDem;
   // The sea: a seabed under a water surface, so the bay isn't flat ground.
   const toCoast = (p: { rings: LngLat[][]; edge: boolean[][] }): CoastPolygon => ({ rings: p.rings.map((r) => r.map((q) => proj.toLocal(q))), edge: p.edge });
@@ -564,9 +569,12 @@ export async function buildTrack(
   applyElevation(plan, dem, opts);
   const index = new SegmentIndex(plan);
   const terrainAt = makeTerrainFn(plan, index, dem, opts);
+  // How far into what's built a point is, in the corridor's terms (area.ts); `inCover(x, y, k)`: k m inside it.
+  const cover = makeCover(index, opts, area);
+  const inCover = (x: number, y: number, k = 0) => cover(x, y) <= opts.corridor - k;
 
-  const chunks = planTerrainChunks(plan, index, opts);
-  const backdrop = planBackdrop(plan, index, opts);
+  const chunks = planTerrainChunks(plan, index, opts, area);
+  const backdrop = planBackdrop(plan, index, opts, area);
   const textures: Kn5Texture[] = [
     { name: "verge.png", data: vergeTexture() },
     { name: "grass.png", data: grassTexture() },
@@ -737,7 +745,7 @@ export async function buildTrack(
 
   // Other streets: planned now so buildings, trees and verges can keep clear.
   const streetPlan = planSideStreets(
-    opts.sideStreets ? sources.streets?.lines ?? [] : [], sources.streets?.names ?? [], plan, index, opts, proj,
+    opts.sideStreets ? sources.streets?.lines ?? [] : [], sources.streets?.names ?? [], plan, index, opts, proj, area,
   );
   const sideTraced = raster && opts.traceRoads ? traceSideStreets(streetPlan.streets, raster, opts, index) : 0;
   const streetIndex = new LineIndex(streetPlan.streets);
@@ -1125,12 +1133,12 @@ export async function buildTrack(
   const terrainNodes: Kn5Node[] = [];
   for (const [i, chunk] of chunks.entries()) {
     await progress("Building road and terrain meshes", i / chunks.length);
-    const mesh = buildTerrainChunk(chunk, terrainAt, opts, textured.has(chunk.key));
+    const mesh = buildTerrainChunk(chunk, terrainAt, opts, textured.has(chunk.key), area);
     if (mesh) terrainNodes.push(mesh);
   }
   const backdropNodes: Kn5Node[] = [];
   for (const chunk of backdrop) {
-    const mesh = buildBackdropChunk(chunk, farDem, index, opts, textured.has(chunk.key));
+    const mesh = buildBackdropChunk(chunk, farDem, index, opts, textured.has(chunk.key), area ? cover : undefined);
     if (mesh) backdropNodes.push(mesh);
   }
   const ground = (x: number, y: number) => terrainAt(x, y).h;
@@ -1152,7 +1160,7 @@ export async function buildTrack(
     }
     return false;
   });
-  const planted = filterTrees(treeSpots, index, opts, opts.maxTrees).map((t) => {
+  const planted = filterTrees(treeSpots, index, opts, opts.maxTrees, area ? cover : undefined).map((t) => {
     const n = index.nearest(t.x, t.y, opts.corridor + 10);
     const town = !!n && kerbedNear[n.seg];
     return { ...t, variant: pickSpecies(speciesRand(), !!t.coastal, town, ocean.length > 0 && sea.near(t.x, t.y, FORESHORE)) };
@@ -1161,12 +1169,12 @@ export async function buildTrack(
   const trees = buildTrees(treesKept, ground);
   const trunks = treeTrunks(treesKept, ground);
   // Tree lines on the horizon: canopy in the far photo, out to 1 km, as cheap unshadowed sprites.
-  const far = farTreeSpots.filter((t) => !index.nearest(t.x, t.y, opts.corridor + 5) && index.nearest(t.x, t.y, 1000) && !sea.has(t.x, t.y));
+  const far = farTreeSpots.filter((t) => !inCover(t.x, t.y, -5) && cover(t.x, t.y) < 1000 && !sea.has(t.x, t.y));
   const farStep = Math.max(1, far.length / 3000);
   const horizonTrees = buildTrees(
     Array.from({ length: Math.floor(far.length / farStep) }, (_, i) => far[Math.floor(i * farStep)])
       .map((t) => ({ ...t, scale: t.scale * 1.15, variant: pickSpecies(speciesRand(), !!t.coastal, false) })),
-    (x, y) => backdropHeight(farDem, index, opts, x, y) - 0.6,
+    (x, y) => backdropHeight(farDem, index, opts, x, y, area ? cover : undefined) - 0.6,
     "HORIZONTREES",
   ).map((m) => ({ ...m, castShadows: false }));
   // Fences, walls and hedges where OSM maps them, never near the road or across a street.
@@ -1174,6 +1182,7 @@ export async function buildTrack(
     (sources.osm?.barriers ?? []).map((b) => ({ ...b, pts: b.pts.map((p) => proj.toLocal(p)) })),
     index, opts, ground,
     (x, y) => streetIndex.clearance(x, y) > 1.5 && !inRoundabout(plan, x, y, opts.vergeWidth + 3),
+    area ? cover : undefined,
   );
   // A tree and a ring of shrubs on each island big enough for them.
   const islandTrees = plan.roundabouts.flatMap((rb) => {
@@ -1220,7 +1229,7 @@ export async function buildTrack(
         if (serviceIndex.clearance(x, y) < half + 0.3) return false;
         return streetIndex.clearance(x, y) > half + 0.3 && !inRoundabout(plan, x, y, half + 2);
       },
-      (x, y) => !!index.nearest(x, y, opts.corridor - 5),
+      (x, y) => inCover(x, y, 5),
     )
     : [];
   if (pathMeshes.length) {
@@ -1247,8 +1256,7 @@ export async function buildTrack(
   const posts = opts.guidePosts ? buildGuidePosts(plan, opts, postMask) : [];
   // Inside the corridor buildings stand on the detailed terrain; further out, on the horizon mesh.
   const buildingGround = (x: number, y: number) => {
-    const n = index.nearest(x, y, opts.corridor - 1);
-    return n ? ground(x, y) : backdropHeight(farDem, index, opts, x, y) - 0.6;
+    return inCover(x, y, 1) ? ground(x, y) : backdropHeight(farDem, index, opts, x, y, area ? cover : undefined) - 0.6;
   };
   // Power poles, wires and street lights: seen, mapped, or (lights, in town) at a typical spacing.
   const seenLocal = mergeSightings((sources.seen ?? []).map((f) => ({ ...f, at: proj.toLocal(f.at) })));
@@ -1265,7 +1273,7 @@ export async function buildTrack(
     (x, y) => Math.max(ground(x, y), onMesh(x, y)),
     (x, y) => {
       const n = index.nearest(x, y, opts.corridor - 5);
-      return !n || n.dist < index.at(n).width / 2 + 2 || streetIndex.clearance(x, y) < 1.5 || !!inRoundabout(plan, x, y, 3)
+      return !inCover(x, y, 5) || (!!n && n.dist < index.at(n).width / 2 + 2) || streetIndex.clearance(x, y) < 1.5 || !!inRoundabout(plan, x, y, 3)
         || kept.some((b) => pointInRing(x, y, b.ring)) || parkedSpots.some((c) => Math.hypot(c.at[0] - x, c.at[1] - y) < 3);
     },
     utilities.lights,
@@ -1320,7 +1328,7 @@ export async function buildTrack(
     const n = index.nearest(x, y, 40);
     return Math.min(n ? n.dist - index.at(n).width / 2 : Infinity, streetIndex.clearance(x, y));
   };
-  const shown = opts.horizon > 0 ? kept : kept.filter((b) => b.ring.every(([x, y]) => index.nearest(x, y, opts.corridor - 1)));
+  const shown = opts.horizon > 0 ? kept : kept.filter((b) => b.ring.every(([x, y]) => inCover(x, y, 1)));
   const homes = shown.filter((b) => b.ring.length === 4 && b.roof !== "flat" && b.height <= 7.5);
   if (opts.houseStyle) {
     // The area's own mix of facades (upstream's, by name), the same for a house every build.
@@ -1473,7 +1481,7 @@ export async function buildTrack(
   let parked = parkedSpots.filter(({ at: [x, y] }) => {
     // On the detailed ground only (the horizon mesh sits at another height).
     const n = index.nearest(x, y, opts.corridor - 5);
-    if (!n || n.dist < index.at(n).width / 2 + 0.5) return false;
+    if (!inCover(x, y, 5) || (n && n.dist < index.at(n).width / 2 + 0.5)) return false;
     if (streetCentres.clearance(x, y) < 2.4) return false;
     // Inside a side street the track builds (and runs traffic on).
     if (streetIndex.clearance(x, y) < -0.3) return false;
@@ -1522,7 +1530,7 @@ export async function buildTrack(
     }
   }
   if (islandShrubs.indices.length) islandNodes.push(islandShrubs.toKn5("ISLAND_SHRUBS", "shrubs", { castShadows: true }));
-  const lots = opts.buildings ? buildLots(homes.filter((b) => b.ring.every(([x, y]) => index.nearest(x, y, opts.corridor - 1))), buildingGround, { roadGap }) : [];
+  const lots = opts.buildings ? buildLots(homes.filter((b) => b.ring.every(([x, y]) => inCover(x, y, 1))), buildingGround, { roadGap }) : [];
 
   const group = (name: string, children: Kn5Node[]): Kn5GroupNode => ({ kind: "node", name, transform: IDENTITY, children });
   // Last check: no kerb, strip, gutter or rail triangle stands on the route's asphalt.
@@ -1567,7 +1575,8 @@ export async function buildTrack(
       group("HORIZON", [...backdropNodes, ...horizonTrees]),
       group("SEA", ocean.length ? buildSea(ocean) : []),
       group("WALLS", [...walls, ...trunks, ...(houseTrees.length ? treeTrunks(houseTrees, ground) : [])]),
-      ...trackObjects(plan, opts),
+      // Busselton fork: a layout's dummies go in their own kn5 (layouts.ts).
+      ...(opts.layout ? [] : trackObjects(plan, opts)),
     ]),
   };
 
@@ -1661,7 +1670,7 @@ export async function buildTrack(
       const last = aiPoints[aiPoints.length - 1], total = last.distance + last.length;
       return speedAt(Math.min(nS - 1, Math.max(0, Math.round((d / total) * (nS - 1)))));
     }, !plan.closed)),
-    [`${slug}/data/surfaces.ini`]: enc.encode(surfacesIni(opts.traffic)),
+    [`${slug}/data/surfaces.ini`]: enc.encode(surfacesIni(opts.traffic, opts.streetsValid ?? !!opts.area)),
     ...(opts.traffic ? { [`${slug}/data/traffic.json`]: enc.encode(trafficText) } : {}),
     [`${slug}/data/map.ini`]: enc.encode(map.ini),
     // Busselton fork: checkpoints for the Busselton Challenges app (apps/lua/BusseltonChallenges).
@@ -1690,13 +1699,16 @@ export async function buildTrack(
     [`${slug}/README.txt`]: enc.encode(readme(trackMeta, textured.size ? (typeof sources.imageryCredit === "function" ? sources.imageryCredit() : sources.imageryCredit) ?? "aerial imagery" : null)),
   };
 
+  // Busselton fork: one layout of several on the map (layouts.ts).
+  const laid = opts.layout ? asLayout(files, slug, opts.layout, dummiesKn5(opts.layout, trackObjects(plan, opts))) : files;
+
   const hs = plan.samples.map((s) => s.h);
   let climb = 0;
   for (let i = 1; i < hs.length; i++) climb += Math.max(0, hs[i] - hs[i - 1]);
   const geo = countGeometry(model.root);
   await progress("Done", 1);
   return {
-    slug, files, model, plan, proj, previewTextures,
+    slug, files: laid, model, plan, proj, previewTextures,
     parked: parked.map((c) => ({ at: c.at, dir: c.dir })),
     trafficInput,
     houses: homes.filter((b) => b.front).map((b) => ({
@@ -1704,6 +1716,10 @@ export async function buildTrack(
       height: b.height,
       facade: FACADES[b.facade].name,
       source: b.source,
+      ring: b.ring.map((v) => proj.toLngLat(v)),
+      roof: b.roof,
+      pitch: b.pitch,
+      roofRgb: ROOF_COLOURS[b.roofColour]?.rgb,
     })),
     junctions: streetPlan.junctions.map((j) => ({ s: j.s, side: j.side })),
     stats: {

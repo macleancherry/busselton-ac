@@ -126,6 +126,15 @@ export interface BuildOptions {
    */
   origin?: [number, number];
   /**
+   * Busselton fork: an area build. Everything inside this polygon ([lng, lat] corners) is built, every
+   * street in it drivable, not only the corridor round the route (see area.ts).
+   */
+  area?: [number, number][];
+  /** Busselton fork: side streets count as track (IS_VALID_TRACK) rather than off it: for area builds and free roam. */
+  streetsValid?: boolean;
+  /** Busselton fork: this build is layout `layout` of a map with several (layouts.ts): its dummies, AI and data go in that layout's places. */
+  layout?: string;
+  /**
    * Busselton fork: areas a hand-made layer covers (scripts/headless/build-track.mjs fills these from
    * each layer's sidecar file): no generated or spec house there, and no generated trees unless
    * `trees` is false.

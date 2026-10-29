@@ -154,11 +154,20 @@ export interface OsmData {
  * answer wins; if all fail, the build falls back to widths by road class
  * from the vector tiles. Buildings come from the vector tiles too.
  */
-export async function fetchOsm(routeCoords: LngLat[]): Promise<OsmData> {
+export async function fetchOsm(routeCoords: LngLat[], area?: LngLat[]): Promise<OsmData> {
   const step = Math.max(1, Math.ceil(routeCoords.length / 180));
   const sampled = routeCoords.filter((_, i) => i % step === 0 || i === routeCoords.length - 1);
   const around = sampled.map((p) => `${p[1].toFixed(6)},${p[0].toFixed(6)}`).join(",");
-  const query = `[out:json][timeout:40];(
+  // Busselton fork: an area build wants the same things over its whole polygon.
+  const poly = area && area.length >= 3 ? `poly:"${area.map((p) => `${p[1].toFixed(6)} ${p[0].toFixed(6)}`).join(" ")}"` : "";
+  const inArea = poly ? `
+    way(${poly})[highway];
+    way(${poly})[junction~"^(roundabout|circular)$"];
+    node(${poly})[power=pole];
+    node(${poly})[highway=street_lamp];
+    way(${poly})[power~"^(line|minor_line)$"];
+    way(${poly})[barrier~"^(fence|wall|hedge|retaining_wall)$"];` : "";
+  const query = `[out:json][timeout:${poly ? 90 : 40}];(
     way(around:12,${around})[highway];
     way(around:15,${around})[barrier=guard_rail];
     way(around:30,${around})[junction~"^(roundabout|circular)$"];
@@ -166,7 +175,7 @@ export async function fetchOsm(routeCoords: LngLat[]): Promise<OsmData> {
     node(around:40,${around})[highway=street_lamp];
     way(around:40,${around})[power~"^(line|minor_line)$"];
     way(around:45,${around})[barrier~"^(fence|wall|hedge|retaining_wall)$"];
-    way(around:300,${around})[man_made~"^(groyne|breakwater)$"];
+    way(around:300,${around})[man_made~"^(groyne|breakwater)$"];${inArea}
   );out tags geom;`;
   let elements: OverpassWay[] | undefined;
   // Every mirror at once; if they all fail (busy, timed out), wait and try again: without this data
@@ -174,7 +183,7 @@ export async function fetchOsm(routeCoords: LngLat[]): Promise<OsmData> {
   for (let round = 0; round < 3 && !elements; round++) {
     if (round) await new Promise((ok) => setTimeout(ok, 5000 * round));
     const ctl = new AbortController();
-    const timer = setTimeout(() => ctl.abort(), 45000);
+    const timer = setTimeout(() => ctl.abort(), poly ? 95000 : 45000);
     try {
       elements = await Promise.any(OVERPASS.map(async (url) => {
         const r = await fetch(url, { method: "POST", body: new URLSearchParams({ data: query }), signal: ctl.signal });

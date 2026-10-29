@@ -10,7 +10,8 @@ import { readFastLaneAi } from "../../src/core/aiSpline";
 
 const [zipPath, outPath] = process.argv.slice(2);
 const files = unzipSync(new Uint8Array(readFileSync(zipPath)));
-const kn5Name = Object.keys(files).find((f) => f.endsWith(".kn5"))!;
+// The world kn5 (<slug>/<slug>.kn5), not a layout's dummies or a layer.
+const kn5Name = Object.keys(files).find((f) => { const [d, b] = f.split("/"); return b === `${d}.kn5`; }) ?? Object.keys(files).find((f) => f.endsWith(".kn5"))!;
 const aiName = Object.keys(files).find((f) => f.endsWith("ai/fast_lane.ai"))!;
 const model = readKn5(files[kn5Name]);
 const meshes: { name: string; p: number[]; i: number[] }[] = [];

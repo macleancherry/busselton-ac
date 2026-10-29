@@ -170,7 +170,12 @@ try {
   });
   if (layers.length) log(`layers: ${layers.map((f) => basename(f)).join(", ")}; ${clears.length} areas cleared for them`);
   if (layers.length && !spec.build?.origin) log("WARNING: layers on a route with no build.origin: the map moves with the route, so they may not line up");
-  const buildOpts = clears.length ? { ...(spec.build ?? {}), clears: [...(spec.build?.clears ?? []), ...clears] } : spec.build;
+  let buildOpts = clears.length ? { ...(spec.build ?? {}), clears: [...(spec.build?.clears ?? []), ...clears] } : spec.build;
+  // Several layouts on one map (src/core/layouts.ts): the route's own drive is layout "layout.id"
+  // (default "main"), and each entry of "layouts" ({ id, name, pins, loop? } or { id, name,
+  // spawns: [{ at: [lng, lat], heading }] }) another, on the same world.
+  const mainLayout = spec.layouts?.length ? { id: spec.layout?.id ?? "main", name: spec.layout?.name ?? spec.name } : null;
+  if (mainLayout) buildOpts = { ...(buildOpts ?? {}), layout: mainLayout.id };
   if (buildOpts) await page.evaluate((b) => { window.__buildOptions = b; }, buildOpts);
   for (const p of spec.pins) await page.evaluate((pt) => window.__app.addPin(pt), p);
   await page.fill("#name", spec.name);
@@ -257,12 +262,47 @@ try {
 
   const out = join(root, "out");
   mkdirSync(out, { recursive: true });
+  if (mainLayout) {
+    log("layouts:", [mainLayout.id, ...spec.layouts.map((l) => l.id)].join(", "));
+    const extra = await page.evaluate(async ({ layouts, options, mainId, name }) => {
+      const { route } = await import("/src/services/osm.ts");
+      const { layoutFiles } = await import("/src/core/layouts.ts");
+      const { trackObjects } = await import("/src/core/track.ts");
+      const r = window.__app.result();
+      const files = {};
+      const b64 = (u) => {
+        let bin = "";
+        for (let i = 0; i < u.length; i += 0x8000) bin += String.fromCharCode(...u.subarray(i, i + 0x8000));
+        return btoa(bin);
+      };
+      const world = { slug: r.slug, proj: r.proj, model: r.model, options, meta: { name }, mainAi: r.files[`${r.slug}/${mainId}/ai/fast_lane.ai`] };
+      for (const l of layouts) {
+        const coords = l.pins ? (await route(l.loop ? [...l.pins, l.pins[0]] : l.pins)).coords : undefined;
+        const f = layoutFiles(world, { id: l.id, name: l.name, coords, spawns: l.spawns }, trackObjects);
+        for (const [k, v] of Object.entries(f)) files[k] = b64(v);
+        // The world's surfaces (and traffic) are every layout's.
+        for (const d of ["surfaces.ini", "traffic.json"]) {
+          const src = r.files[`${r.slug}/${mainId}/data/${d}`];
+          if (src) files[`${r.slug}/${l.id}/data/${d}`] = b64(src);
+        }
+      }
+      return files;
+    }, { layouts: spec.layouts, options: { ...(spec.build ?? {}) }, mainId: mainLayout.id, name: spec.name });
+    const files = unzipSync(new Uint8Array(zipBytes));
+    for (const [k, v] of Object.entries(extra)) files[k] = new Uint8Array(Buffer.from(v, "base64"));
+    zipBytes = Buffer.from(zipSync(files, { level: 6 }));
+  }
   if (layers.length) {
     // The layers go in beside the generated track, and models.ini loads them all.
     const files = unzipSync(new Uint8Array(zipBytes));
     const names = [`${slug}.kn5`, ...layers.map((f) => `layer_${basename(f)}`)];
     layers.forEach((f, k) => { files[`${slug}/${names[k + 1]}`] = new Uint8Array(readFileSync(f)); });
-    files[`${slug}/models.ini`] = new TextEncoder().encode(names.map((n, k) => `[MODEL_${k}]\r\nFILE=${n}\r\nPOSITION=0,0,0\r\nROTATION=0,0,0\r\n`).join("\r\n"));
+    const ini = (list) => new TextEncoder().encode(list.map((n, k) => `[MODEL_${k}]\r\nFILE=${n}\r\nPOSITION=0,0,0\r\nROTATION=0,0,0\r\n`).join("\r\n"));
+    const perLayout = Object.keys(files).filter((k) => /\/models_[^/]+\.ini$/.test(k));
+    if (perLayout.length) {
+      // Each layout loads the world, its dummies and the layers.
+      for (const k of perLayout) files[k] = ini([`${slug}.kn5`, `layout_${k.match(/models_([^/]+)\.ini$/)[1]}.kn5`, ...names.slice(1)]);
+    } else files[`${slug}/models.ini`] = ini(names);
     zipBytes = Buffer.from(zipSync(files, { level: 6 }));
   }
   writeFileSync(join(out, `${slug}.zip`), zipBytes);

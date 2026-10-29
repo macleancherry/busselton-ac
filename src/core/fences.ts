@@ -53,6 +53,7 @@ export function buildBarriers(
   opts: BuildOptions,
   ground: HeightFn,
   clear: (x: number, y: number) => boolean,
+  cover?: (x: number, y: number) => number,
 ): Kn5MeshNode[] {
   const meshes = new Map<Look, MeshBuilder[]>();
   const mesh = (look: Look, verts: number) => {
@@ -66,7 +67,7 @@ export function buildBarriers(
     const n = index.nearest(x, y, 30);
     return !n || n.dist > index.at(n).width / 2 + opts.vergeWidth + 2.5;
   };
-  const near = (x: number, y: number) => !!index.nearest(x, y, opts.corridor - 2);
+  const near = (x: number, y: number) => (cover ? cover(x, y) <= opts.corridor - 2 : !!index.nearest(x, y, opts.corridor - 2));
 
   for (const b of barriers) {
     const st = barrierStyle(b);

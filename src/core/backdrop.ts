@@ -6,6 +6,7 @@
 import type { HeightFn } from "./elevation";
 import type { Kn5MeshNode } from "./kn5";
 import { MeshBuilder } from "./mesh";
+import type { Area, Cover } from "./area";
 import type { BuildOptions } from "./options";
 import type { RoadPlan, SegmentIndex } from "./road";
 import type { TerrainChunk } from "./terrain";
@@ -14,17 +15,19 @@ export const BACKDROP_CHUNK = 1000;
 const STEP = 20;
 const SINK = 3;
 
-export function planBackdrop(plan: RoadPlan, index: SegmentIndex, opts: BuildOptions): TerrainChunk[] {
+export function planBackdrop(plan: RoadPlan, index: SegmentIndex, opts: BuildOptions, area: Area | null = null): TerrainChunk[] {
   if (opts.horizon <= 0) return [];
   const size = BACKDROP_CHUNK;
   const xs = plan.samples.map((s) => s.pos[0]), ys = plan.samples.map((s) => s.pos[1]);
+  if (area) xs.push(area.minX, area.maxX), ys.push(area.minY, area.maxY);
   const x0 = Math.floor((Math.min(...xs) - opts.horizon) / size), x1 = Math.floor((Math.max(...xs) + opts.horizon) / size);
   const y0 = Math.floor((Math.min(...ys) - opts.horizon) / size), y1 = Math.floor((Math.max(...ys) + opts.horizon) / size);
   const out: TerrainChunk[] = [];
   for (let cy = y0; cy <= y1; cy++) {
     for (let cx = x0; cx <= x1; cx++) {
       const minX = cx * size, minY = cy * size;
-      if (!index.nearest(minX + size / 2, minY + size / 2, opts.horizon + size * 0.71)) continue;
+      if (!index.nearest(minX + size / 2, minY + size / 2, opts.horizon + size * 0.71)
+        && !(area && area.signed(minX + size / 2, minY + size / 2) < opts.horizon + size * 0.71)) continue;
       out.push({ key: `b${String(out.length).padStart(3, "0")}`, minX, minY, maxX: minX + size, maxY: minY + size });
     }
   }
@@ -32,9 +35,9 @@ export function planBackdrop(plan: RoadPlan, index: SegmentIndex, opts: BuildOpt
 }
 
 /** The horizon surface height at a point (before grid interpolation). */
-export function backdropHeight(dem: HeightFn, index: SegmentIndex, opts: BuildOptions, x: number, y: number): number {
-  const near = index.nearest(x, y, opts.corridor + 300);
-  const d = near ? near.dist : Infinity;
+export function backdropHeight(dem: HeightFn, index: SegmentIndex, opts: BuildOptions, x: number, y: number, cover?: Cover): number {
+  const near = cover ? null : index.nearest(x, y, opts.corridor + 300);
+  const d = cover ? cover(x, y) : near ? near.dist : Infinity;
   const t = Math.min(1, Math.max(0, (d - opts.corridor) / 300));
   return dem(x, y) - SINK * (1 - t * t * (3 - 2 * t));
 }
@@ -45,6 +48,7 @@ export function buildBackdropChunk(
   index: SegmentIndex,
   opts: BuildOptions,
   textured: boolean,
+  cover?: Cover,
 ): Kn5MeshNode | null {
   const cells = Math.round((chunk.maxX - chunk.minX) / STEP);
   const N = cells + 1;
@@ -55,9 +59,9 @@ export function buildBackdropChunk(
   for (let j = 0; j < N; j++) {
     for (let i = 0; i < N; i++) {
       const x = chunk.minX + i * STEP, y = chunk.minY + j * STEP;
-      const near = index.nearest(x, y, opts.corridor + 300);
-      keep[j * N + i] = (near ? near.dist : Infinity) > hole ? 1 : 0;
-      hs[j * N + i] = backdropHeight(dem, index, opts, x, y);
+      const d = cover ? cover(x, y) : index.nearest(x, y, opts.corridor + 300)?.dist ?? Infinity;
+      keep[j * N + i] = d > hole ? 1 : 0;
+      hs[j * N + i] = backdropHeight(dem, index, opts, x, y, cover);
     }
   }
   const mb = new MeshBuilder();

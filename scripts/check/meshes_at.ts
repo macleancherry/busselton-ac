@@ -7,7 +7,7 @@ import { readKn5, type Kn5Node } from "../../src/core/kn5";
 const [zipPath, xs, zs, rs] = process.argv.slice(2);
 const X = Number(xs), Z = Number(zs), R = Number(rs ?? 10);
 const files = unzipSync(new Uint8Array(readFileSync(zipPath)));
-const kn5 = readKn5(files[Object.keys(files).find((f) => f.endsWith(".kn5") && !/\/[^/]+\/.+\//.test(f.split("/").slice(1).join("/")))!]);
+const kn5 = readKn5(files[Object.keys(files).find((f) => { const [d, b] = f.split("/"); return b === `${d}.kn5`; }) ?? Object.keys(files).find((f) => f.endsWith(".kn5"))!]);
 const rows: [string, string, number, number, number][] = [];
 const walk = (n: Kn5Node) => {
   if (n.kind === "mesh") {

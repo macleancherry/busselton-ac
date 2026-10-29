@@ -10,6 +10,7 @@
 import type { HeightFn } from "./elevation";
 import type { LngLat, LocalProjection, Vec2 } from "./geo";
 import type { Kn5MeshNode } from "./kn5";
+import type { Area } from "./area";
 import type { BuildOptions } from "./options";
 import { resample } from "./polyline";
 import { inRoundabout, isLoop, planRoad, surfaceHeight, type RoadPlan, type SegmentIndex } from "./road";
@@ -133,6 +134,7 @@ export function planSideStreets(
   index: SegmentIndex,
   opts: BuildOptions,
   proj: LocalProjection,
+  area: Area | null = null,
 ): StreetPlan {
   const localNames = names.map((n) => ({ name: n.name, pts: n.pts.map((p) => proj.toLocal(p)) }));
   const streets: SideStreet[] = [];
@@ -146,9 +148,11 @@ export function planSideStreets(
     const state = dense.map(([x, y]) => {
       if (inRoundabout(plan, x, y, opts.vergeWidth + width / 2)) return "ring";
       const n = index.nearest(x, y, opts.corridor);
-      if (!n) return "far";
+      // Busselton fork: every street inside an area build's polygon is built.
+      const inArea = !!area && area.signed(x, y) < -3;
+      if (!n) return inArea ? "keep" : "far";
       if (n.dist < index.at(n).width / 2 + opts.vergeWidth + width / 2 * 0.2 + 0.3) return "route";
-      return n.dist < opts.corridor - 3 ? "keep" : "far";
+      return n.dist < opts.corridor - 3 || inArea ? "keep" : "far";
     });
     for (let i = 0; i < dense.length;) {
       if (state[i] !== "keep") { i++; continue; }

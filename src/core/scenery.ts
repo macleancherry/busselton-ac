@@ -179,11 +179,15 @@ export const CROWN_RADIUS = TREE_SPECIES.map((s) => s.crown);
  * Trees close to the road are scaled down so their crowns stop at the verge
  * instead of hanging over the asphalt. Caps the total for frame rate.
  */
-export function filterTrees(spots: TreeSpot[], index: SegmentIndex, opts: BuildOptions, max: number): TreeSpot[] {
+export function filterTrees(spots: TreeSpot[], index: SegmentIndex, opts: BuildOptions, max: number, cover?: (x: number, y: number) => number): TreeSpot[] {
   const kept: TreeSpot[] = [];
   for (const t of spots) {
     const n = index.nearest(t.x, t.y, opts.corridor);
-    if (!n || n.dist > opts.corridor - 3) continue;
+    // Busselton fork: or anywhere in the area an area build covers (side streets clear their own trees).
+    if (!n || n.dist > opts.corridor - 3) {
+      if (cover && cover(t.x, t.y) <= opts.corridor - 3) kept.push(t);
+      continue;
+    }
     const room = n.dist - (index.at(n).width / 2 + opts.vergeWidth + 1.5);
     if (room <= 0) continue;
     const crown = CROWN_RADIUS[t.variant] * t.scale;

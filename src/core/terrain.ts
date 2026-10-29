@@ -7,6 +7,7 @@
 import type { HeightFn } from "./elevation";
 import type { Kn5MeshNode } from "./kn5";
 import { MeshBuilder } from "./mesh";
+import type { Area } from "./area";
 import type { BuildOptions } from "./options";
 import type { RoadPlan, SegmentIndex } from "./road";
 import { outerRadius, ringHeight, toOpening, vergeOuterRadius } from "./roundabout";
@@ -22,17 +23,19 @@ export interface TerrainChunk {
 
 const BELOW_VERGE = 0.25;
 
-export function planTerrainChunks(plan: RoadPlan, index: SegmentIndex, opts: BuildOptions): TerrainChunk[] {
+export function planTerrainChunks(plan: RoadPlan, index: SegmentIndex, opts: BuildOptions, area: Area | null = null): TerrainChunk[] {
   const size = opts.chunkSize;
   const reach = opts.corridor + size * 0.75;
   const xs = plan.samples.map((s) => s.pos[0]), ys = plan.samples.map((s) => s.pos[1]);
+  if (area) xs.push(area.minX, area.maxX), ys.push(area.minY, area.maxY);
   const x0 = Math.floor((Math.min(...xs) - opts.corridor) / size), x1 = Math.floor((Math.max(...xs) + opts.corridor) / size);
   const y0 = Math.floor((Math.min(...ys) - opts.corridor) / size), y1 = Math.floor((Math.max(...ys) + opts.corridor) / size);
   const chunks: TerrainChunk[] = [];
   for (let cy = y0; cy <= y1; cy++) {
     for (let cx = x0; cx <= x1; cx++) {
       const minX = cx * size, minY = cy * size;
-      if (!index.nearest(minX + size / 2, minY + size / 2, reach)) continue;
+      // Busselton fork: and every chunk touching the area.
+      if (!index.nearest(minX + size / 2, minY + size / 2, reach) && !(area && area.signed(minX + size / 2, minY + size / 2) < size * 0.75)) continue;
       chunks.push({ key: `t${String(chunks.length).padStart(3, "0")}`, minX, minY, maxX: minX + size, maxY: minY + size });
     }
   }
@@ -125,6 +128,7 @@ export function buildTerrainChunk(
   terrain: (x: number, y: number) => TerrainSample,
   opts: BuildOptions,
   textured: boolean,
+  area: Area | null = null,
 ): Kn5MeshNode | null {
   const size = chunk.maxX - chunk.minX;
   const cells = Math.max(1, Math.round(size / opts.terrainStep));
@@ -140,7 +144,7 @@ export function buildTerrainChunk(
       const x = chunk.minX + (i - 1) * step, y = chunk.minY + (j - 1) * step;
       const s = terrain(x, y);
       hs[j * P + i] = s.h;
-      inside[j * P + i] = s.dist <= opts.corridor ? 1 : 0;
+      inside[j * P + i] = s.dist <= opts.corridor || (area && area.inside(x, y)) ? 1 : 0;
       dists[j * P + i] = s.dist;
     }
   }

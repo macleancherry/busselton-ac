@@ -24,6 +24,8 @@ param(
   [int]$Minutes = 9,
   [string]$Share = $env:BUSSELTON_TEST_SHARE,
   [string]$AcPath = $env:BUSSELTON_AC_PATH,
+  # Which layout, on a map with several (models_<layout>.ini); the first one when not given.
+  [string]$Layout = "",
   # Where the Drive button is in AC's window, as a fraction of its width and height: the top icon
   # of the left-hand bar (AC scales its menus with the resolution; measured on the workstation's 4K screen).
   [double]$DriveX = 0.013,
@@ -48,6 +50,9 @@ if (-not $AcPath) {
 if (-not (Test-Path (Join-Path $AcPath "content\tracks\$slug\extension\autotest.lua"))) {
   throw "This build has no test script (extension\autotest.lua). Builds need traffic on."
 }
+$layouts = @(Get-ChildItem (Join-Path $AcPath "content\tracks\$slug") -Filter "models_*.ini" -ErrorAction SilentlyContinue | ForEach-Object { $_.BaseName.Substring(7) })
+if (-not $Layout -and $layouts.Count) { $Layout = $layouts[0] }
+if ($Layout -and $layouts -notcontains $Layout) { throw "No layout '$Layout' in $slug (it has: $($layouts -join ', '))." }
 
 # 2. A practice session for one car, the test driver at the wheel.
 function Set-Ini([string[]]$lines, [string]$section, [string]$key, [string]$value) {
@@ -73,7 +78,7 @@ $ini = @($ini | ForEach-Object -Begin { $skip = $false } -Process {
   if (-not $skip) { $_ }
 })
 foreach ($kv in @(
-  @("RACE", "TRACK", $slug), @("RACE", "CONFIG_TRACK", ""), @("RACE", "CARS", "1"), @("RACE", "AI_LEVEL", "$AiLevel"),
+  @("RACE", "TRACK", $slug), @("RACE", "CONFIG_TRACK", $Layout), @("RACE", "CARS", "1"), @("RACE", "AI_LEVEL", "$AiLevel"),
   @("CAR_0", "DRIVER_NAME", "Busselton Test"),
   @("SESSION_0", "NAME", "Practice"), @("SESSION_0", "TYPE", "1"), @("SESSION_0", "DURATION_MINUTES", "30"), @("SESSION_0", "SPAWN_SET", "START"),
   @("REMOTE", "ACTIVE", "0"), @("REPLAY", "ACTIVE", "0"), @("AUTOSPAWN", "ACTIVE", "1")

@@ -52,23 +52,25 @@ export async function runBuild(job: BuildJob, report: Report, traceProgress: (te
   const usedDem = new Set<DemSource>();
   const chain = imageryChain(coords[Math.floor(coords.length / 2)], job.imagerySource);
 
+  // Busselton fork: an area build fetches everything over its polygon as well as along the route.
+  const box: LngLat[] = opts.area && opts.area.length >= 3 ? [...coords, ...opts.area] : coords;
   await report("Fetching OpenStreetMap data");
   clearDataWarnings();
   let seenError = "";
   const [osm, tiles, seen, coast] = await Promise.all([
-    fetchOsm(coords),
-    fetchTileFeatures(paddedBounds(coords, (opts.buildingRadius ?? 250) + 50)).catch(() => {
+    fetchOsm(coords, opts.area),
+    fetchTileFeatures(paddedBounds(box, (opts.buildingRadius ?? 250) + 50)).catch(() => {
       warnMissing("all map tiles (buildings, streets, shops)");
       return null;
     }),
     token
-      ? fetchSeen(paddedBounds(coords, (opts.corridor ?? 90) + 20), token).catch((e) => {
+      ? fetchSeen(paddedBounds(box, (opts.corridor ?? 90) + 20), token).catch((e) => {
         seenError = (e as Error).message;
         return [];
       })
       : Promise.resolve([]),
     // Busselton fork: the sea, piers and beaches.
-    opts.sea !== false ? fetchCoast(paddedBounds(coords, (opts.horizon ?? 1500) + 1200)).catch(() => {
+    opts.sea !== false ? fetchCoast(paddedBounds(box, (opts.horizon ?? 1500) + 1200)).catch(() => {
       warnMissing("all coast tiles (sea, piers, beaches)");
       return undefined;
     }) : Promise.resolve(undefined),

@@ -13,7 +13,8 @@ import { readKn5, type Kn5Node } from "../../src/core/kn5";
 const LIMITS = { triangles: 1_500_000, meshes: 4000, textureMB: 1500, kn5MB: 600 };
 
 const files = unzipSync(new Uint8Array(readFileSync(process.argv[2])));
-const kn5Name = Object.keys(files).find((f) => f.endsWith(".kn5"))!;
+// The world kn5 (<slug>/<slug>.kn5), not a layout's dummies or a layer.
+const kn5Name = Object.keys(files).find((f) => { const [d, b] = f.split("/"); return b === `${d}.kn5`; }) ?? Object.keys(files).find((f) => f.endsWith(".kn5"))!;
 const model = readKn5(files[kn5Name]);
 
 let triangles = 0, meshes = 0, physicsTris = 0;
