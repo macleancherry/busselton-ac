@@ -45,7 +45,7 @@ Both Windows machines can run AC at the same time; LAN racing uses Content Manag
 
 Busselton is flat, so town routes use `"banking": false` in options, plus `terrainStep: 1.5` and `terrainUnderRoad: 0.12` in `build`. The upstream defaults are for hilly roads: up to 6% banking, a 3 m terrain grid and ground sunk 0.6 m under the road, which together made tilted corners and 40 to 60 cm drops at the road edges here.
 
-House looks: `HOUSE_LOOKS=out/<slug>.looks.json,routes/private/<file>.json` (comma-separated, later files win) gives particular houses their facade (a wall kind like `weatherboard`, or an upstream facade name like `wb_blue`), front hedge and height, and front-yard trees. `scripts/mapillary/house_looks.py out/<slug>.houses.json [--sequence <id>] [--min-photos 1]` makes the photo looks from Mapillary. An area's own mix goes in the route's `build.houseStyle` (`{ "facades": { "wb_white": 3, ... } }`).
+House looks: `HOUSE_LOOKS=out/<slug>.looks.json,routes/private/<file>.json` (comma-separated, later files win) gives particular houses their facade (a wall kind like `weatherboard`, or an upstream facade name like `wb_blue`), front hedge and height, and front-yard trees; `place: true` builds the house (15 x 13 m, facing the nearest road) when the photo didn't give one. `scripts/mapillary/house_looks.py out/<slug>.houses.json [--sequence <id>] [--min-photos 1]` makes the photo looks from Mapillary. An area's own mix goes in the route's `build.houseStyle` (`{ "facades": { "wb_white": 3, ... } }`).
 
 Pins snap to the nearest road. A pin near a car park, side street or the far carriageway of a divided road makes a detour or a U-turn spike. Put pins mid-block on the road you want, or leave them out and let the route follow the road.
 

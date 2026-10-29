@@ -38,7 +38,7 @@ import { BARRIERS, barrierTexture, detailTexture, normalFromHeight, windowTextur
 import {
   buildGuardRails, buildGuidePosts, buildTrees, treeTrunks, filterTrees, railNeeds, rng, treeSpotsFromImagery, type TreeSpot,
 } from "./scenery";
-import { buildBuildings, centroid, detectBuildings, filterBuildings, fromOsm, isRectangle, pointInRing, ringArea, usedFinishes, type Building } from "./buildings";
+import { buildBuildings, centroid, detectBuildings, filterBuildings, fromOsm, houseRoof, isRectangle, plainHouse, pointInRing, ringArea, usedFinishes, type Building } from "./buildings";
 import { dressBuilding, FACADES, facadeTexture, ROOF_COLOURS, roofTexture } from "./buildingStyles";
 import { facadeForLook, facadeForStyle } from "./houseLooks";
 import { camerasIni, placeCameras } from "./cameras";
@@ -105,6 +105,8 @@ export interface DataSources {
     hedgeHeight?: number;
     /** Trees in the front yard. */
     trees?: number;
+    /** Build a house here (15 x 13 m, facing the nearest road) when the photo didn't give one. */
+    place?: boolean;
   }[];
   /** Draws shop names for their signs (needs a canvas: the browser passes one in). */
   drawSigns?: SignDrawer;
@@ -1315,6 +1317,28 @@ export async function buildTrack(
           if (g < bg) [bi, bg] = [k, g];
         }
         if (bi >= 0) best.front = [ring[bi], ring[(bi + 1) % ring.length]];
+      }
+    }
+    // Still nothing there and the look says a house stands here: build one, 15 m across the front
+    // and 13 m deep, its front wall facing the nearest road.
+    if (!best && look.place && Number.isFinite(roadGap(x, y))) {
+      const gx = roadGap(x + 1, y) - roadGap(x - 1, y), gy = roadGap(x, y + 1) - roadGap(x, y - 1);
+      const gl = Math.hypot(gx, gy) || 1;
+      const o: Vec2 = [-gx / gl, -gy / gl]; // towards the road
+      const t: Vec2 = [-o[1], o[0]];
+      const at = (a: number, d: number): Vec2 => [x + t[0] * a + o[0] * d, y + t[1] * a + o[1] * d];
+      // Counter-clockwise from above, the front edge (facing the road) first.
+      const ring = [at(-7.5, 6.5), at(7.5, 6.5), at(7.5, -6.5), at(-7.5, -6.5)].reverse();
+      const front: [Vec2, Vec2] = [at(7.5, 6.5), at(-7.5, 6.5)];
+      const surfmist = Math.max(0, ROOF_COLOURS.findIndex((r) => r.name === "surfmist"));
+      const placed: Building = { ...plainHouse(houseRoof(() => 0.3), surfmist, 3), ring, source: "detected", front, setback: Math.max(2, roadGap(...front[0]) ) };
+      shown.push(placed);
+      homes.push(placed);
+      best = placed;
+      if (!finishes.roofs.has(surfmist)) {
+        finishes.roofs.add(surfmist);
+        const c = ROOF_COLOURS[surfmist];
+        buildingScenery(`roof_${c.name}`, roofTexture(c), { ambient: 0.45, diffuse: 0.45, specular: 0.25, exp: 25 }, 4);
       }
     }
     if (!best) continue;

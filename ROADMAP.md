@@ -2,7 +2,7 @@
 
 **Goal:** Busselton and then the wider South West, from the Busselton Jetty to Cape Leeuwin, as Assetto Corsa tracks you can just drive around in. Real roads, real heights, the trees and buildings locals would recognise, traffic, day and night, summer and winter. Built from free data and free tools, for personal use.
 
-This is the plan for this fork. The generator itself is [honestjams/ac-track-builder](https://github.com/honestjams/ac-track-builder); anything that's useful beyond the South West goes back upstream (see [Working with upstream](#working-with-upstream)).
+This is the plan for this fork. (`docs/roadmap.md` is upstream's own roadmap for the general track builder, kept as-is so merges stay clean.) The generator itself is [honestjams/ac-track-builder](https://github.com/honestjams/ac-track-builder); anything that's useful beyond the South West goes back upstream (see [Working with upstream](#working-with-upstream)).
 
 Status key: ✅ done · 🔨 in progress · ⬜ planned · ❓ needs checking first
 
