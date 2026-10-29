@@ -1,0 +1,161 @@
+{
+ "name": "Busselton",
+ "_note": "The one map: the Foreshore and the town centre as one area, every street drivable, with layouts. The Foreshore circuit is the main route; the town loop and free roam are more layouts on the same world (src/core/layouts.ts, docs/one-map.md).",
+ "loop": true,
+ "pins": [
+  [
+   115.33054,
+   -33.65499
+  ],
+  [
+   115.33056,
+   -33.65034
+  ],
+  [
+   115.33748,
+   -33.64763
+  ],
+  [
+   115.34384,
+   -33.64784
+  ],
+  [
+   115.34543,
+   -33.65284
+  ]
+ ],
+ "options": {
+  "imagery": "high",
+  "banking": false
+ },
+ "build": {
+  "noTrace": [
+   {
+    "at": [
+     115.3443,
+     -33.649
+    ],
+    "radius": 130
+   },
+   {
+    "at": [
+     115.3451,
+     -33.6515
+    ],
+    "radius": 130
+   }
+  ],
+  "terrainStep": 1.5,
+  "terrainUnderRoad": 0.12,
+  "traceGuard": false,
+  "traffic": true,
+  "origin": [
+   115.3403,
+   -33.6506
+  ],
+  "corridor": 60,
+  "area": [
+   [
+    115.33,
+    -33.6556
+   ],
+   [
+    115.3505,
+    -33.6556
+   ],
+   [
+    115.3505,
+    -33.6458
+   ],
+   [
+    115.33,
+    -33.6458
+   ]
+  ]
+ },
+ "layout": {
+  "id": "foreshore",
+  "name": "Busselton Foreshore"
+ },
+ "layouts": [
+  {
+   "id": "town",
+   "name": "Busselton Town",
+   "pins": [
+    [
+     115.34384,
+     -33.64768
+    ],
+    [
+     115.3447,
+     -33.6505
+    ],
+    [
+     115.3469,
+     -33.65172
+    ],
+    [
+     115.34966,
+     -33.65064
+    ],
+    [
+     115.3488,
+     -33.6479
+    ],
+    [
+     115.3459,
+     -33.6463
+    ]
+   ],
+   "loop": true
+  },
+  {
+   "id": "free_roam",
+   "name": "Busselton Free Roam",
+   "spawns": [
+    {
+     "at": [
+      115.330542,
+      -33.653065
+     ],
+     "heading": 1
+    },
+    {
+     "at": [
+      115.338071,
+      -33.647413
+     ],
+     "heading": 66
+    },
+    {
+     "at": [
+      115.344602,
+      -33.649876
+     ],
+     "heading": 137
+    },
+    {
+     "at": [
+      115.339529,
+      -33.653258
+     ],
+     "heading": 256
+    },
+    {
+     "at": [
+      115.344347,
+      -33.649294
+     ],
+     "heading": 166
+    },
+    {
+     "at": [
+      115.349579,
+      -33.650406
+     ],
+     "heading": 346
+    }
+   ]
+  }
+ ]
+}
