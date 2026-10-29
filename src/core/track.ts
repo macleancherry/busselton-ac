@@ -253,6 +253,9 @@ function trackObjects(plan: RoadPlan, opts: BuildOptions): Kn5GroupNode[] {
   const width = plan.samples[0].width;
   const rows = Math.ceil(opts.pitCount / 2);
   const slot = (k: number, lineS: number) => {
+    // Busselton fork: on a road under 8 m wide (a town street), single file on the centre line: a
+    // race grid's quarter-width stagger put the car at the edge of a 4 m street, over a drop.
+    if (along(plan, lineS - 8, 0, 0, 0).sample.width < 8) return { s: lineS - 8 - k * 8, t: 0 };
     const row = Math.floor(k / 2);
     const t = (k % 2 === 0 ? 1 : -1) * width / 4;
     return { s: lineS - 8 - row * 8, t };
@@ -1561,7 +1564,7 @@ export async function buildTrack(
     [`${slug}/data/ai_hints.ini`]: enc.encode(aiHintsIni(aiPoints, (d) => {
       const last = aiPoints[aiPoints.length - 1], total = last.distance + last.length;
       return speedAt(Math.min(nS - 1, Math.max(0, Math.round((d / total) * (nS - 1)))));
-    })),
+    }, !plan.closed)),
     [`${slug}/data/surfaces.ini`]: enc.encode(surfacesIni(opts.traffic)),
     ...(opts.traffic ? { [`${slug}/data/traffic.json`]: enc.encode(trafficText) } : {}),
     [`${slug}/data/map.ini`]: enc.encode(map.ini),

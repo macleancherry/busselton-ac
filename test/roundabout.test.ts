@@ -215,5 +215,8 @@ describe("AI hints from speed limits", () => {
     expect(ini).toMatch(/VALUE=0\.5\n/);
     expect(ini).not.toMatch(/VALUE=0\.6\n/); // the corner's 0.6 is above the town's 0.5
     expect(aiHintsIni(pts, () => 100)).toMatch(/VALUE=0\.6\n/);
+    // Point to point: a crawl over the last 50 m, so the AI stops at the end of the road.
+    expect(aiHintsIni(pts, () => 100, true)).toMatch(/VALUE=0\.15\n/);
+    expect(aiHintsIni(pts, () => 100)).not.toMatch(/VALUE=0\.15\n/);
   });
 });

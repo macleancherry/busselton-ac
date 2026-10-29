@@ -129,9 +129,10 @@ export function buildAiLine(plan: RoadPlan): AiPoint[] {
  * where a person would. Tight corners (radius under
  * 40 m: 0.72, under 20 m: 0.6, from 60 m before to 20 m after), and, given `limitAt` (the speed
  * limit in km/h at a distance along the line), town streets: VALUE scales the AI's pace, so a
- * 50 zone gets 0.5, a 60 zone 0.6, and 90 and up nothing. The lower of the two wins.
+ * 50 zone gets 0.5, a 60 zone 0.6, and 90 and up nothing. The lower of the two wins. `openEnd`: a
+ * point-to-point line, slowed to a crawl over its last 50 m.
  */
-export function aiHintsIni(points: AiPoint[], limitAt?: (distance: number) => number | undefined): string {
+export function aiHintsIni(points: AiPoint[], limitAt?: (distance: number) => number | undefined, openEnd = false): string {
   const total = points.length ? points[points.length - 1].distance + points[points.length - 1].length : 0;
   if (!total) return "";
   const value = points.map(() => 1);
@@ -151,6 +152,9 @@ export function aiHintsIni(points: AiPoint[], limitAt?: (distance: number) => nu
       if (limit && limit < 90) value[j] = Math.min(value[j], Math.max(0.45, Math.round(limit / 10) / 10));
     });
   }
+  // Point to point: crawl over the last 50 m (the run-off past the finish), so the AI stops at the
+  // end of the road instead of driving off it.
+  if (openEnd) points.forEach((p, j) => { if (p.distance > total - 50) value[j] = Math.min(value[j], 0.15); });
   // Runs of the same value become one hint.
   const hints: { s0: number; s1: number; value: number }[] = [];
   points.forEach((p, j) => {

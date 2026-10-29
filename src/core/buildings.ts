@@ -629,7 +629,10 @@ export function buildBuildings(buildings: Building[], ground: HeightFn): Kn5Mesh
     }
   }
   const out: Kn5MeshNode[] = [];
-  walls.forEach((cm, fi) => cm.all().forEach((m, i) => out.push(m.toKn5(`1WALL_BLD_${FACADES[fi].name}_${pad(i)}`, `facade_${FACADES[fi].name}`))));
+  // AC finds a mesh's surface by the keys in its name, its built-in ones too, so a facade called
+  // render_sand made "1WALL_BLD_RENDER_SAND" a sand wall as well (AC logs it as ambiguous).
+  const meshSafe = (name: string) => name.replace(/sand/gi, "snd").replace(/grass/gi, "grs").replace(/gravel/gi, "grvl").replace(/kerb/gi, "krb").replace(/road/gi, "rd").replace(/dirt/gi, "drt");
+  walls.forEach((cm, fi) => cm.all().forEach((m, i) => out.push(m.toKn5(`1WALL_BLD_${meshSafe(FACADES[fi].name)}_${pad(i)}`, `facade_${FACADES[fi].name}`))));
   roofs.forEach((cm, ri) => cm.all().forEach((m, i) => out.push(m.toKn5(`ROOF_${ROOF_COLOURS[ri].name}_${pad(i)}`, `roof_${ROOF_COLOURS[ri].name}`))));
   soffits.all().forEach((m, i) => out.push(m.toKn5(`SOFFIT_${pad(i)}`, "canopy", { castShadows: false })));
   panes.all().forEach((m, i) => out.push(m.toKn5(`WINDOWS_${pad(i)}`, "window", { castShadows: false })));

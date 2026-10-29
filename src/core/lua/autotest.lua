@@ -33,8 +33,9 @@ local function log(kind, extra)
 end
 
 local function shot(tag)
-  pcall(ac.makeScreenshot, nil, { accumulation = false }, nil)
-  log('shot', tag)
+  local ok, err = pcall(ac.makeScreenshot, nil, { accumulation = false }, nil)
+  -- Screenshots have never come out on the workstation: say why (or that the call itself was fine).
+  log('shot', tag .. (ok and '' or (' error: ' .. tostring(err):gsub(',', ';'))))
 end
 
 local function finish(why)
@@ -100,7 +101,10 @@ function script.update(dt)
   end
   stuckFor = (car.speedKmh < 3 and t > 15) and stuckFor + dt or 0
   if stuckFor > 10 then finish('stuck') end
-  if pastHalf and car.lapCount > laps0 then finish('lap') end
+  -- A lap only on a circuit: on a point-to-point road the finish line comes before the end of the
+  -- road (the run-off), and crossing it bumps the lap count too.
+  if CLOSED and pastHalf and car.lapCount > laps0 then finish('lap') end
+  if not CLOSED and car.splinePosition > 0.98 and car.speedKmh < 5 then finish('end of road') end
   if not CLOSED and car.splinePosition > 0.995 then finish('end of road') end
   if t > MAX_TIME then finish('timeout') end
 end

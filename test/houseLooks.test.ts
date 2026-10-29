@@ -28,3 +28,17 @@ describe("house looks on upstream's facades", () => {
     expect([...picks].sort()).toEqual(["wb_grey", "wb_white"]);
   });
 });
+
+describe("wall mesh names", () => {
+  it("keep AC's surface names out (render_sand isn't a sand wall)", async () => {
+    const { buildBuildings, plainHouse } = await import("../src/core/buildings");
+    const { FACADE_INDEX } = await import("../src/core/buildingStyles");
+    const b = { ...plainHouse("hip", 0, 3), ring: [[0, 0], [12, 0], [12, 10], [0, 10]] as [number, number][], source: "osm" as const, facade: FACADE_INDEX.get("render_sand")! };
+    const walls = buildBuildings([b], () => 0).filter((m) => m.name.startsWith("1WALL_BLD_"));
+    expect(walls.length).toBeGreaterThan(0);
+    for (const m of walls) {
+      expect(m.name).not.toMatch(/sand|grass|kerb|road/i);
+      expect(m.material).toBe("facade_render_sand");
+    }
+  });
+});
