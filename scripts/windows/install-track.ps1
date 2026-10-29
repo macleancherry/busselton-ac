@@ -105,13 +105,23 @@ if ($RigTracks) {
 }
 # The Busselton apps: Challenges (checkpoints against the clock) and Map (every street, you on it).
 # Each build ships what they read (data/challenges.ini, extension/street_map.*).
-foreach ($name in @("BusseltonChallenges", "BusseltonMap")) {
-  $app = Join-Path $repo "apps\lua\$name"
-  if (-not (Test-Path $app)) { continue }
-  $appDest = Join-Path $AcPath "apps\lua\$name"
-  New-Item -ItemType Directory -Force -Path $appDest | Out-Null
-  Copy-Item (Join-Path $app "*") $appDest -Recurse -Force
-  Write-Host "Installed the $name app -> $appDest" -ForegroundColor Green
+# On the rig too, when its share is reachable: its tracks folder is <AC>\content\tracks, so the apps
+# go two folders up from it, in <AC>\apps\lua.
+$acRoots = @($AcPath)
+if ($RigTracks -and (Test-Path $RigTracks)) { $acRoots += (Split-Path (Split-Path $RigTracks -Parent) -Parent) }
+foreach ($root in $acRoots) {
+  foreach ($name in @("BusseltonChallenges", "BusseltonMap")) {
+    $app = Join-Path $repo "apps\lua\$name"
+    if (-not (Test-Path $app)) { continue }
+    $appDest = Join-Path $root "apps\lua\$name"
+    try {
+      New-Item -ItemType Directory -Force -Path $appDest -ErrorAction Stop | Out-Null
+      Copy-Item (Join-Path $app "*") $appDest -Recurse -Force -ErrorAction Stop
+      Write-Host "Installed the $name app -> $appDest" -ForegroundColor Green
+    } catch {
+      Write-Warning "Couldn't install the $name app to $appDest ($($_.Exception.Message)). Copy apps\lua\$name there by hand."
+    }
+  }
 }
 Write-Host "Done. In Content Manager, refresh the track list (or restart it) to see $slug."
 Write-Host "In game, open Busselton Challenges (checkpoints) or Busselton Map from the apps bar on the right."
