@@ -6,18 +6,21 @@
 
 .EXAMPLE
   .\scripts\windows\run-test.ps1 -Zip $HOME\Downloads\busselton_foreshore.zip
-  .\scripts\windows\run-test.ps1 -Zip $HOME\Downloads\busselton_foreshore.zip -Car ks_mazda_mx5_nd -Minutes 10
+  .\scripts\windows\run-test.ps1 -Zip $HOME\Downloads\busselton_foreshore.zip -Car ks_mazda_mx5_nd -AiLevel 90 -Minutes 10
 
 .NOTES
   Runs code from the repo, never edits it (see CLAUDE.md). Needs the build to have traffic on (the
   test script ships with it) and CSP installed.
   -Share is where results go; set it once with:  setx BUSSELTON_TEST_SHARE \\NAS\busselton-tests
-  The car comes from the last session Content Manager started, unless -Car is given.
+  The car is an everyday hatch (the Abarth 500 that comes with AC) driven at AI level 75, so the
+  test drives a town street the way a person would, not flat out in a race car. -Car and -AiLevel
+  change them (-Car "" keeps the car from the last session Content Manager started).
   Close AC before running. The script restores race.ini afterwards.
 #>
 param(
   [Parameter(Mandatory = $true)][string]$Zip,
-  [string]$Car,
+  [string]$Car = "abarth500",
+  [int]$AiLevel = 75,
   [int]$Minutes = 9,
   [string]$Share = $env:BUSSELTON_TEST_SHARE,
   [string]$AcPath = $env:BUSSELTON_AC_PATH,
@@ -70,7 +73,7 @@ $ini = @($ini | ForEach-Object -Begin { $skip = $false } -Process {
   if (-not $skip) { $_ }
 })
 foreach ($kv in @(
-  @("RACE", "TRACK", $slug), @("RACE", "CONFIG_TRACK", ""), @("RACE", "CARS", "1"), @("RACE", "AI_LEVEL", "100"),
+  @("RACE", "TRACK", $slug), @("RACE", "CONFIG_TRACK", ""), @("RACE", "CARS", "1"), @("RACE", "AI_LEVEL", "$AiLevel"),
   @("CAR_0", "DRIVER_NAME", "Busselton Test"),
   @("SESSION_0", "NAME", "Practice"), @("SESSION_0", "TYPE", "1"), @("SESSION_0", "DURATION_MINUTES", "30"), @("SESSION_0", "SPAWN_SET", "START"),
   @("REMOTE", "ACTIVE", "0"), @("REPLAY", "ACTIVE", "0"), @("AUTOSPAWN", "ACTIVE", "1")

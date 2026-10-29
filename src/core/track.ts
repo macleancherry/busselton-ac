@@ -26,7 +26,7 @@ import { simplify } from "./polyline";
 import { applyElevation, inRoundabout, isLoop, planRoad, surfaceHeight, SegmentIndex, type RoadPlan, type RoadSample } from "./road";
 import { extendRoute, pathLength } from "./extend";
 import { keepOffRoute, onRoute } from "./clearance";
-import { buildRingMeshes, buildRingWall, innerRadius, outerRadius, resolveRoundabouts, ringHeight, vergeOuterRadius, type RoundaboutHint } from "./roundabout";
+import { buildRingMeshes, buildRingWall, innerRadius, outerRadius, resolveRoundabouts, ringsOnRoute, ringHeight, vergeOuterRadius, type RoundaboutHint } from "./roundabout";
 import { buildRoadMeshes, buildWalls, type RoadMaterialFn } from "./roadMesh";
 import { buildKerbReturns, buildKerbs, KERB_BACK, KERB_H, kerbEvidence, planKerbs, STRIP_EXTRA, stripPhotoTexture, type StripMaterialFn } from "./kerbs";
 import { photoRoadTexture } from "./photoSurface";
@@ -407,7 +407,13 @@ export async function buildTrack(
   const proj = new LocalProjection(centre);
   const local = route.map((p) => proj.toLocal(p));
   const widthFn = sources.widthAt ? (x: number, y: number) => sources.widthAt!(proj.toLngLat([x, y])) : undefined;
-  const circles = resolveRoundabouts(sources.roundabouts ?? [], sources.osm?.roundaboutRings ?? [], proj);
+  const hinted = resolveRoundabouts(sources.roundabouts ?? [], sources.osm?.roundaboutRings ?? [], proj);
+  // Plus rings the route crosses that routing didn't mention (straight over a small roundabout):
+  // OSM's roundabout ways, and closed rings in the map tiles.
+  const tileRings = (sources.streets?.lines ?? [])
+    .filter((l) => l.pts.length > 5 && Math.hypot(l.pts[0][0] - l.pts[l.pts.length - 1][0], l.pts[0][1] - l.pts[l.pts.length - 1][1]) < 2e-5)
+    .map((l) => l.pts.map((p) => proj.toLocal(p)));
+  const circles = [...hinted, ...ringsOnRoute([...(sources.osm?.roundaboutRings ?? []).map((r) => r.map((p) => proj.toLocal(p))), ...tileRings], local, hinted)];
   // Point to point: room to line up and get going before the start pin, and to brake after the finish pin.
   const rows = Math.ceil(opts.pitCount / 2);
   const ext = !isLoop(local) && (opts.runUp > 0 || opts.runOff > 0)

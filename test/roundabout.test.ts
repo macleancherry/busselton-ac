@@ -3,7 +3,7 @@ import { buildTrack, type DataSources } from "../src/core/track";
 import { DemGrid } from "../src/core/elevation";
 import { LocalProjection, type LngLat, type Vec2 } from "../src/core/geo";
 import { readKn5, type Kn5MeshNode, type Kn5Node } from "../src/core/kn5";
-import { buildRingMeshes, fitCircle, innerRadius, outerRadius, resolveRoundabouts, ringHeight } from "../src/core/roundabout";
+import { buildRingMeshes, fitCircle, innerRadius, outerRadius, resolveRoundabouts, ringHeight , ringsOnRoute } from "../src/core/roundabout";
 import { readFastLaneAi } from "../src/core/aiSpline";
 import { withDefaults } from "../src/core/options";
 
@@ -144,5 +144,23 @@ describe("buildTrack through a roundabout", async () => {
     // No kinks: neighbouring points turn no more than about 20 degrees (the ring itself bends
     // about 12 degrees a point; unsmoothed, the arms met it with 70 degree kinks).
     expect(worstTurn).toBeLessThan(0.35);
+  });
+});
+
+describe("rings the route crosses without a routing hint", () => {
+  const ring = (cx: number, cy: number, r: number, from = 0, to = 2 * Math.PI) =>
+    Array.from({ length: 24 }, (_, i) => [cx + r * Math.cos(from + ((to - from) * i) / 23), cy + r * Math.sin(from + ((to - from) * i) / 23)] as [number, number]);
+  const road = Array.from({ length: 200 }, (_, i) => [i - 100, -10] as [number, number]);
+
+  it("finds a small roundabout the route goes over, from its pieces", () => {
+    const out = ringsOnRoute([ring(0, 0, 10, 0, Math.PI), ring(0, 0, 10, Math.PI, 2 * Math.PI)], road, []);
+    expect(out).toHaveLength(1);
+    expect(out[0].r).toBeCloseTo(10, 0);
+  });
+
+  it("leaves rings the route doesn't touch, curved arms, and ones already found", () => {
+    expect(ringsOnRoute([ring(0, 60, 10)], road, [])).toHaveLength(0);
+    expect(ringsOnRoute([ring(0, 0, 10, 0, Math.PI / 2)], road, [])).toHaveLength(0);
+    expect(ringsOnRoute([ring(0, 0, 10)], road, [{ c: [1, 0], r: 10 }])).toHaveLength(0);
   });
 });

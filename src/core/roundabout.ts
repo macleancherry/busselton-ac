@@ -154,6 +154,37 @@ export function resolveRoundabouts(hints: RoundaboutHint[], rings: LngLat[][], p
 }
 
 /**
+ * Roundabouts the route goes over that routing didn't announce: OSRM gives no roundabout step for
+ * going straight over a small one, so the build treated it as plain road and ran over the island.
+ * Any mapped ring (OSM roundabout ways, or closed rings in the map tiles) that the route passes
+ * within its radius of is one. Ways that are pieces of the same ring are grouped first.
+ */
+export function ringsOnRoute(rings: Vec2[][], path: Vec2[], have: Circle[]): Circle[] {
+  const groups: Vec2[][] = [];
+  const cen = (r: Vec2[]): Vec2 => [r.reduce((a, p) => a + p[0], 0) / r.length, r.reduce((a, p) => a + p[1], 0) / r.length];
+  for (const ring of rings) {
+    if (ring.length < 2) continue;
+    const c = cen(ring);
+    const g = groups.find((pts) => pts.some((p) => Math.hypot(p[0] - c[0], p[1] - c[1]) < 2 * MAX_R / 3));
+    if (g) g.push(...ring);
+    else groups.push([...ring]);
+  }
+  const out: Circle[] = [];
+  for (const pts of groups) {
+    if (pts.length < 5) continue;
+    const f = fitCircle(pts);
+    if (!f || f.r < MIN_R || f.r > 35 || f.rms > 2) continue;
+    if ([...have, ...out].some((o) => Math.hypot(o.c[0] - f.c[0], o.c[1] - f.c[1]) < 8)) continue;
+    // The ring has to go most of the way round (not one curved arm), and the route has to cross it.
+    const sectors = new Set(pts.map((p) => Math.floor(((Math.atan2(p[1] - f.c[1], p[0] - f.c[0]) + Math.PI) / (2 * Math.PI)) * 12) % 12));
+    if (sectors.size < 8) continue;
+    if (!path.some((p) => Math.hypot(p[0] - f.c[0], p[1] - f.c[1]) < f.r + 2)) continue;
+    out.push({ c: f.c, r: f.r });
+  }
+  return out;
+}
+
+/**
  * Projects the stretches of a dense (1 m) path that run round a roundabout
  * onto its circle. Returns which points were snapped, so smoothing can
  * leave them be.
