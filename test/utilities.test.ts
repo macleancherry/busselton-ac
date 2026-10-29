@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { planRoad, SegmentIndex } from "../src/core/road";
 import { withDefaults } from "../src/core/options";
-import { placeUtilities } from "../src/core/utilities";
+import { carParkLights, placeUtilities } from "../src/core/utilities";
 import type { Vec2 } from "../src/core/geo";
 import type { Piece } from "../src/core/furniture";
 
@@ -68,5 +68,25 @@ describe("power poles, wires and street lights", () => {
     const u = placeUtilities({ poles: [], lamps: [], lines: [line] }, plan, index, opts, () => 0);
     expect(u.poles).toBe(3);
     expect(u.wires.length).toBeGreaterThan(0);
+  });
+});
+
+describe("car park lights", () => {
+  // A 120 m aisle running east, flat ground at 2 m.
+  const aisle: [number, number][] = [[0, 0], [60, 0], [120, 0]];
+  it("puts a pole every 35 m beside the bays, alternating sides, with a light each way", () => {
+    const { pieces, lights } = carParkLights([aisle], () => 2, () => false);
+    const poles = pieces.filter((p) => p.kind === "box" && p.material === "steel");
+    expect(poles).toHaveLength(3); // at 17, 52 and 87 m (the next would be past the end)
+    expect(lights).toHaveLength(poles.length * 2);
+    for (const p of poles) if (p.kind === "box") expect(Math.abs(Math.abs(p.at[1]) - 9)).toBeLessThan(1e-6);
+    const sides = poles.map((p) => (p.kind === "box" ? Math.sign(p.at[1]) : 0));
+    expect(new Set(sides).size).toBe(2);
+    for (const l of lights) expect(l[2]).toBeCloseTo(2 + 8 - 0.12, 5);
+  });
+
+  it("keeps clear of blocked spots and existing lights", () => {
+    const { lights } = carParkLights([aisle], () => 2, (x) => x > 40, [[17, 9, 10]]);
+    expect(lights).toHaveLength(0);
   });
 });

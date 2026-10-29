@@ -50,7 +50,7 @@ import { ArtList, type ArtRenderer } from "./art";
 import { challengeCheckpoints, challengesIni } from "./challenges";
 import { buildPieces, gateSigns, kangarooSigns, landmarks, mergeSightings, seenFeatures, streetSigns } from "./furniture";
 import { barrierConcreteTexture, catchFenceTexture, crowdTexture, raceDressing, tyreWallTexture } from "./raceDress";
-import { placeUtilities } from "./utilities";
+import { carParkLights, placeUtilities } from "./utilities";
 import { buildVergeConcrete, laybacks, letterboxes, readVerge } from "./footpaths";
 import { findLines, paintCandidates, type ImageLine } from "./paintLines";
 import { applyTrace, displayOf, traceRoad, type RasterSampler, type TraceResult } from "./trace";
@@ -180,6 +180,8 @@ export interface TrackResult {
     /** Power poles and street lights placed. */
     poles: number;
     streetLights: number;
+    /** Car park light poles (two lanterns each). */
+    carParkLights: number;
     /** Race-day dressing: metres of barrier, a grandstand or not, people. */
     race: { barrierMetres: number; grandstand: boolean; spectators: number } | null;
     /** Footpath read off the photo, metres (both sides), and driveway crossovers. */
@@ -1250,6 +1252,18 @@ export async function buildTrack(
     lamps: [...seenLocal.filter((f) => /^object--street-light/.test(f.value)).map((f) => f.at), ...osmLocal(sources.osm?.lamps)],
     lines: (sources.osm?.powerLines ?? []).map(osmLocal),
   }, plan, index, opts, (i) => town[i], (x, y) => streetIndex.clearance(x, y) < 1 || kept.some((b) => pointInRing(x, y, b.ring)));
+  // Busselton fork: car park lights along each car park aisle, beside the bays, clear of the road,
+  // other aisles and streets, parked cars and buildings, inside the built corridor.
+  const carPark = carParkLights(
+    (sources.streets?.lines ?? []).filter((l) => l.service === "parking_aisle").map((l) => l.pts.map((p) => proj.toLocal(p))),
+    (x, y) => Math.max(ground(x, y), onMesh(x, y)),
+    (x, y) => {
+      const n = index.nearest(x, y, opts.corridor - 5);
+      return !n || n.dist < index.at(n).width / 2 + 2 || streetIndex.clearance(x, y) < 1.5 || !!inRoundabout(plan, x, y, 3)
+        || kept.some((b) => pointInRing(x, y, b.ring)) || parkedSpots.some((c) => Math.hypot(c.at[0] - x, c.at[1] - y) < 3);
+    },
+    utilities.lights,
+  );
   // Signs and street furniture; their artwork is drawn in one atlas.
   const art = new ArtList();
   // Race day: barriers, fences, banners, gantries, a grandstand and crowds where the road is the race.
@@ -1282,6 +1296,7 @@ export async function buildTrack(
     ...(opts.streetSigns ? kangarooSigns(plan, opts, art, (i) => town[i] === 0 && speedAt(i) >= 80 && !kerbedNear[i],
       (i, side) => mouth(side, plan.samples[i].s) || streetPlan.junctions.some((j) => j.side === side && Math.abs(j.s - plan.samples[i].s) < j.width / 2 + 6)) : []),
     ...utilities.pieces,
+    ...carPark.pieces,
     ...(verge ? letterboxes(plan, verge, vergeGround) : []),
   ];
   let atlas = null;
@@ -1615,7 +1630,7 @@ export async function buildTrack(
       .replace("__CLOSED__", plan.closed ? "true" : "false")
       // The speed limit at each 1% of the lap, km/h, so the test drives at the limit.
       .replace("__LIMITS__", Array.from({ length: 100 }, (_, k) => speedAt(Math.min(nS - 1, Math.round(((k + 0.5) / 100) * (nS - 1))))).join(", "))) } : {}),
-    [`${slug}/extension/ext_config.ini`]: enc.encode(extConfig(utilities.lights, {
+    [`${slug}/extension/ext_config.ini`]: enc.encode(extConfig([...utilities.lights, ...carPark.lights], {
       autotest: opts.traffic,
       // A town's glow at night where most of the route is built up.
       builtUp: town.filter((t) => t >= 1).length > town.length / 2,
@@ -1678,6 +1693,7 @@ export async function buildTrack(
       footpathMetres: verge ? (verge.paths[0].filter(Boolean).length + verge.paths[1].filter(Boolean).length) * opts.spacing : 0,
       driveways: verge?.drives.length ?? 0,
       streetLights: utilities.lights.length,
+      carParkLights: carPark.lights.length / 2,
       race: race?.stats ?? null,
       streetSigns: pieces.filter((p) => p.kind === "blade").length,
       signs: pieces.filter((p) => p.kind === "face").length,

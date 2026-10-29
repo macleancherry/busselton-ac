@@ -249,3 +249,50 @@ function twoSided(mb: MeshBuilder, c: [Vec3, Vec3, Vec3, Vec3], n: Vec3): void {
     else mb.quad(i, i + 3, i + 2, i + 1);
   }
 }
+
+/**
+ * Busselton fork: car park lights. A tall pole every 35 m along each car park aisle (OSM
+ * service=parking_aisle), set beside the bays (9 m off the aisle's centre, alternating sides), with a
+ * lantern each way across; none where `blocked` (a road, an aisle, a parked car, a building) or within
+ * 20 m of another light.
+ */
+export function carParkLights(
+  aisles: Vec2[][],
+  ground: (x: number, y: number) => number,
+  blocked: (x: number, y: number) => boolean,
+  existing: Vec3[] = [],
+): { pieces: Piece[]; lights: Vec3[] } {
+  const pieces: Piece[] = [];
+  const lights: Vec3[] = [];
+  const placed: Vec2[] = existing.map(([x, y]) => [x, y]);
+  const H = 8;
+  let k = 0;
+  for (const line of aisles) {
+    // Metres to the next pole, carried from one segment of the aisle to the next.
+    let next = 17;
+    for (let i = 1; i < line.length; i++) {
+      const a = line[i - 1], b = line[i];
+      const len = Math.hypot(b[0] - a[0], b[1] - a[1]);
+      if (len < 1e-6) continue;
+      const tan: Vec2 = [(b[0] - a[0]) / len, (b[1] - a[1]) / len];
+      const left: Vec2 = [-tan[1], tan[0]];
+      let d = next;
+      for (; d < len; d += 35) {
+        const side = k++ % 2 ? -1 : 1;
+        const at: Vec2 = [a[0] + tan[0] * d + left[0] * 9 * side, a[1] + tan[1] * d + left[1] * 9 * side];
+        if (blocked(at[0], at[1]) || placed.some((p) => Math.hypot(p[0] - at[0], p[1] - at[1]) < 20)) continue;
+        placed.push(at);
+        const z = ground(at[0], at[1]);
+        pieces.push({ kind: "box", at, along: tan, length: 0.18, depth: 0.18, z0: z - 0.6, z1: z + H + 0.2, material: "steel" });
+        // A lantern each way across the aisle.
+        for (const s of [1, -1]) {
+          const tip: Vec2 = [at[0] + left[0] * s * 1.1, at[1] + left[1] * s * 1.1];
+          pieces.push({ kind: "box", at: tip, along: left, length: 0.8, depth: 0.35, z0: z + H - 0.1, z1: z + H + 0.06, material: "lamp" });
+          lights.push([tip[0], tip[1], z + H - 0.12]);
+        }
+      }
+      next = d - len;
+    }
+  }
+  return { pieces, lights };
+}

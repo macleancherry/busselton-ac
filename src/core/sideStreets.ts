@@ -24,6 +24,8 @@ export interface StreetLine {
   brunnel?: string;
   /** One-way: 1 along the line, -1 against it. */
   oneway?: 1 | -1;
+  /** OSM service=* on service roads (parking_aisle, driveway, alley, ...). */
+  service?: string;
 }
 
 export interface StreetName {

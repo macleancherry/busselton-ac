@@ -561,7 +561,7 @@ function showStats(r: TrackResult, widthFallback: boolean, usedImagery: ImageryS
     ["Kerb & gutter", `${(s.kerbMetres / 1000).toFixed(2)} km`],
     ["Footpaths", `${(s.footpathMetres / 1000).toFixed(2)} km, ${s.driveways} driveways`],
     ["Signs", `${s.streetSigns} street, ${s.signs} other`],
-    ["Poles & lights", `${s.poles} power poles, ${s.streetLights} street lights`],
+    ["Poles & lights", `${s.poles} power poles, ${s.streetLights} street lights, ${s.carParkLights ?? 0} car park lights`],
     ...(s.carsPainted !== undefined ? [["Car parks", `${s.carsPainted} parked cars painted out, ${s.carParkIslands ?? 0} islands`] as [string, string]] : []),
     ["Guard rail", `${Math.round(s.railMetres)} m`],
     ...(s.race ? [["Race day", `${s.race.barrierMetres.toLocaleString()} m of barriers${s.race.grandstand ? ", a grandstand" : ""}, ${s.race.spectators.toLocaleString()} spectators`] as [string, string]] : []),

@@ -43,6 +43,8 @@ export interface TileRoad {
   brunnel?: string;
   /** One-way: 1 along the line, -1 against it. */
   oneway?: 1 | -1;
+  /** OSM service=* on service roads (parking_aisle, driveway, alley, ...). */
+  service?: string;
 }
 
 /** A named road line (transportation_name layer). */
@@ -148,7 +150,8 @@ export async function fetchTileFeatures(bbox: [number, number, number, number]):
           const bicycle = f.properties.bicycle !== undefined ? String(f.properties.bicycle) : undefined;
           const ow = Number(f.properties.oneway);
           const oneway = ow === 1 || ow === -1 ? ow : undefined;
-          for (const line of f.loadGeometry()) roads.push({ pts: line.map((p) => toLngLat(p, tl.extent)), cls, surface, brunnel, subclass, bicycle, ...(oneway ? { oneway } : {}) });
+          const service = f.properties.service !== undefined ? String(f.properties.service) : undefined;
+          for (const line of f.loadGeometry()) roads.push({ pts: line.map((p) => toLngLat(p, tl.extent)), cls, surface, brunnel, subclass, bicycle, ...(oneway ? { oneway } : {}), ...(service ? { service } : {}) });
         }
         const nl = tile.layers.transportation_name;
         for (let i = 0; nl && i < nl.length; i++) {
