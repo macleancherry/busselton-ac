@@ -53,3 +53,16 @@ For this to work well:
 - A second pass with the phone pointing sideways at the houses (landscape, steady) gives the best
   wall photos. A 360 camera covers both in one pass.
 - Daylight without harsh shadows; overcast is ideal.
+
+## House fronts: a walk for the per-house specs
+
+The aerial photo gives each house's outline, roofs, driveway and size. What it can't see is the front: whether the front room has a gable or a hip, the walls' finish and colour (cladding, render, brick), where the garage sits and its door, the front door, windows, verandah, fences and gates. One good photo per house fills that in. A trial on one house: from the aerial alone, the gable came out as a hip, the garage's render as cladding, and the windows and door generic.
+
+- **Photos, not video, and not uploaded to Mapillary.** Use the phone's normal camera with location on, so each photo carries where it was taken. These stay private: they come here (attached, or through the workstation share), get read into the specs, and are deleted after.
+- **One photo per house, square-on, from across the street,** 10 to 15 m back, landscape, the whole front in frame (roof to driveway). Walk one side of the street photographing the houses on the other, then come back down the other side.
+- **Corner lots:** one of each street-facing side.
+- **Light:** a bright overcast day is best (no hard shadows under verandahs); otherwise with the sun behind you, so morning on one side of the street and afternoon on the other.
+- **Pace:** about 20 houses takes 15 minutes.
+- **Skip** any house whose owner asked to be left generic.
+
+Then each house gets a draft spec from its photo and the aerial photo, and a review page shows the photo beside a render of the draft to correct.
