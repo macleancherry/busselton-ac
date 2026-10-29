@@ -32,3 +32,5 @@ Estimated from the separate builds, a combined map looked over. Built for real a
 8. ✅ **A map in the game** (30 Oct): the Busselton Map app (`apps/lua/BusseltonMap`) shows every street with you and the other cars on it, from the `extension/street_map.png` each build ships.
 
 The first one-map route is `routes/busselton.json` (public: the Foreshore and town centre). The estate stays private (`routes/private/`), so a map with it in does too, and its builds never go anywhere public.
+
+Every layout's AI keeps to the speed limit of the street it's on (its `data/ai_hints.ini`), and writes its own `data/autotest.ini` (circuit or not, limits per 1% of the lap), which the shared test script reads, so `run-test.ps1 -Layout <id>` drives each layout at its own limits.
