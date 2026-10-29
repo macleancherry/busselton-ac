@@ -14,7 +14,7 @@ import autotestLua from "./lua/autotest.lua?raw";
 import { buildGroynes, buildPiers, buildSea, jettyLights, buildSeawall, deckTexture, rockTexture, SeaMask, seaTexture, withSeabed, type CoastPolygon } from "./coast";
 import type { GroundDetail, GroundLayer } from "./ground";
 import { aiHintsIni, buildAiLine } from "./aiLine";
-import { Area, makeCover } from "./area";
+import { Area, areaRings, makeCover } from "./area";
 import { asLayout, dummiesKn5 } from "./layouts";
 import { BACKDROP_CHUNK, backdropHeight, buildBackdropChunk, planBackdrop } from "./backdrop";
 import { writeFastLaneAi } from "./aiSpline";
@@ -28,7 +28,7 @@ import { simplify } from "./polyline";
 import { applyElevation, inRoundabout, isLoop, planRoad, surfaceHeight, SegmentIndex, type RoadPlan, type RoadSample } from "./road";
 import { extendRoute, pathLength } from "./extend";
 import { keepOffRoute, onRoute } from "./clearance";
-import { buildRingMarkings, buildRingMeshes, buildRingWall, innerRadius, outerRadius, resolveRoundabouts, ringsOnRoute, ringHeight, vergeOuterRadius, type RoundaboutHint } from "./roundabout";
+import { buildRingMarkings, buildRingMeshes, buildRingWall, fitCircle, innerRadius, outerRadius, resolveRoundabouts, ringsOnRoute, ringHeight, vergeOuterRadius, type RoundaboutHint } from "./roundabout";
 import { buildRoadMeshes, buildWalls, type RoadMaterialFn } from "./roadMesh";
 import { buildKerbReturns, buildKerbs, KERB_BACK, KERB_H, kerbEvidence, planKerbs, STRIP_EXTRA, stripPhotoTexture, type StripMaterialFn } from "./kerbs";
 import { photoRoadTexture } from "./photoSurface";
@@ -507,7 +507,8 @@ export async function buildTrack(
   const clears = (opts.clears ?? []).map((c) => ({ c: proj.toLocal(c.at), r: c.radius, trees: c.trees !== false }));
   const cleared = (x: number, y: number, trees = false) => clears.some((k) => (!trees || k.trees) && Math.hypot(x - k.c[0], y - k.c[1]) < k.r);
   // Busselton fork: an area build also builds everything inside this polygon (see area.ts).
-  const area = opts.area && opts.area.length >= 3 ? new Area(opts.area.map((p) => proj.toLocal(p))) : null;
+  const rings = areaRings(opts.area);
+  const area = rings.length ? new Area(rings.map((r) => r.map((p) => proj.toLocal(p)))) : null;
   const areaPts: Vec2[] = area ? area.ring : [];
   const widthFn = sources.widthAt ? (x: number, y: number) => sources.widthAt!(proj.toLngLat([x, y])) : undefined;
   const hinted = resolveRoundabouts(sources.roundabouts ?? [], sources.osm?.roundaboutRings ?? [], proj);
@@ -566,6 +567,28 @@ export async function buildTrack(
   const sea = new SeaMask(ocean, farBounds.minX, farBounds.minY, farBounds.maxX, farBounds.maxY);
   const dem = ocean.length ? withSeabed(landDem, sea) : landDem;
   const farDem = ocean.length ? withSeabed(landFarDem, sea) : landFarDem;
+  // Busselton fork: an area build's roundabouts away from the route, as rings like the route's own
+  // (side streets stop at them and open their verges), so every street's roundabouts are there to
+  // drive round. They're on no stretch of the route: sIn and sOut are NaN.
+  if (area) {
+    const ways = [
+      ...(sources.osm?.roundaboutRings ?? []).map((r) => ({ pts: r.pts.map((p) => proj.toLocal(p)), lanes: r.lanes })),
+      ...tileRings.map((pts) => ({ pts, lanes: undefined as number | undefined })),
+    ].map((w) => ({ ...w, f: fitCircle(w.pts) })).filter((w) => w.f && w.f.r >= 4 && w.f.r <= 40 && w.f.rms < 2.5);
+    // A ring is often several OSM ways: those sharing a centre are one ring.
+    const groups: (typeof ways)[] = [];
+    for (const w of ways) {
+      const g = groups.find((gr) => gr.some((o) => Math.hypot(o.f!.c[0] - w.f!.c[0], o.f!.c[1] - w.f!.c[1]) < 8));
+      if (g) g.push(w); else groups.push([w]);
+    }
+    for (const g of groups) {
+      const fit = fitCircle(g.flatMap((w) => w.pts)) ?? g[0].f!;
+      if (!area.inside(fit.c[0], fit.c[1])) continue;
+      if (plan.roundabouts.some((rb) => Math.hypot(rb.c[0] - fit.c[0], rb.c[1] - fit.c[1]) < rb.r + 10)) continue;
+      const lanes = Math.max(1, ...g.map((w) => w.lanes ?? 1));
+      plan.roundabouts.push({ c: fit.c, r: fit.r, w: Math.max(7, lanes >= 2 ? lanes * 4.6 : 0), lanes, hc: 0, sIn: NaN, sOut: NaN, crossings: [], kerbed: true });
+    }
+  }
   applyElevation(plan, dem, opts);
   const index = new SegmentIndex(plan);
   const terrainAt = makeTerrainFn(plan, index, dem, opts);
@@ -924,6 +947,7 @@ export async function buildTrack(
     kerbs = planKerbs(plan, evidence, (i) => town[i], kerbBlocked);
     // A roundabout is kerbed when the road is kerbed coming up to it.
     for (const rb of plan.roundabouts) {
+      if (Number.isNaN(rb.sIn)) continue; // an area's ring off the route: kerbed in town
       const reach = outerRadius(rb) + 30;
       rb.kerbed = plan.samples.some((s, i) => (kerbs[0][i] || kerbs[1][i]) && Math.hypot(s.pos[0] - rb.c[0], s.pos[1] - rb.c[1]) < reach);
     }
@@ -1670,7 +1694,7 @@ export async function buildTrack(
       const last = aiPoints[aiPoints.length - 1], total = last.distance + last.length;
       return speedAt(Math.min(nS - 1, Math.max(0, Math.round((d / total) * (nS - 1)))));
     }, !plan.closed)),
-    [`${slug}/data/surfaces.ini`]: enc.encode(surfacesIni(opts.traffic, opts.streetsValid ?? !!opts.area)),
+    [`${slug}/data/surfaces.ini`]: enc.encode(surfacesIni(opts.traffic, opts.streetsValid ?? !!area)),
     ...(opts.traffic ? { [`${slug}/data/traffic.json`]: enc.encode(trafficText) } : {}),
     [`${slug}/data/map.ini`]: enc.encode(map.ini),
     // Busselton fork: checkpoints for the Busselton Challenges app (apps/lua/BusseltonChallenges).

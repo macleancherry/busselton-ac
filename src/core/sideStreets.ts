@@ -191,6 +191,22 @@ export function planSideStreets(
           joins.push(pts.length - 1);
         }
       }
+      // Busselton fork: ends cut by a roundabout run on to its outer edge, so the street meets the
+      // ring instead of stopping a verge's width short of it.
+      const toRing = (end: Vec2, cut: Vec2): Vec2 | null => {
+        const rb = inRoundabout(plan, cut[0], cut[1], opts.vergeWidth + width);
+        if (!rb) return null;
+        const d = Math.hypot(end[0] - rb.c[0], end[1] - rb.c[1]) || 1, R = rb.r + rb.w / 2 - 0.4;
+        return d > R ? [rb.c[0] + ((end[0] - rb.c[0]) / d) * R, rb.c[1] + ((end[1] - rb.c[1]) / d) * R] : null;
+      };
+      if (i > 0 && state[i - 1] === "ring" && pts.length > 1) {
+        const e = toRing(pts[0], dense[i - 1]);
+        if (e) pts = [e, ...pts];
+      }
+      if (j < dense.length && state[j] === "ring" && pts.length > 1) {
+        const e = toRing(pts[pts.length - 1], dense[j]);
+        if (e) pts = [...pts, e];
+      }
       const length = pts.reduce((a, p, k) => (k ? a + Math.hypot(p[0] - pts[k - 1][0], p[1] - pts[k - 1][1]) : 0), 0);
       if (length >= 8) {
         const name = nearestName(pts[Math.floor(pts.length / 2)], localNames, 8);

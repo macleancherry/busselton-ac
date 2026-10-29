@@ -163,19 +163,20 @@ const TILE_CLASS: Record<string, string> = {
  * answer wins; if all fail, the build falls back to widths by road class
  * from the vector tiles. Buildings come from the vector tiles too.
  */
-export async function fetchOsm(routeCoords: LngLat[], area?: LngLat[]): Promise<OsmData> {
+export async function fetchOsm(routeCoords: LngLat[], areas: LngLat[][] = []): Promise<OsmData> {
   const step = Math.max(1, Math.ceil(routeCoords.length / 180));
   const sampled = routeCoords.filter((_, i) => i % step === 0 || i === routeCoords.length - 1);
   const around = sampled.map((p) => `${p[1].toFixed(6)},${p[0].toFixed(6)}`).join(",");
   // Busselton fork: an area build wants the same things over its whole polygon.
-  const poly = area && area.length >= 3 ? `poly:"${area.map((p) => `${p[1].toFixed(6)} ${p[0].toFixed(6)}`).join(" ")}"` : "";
-  const inArea = poly ? `
-    way(${poly})[highway];
-    way(${poly})[junction~"^(roundabout|circular)$"];
-    node(${poly})[power=pole];
-    node(${poly})[highway=street_lamp];
-    way(${poly})[power~"^(line|minor_line)$"];
-    way(${poly})[barrier~"^(fence|wall|hedge|retaining_wall)$"];` : "";
+  const polys = areas.filter((a) => a.length >= 3).map((a) => `poly:"${a.map((p) => `${p[1].toFixed(6)} ${p[0].toFixed(6)}`).join(" ")}"`);
+  const poly = polys.length > 0;
+  const inArea = polys.map((pl) => `
+    way(${pl})[highway];
+    way(${pl})[junction~"^(roundabout|circular)$"];
+    node(${pl})[power=pole];
+    node(${pl})[highway=street_lamp];
+    way(${pl})[power~"^(line|minor_line)$"];
+    way(${pl})[barrier~"^(fence|wall|hedge|retaining_wall)$"];`).join("");
   const query = `[out:json][timeout:${poly ? 90 : 40}];(
     way(around:12,${around})[highway];
     way(around:15,${around})[barrier=guard_rail];

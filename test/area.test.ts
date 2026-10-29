@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { Area } from "../src/core/area";
+import { Area, areaRings } from "../src/core/area";
 import { buildTrack, type DataSources } from "../src/core/track";
 import { DemGrid } from "../src/core/elevation";
 import type { LngLat } from "../src/core/geo";
@@ -29,6 +29,17 @@ describe("area builds", () => {
     expect(a.inside(-1, 1)).toBe(false);
   });
 
+  it("an area can be several polygons", () => {
+    const a = new Area([[[0, 0], [10, 0], [10, 10], [0, 10]], [[100, 0], [130, 0], [130, 30], [100, 30]]]);
+    expect(a.inside(5, 5)).toBe(true);
+    expect(a.inside(115, 15)).toBe(true);
+    expect(a.inside(50, 5)).toBe(false);
+    expect(a.signed(115, 15)).toBeCloseTo(-15);
+    expect(a.signed(50, 5)).toBeCloseTo(40);
+    expect(areaRings([[1, 2], [3, 4], [5, 6]] as [number, number][])).toHaveLength(1);
+    expect(areaRings([[[1, 2], [3, 4], [5, 6]], [[1, 2], [3, 4], [5, 6]]] as [number, number][][])).toHaveLength(2);
+  });
+
   it("builds every street inside the polygon, not just the corridor", { timeout: 60_000 }, async () => {
     const plain = await buildTrack(route, opts, sources);
     expect(plain.stats.sideStreets).toBe(0);
@@ -49,5 +60,31 @@ describe("area builds", () => {
     expect(terrainNear(built.model.root, sx, -sy)).toBe(true);
     expect(terrainNear(plain.model.root, sx, -sy)).toBe(false);
     expect(surfaces(built)).toMatch(/KEY=STREET[\s\S]*?IS_VALID_TRACK=1/);
+  });
+
+  it("builds an area's roundabouts away from the route as rings", { timeout: 60_000 }, async () => {
+    // A 14 m ring on the far street at x = 300.
+    const ring: LngLat[] = Array.from({ length: 25 }, (_, i) => ll(300 + 14 * Math.cos((i / 24) * 2 * Math.PI), 150 + 14 * Math.sin((i / 24) * 2 * Math.PI)));
+    const withRing: DataSources = {
+      ...sources,
+      osm: { buildings: [], guardRails: [], roundaboutRings: [{ pts: ring }], poles: [], lamps: [], powerLines: [], barriers: [], groynes: [] },
+    };
+    const area: [number, number][] = [ll(-20, -40), ll(620, -40), ll(620, 200), ll(-20, 200)];
+    const built = await buildTrack(route, { ...opts, area, traffic: true }, withRing);
+    expect(built.plan.roundabouts).toHaveLength(1);
+    const rb = built.plan.roundabouts[0];
+    const [cx, cy] = built.proj.toLocal(ll(300, 150));
+    expect(Math.hypot(rb.c[0] - cx, rb.c[1] - cy)).toBeLessThan(1);
+    expect(rb.r).toBeCloseTo(14, 0);
+    // The street is cut at the ring, so both halves end beside it, and the ring has openings for them.
+    expect(built.stats.sideStreets).toBeGreaterThanOrEqual(2);
+    expect(rb.openings?.length ?? 0).toBeGreaterThanOrEqual(2);
+    // And the street runs right up to the ring's edge.
+    const ends = built.trafficInput!.roads.flatMap((r) => [r.pts[0], r.pts[r.pts.length - 1]]);
+    const edge = rb.r + rb.w / 2;
+    expect(ends.filter((p) => Math.abs(Math.hypot(p[0] - rb.c[0], p[1] - rb.c[1]) - edge) < 1.5).length).toBeGreaterThanOrEqual(2);
+    // Without the area it's not built.
+    const plain = await buildTrack(route, opts, withRing);
+    expect(plain.plan.roundabouts).toHaveLength(0);
   });
 });

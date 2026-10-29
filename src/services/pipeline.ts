@@ -13,6 +13,7 @@ import { fetchSeen } from "./mapillary";
 import { fetchOsm, widthLookup } from "./osm";
 import { loadRouteRaster } from "./raster";
 import { DEM_CREDIT, IMAGERY, imageryChain, loadChunkImagery, loadDem, type DemSource, type ImagerySource } from "./tiles";
+import { areaRings } from "../core/area";
 import { classWidths, fetchCoast, fetchTileFeatures, roadClassLookup } from "./vectorTiles";
 import { clearDataWarnings, dataWarnings, warnMissing } from "./dataWarnings";
 import { drawSigns } from "./signs";
@@ -53,12 +54,13 @@ export async function runBuild(job: BuildJob, report: Report, traceProgress: (te
   const chain = imageryChain(coords[Math.floor(coords.length / 2)], job.imagerySource);
 
   // Busselton fork: an area build fetches everything over its polygon as well as along the route.
-  const box: LngLat[] = opts.area && opts.area.length >= 3 ? [...coords, ...opts.area] : coords;
+  const rings = areaRings(opts.area);
+  const box: LngLat[] = rings.length ? [...coords, ...rings.flat()] : coords;
   await report("Fetching OpenStreetMap data");
   clearDataWarnings();
   let seenError = "";
   const [osm, tiles, seen, coast] = await Promise.all([
-    fetchOsm(coords, opts.area),
+    fetchOsm(coords, rings),
     fetchTileFeatures(paddedBounds(box, (opts.buildingRadius ?? 250) + 50)).catch(() => {
       warnMissing("all map tiles (buildings, streets, shops)");
       return null;
@@ -84,16 +86,15 @@ export async function runBuild(job: BuildJob, report: Report, traceProgress: (te
   // Busselton fork: inside an area, streets from OSM itself (exact geometry; the tiles' lines can sit
   // metres off and leave a street out), keeping the tiles' paths and everything outside the area.
   const areaStreets = (lines: NonNullable<typeof tiles>["roads"]) => {
-    const area = opts.area && opts.area.length >= 3 ? opts.area : null;
-    if (!area || !osm.roads?.length) return lines;
-    const inside = (p: LngLat) => {
+    if (!rings.length || !osm.roads?.length) return lines;
+    const inside = (p: LngLat) => rings.some((area) => {
       let c = false;
       for (let i = 0, j = area.length - 1; i < area.length; j = i++) {
         const [xi, yi] = area[i], [xj, yj] = area[j];
         if (yi > p[1] !== yj > p[1] && p[0] < ((xj - xi) * (p[1] - yi)) / (yj - yi) + xi) c = !c;
       }
       return c;
-    };
+    });
     const drivable = new Set(osm.roads.map((r) => r.cls));
     const mid = (pts: LngLat[]) => pts[Math.floor(pts.length / 2)];
     return [
