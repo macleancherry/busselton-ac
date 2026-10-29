@@ -74,6 +74,7 @@ def main():
     bad_pairs = [(a, b) for a in range(len(polys)) for b in range(a + 1, len(polys)) if overlap(polys[a], polys[b])]
     pts = off = 0
     loose_ends = 0
+    loose_at = []
     for lane in data["lanes"]:
         for p in lane["points"]:
             pts += 1
@@ -83,12 +84,15 @@ def main():
             for p in (lane["points"][0], lane["points"][-1]):
                 if not any(inside(poly, (p[0], p[2])) for poly in polys):
                     loose_ends += 1
+                    loose_at.append((p[0], p[2]))
     print(f"traffic: {len(data['lanes'])} lanes, {len(data['intersections'])} intersections")
     print(f"lane points on asphalt: {100 * (pts - off) / max(1, pts):.1f}% ({off} of {pts} off)")
     print(f"overlapping intersections: {len(bad_pairs)}")
     for a, b in bad_pairs[:8]:
         print(f"   {data['intersections'][a]['name']} and {data['intersections'][b]['name']} near x {polys[a][0][0]:.0f} z {polys[a][0][1]:.0f}")
     print(f"lane ends outside any intersection: {loose_ends}")
+    for x, z in loose_at[:8]:
+        print(f"   at x {x:.0f} z {z:.0f}")
     # Parked cars (their collision boxes) in a lane: traffic would drive into them.
     cars = []
     for m in surf["meshes"]:

@@ -1647,7 +1647,9 @@ export async function buildTrack(
       const last = routeRoads.pop()!, first = routeRoads[0];
       routeRoads[0] = { ...first, pts: [...last.pts, ...first.pts.slice(1)], h: [...last.h, ...first.h.slice(1)] };
     }
-    const streetRoads: TrafficRoad[] = streetPlan.streets.map((st) => ({
+    // Busselton fork: no traffic up car park aisles and driveways (with OSM's own streets in an area
+    // build there are dozens, and their junctions merged into one 170 m polygon at the foreshore).
+    const streetRoads: TrafficRoad[] = streetPlan.streets.filter((st) => !/^(parking_aisle|driveway|drive-through)$/.test(st.service ?? "")).map((st) => ({
       pts: st.pts, h: st.pts.map(([x, y]) => terrainAt(x, y).h + 0.1), width: st.width, speed: 50,
       ...(st.oneway ? { oneway: st.oneway } : {}),
     }));

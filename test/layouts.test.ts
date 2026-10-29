@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildTrack, trackObjects, type DataSources } from "../src/core/track";
-import { layoutFiles, surfaceHeight } from "../src/core/layouts";
+import { layoutFiles, snapToLines, surfaceHeight } from "../src/core/layouts";
 import { DemGrid } from "../src/core/elevation";
 import { readKn5 } from "../src/core/kn5";
 import type { LngLat } from "../src/core/geo";
@@ -49,5 +49,13 @@ describe("layouts", () => {
     const roam = layoutFiles(world2, { id: "roam", name: "Free Roam", spawns: [{ at: ll(200, 0), heading: 90 }, { at: ll(600, 0), heading: 270 }] }, trackObjects);
     expect(dummyNames(roam[`${slug}/layout_roam.kn5`])).toEqual(expect.arrayContaining(["AC_START_0", "AC_PIT_1", "AC_TIME_0_L"]));
     expect(roam[`${slug}/roam/ai/fast_lane.ai`]).toBe(world2.mainAi);
+  });
+
+  it("pulls a route onto the built street, but not round a roundabout or far away", () => {
+    const street: [number, number][] = [[0, 0], [100, 0]];
+    const out = snapToLines([[10, 5], [50, -3], [90, 30]], [street], [{ c: [50, 0], rOut: 1 }]);
+    expect(out[0]).toEqual([10, 0]);
+    expect(out[1]).toEqual([50, -3]); // beside the ring
+    expect(out[2]).toEqual([90, 30]); // too far
   });
 });

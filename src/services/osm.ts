@@ -249,7 +249,7 @@ export async function fetchOsm(routeCoords: LngLat[], areas: LngLat[][] = []): P
       }
     }
   }
-  return { features, widthAt: ways.length ? widthLookup(ways, routeCoords[0][1]) : undefined, roads };
+  return { features, widthAt: ways.length ? widthLookup(ways, routeCoords[0][1]) : undefined, roads: joinWays(roads) };
 }
 
 export function widthLookup(ways: Way[], lat: number): (p: LngLat) => number | undefined {
@@ -271,4 +271,55 @@ export function widthLookup(ways: Way[], lat: number): (p: LngLat) => number | u
     }
     return best;
   };
+}
+
+/**
+ * Busselton fork: OSM splits a street into several ways wherever a tag changes; joined end to end
+ * where only two ways of the same class meet, so a street is one line (the map tiles' lines are),
+ * and the traffic lanes don't stop at a split with no junction there.
+ */
+export function joinWays<T extends { pts: LngLat[]; cls: string; oneway?: 1 | -1; brunnel?: string; service?: string }>(ways: T[]): T[] {
+  const key = (p: LngLat) => `${p[0].toFixed(7)},${p[1].toFixed(7)}`;
+  const list = ways.map((w) => ({ ...w, pts: w.pts.slice() }));
+  const alive = list.map(() => true);
+  const ends = new Map<string, number[]>();
+  const add = (i: number) => {
+    for (const p of [list[i].pts[0], list[i].pts[list[i].pts.length - 1]]) {
+      const k = key(p);
+      ends.set(k, [...(ends.get(k) ?? []), i]);
+    }
+  };
+  list.forEach((_, i) => add(i));
+  const same = (a: T, b: T) => a.cls === b.cls && a.brunnel === b.brunnel && a.service === b.service && !!a.oneway === !!b.oneway;
+  let joined = true;
+  while (joined) {
+    joined = false;
+    for (const [k, ids] of ends) {
+      const live = [...new Set(ids.filter((i) => alive[i]))];
+      if (live.length !== 2) continue;
+      const [a, b] = live.map((i) => list[i]);
+      if (!same(a, b)) continue;
+      // Orient a to end at k and b to start at k.
+      const aEnd = key(a.pts[a.pts.length - 1]) === k, bStart = key(b.pts[0]) === k;
+      if (a.oneway || b.oneway) {
+        // One-way: only when they run on in the same direction through the shared point.
+        const aOut = aEnd ? a.oneway === 1 : a.oneway === -1, bIn = bStart ? b.oneway === 1 : b.oneway === -1;
+        if (aOut !== bIn) continue;
+      }
+      if (key(a.pts[0]) === key(a.pts[a.pts.length - 1])) continue; // a closed way
+      const ap = aEnd ? a.pts : a.pts.slice().reverse();
+      const bp = bStart ? b.pts : b.pts.slice().reverse();
+      const flipA = !aEnd;
+      const merged = { ...a, pts: [...ap, ...bp.slice(1)] } as T;
+      if (a.oneway) merged.oneway = (flipA ? -a.oneway : a.oneway) as 1 | -1;
+      const ia = list.indexOf(a), ib = list.indexOf(b);
+      alive[ib] = false;
+      list[ia] = merged;
+      ends.delete(k);
+      add(ia);
+      joined = true;
+      break;
+    }
+  }
+  return list.filter((_, i) => alive[i]);
 }

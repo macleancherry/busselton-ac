@@ -275,7 +275,11 @@ try {
         for (let i = 0; i < u.length; i += 0x8000) bin += String.fromCharCode(...u.subarray(i, i + 0x8000));
         return btoa(bin);
       };
-      const world = { slug: r.slug, proj: r.proj, model: r.model, options, meta: { name }, mainAi: r.files[`${r.slug}/${mainId}/ai/fast_lane.ai`] };
+      const ti = r.trafficInput;
+      const world = {
+        slug: r.slug, proj: r.proj, model: r.model, options, meta: { name }, mainAi: r.files[`${r.slug}/${mainId}/ai/fast_lane.ai`],
+        lines: ti ? ti.roads.map((rd) => rd.pts) : undefined, rings: ti ? ti.roundabouts.map((rb) => ({ c: rb.c, rOut: rb.rOut })) : undefined,
+      };
       for (const l of layouts) {
         const coords = l.pins ? (await route(l.loop ? [...l.pins, l.pins[0]] : l.pins)).coords : undefined;
         const f = layoutFiles(world, { id: l.id, name: l.name, coords, spawns: l.spawns }, trackObjects);

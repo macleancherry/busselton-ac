@@ -1,6 +1,6 @@
 // Checks a map with several layouts: every layout's spawn and timing dummies and its AI line sit on
 // the shared world's road surface.
-//   npx tsx scripts/check/layout_check.ts out/<slug>.zip
+//   npx tsx scripts/check/layout_check.ts out/<slug>.zip [--where]
 // Exits non-zero if a spawn is off the road, or more than 2% of an AI line is.
 import { readFileSync } from "node:fs";
 import { unzipSync } from "fflate";
@@ -33,10 +33,21 @@ for (const id of layouts) {
   if (ai) {
     const pts = readFastLaneAi(ai);
     let miss = 0, worst = 0;
-    for (const p of pts) {
+    const runs: [number, number][] = [];
+    pts.forEach((p, i) => {
       const g = height(p.position[0], -p.position[2]);
-      if (g === null) miss++;
-      else worst = Math.max(worst, Math.abs(p.position[1] - g));
+      if (g === null) {
+        miss++;
+        const last = runs[runs.length - 1];
+        if (last && last[1] === i - 1) last[1] = i; else runs.push([i, i]);
+      } else worst = Math.max(worst, Math.abs(p.position[1] - g));
+    });
+    // Where it leaves the road (AC x, z of the middle of each stretch), longest first.
+    if (process.argv.includes("--where")) {
+      for (const [a, b] of runs.sort((u, v) => v[1] - v[0] - (u[1] - u[0])).slice(0, 8)) {
+        const m = pts[(a + b) >> 1].position;
+        console.log(`   ${id}: points ${a}-${b} off the road around x ${m[0].toFixed(0)} z ${m[2].toFixed(0)}`);
+      }
     }
     line += `; AI line ${pts.length} points, ${(100 * miss / pts.length).toFixed(1)}% off the road, worst height gap ${worst.toFixed(2)} m`;
     if (miss / pts.length > 0.02) bad++;

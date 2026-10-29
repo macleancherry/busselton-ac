@@ -115,6 +115,42 @@ export interface World {
   meta: Partial<TrackMeta>;
   /** The main layout's AI line, for free roam (AC wants one). */
   mainAi?: Uint8Array;
+  /**
+   * The world's road and street centrelines (local metres) and its roundabouts: a layout's route
+   * is pulled onto them, since the router's line and the built street can sit metres apart.
+   */
+  lines?: Vec2[][];
+  rings?: { c: Vec2; rOut: number }[];
+}
+
+/** Moves each point onto the nearest centreline within `reach` metres (not near a roundabout). */
+export function snapToLines(pts: Vec2[], lines: Vec2[][], rings: { c: Vec2; rOut: number }[] = [], reach = 8): Vec2[] {
+  const CELL = 10;
+  const grid = new Map<string, [Vec2, Vec2][]>();
+  for (const l of lines) {
+    for (let i = 1; i < l.length; i++) {
+      const a = l[i - 1], b = l[i];
+      const x0 = Math.floor((Math.min(a[0], b[0]) - reach) / CELL), x1 = Math.floor((Math.max(a[0], b[0]) + reach) / CELL);
+      const y0 = Math.floor((Math.min(a[1], b[1]) - reach) / CELL), y1 = Math.floor((Math.max(a[1], b[1]) + reach) / CELL);
+      for (let cx = x0; cx <= x1; cx++) for (let cy = y0; cy <= y1; cy++) {
+        const k = `${cx},${cy}`;
+        const list = grid.get(k);
+        if (list) list.push([a, b]); else grid.set(k, [[a, b]]);
+      }
+    }
+  }
+  return pts.map((p) => {
+    if (rings.some((r) => Math.hypot(p[0] - r.c[0], p[1] - r.c[1]) < r.rOut + 6)) return p;
+    let best: Vec2 = p, bd = reach;
+    for (const [a, b] of grid.get(`${Math.floor(p[0] / CELL)},${Math.floor(p[1] / CELL)}`) ?? []) {
+      const dx = b[0] - a[0], dy = b[1] - a[1];
+      const t = Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / (dx * dx + dy * dy || 1)));
+      const q: Vec2 = [a[0] + dx * t, a[1] + dy * t];
+      const d = Math.hypot(q[0] - p[0], q[1] - p[1]);
+      if (d < bd) [bd, best] = [d, q];
+    }
+    return best;
+  });
 }
 
 /** Fills gaps (off the meshes, e.g. a junction's seam) from the nearest sample that has a height. */
@@ -144,7 +180,17 @@ export function layoutFiles(world: World, layout: LayoutSpec, trackObjects: (pla
   let closed = false, length = 0;
 
   if (layout.coords && layout.coords.length >= 2) {
-    const plan = planRoad(layout.coords.map((p) => proj.toLocal(p)), opts);
+    const local = layout.coords.map((p) => proj.toLocal(p));
+    // On to the world's own streets (densified first, so long straight legs follow them too).
+    const dense: Vec2[] = [];
+    local.forEach((p, i) => {
+      if (i) {
+        const q = local[i - 1], n = Math.ceil(Math.hypot(p[0] - q[0], p[1] - q[1]) / 4);
+        for (let k = 1; k < n; k++) dense.push([q[0] + ((p[0] - q[0]) * k) / n, q[1] + ((p[1] - q[1]) * k) / n]);
+      }
+      dense.push(p);
+    });
+    const plan = planRoad(world.lines?.length ? snapToLines(dense, world.lines, world.rings) : local, opts);
     const hs = fillHeights(plan.samples.map((s) => height(s.pos[0], s.pos[1])), 0);
     plan.samples.forEach((s, i) => { s.h = hs[i]; s.bank = 0; });
     closed = plan.closed;

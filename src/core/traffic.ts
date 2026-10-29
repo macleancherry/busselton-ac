@@ -336,7 +336,8 @@ export function trafficGraph(roadsIn: TrafficRoad[], roundabouts: TrafficRoundab
       // Only junctions within 25 m of the ring: each one absorbed lengthens its arm, and without a limit
       // that ran down a side street swallowing junctions and turn-rounds 60 m away, whose lanes
       // then ended outside every polygon.
-      const idx = merged.findIndex((j) => dist(j.c, rb.c) - j.r < rb.rOut + 25 && (dist(j.c, rb.c) < rb.rOut + 4 + outer(j) + 0.5 || groups.some((g) => touches(g, j))));
+      // (And never a junction that has grown huge from merging: its centre must be near the ring too.)
+      const idx = merged.findIndex((j) => dist(j.c, rb.c) - j.r < rb.rOut + 25 && dist(j.c, rb.c) < rb.rOut + 60 && (dist(j.c, rb.c) < rb.rOut + 4 + outer(j) + 0.5 || groups.some((g) => touches(g, j))));
       if (idx >= 0) {
         const j = merged[idx];
         const s = span(j);
