@@ -229,8 +229,14 @@ export interface RingMeshes {
   kerb: Kn5MeshNode[];
 }
 
-/** Circulating carriageway, island (kerb + grassed mound) and outer verge. */
-export function buildRingMeshes(rb: Roundabout, k: number, opts: BuildOptions, roadMaterial: string): RingMeshes {
+/** The aerial photo of the terrain chunk an island sits in: its material and the chunk's bounds (same UVs as the chunk). */
+export interface IslandPhoto { material: string; minX: number; maxY: number; span: number }
+
+/**
+ * Circulating carriageway, island (kerb + mound) and outer verge. With a photo the island shows what's
+ * really on it (mulch, plantings, paving, a lawn) instead of plain grass.
+ */
+export function buildRingMeshes(rb: Roundabout, k: number, opts: BuildOptions, roadMaterial: string, photo?: IslandPhoto): RingMeshes {
   const Ro = outerRadius(rb), Ri = innerRadius(rb);
   const N = Math.max(48, Math.ceil((2 * Math.PI * Ro) / 1.5));
   const at = (rho: number, a: number, z: number): [number, number, number] =>
@@ -261,12 +267,15 @@ export function buildRingMeshes(rb: Roundabout, k: number, opts: BuildOptions, r
     [kerbIn, zEdge + KERB],
     [kerbIn * 0.5, zEdge + KERB + Math.min(0.8, Ri * 0.08)],
   ];
-  const centre = island.vertex([rb.c[0], rb.c[1], zEdge + KERB + Math.min(1, Ri * 0.1)], 0.5, 0.5);
+  const uv = (x: number, y: number): [number, number] => photo
+    ? [(x - photo.minX) / photo.span, (photo.maxY - y) / photo.span]
+    : [x / 8, -y / 8];
+  const centre = island.vertex([rb.c[0], rb.c[1], zEdge + KERB + Math.min(1, Ri * 0.1)], ...uv(rb.c[0], rb.c[1]));
   for (let s = 0; s <= N; s++) {
     const a = (s / N) * 2 * Math.PI;
     for (const [rho, z] of rings) {
       const p = at(rho, a, z);
-      island.vertex(p, p[0] / 8, -p[1] / 8);
+      island.vertex(p, ...uv(p[0], p[1]));
     }
   }
   for (let s = 0; s < N; s++) {
@@ -330,7 +339,7 @@ export function buildRingMeshes(rb: Roundabout, k: number, opts: BuildOptions, r
 
   return {
     road: road.toKn5(`1ROAD_RB${k}`, roadMaterial),
-    island: island.toKn5(`1GRASS_RBISLAND${k}`, "grass"),
+    island: island.toKn5(`1GRASS_RBISLAND${k}`, photo?.material ?? "grass"),
     verge: verge.toKn5(`1GRASS_RBVERGE${k}`, rb.kerbed ? "grass" : "verge"),
     kerb,
   };

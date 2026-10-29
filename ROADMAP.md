@@ -41,6 +41,7 @@ What a build has today:
 - ✅ Builds that retry map data and stop if any is still missing, so they come out the same every time
 - ✅ House looks: wall kind and colour from street photos or set by hand, front hedges and trees, and an area's own mix of facades
 - ✅ The AI slowed to the speed limit (50 in town) and for tight corners, tested in an everyday car
+- ✅ Roundabout islands painted with their own aerial photo (mulch, plantings, paving or lawn), with a tree and shrubs on the bigger ones
 
 ---
 
@@ -91,15 +92,15 @@ Make town feel like town before going regional.
   - garden beds along the path
   - jetty precinct buildings: waiting on Mac's Mapillary footage for their fronts
 - ⬜ **Jetty precinct:** the Interpretive Centre, the jetty train line, the Underwater Observatory at the far end, and jetty lights at night.
-- 🔨 **Queen St and the town centre:** ✅ its own route, ✅ shopfronts with verandahs, posts, signs and windows. Still to do: real shop names on the signs, parallel and angled parking.
+- 🔨 **Queen St and the town centre:** ✅ its own route, ✅ shopfronts with verandahs, posts, signs and windows, ✅ real shop names on the signs, ✅ parked cars where the photo had them. Still to do: kerbside parking bays marked out.
 - ⬜ **WA road details:**
-  - give-way and stop lines
+  - ✅ give-way lines at roundabouts; stop and give-way lines where street photos saw them (side streets show their own lines in the aerial photo)
   - bike lanes and bicycle symbols
   - bus stops and WA-style guideposts
   - street name blades in the WA style
   - kangaroo signs out of town
 - 🔨 **Parked cars:** ✅ low-poly cars put back where the photo had parked cars (same spot, angle and roughly the colour), with collision boxes and none in a traffic lane. Still to do: better car models (CSP or our own, with LODs), and car parks beyond the detailed ground.
-- ⬜ **Roundabout landscaping:** the planted islands Busselton is full of.
+- 🔨 **Roundabout landscaping:** ✅ each island shows its real aerial photo (when it sits inside one photo tile), plus a tree and a ring of shrubs. Still to do: 3D garden beds and limestone edging from the photo.
 - ⬜ **Landmarks list:** the buildings and spots locals would point at, each modelled by hand or from photos.
 
 ## Phase 3: Open world ⬜
@@ -124,9 +125,10 @@ There are two ways AC does traffic. We should generate both from the same road g
 Plan:
 
 - 🔨 **Generate `traffic.json`.** Done: lanes on the left (two each way on wide roads), intersections at every junction, roundabouts as a clockwise ring with priority, speeds from road class and town, and a check that fails on overlapping junctions or loose lane ends. Still to do:
+  - ✅ speeds from OSM `maxspeed` (shared with the AI hints)
+  - ✅ (29 Oct) no overlaps or loose lane ends on the whole-estate build: junction zones near a roundabout no longer spread down side streets
   - an in-game test with the planner (steps in [docs/traffic-test.md](docs/traffic-test.md))
   - lanes from OSM `lanes` and `oneway`
-  - speeds from OSM `maxspeed`
 - ⬜ **Generate per-lane AI splines**, both directions, for AI Flood.
 - ⬜ **Traffic density zones:** busy Bussell Hwy and Queen St, quiet estates, school-zone speeds.
 - ⬜ **An Aussie traffic car pack:**
@@ -229,8 +231,11 @@ Real photos beat procedural textures. Everything we capture ourselves can also g
 - 🔨 **Automated in-game test** (`scripts/windows/run-test.ps1`, run on the workstation):
   - ✅ it loads, presses Drive, hands the car to the AI, logs the drive, saves the replay and closes AC
   - ✅ a report here of where the AI left the road (`scripts/check/autotest_report.py`)
-  - ⬜ screenshots (CSP's screenshot call doesn't work from a track script)
-  - ⬜ a frame-rate snapshot
+  - 🔨 screenshots: CSP's screenshot call doesn't work from a track script, so the test runner now presses F8 for each one (first run pending)
+  - ✅ frame rate logged every 5 s and for the whole drive, with the slowest spot in the report
+  - ⬜ a night run (needs a time-of-day setting that works with CSP)
+  - ⬜ several AI cars at once (what LAN racing will look like)
+  - ⬜ a traffic planner run (the manual steps in docs/traffic-test.md first)
 - ⬜ **One-click install:** a Content Manager install link for the LAN rig.
 
 ## Phase 9: Fun stuff ⬜

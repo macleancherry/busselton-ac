@@ -1081,7 +1081,12 @@ export async function buildTrack(
   const ringNodes: Kn5Node[] = [];
   plan.roundabouts.forEach((rb, k) => {
     const nearest = plan.samples.reduce((a, s) => (Math.abs(s.s - rb.sIn) < Math.abs(a.s - rb.sIn) ? s : a));
-    const m = buildRingMeshes(rb, k, opts, roadMaterial(Math.floor(plan.samples.indexOf(nearest) / 120), rb.w, nearest));
+    // The island in the aerial photo, when it sits wholly inside one photo-textured chunk.
+    const ri = innerRadius(rb);
+    const ch = chunks.find((c) => textured.has(c.key)
+      && rb.c[0] - ri >= c.minX && rb.c[0] + ri <= c.maxX && rb.c[1] - ri >= c.minY && rb.c[1] + ri <= c.maxY);
+    const photo = ch ? { material: `terrain_${ch.key}`, minX: ch.minX, maxY: ch.maxY, span: ch.maxX - ch.minX } : undefined;
+    const m = buildRingMeshes(rb, k, opts, roadMaterial(Math.floor(plan.samples.indexOf(nearest) / 120), rb.w, nearest), photo);
     ringNodes.push(m.road, m.island, m.verge, ...m.kerb);
     const paint = opts.markings ? buildRingMarkings(rb, k) : null;
     if (paint) markings.push(paint);
