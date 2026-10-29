@@ -125,6 +125,12 @@ export interface BuildOptions {
    * changing the route moves everything; hand-made models layered over the track need it fixed.
    */
   origin?: [number, number];
+  /**
+   * Busselton fork: areas a hand-made layer covers (scripts/headless/build-track.mjs fills these from
+   * each layer's sidecar file): no generated or spec house there, and no generated trees unless
+   * `trees` is false.
+   */
+  clears?: { at: [number, number]; radius: number; trees?: boolean }[];
   /** Raise car parks' planted islands behind kerbs, read off the photo (experimental: tree canopy still fools it). */
   carParkIslands: boolean;
   /** No level-of-detail blocks within this distance of the road's centreline, metres. */

@@ -31,6 +31,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync
 import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium } from "playwright";
+import { unzipSync, zipSync } from "fflate";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const routeFile = process.argv[2];
@@ -158,7 +159,19 @@ try {
     await page.evaluate((l) => { window.__houseLooks = l; }, looks);
   }
   // Build options with no UI control (e.g. noTrace zones) go straight to the build.
-  if (spec.build) await page.evaluate((b) => { window.__buildOptions = b; }, spec.build);
+  // Hand-made layers (the route's "layers" folders, and LAYERS=dir,dir): each <name>.kn5 goes into the
+  // track over the generated one (models.ini), and its <name>.json sidecar ({ "replaces": [{ "at":
+  // [lng, lat], "radius": m, "trees"?: false }] }) clears the generated houses and trees it stands on.
+  const layerDirs = [...(spec.layers ?? []), ...(process.env.LAYERS ? process.env.LAYERS.split(",") : [])].map((d) => resolve(root, d.trim()));
+  const layers = layerDirs.flatMap((d) => (existsSync(d) ? readdirSync(d).filter((f) => f.endsWith(".kn5")).map((f) => join(d, f)) : []));
+  const clears = layers.flatMap((f) => {
+    const side = f.replace(/\.kn5$/, ".json");
+    return existsSync(side) ? JSON.parse(readFileSync(side, "utf8")).replaces ?? [] : [];
+  });
+  if (layers.length) log(`layers: ${layers.map((f) => basename(f)).join(", ")}; ${clears.length} areas cleared for them`);
+  if (layers.length && !spec.build?.origin) log("WARNING: layers on a route with no build.origin: the map moves with the route, so they may not line up");
+  const buildOpts = clears.length ? { ...(spec.build ?? {}), clears: [...(spec.build?.clears ?? []), ...clears] } : spec.build;
+  if (buildOpts) await page.evaluate((b) => { window.__buildOptions = b; }, buildOpts);
   for (const p of spec.pins) await page.evaluate((pt) => window.__app.addPin(pt), p);
   await page.fill("#name", spec.name);
 
@@ -223,7 +236,7 @@ try {
     parts.push(Buffer.from(b64, "base64"));
   }
   await page.evaluate(() => { window.__zipBuf = null; });
-  const zipBytes = Buffer.concat(parts);
+  let zipBytes = Buffer.concat(parts);
   const { slug, stats, table, centreline, sampleKeys, houses } = await page.evaluate(async () => {
     const r = window.__app.result();
     const table = [...document.querySelectorAll("#result-stats div")].map((d) => [d.querySelector("dt")?.textContent, d.querySelector("dd")?.textContent]);
@@ -244,6 +257,14 @@ try {
 
   const out = join(root, "out");
   mkdirSync(out, { recursive: true });
+  if (layers.length) {
+    // The layers go in beside the generated track, and models.ini loads them all.
+    const files = unzipSync(new Uint8Array(zipBytes));
+    const names = [`${slug}.kn5`, ...layers.map((f) => `layer_${basename(f)}`)];
+    layers.forEach((f, k) => { files[`${slug}/${names[k + 1]}`] = new Uint8Array(readFileSync(f)); });
+    files[`${slug}/models.ini`] = new TextEncoder().encode(names.map((n, k) => `[MODEL_${k}]\r\nFILE=${n}\r\nPOSITION=0,0,0\r\nROTATION=0,0,0\r\n`).join("\r\n"));
+    zipBytes = Buffer.from(zipSync(files, { level: 6 }));
+  }
   writeFileSync(join(out, `${slug}.zip`), zipBytes);
   writeFileSync(join(out, `${slug}.stats.json`), JSON.stringify({ route: basename(routeFile), stats, table }, null, 2));
   if (process.env.SHOTS) {

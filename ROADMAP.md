@@ -92,6 +92,7 @@ Get the base right before adding more.
 - ⬜ **Layouts.** One track folder with several layouts (circuit, sprint, free roam), the way Kunos and the big mods do it. First use: the single Busselton map (Phase 3).
 - 🔨 **Blender trial** (29 Oct): `scripts/blender/house.py` builds and renders a house from a spec (sizes, cladding, roof, garage, windows, hedge, trees, street) with Cycles on the workstation's GPU, and can export it as glTF for AC later.
 - 🔨 **Spec houses** (29 Oct): a house we know is built from its spec (the Blender script's parts mode: blocks with hip or gable roofs, gable ends, verandahs, doors, windows, fences, hedges, trees) with the game's own wall and roof textures, in place of the generated one (`specFile` in a house look). First one in: a private house in the estate build. Next: draft specs from the aerial photo plus a photo walk, a review page, then a whole street.
+- ✅ **Kept layers** (29 Oct): hand-made `.kn5` models in a layers folder load over the generated track (models.ini) and clear the generated houses and trees they stand on; every route has a fixed map origin so they stay lined up when a route changes.
 - ⬜ **Export for Blender.** FBX (and maybe `.blend`) of the generated base, so hand-made detail lines up exactly and survives rebuilds (layered with `models.ini`).
 
 ## Phase 2: Busselton, properly 🔨

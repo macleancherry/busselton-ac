@@ -501,6 +501,9 @@ export async function buildTrack(
   const centre: LngLat = opts.origin ?? [(Math.min(...lngs) + Math.max(...lngs)) / 2, (Math.min(...lats) + Math.max(...lats)) / 2];
   const proj = new LocalProjection(centre);
   const local = route.map((p) => proj.toLocal(p));
+  // Busselton fork: areas hand-made layers cover (see opts.clears).
+  const clears = (opts.clears ?? []).map((c) => ({ c: proj.toLocal(c.at), r: c.radius, trees: c.trees !== false }));
+  const cleared = (x: number, y: number, trees = false) => clears.some((k) => (!trees || k.trees) && Math.hypot(x - k.c[0], y - k.c[1]) < k.r);
   const widthFn = sources.widthAt ? (x: number, y: number) => sources.widthAt!(proj.toLngLat([x, y])) : undefined;
   const hinted = resolveRoundabouts(sources.roundabouts ?? [], sources.osm?.roundaboutRings ?? [], proj);
   // Plus rings the route crosses that routing didn't mention (straight over a small roundabout):
@@ -1154,7 +1157,7 @@ export async function buildTrack(
     const town = !!n && kerbedNear[n.seg];
     return { ...t, variant: pickSpecies(speciesRand(), !!t.coastal, town, ocean.length > 0 && sea.near(t.x, t.y, FORESHORE)) };
   });
-  const treesKept = offStreets(offRings(planted));
+  const treesKept = offStreets(offRings(planted)).filter((t) => !cleared(t.x, t.y, true));
   const trees = buildTrees(treesKept, ground);
   const trunks = treeTrunks(treesKept, ground);
   // Tree lines on the horizon: canopy in the far photo, out to 1 km, as cheap unshadowed sprites.
@@ -1349,6 +1352,7 @@ export async function buildTrack(
     const [x, y] = proj.toLocal(look.at);
     // Busselton fork: a house we have a spec for is built from it, facing its street, and the
     // generated house (and anything placed) there goes.
+    if (cleared(x, y)) continue; // a hand-made layer stands here
     if (look.spec && Number.isFinite(roadGap(x, y))) {
       const gx = roadGap(x + 1, y) - roadGap(x - 1, y), gy = roadGap(x, y + 1) - roadGap(x, y - 1);
       const gl = Math.hypot(gx, gy) || 1;
@@ -1477,6 +1481,16 @@ export async function buildTrack(
     if (plan.roundabouts.some((rb) => Math.hypot(x - rb.c[0], y - rb.c[1]) < outerRadius(rb) + 2.5)) return false;
     return !shown.some((b) => pointInRing(x, y, b.ring));
   });
+  // Nothing generated where a hand-made layer stands.
+  if (clears.length) {
+    for (const list of [shown, homes]) {
+      for (let i = list.length - 1; i >= 0; i--) {
+        const c = centroid(list[i].ring);
+        if (cleared(c[0], c[1])) list.splice(i, 1);
+      }
+    }
+    for (let i = houseTrees.length - 1; i >= 0; i--) if (cleared(houseTrees[i].x, houseTrees[i].y, true)) houseTrees.splice(i, 1);
+  }
   const houses = buildBuildings(shown, buildingGround);
   // Car park islands, clear of the road, the streets, buildings and the rings, with shrubs.
   const islandNodes: Kn5MeshNode[] = [];
