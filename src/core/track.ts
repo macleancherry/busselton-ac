@@ -38,7 +38,7 @@ import { BARRIERS, barrierTexture, detailTexture, normalFromHeight, windowTextur
 import {
   buildGuardRails, buildGuidePosts, buildTrees, treeTrunks, filterTrees, railNeeds, rng, treeSpotsFromImagery, type TreeSpot,
 } from "./scenery";
-import { buildBuildings, centroid, detectBuildings, filterBuildings, fromOsm, pointInRing, type Building } from "./buildings";
+import { buildBuildings, centroid, detectBuildings, facadeMaterial, filterBuildings, fromOsm, pointInRing, type Building } from "./buildings";
 import { camerasIni, placeCameras } from "./cameras";
 import { cullable } from "./cull";
 import { extConfig } from "./cspConfig";
@@ -92,7 +92,17 @@ export interface DataSources {
    * What each house really looks like, from street photos (scripts/mapillary/house_looks.py):
    * matched to the house whose front wall is nearest `at`, within 8 m.
    */
-  houseLooks?: { at: LngLat; facade?: string }[];
+  houseLooks?: {
+    at: LngLat;
+    facade?: string;
+    /** Wall colour, sRGB 0-255. */
+    colour?: [number, number, number];
+    /** What's along the front boundary, and a hedge's height in metres. */
+    front?: "none" | "limestone" | "brick" | "hedge";
+    hedgeHeight?: number;
+    /** Trees in the front yard. */
+    trees?: number;
+  }[];
   /** Draws shop names for their signs (needs a canvas: the browser passes one in). */
   drawSigns?: SignDrawer;
   coast?: { ocean: { rings: LngLat[][]; edge: boolean[][] }[]; piers: { rings: LngLat[][]; edge: boolean[][] }[]; beaches?: { rings: LngLat[][]; edge: boolean[][] }[] };
@@ -1122,6 +1132,7 @@ export async function buildTrack(
   // Street photos say what the wall is made of.
   const frontMid = (b: Building) => b.front ? [(b.front[0][0] + b.front[1][0]) / 2, (b.front[0][1] + b.front[1][1]) / 2] : null;
   let housesLooked = 0;
+  const houseTrees: TreeSpot[] = [];
   for (const look of sources.houseLooks ?? []) {
     const [x, y] = proj.toLocal(look.at);
     let best: Building | null = null, bestD = 8;
@@ -1130,11 +1141,30 @@ export async function buildTrack(
       const d = m ? Math.hypot(m[0] - x, m[1] - y) : Infinity;
       if (d < bestD) [best, bestD] = [b, d];
     }
+    if (!best) continue;
     const f = look.facade ? FACADES.indexOf(look.facade as (typeof FACADES)[number]) : -1;
-    if (best && f >= 0) {
-      best.facade = f;
-      housesLooked++;
+    if (f >= 0) best.facade = f;
+    if (look.colour) best.wallColour = look.colour;
+    if (look.front) best.frontKind = look.front;
+    if (look.hedgeHeight) best.hedgeHeight = look.hedgeHeight;
+    if (look.trees && best.front) {
+      // Spread across the front yard, halfway between the wall and the road.
+      const [a, c] = best.front, m = frontMid(best)!;
+      const L = Math.hypot(c[0] - a[0], c[1] - a[1]) || 1;
+      let o: Vec2 = [(c[1] - a[1]) / L, -(c[0] - a[0]) / L];
+      if (roadGap(m[0] + o[0] * 3, m[1] + o[1] * 3) > roadGap(m[0] - o[0] * 3, m[1] - o[1] * 3)) o = [-o[0], -o[1]];
+      const out = Math.max(2, (best.setback ?? roadGap(m[0], m[1])) / 2);
+      for (let k = 0; k < look.trees; k++) {
+        const t = (k + 0.5) / look.trees - 0.5;
+        houseTrees.push({ x: m[0] + o[0] * out + (c[0] - a[0]) * t * 0.6, y: m[1] + o[1] * out + (c[1] - a[1]) * t * 0.6, scale: 0.85, variant: 0 });
+      }
     }
+    if (f >= 0 || look.colour || look.front || look.trees) housesLooked++;
+  }
+  // Wall materials for houses in their own colour.
+  for (const mat of new Set(homes.filter((b) => b.wallColour).map(facadeMaterial))) {
+    const b = homes.find((h) => facadeMaterial(h) === mat)!;
+    reliefScenery(mat, facadeTexture(FACADES[b.facade], b.wallColour), { ambient: 0.45, diffuse: 0.45, specular: 0.05, exp: 10 }, 3);
   }
   // Shops: verandahs over the footpath, a fascia sign and shop windows on the street side.
   const homeSet = new Set(homes);
@@ -1218,7 +1248,7 @@ export async function buildTrack(
         group("MARKINGS", markings),
         group("VERGE", roadMeshes.verge),
         group("KERBS", kerbsClear.nodes),
-        group("TREES", trees),
+        group("TREES", [...trees, ...(houseTrees.length ? buildTrees(houseTrees, ground, "HOUSETREES") : [])]),
         group("RAILS", [...railsClear.nodes, ...rails.posts]),
         group("GUIDEPOSTS", posts),
         group("BUILDINGS", houses),
@@ -1237,7 +1267,7 @@ export async function buildTrack(
       group("TERRAIN", terrainNodes),
       group("HORIZON", [...backdropNodes, ...horizonTrees]),
       group("SEA", ocean.length ? buildSea(ocean) : []),
-      group("WALLS", [...walls, ...trunks]),
+      group("WALLS", [...walls, ...trunks, ...(houseTrees.length ? treeTrunks(houseTrees, ground) : [])]),
       ...trackObjects(plan, opts),
     ]),
   };

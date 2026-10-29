@@ -110,10 +110,15 @@ try {
     }, [id, value]);
     if (!ok) throw new Error(`no control #${id} in the UI`);
   }
-  // What houses look like from street photos: HOUSE_LOOKS=out/<slug>.looks.json (from house_looks.py).
+  // What houses look like: HOUSE_LOOKS=out/<slug>.looks.json (from house_looks.py), and/or hand-set looks
+  // ({at, facade?, colour?, front?, hedgeHeight?, trees?} each), comma-separated.
+  // Several files, comma-separated: later ones win (e.g. photo looks, then hand-set ones).
   if (process.env.HOUSE_LOOKS) {
-    const looks = JSON.parse(readFileSync(resolve(root, process.env.HOUSE_LOOKS), "utf8"));
-    await page.evaluate((l) => { window.__houseLooks = l; }, looks.houses ?? looks);
+    const looks = process.env.HOUSE_LOOKS.split(",").flatMap((f) => {
+      const l = JSON.parse(readFileSync(resolve(root, f.trim()), "utf8"));
+      return l.houses ?? l;
+    });
+    await page.evaluate((l) => { window.__houseLooks = l; }, looks);
   }
   // Build options with no UI control (e.g. noTrace zones) go straight to the build.
   if (spec.build) await page.evaluate((b) => { window.__buildOptions = b; }, spec.build);

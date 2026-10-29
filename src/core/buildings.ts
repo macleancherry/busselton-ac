@@ -41,6 +41,18 @@ export interface Building {
   garage?: boolean;
   /** Distance from the road edge to the front wall, metres, where known. */
   setback?: number;
+  /** The real wall colour (sRGB), from a street photo or a hand-set look: the facade texture in this colour. */
+  wallColour?: [number, number, number];
+  /** What's along the front boundary, when known (otherwise lots.ts picks). */
+  frontKind?: "none" | "limestone" | "brick" | "hedge";
+  /** Hedge height, metres, when known. */
+  hedgeHeight?: number;
+}
+
+/** The wall material for a building: its facade, or the facade in its own colour. */
+export function facadeMaterial(b: Building): string {
+  const f = FACADES[b.facade];
+  return b.wallColour ? `facade_${f}_${b.wallColour.map((v) => Math.round(v).toString(16).padStart(2, "0")).join("")}` : `facade_${f}`;
 }
 
 /** Most Australian houses have a hip roof; about a third a gable. */
@@ -424,7 +436,7 @@ function face(mb: MeshBuilder, pts: Vec3[], uv: (p: Vec3) => [number, number]): 
  * colour). Gable roofs run their ridge along the long side.
  */
 export function buildBuildings(buildings: Building[], ground: HeightFn): Kn5MeshNode[] {
-  const walls = FACADES.map(() => new ChunkedMesh(0));
+  const walls = new Map<string, ChunkedMesh>();
   const roofs = ROOF_COLOURS.map(() => new ChunkedMesh(0));
   const soffits = new ChunkedMesh(0), garages = new ChunkedMesh(0), doors = new ChunkedMesh(0), drives = new ChunkedMesh(0);
   const panes = new ChunkedMesh(0);
@@ -433,7 +445,9 @@ export function buildBuildings(buildings: Building[], ground: HeightFn): Kn5Mesh
     const hs = ring.map(([x, y]) => ground(x, y));
     const base = Math.min(...hs) - 0.4;
     const top = Math.max(...hs) + b.height;
-    const wm = walls[b.facade].next(ring.length * 4 + 8);
+    const key = facadeMaterial(b);
+    if (!walls.has(key)) walls.set(key, new ChunkedMesh(0));
+    const wm = walls.get(key)!.next(ring.length * 4 + 8);
     const rm = roofs[b.roofColour].next(ring.length * 3 + 8);
     let u = 0;
     const floor = Math.min(...hs);
@@ -503,7 +517,7 @@ export function buildBuildings(buildings: Building[], ground: HeightFn): Kn5Mesh
     }
   }
   const out: Kn5MeshNode[] = [];
-  walls.forEach((cm, f) => cm.all().forEach((m, i) => out.push(m.toKn5(`1WALL_BLD_${FACADES[f]}_${pad(i)}`, `facade_${FACADES[f]}`))));
+  walls.forEach((cm, mat) => cm.all().forEach((m, i) => out.push(m.toKn5(`1WALL_BLD_${mat.slice(7)}_${pad(i)}`, mat))));
   roofs.forEach((cm, c) => cm.all().forEach((m, i) => out.push(m.toKn5(`ROOF_${ROOF_COLOURS[c].name}_${pad(i)}`, `roof_${ROOF_COLOURS[c].name}`))));
   soffits.all().forEach((m, i) => out.push(m.toKn5(`SOFFIT_${pad(i)}`, "canopy", { castShadows: false })));
   panes.all().forEach((m, i) => out.push(m.toKn5(`WINDOWS_${pad(i)}`, "window", { castShadows: false })));

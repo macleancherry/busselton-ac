@@ -95,10 +95,11 @@ export function buildLots(houses: Building[], ground: HeightFn, opts: LotOptions
     // Front boundary, leaving the driveway open.
     const wallAt = gap - VERGE;
     const roll = rand();
-    const kind: FrontKind = wallAt < 1.5 ? "none" : roll < 0.35 ? "none" : roll < 0.6 ? "limestone" : roll < 0.75 ? "brick" : "hedge";
+    const picked: FrontKind = roll < 0.35 ? "none" : roll < 0.6 ? "limestone" : roll < 0.75 ? "brick" : "hedge";
+    const kind: FrontKind = wallAt < 1.5 ? "none" : b.frontKind ?? picked;
     const drive = b.garage ? DRIVE : rand() < 0.5 ? [0, 3.2] : [len - 3.2, len];
     if (kind !== "none") {
-      const spec = kind === "hedge" ? { h: 1.0, d: 0.8 } : kind === "limestone" ? { h: 0.9, d: 0.35 } : { h: 0.8, d: 0.25 };
+      const spec = kind === "hedge" ? { h: b.hedgeHeight ?? 1.0, d: b.hedgeHeight ? Math.max(0.8, b.hedgeHeight * 0.6) : 0.8 } : kind === "limestone" ? { h: 0.9, d: 0.35 } : { h: 0.8, d: 0.25 };
       const runs: [number, number][] = [[-SIDE, drive[0]], [drive[1], len + SIDE]];
       for (const [s0, s1] of runs) {
         for (let s = s0; s < s1 - 0.3; s += FRONT_WALL_REPEAT) {

@@ -25,7 +25,15 @@ export const FRONT_WALL_REPEAT = 2;
 const PX = 64;
 
 /** Plain wall at (x, y) metres (y down): brick courses, boards or render. */
-function wallPixel(kind: Facade, x: number, y: number, n: number): RGB {
+function wallPixel(kind: Facade, x: number, y: number, n: number, tint?: RGB): RGB {
+  if (tint) {
+    // The facade's pattern (boards, sheets, courses) in a given colour: the plain wall's light and
+    // shade, scaled to the tint.
+    const [r, g, b] = wallPixel(kind, x, y, 0);
+    const base = kind === "brick" ? 120 : kind === "creambrick" ? 200 : 230;
+    const k = (r + g + b) / 3 / base;
+    return [tint[0] * k + n, tint[1] * k + n, tint[2] * k + n];
+  }
   if (kind === "brick" || kind === "creambrick") {
     // 230 x 76 mm bricks with 10 mm joints, stretcher bond.
     const course = Math.floor(y / 0.086);
@@ -66,7 +74,7 @@ function glass(_u: number, v: number, blind: number, n: number): RGB {
 }
 
 /** One storey of wall 8 m wide by 3 m (from the floor up), with a wide sliding window and a narrower one. */
-export function facadeTexture(kind: Facade): Uint8Array {
+export function facadeTexture(kind: Facade, tint?: RGB): Uint8Array {
   const w = FACADE_SIZE.w * PX, h = FACADE_SIZE.h * PX;
   const r = rng(61 + kind.length * 13);
   // Where buildings.ts lays the glass panes (WINDOWS: metres along the 8 m
@@ -86,11 +94,11 @@ export function facadeTexture(kind: Facade): Uint8Array {
       }
       // Sill under the window.
       if (x > win.x0 - 0.1 && x < win.x1 + 0.1 && y >= win.y1 + f && y < win.y1 + f + 0.07) {
-        const c = kind === "brick" || kind === "creambrick" ? wallPixel(kind, x, y, n).map((v) => v * 0.82) as RGB : [214 + n, 212 + n, 204 + n] as RGB;
+        const c = kind === "brick" || kind === "creambrick" ? wallPixel(kind, x, y, n, tint).map((v) => v * 0.82) as RGB : [214 + n, 212 + n, 204 + n] as RGB;
         return c;
       }
     }
-    let c = wallPixel(kind, x, y, n);
+    let c = wallPixel(kind, x, y, n, tint);
     // Shade under the eaves.
     if (y < 0.4) c = c.map((v) => v * (0.62 + 0.38 * (y / 0.4))) as RGB;
     return c;
