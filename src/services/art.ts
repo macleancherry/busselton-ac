@@ -193,6 +193,35 @@ function boxFor(req: ArtRequest, measure: OffscreenCanvasRenderingContext2D): Bo
               ctx.restore();
             }
             ctx.beginPath();
+          } else if (/kangaroo/.test(text)) {
+            // Kangaroo (Australian W5-29), a filled silhouette hopping to the right.
+            ctx.save();
+            ctx.beginPath();
+            ctx.ellipse(x + 80, y + 86, 17, 25, -0.55, 0, Math.PI * 2); // body
+            ctx.ellipse(x + 101, y + 52, 10, 7, -0.3, 0, Math.PI * 2); // head
+            ctx.fill();
+            ctx.beginPath();
+            ctx.moveTo(x + 92, y + 46);
+            ctx.lineTo(x + 94, y + 34);
+            ctx.lineTo(x + 99, y + 45);
+            ctx.fill(); // ear
+            ctx.lineWidth = 11;
+            ctx.beginPath();
+            ctx.moveTo(x + 90, y + 66);
+            ctx.lineTo(x + 97, y + 56); // neck
+            ctx.moveTo(x + 70, y + 104);
+            ctx.quadraticCurveTo(x + 56, y + 122, x + 34, y + 126); // tail
+            ctx.moveTo(x + 84, y + 106);
+            ctx.lineTo(x + 92, y + 118);
+            ctx.lineTo(x + 112, y + 120); // leg and foot
+            ctx.stroke();
+            ctx.lineWidth = 5;
+            ctx.beginPath();
+            ctx.moveTo(x + 93, y + 76);
+            ctx.lineTo(x + 104, y + 82); // arm
+            ctx.stroke();
+            ctx.restore();
+            ctx.beginPath();
           } else if (/pedestrian/.test(text)) {
             ctx.arc(x + 80, y + 50, 8, 0, Math.PI * 2);
             ctx.moveTo(x + 80, y + 62);

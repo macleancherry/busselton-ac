@@ -47,7 +47,7 @@ import { extConfig } from "./cspConfig";
 import { buildBarriers } from "./fences";
 import { chunkPhotoSampler, frontageHouses } from "./frontage";
 import { ArtList, type ArtRenderer } from "./art";
-import { buildPieces, gateSigns, landmarks, mergeSightings, seenFeatures, streetSigns } from "./furniture";
+import { buildPieces, gateSigns, kangarooSigns, landmarks, mergeSightings, seenFeatures, streetSigns } from "./furniture";
 import { barrierConcreteTexture, catchFenceTexture, crowdTexture, raceDressing, tyreWallTexture } from "./raceDress";
 import { placeUtilities } from "./utilities";
 import { buildVergeConcrete, laybacks, letterboxes, readVerge } from "./footpaths";
@@ -1255,6 +1255,9 @@ export async function buildTrack(
     ...seenFeatures((sources.seen ?? []).map((f) => ({ ...f, at: proj.toLocal(f.at) })), plan, index, opts, art),
     // The race gantries replace the plain START and FINISH signs.
     ...(race ? race.pieces : gateSigns(plan, opts, art)),
+    // Busselton fork: kangaroo signs out of town (not on kerbed streets, limit 80 or more).
+    ...(opts.streetSigns ? kangarooSigns(plan, opts, art, (i) => town[i] === 0 && speedAt(i) >= 80 && !kerbedNear[i],
+      (i, side) => mouth(side, plan.samples[i].s) || streetPlan.junctions.some((j) => j.side === side && Math.abs(j.s - plan.samples[i].s) < j.width / 2 + 6)) : []),
     ...utilities.pieces,
     ...(verge ? letterboxes(plan, verge, vergeGround) : []),
   ];
@@ -1530,6 +1533,7 @@ export async function buildTrack(
     }
     const streetRoads: TrafficRoad[] = streetPlan.streets.map((st) => ({
       pts: st.pts, h: st.pts.map(([x, y]) => terrainAt(x, y).h + 0.1), width: st.width, speed: 50,
+      ...(st.oneway ? { oneway: st.oneway } : {}),
     }));
     const rbs = plan.roundabouts.map((rb) => ({ c: rb.c, h: rb.hc, rIn: innerRadius(rb), rOut: outerRadius(rb) }));
     // Kept for checking the traffic graph offline (the headless build writes it out).

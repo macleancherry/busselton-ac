@@ -344,3 +344,42 @@ export function gateSigns(plan: RoadPlan, opts: BuildOptions, art: ArtList): Pie
   }
   return out;
 }
+
+/**
+ * Kangaroo warning signs (W5-29) on country stretches: one facing each way about 300 m into a stretch,
+ * then every 4 km. `rural(i)` says whether sample i is out of town; `blocked(i, side)` keeps signs off
+ * junction mouths. Stretches under 1 km get none.
+ */
+export function kangarooSigns(plan: RoadPlan, opts: BuildOptions, art: ArtList, rural: (i: number) => boolean, blocked: (i: number, side: 1 | -1) => boolean): Piece[] {
+  const out: Piece[] = [];
+  const S = plan.samples, n = S.length;
+  const sign = (i: number, side: 1 | -1) => {
+    // Nudge along a little to clear a junction mouth or a roundabout.
+    for (const d of [0, 5, -5, 10, -10, 20, -20]) {
+      const j = i + Math.round(d / opts.spacing);
+      if (j < 0 || j >= n || blocked(j, side)) continue;
+      const s = S[j];
+      if (inRoundabout(plan, s.pos[0], s.pos[1], 15)) continue;
+      const t = side * (s.width / 2 + opts.vergeWidth * 0.7);
+      const at = off(s, t), z = vergeZ(s, t, opts), normal = facingTraffic(s, side);
+      const key = art.add({ key: "warning:kangaroo", kind: "warning", text: "kangaroo" });
+      art.add({ key: "back", kind: "back" });
+      out.push({ kind: "box", at, along: s.tan, length: 0.065, depth: 0.065, z0: z - 0.4, z1: z + 2.9, material: "steel" });
+      out.push({ kind: "face", at: [at[0] + normal[0] * 0.05, at[1] + normal[1] * 0.05], normal, z0: z + 2.0, height: 0.9, art: key });
+      return;
+    }
+  };
+  const first = Math.round(300 / opts.spacing), every = Math.round(4000 / opts.spacing), min = Math.round(1000 / opts.spacing);
+  for (let i = 0; i < n;) {
+    if (!rural(i)) { i++; continue; }
+    let j = i;
+    while (j < n && rural(j)) j++;
+    if (j - i >= min) {
+      // Traffic going forward keeps left (side 1); coming back, right (side -1), counted from the other end.
+      for (let k = i + first; k < j - first / 2; k += every) sign(k, 1);
+      for (let k = j - 1 - first; k > i + first / 2; k -= every) sign(k, -1);
+    }
+    i = j;
+  }
+  return out;
+}

@@ -22,6 +22,8 @@ export interface StreetLine {
   pts: LngLat[];
   cls: string;
   brunnel?: string;
+  /** One-way: 1 along the line, -1 against it. */
+  oneway?: 1 | -1;
 }
 
 export interface StreetName {
@@ -59,6 +61,8 @@ export interface SideStreet {
   name?: string;
   /** Indices into `pts` that sit on the route's edge (junction mouths). */
   joins: number[];
+  /** One-way: 1 in the order of `pts`, -1 against it. */
+  oneway?: 1 | -1;
 }
 
 /** Grid hash of line segments for "how far to the nearest street" queries. */
@@ -184,7 +188,7 @@ export function planSideStreets(
       const length = pts.reduce((a, p, k) => (k ? a + Math.hypot(p[0] - pts[k - 1][0], p[1] - pts[k - 1][1]) : 0), 0);
       if (length >= 8) {
         const name = nearestName(pts[Math.floor(pts.length / 2)], localNames, 8);
-        streets.push({ pts, width, cls: line.cls, name, joins });
+        streets.push({ pts, width, cls: line.cls, name, joins, ...(line.oneway ? { oneway: line.oneway } : {}) });
         for (let k = junctions.length - joins.length; k < junctions.length; k++) junctions[k].name = name;
       } else {
         junctions.splice(junctions.length - joins.length, joins.length);

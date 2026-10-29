@@ -39,6 +39,23 @@ describe("traffic graph", () => {
     for (const l of g.lanes) for (const p of [l.points[0], l.points.at(-1)!]) expect(polys.some((poly) => contains(poly, local(p)))).toBe(true);
   });
 
+  it("gives a one-way street its lanes in one direction only, across the road", () => {
+    // Mapped against the line (oneway -1): traffic runs west.
+    const one = trafficGraph([{ ...road(line([0, 0], [200, 0]), 7, 50), oneway: -1 }], []);
+    expect(one.lanes).toHaveLength(2);
+    for (const l of one.lanes) {
+      expect(l.name).toContain("one way");
+      expect(local(l.points[0])[0]).toBeGreaterThan(local(l.points.at(-1)!)[0]);
+    }
+    const ys = one.lanes.map((l) => local(l.points[3])[1]).sort((a, b) => a - b);
+    expect(ys[0]).toBeCloseTo(-1.75, 3);
+    expect(ys[1]).toBeCloseTo(1.75, 3);
+    // A narrow one-way lane runs down the middle.
+    const lane = trafficGraph([{ ...road(line([0, 0], [200, 0]), 4, 50), oneway: 1 }], []);
+    expect(lane.lanes).toHaveLength(1);
+    expect(local(lane.lanes[0].points[3])[1]).toBeCloseTo(0, 3);
+  });
+
   it("gives four-lane roads two lanes each way", () => {
     const wide = trafficGraph([road(line([0, 0], [200, 0]), 14, 60)], []);
     expect(wide.lanes).toHaveLength(4);

@@ -9,7 +9,8 @@
 // streets, so traffic never drives off the asphalt:
 //
 //  - Each road gets a lane each way on the left (Australia drives on the
-//    left), two each way on roads 12 m or wider.
+//    left), two each way on roads 12 m or wider. A one-way street gets its
+//    lanes across the whole width, all one way (two if 6.5 m or wider).
 //  - Every junction gets an intersection polygon: side streets meeting the
 //    route or each other, and roads crossing.
 //  - A roundabout is a clockwise ring lane with an intersection where each
@@ -30,6 +31,8 @@ export interface TrafficRoad {
   speed: number;
   /** The route of a circuit: the last point joins the first. */
   closed?: boolean;
+  /** One-way: 1 in the order of `pts`, -1 against it. */
+  oneway?: 1 | -1;
 }
 
 export interface TrafficRoundabout {
@@ -231,20 +234,22 @@ export function trafficGraph(roadsIn: TrafficRoad[], roundabouts: TrafficRoundab
   const lanes: Lane[] = [];
   let laneId = 1;
   roads.forEach((r, ri) => {
-    const perDir = r.width >= 12 ? 2 : 1;
-    const laneW = Math.min(3.5, r.width / (2 * perDir));
+    const one = r.oneway;
+    const perDir = one ? (r.width >= 6.5 ? 2 : 1) : r.width >= 12 ? 2 : 1;
+    const laneW = Math.min(3.5, one ? r.width / perDir : r.width / (2 * perDir));
     const role = roleFor(r.speed);
     for (let k = 0; k < perDir; k++) {
-      const off = laneW * (k + 0.5);
-      for (const dir of [1, -1]) {
-        const pts = offset(r.pts, off * dir, !!r.closed);
+      // Two-way: lanes out from the centre on each side. One-way: spread across the road, centred.
+      const off = one ? laneW * (k + 0.5) - (laneW * perDir) / 2 : laneW * (k + 0.5);
+      for (const dir of one ? [one] : [1, -1]) {
+        const pts = offset(r.pts, one ? off : off * dir, !!r.closed);
         const h = r.h.slice();
         if (dir === -1) {
           pts.reverse();
           h.reverse();
         }
         lanes.push({
-          name: `Road ${ri + 1} ${dir === 1 ? "forward" : "back"}${perDir > 1 ? ` ${k + 1}` : ""}`,
+          name: `Road ${ri + 1} ${one ? "one way" : dir === 1 ? "forward" : "back"}${perDir > 1 ? ` ${k + 1}` : ""}`,
           id: laneId++,
           loop: !!r.closed,
           role,

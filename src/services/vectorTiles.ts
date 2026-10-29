@@ -41,6 +41,8 @@ export interface TileRoad {
   surface?: string;
   /** "bridge" or "tunnel" when the road is grade separated. */
   brunnel?: string;
+  /** One-way: 1 along the line, -1 against it. */
+  oneway?: 1 | -1;
 }
 
 /** A named road line (transportation_name layer). */
@@ -144,7 +146,9 @@ export async function fetchTileFeatures(bbox: [number, number, number, number]):
           const brunnel = f.properties.brunnel !== undefined ? String(f.properties.brunnel) : undefined;
           const subclass = f.properties.subclass !== undefined ? String(f.properties.subclass) : undefined;
           const bicycle = f.properties.bicycle !== undefined ? String(f.properties.bicycle) : undefined;
-          for (const line of f.loadGeometry()) roads.push({ pts: line.map((p) => toLngLat(p, tl.extent)), cls, surface, brunnel, subclass, bicycle });
+          const ow = Number(f.properties.oneway);
+          const oneway = ow === 1 || ow === -1 ? ow : undefined;
+          for (const line of f.loadGeometry()) roads.push({ pts: line.map((p) => toLngLat(p, tl.extent)), cls, surface, brunnel, subclass, bicycle, ...(oneway ? { oneway } : {}) });
         }
         const nl = tile.layers.transportation_name;
         for (let i = 0; nl && i < nl.length; i++) {
