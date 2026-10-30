@@ -49,6 +49,23 @@ export function splitByArea(node: Kn5MeshNode, cell = CELL): Kn5MeshNode[] {
     if (!list) tiles.set(key, (list = []));
     list.push(t);
   }
+  // A tile with a handful of triangles goes in with its nearest bigger neighbour: CSP can't size a
+  // one-triangle mesh ("Failed to calculate BS for vertices: 3"), and it isn't worth a draw call.
+  const SMALL = 8;
+  const big = [...tiles.keys()].filter((key) => tiles.get(key)!.length >= SMALL);
+  if (!big.length) return [node];
+  for (const [key, tris] of [...tiles]) {
+    if (tris.length >= SMALL) continue;
+    const [x, z] = key.split(",").map(Number);
+    let best = big[0], bd = Infinity;
+    for (const b of big) {
+      const [bx, bz] = b.split(",").map(Number);
+      const d = Math.hypot(bx - x, bz - z);
+      if (d < bd) [bd, best] = [d, b];
+    }
+    tiles.get(best)!.push(...tris);
+    tiles.delete(key);
+  }
   if (tiles.size < 2) return [node];
   const out: Kn5MeshNode[] = [];
   let k = 0;

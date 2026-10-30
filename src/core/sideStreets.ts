@@ -273,6 +273,43 @@ export function streetSurface(plan: RoadPlan, index: SegmentIndex, opts: BuildOp
 }
 
 /**
+ * The street with extra points wherever the ground between two of its points strays more than
+ * `tol` metres from a straight line across (on the centreline or either edge), halving until it
+ * doesn't or the pieces are `min` metres long. Widths and joins follow.
+ */
+export function densifyStreet(st: SideStreet, ground: HeightFn, tol = 0.03, min = 2): SideStreet {
+  const pts: Vec2[] = [], widths: number[] = [], map: number[] = [];
+  const wAt = (k: number) => st.widths?.[k] ?? st.width;
+  const bulges = (q: Vec2, p: Vec2, w: number): boolean => {
+    const d = norm([p[0] - q[0], p[1] - q[1]]), l: Vec2 = [-d[1], d[0]];
+    for (const off of [0, w / 2, -w / 2]) {
+      const a: Vec2 = [q[0] + l[0] * off, q[1] + l[1] * off], b: Vec2 = [p[0] + l[0] * off, p[1] + l[1] * off];
+      const ha = ground(a[0], a[1]), hb = ground(b[0], b[1]);
+      for (const f of [0.25, 0.5, 0.75]) {
+        if (Math.abs(ground(a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f) - (ha + (hb - ha) * f)) > tol) return true;
+      }
+    }
+    return false;
+  };
+  const split = (q: Vec2, p: Vec2, wq: number, wp: number) => {
+    if (Math.hypot(p[0] - q[0], p[1] - q[1]) <= min || !bulges(q, p, (wq + wp) / 2)) return;
+    const m: Vec2 = [(q[0] + p[0]) / 2, (q[1] + p[1]) / 2], wm = (wq + wp) / 2;
+    split(q, m, wq, wm);
+    pts.push(m);
+    widths.push(wm);
+    split(m, p, wm, wp);
+  };
+  st.pts.forEach((p, k) => {
+    if (k) split(st.pts[k - 1], p, wAt(k - 1), wAt(k));
+    map.push(pts.length);
+    pts.push(p);
+    widths.push(wAt(k));
+  });
+  if (pts.length === st.pts.length) return st;
+  return { ...st, pts, widths: st.widths ? widths : undefined, joins: st.joins.map((j) => map[j]) };
+}
+
+/**
  * Draped ribbons. Each street sits 10 cm above the ground; at a junction it
  * blends down to the route's surface over 10 m and tucks 2 cm under the
  * route's edge so the two never fight.
@@ -288,8 +325,11 @@ export function buildSideStreets(
   const out: Kn5MeshNode[] = [];
   const meshes = new Map<string, ChunkedMesh>();
   const surface = streetSurface(plan, index, opts, ground);
-  streets.forEach((st, si) => {
-    const choice = materialFor(st, si);
+  streets.forEach((st0, si) => {
+    const choice = materialFor(st0, si);
+    // Extra points where the ground bulges between the street's own points (on a long straight they
+    // can be 20 m or more apart, and the ground came up through the ribbon).
+    const st = densifyStreet(st0, ground);
     const mat = typeof choice === "string" ? choice : choice.material;
     if (!meshes.has(mat)) meshes.set(mat, new ChunkedMesh(0));
     const mb = meshes.get(mat)!.next(st.pts.length * 2);

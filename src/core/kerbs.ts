@@ -328,6 +328,12 @@ export function buildKerbReturns(
   streetEdge?: (j: number, c: -1 | 1, R: number) => { pos: [number, number]; out: [number, number]; z: number }[] | null,
   /** Photo for the strips along side streets (they reach beyond the route photo): one atlas column per run. */
   streetPhoto?: RasterSampler,
+  /**
+   * How far (x, y) is outside the nearest side street's edge, metres (negative on it). A corner a
+   * street really runs through (it meets the road at an angle, curves, or is wider than mapped) gets
+   * no return: its raised strip would sit over the street.
+   */
+  streetClearance?: (x: number, y: number) => number,
 ): {
   nodes: Kn5MeshNode[];
   noRamp: Set<string>;
@@ -362,9 +368,21 @@ export function buildKerbReturns(
       if (first < 0 || first >= n || !(kerb[k][first] > 0)) continue;
       const R = Math.abs(plan.samples[first].s - s.s) - j.width / 2;
       if (R < 2 || R > 3 * RETURN_R) continue;
+      const C: [number, number] = [O[0] + u[0] * c * (j.width / 2 + R) + v[0] * R, O[1] + u[1] * c * (j.width / 2 + R) + v[1] * R];
+      if (streetClearance) {
+        let crossed = false;
+        for (let a = 0; a <= 6 && !crossed; a++) {
+          for (const r of [1.2, (1.2 + R - KERB_BACK) / 2, R - KERB_BACK]) {
+            if (r <= 1) continue;
+            const th = (a / 6) * Math.PI / 2;
+            const dx = -v[0] * Math.cos(th) - u[0] * c * Math.sin(th), dy = -v[1] * Math.cos(th) - u[1] * c * Math.sin(th);
+            if (streetClearance(C[0] + dx * r, C[1] + dy * r) < -0.3) { crossed = true; break; }
+          }
+        }
+        if (crossed) continue;
+      }
       // The road kerb's slope down toward the mouth is replaced by the return.
       noRamp.add(`${c > 0 ? first - 1 : first}:${side}`);
-      const C: [number, number] = [O[0] + u[0] * c * (j.width / 2 + R) + v[0] * R, O[1] + u[1] * c * (j.width / 2 + R) + v[1] * R];
       const A: [number, number] = [O[0] + u[0] * c * j.width / 2, O[1] + u[1] * c * j.width / 2];
       // Point on the circle at angle th (0 on the road's edge, 90 degrees on the side street's) and radius r.
       const at = (th: number, r: number): [number, number] => {

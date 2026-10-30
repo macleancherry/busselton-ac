@@ -157,6 +157,53 @@ class LineGrid {
 }
 
 /** Moves each point onto the nearest centreline within `reach` metres (not near a roundabout). */
+/**
+ * Moves AI line points that have no drivable surface under them onto the nearest one within 5 m,
+ * half a metre in from its edge, then redoes the distances and directions. The smoothed line
+ * through a roundabout can cut the corner where a street leaves it square, over the verge, and the
+ * AI follows it onto the grass.
+ */
+export function keepOnSurface<T extends { position: [number, number, number]; distance: number; length: number; forward: [number, number, number] }>(
+  ai: T[], height: (x: number, y: number) => number | null,
+): T[] {
+  const on = (x: number, z: number) => height(x, -z) !== null;
+  let moved = 0;
+  for (const p of ai) {
+    const [x, , z] = p.position;
+    if (on(x, z)) continue;
+    let found: [number, number] | null = null;
+    for (let r = 0.25; r <= 5 && !found; r += 0.25) {
+      for (let a = 0; a < 32; a++) {
+        const t = (a / 32) * 2 * Math.PI, dx = Math.cos(t), dz = Math.sin(t);
+        if (on(x + dx * r, z + dz * r)) {
+          // Half a metre further in, if that's still on the surface.
+          const in2: [number, number] = [x + dx * (r + 0.5), z + dz * (r + 0.5)];
+          found = on(in2[0], in2[1]) ? in2 : [x + dx * r, z + dz * r];
+          break;
+        }
+      }
+    }
+    if (!found) continue;
+    const h = height(found[0], -found[1])!;
+    p.position = [found[0], h, found[1]];
+    moved++;
+  }
+  if (!moved) return ai;
+  let d = 0;
+  ai.forEach((p, i) => {
+    const q = ai[(i + 1) % ai.length];
+    const dx = q.position[0] - p.position[0], dy = q.position[1] - p.position[1], dz = q.position[2] - p.position[2];
+    const L = Math.hypot(dx, dy, dz);
+    p.distance = d;
+    if (i < ai.length - 1 || L < 50) {
+      p.length = L;
+      if (L > 1e-6) p.forward = [dx / L, dy / L, dz / L];
+    }
+    d += p.length;
+  });
+  return ai;
+}
+
 export function snapToLines(pts: Vec2[], lines: Vec2[][], rings: { c: Vec2; rOut: number }[] = [], reach = 8): Vec2[] {
   const grid = new LineGrid(lines, reach);
   return pts.map((p) => {
@@ -207,7 +254,7 @@ export function layoutFiles(world: World, layout: LayoutSpec, trackObjects: (pla
     plan.samples.forEach((s, i) => { s.h = hs[i]; s.bank = 0; });
     closed = plan.closed;
     length = plan.length;
-    const ai = buildAiLine(plan);
+    const ai = keepOnSurface(buildAiLine(plan), height);
     files[`${base}/ai/fast_lane.ai`] = writeFastLaneAi(ai);
     // Speed limits from the street each stretch is on (the world's), so the AI drives a town street
     // at 50 rather than at the grip limit.

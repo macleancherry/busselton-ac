@@ -1058,7 +1058,7 @@ export async function buildTrack(
     return out.length > 4 ? out : null;
   };
   const returns = opts.kerbs
-    ? buildKerbReturns(plan, opts, streetPlan.junctions, kerbs, roadMaterial(0, 6, { ...plan.samples[0], kerb: [1, 1] }), raster && opts.imageryZoom > 0 ? displayOf(raster) : undefined, streetEdge, photo ?? undefined)
+    ? buildKerbReturns(plan, opts, streetPlan.junctions, kerbs, roadMaterial(0, 6, { ...plan.samples[0], kerb: [1, 1] }), raster && opts.imageryZoom > 0 ? displayOf(raster) : undefined, streetEdge, photo ?? undefined, (x, y) => streetIndex.clearance(x, y))
     : null;
   const kerbReturns = returns?.nodes ?? [];
   if (returns?.sideAtlas) {
