@@ -84,7 +84,7 @@ Get the base right before adding more.
   - (29 Oct) hints slowing it to the speed limit (50 in town), roundabouts found where the route goes straight over them, and the workstation test now driving an everyday hatch instead of a GT3 (which hit 174 km/h on a suburban street)
 
   The AI now gets 2.4 km round the Foreshore (past the 2.1 km corner and the first roundabout), then beaches on the nature strip at the exit of the second roundabout. A GT3 car on kerbed town streets will keep finding kerbs, so this is about good enough: traffic is what fills the streets.
-  - ❓ The AI line is written without its lookup grid (`hasGrid = 0`, a "known unknown" in upstream's checklist), and every test log warns `IDEAL LINE FROM AI LINE` / `NO POSITION DATA FOUND`. Check whether they're linked, and write the grid if so. The grid's layout is known (from Content Manager's reader: extremes, neighbours considered, sampling density, then cells of point indices); its values aren't. Next: the workstation runs `scripts/check/ai_grid.py` on a few Kunos tracks' `fast_lane.ai` and checks whether their logs show the same warning.
+  - ✅ (30 Oct) The AI line's lookup grid, laid out like Kunos's (read from Black Cat County and Magione on the workstation): 10 m cells, each with its 10 nearest points. To confirm: the `NO POSITION DATA FOUND` warning is gone.
 - 🔨 **In-game check.** Done: roundabout lip (fixed), power poles, night lighting. Still to check: ground detail scale, Grass FX on dry verges, the water edge, frame rate on the RTX 4060.
   - ⬜ A full pass of upstream's 36-item checklist ([docs/verification.md](docs/verification.md)) on one town build, by the workstation: map position, signs and markings the right way round, kerbs, Grass FX, rain, night windows, replay cameras. Our automatic test only covers the driving.
 - ✅ **Terrain level of detail.** Fine grid near the road, flat blocks drawn as fans further out: the Foreshore went from 1.0M to 0.75M triangles.
@@ -174,7 +174,7 @@ What makes a map look great at any time of day and in any weather.
   - ✅ the jetty lights: lamp posts every 45 m down both sides of the jetty, following its bend
 - ⬜ **Water:** CSP's water shader for the bay, waves at the beach, boats at moorings.
 - ⬜ **Audio:** surf at the beach, magpies and kookaburras in the morning, wind in the she-oaks, the jetty train (CSP track audio).
-- 🔨 **Baked ambient occlusion** (30 Oct): every build ships the bakery's settings and `scripts/windows/bake-vao.ps1` bakes each layout on the workstation ([docs/csp.md](docs/csp.md)). Also done from the same research: the sun's real position and time zone for CSP and Pure, bounced light, the sea as CSP water, the tiling fix, wind. Next: the first bake and its time.
+- 🔨 **Baked ambient occlusion** (30 Oct): every build ships the bakery's settings and `scripts/windows/bake-vao.ps1` bakes each layout on the workstation ([docs/csp.md](docs/csp.md)). Also done from the same research: the sun's real position and time zone for CSP and Pure, bounced light, the sea as CSP water, the tiling fix, wind. First bakes (30 Oct): 0.6 min for the public map and 0.8 min for the whole map on the RTX 4060 (Vulkan ray tracing), and CSP loads them. Reinstalling the same build keeps the bake.
 - Lighting quality otherwise (local cubemaps, fog, detail normal maps): upstream's area, taken in by merging.
 - ⬜ **Pure:** tune Pure's lighting per track so the bright WA sun and glare off the bay look right.
 - ⬜ **Animated objects:** flags, swaying trees, the jetty train.
@@ -225,7 +225,7 @@ Each needs its own trees, ground and roadside:
   - Armco on bends and drop-offs
   - farm driveways and mailboxes on posts
 - 🔨 Long roads: ✅ 16 km builds within budget (coarser terrain grid and horizon per route); still to check: 30+ km, draw distances.
-- 🔨 Proper trees (30 Oct): CSP instanced 3D trees with our own models of peppermint, she-oak, Norfolk pine, tuart and palm, three LODs each, behind `build.cspTrees` until a Content Manager reference conversion confirms the format ([docs/trees.md](docs/trees.md)). Next: that check, then karri and marri, and photo textures of real local foliage.
+- 🔨 Proper trees (30 Oct): CSP instanced 3D trees with our own models of peppermint, she-oak, Norfolk pine, tuart and palm, three LODs each, behind `build.cspTrees`; Content Manager's converter confirmed the file format (30 Oct) ([docs/trees.md](docs/trees.md)). Next: the in-game look (`busselton_trees`), then on by default, then karri and marri, and photo textures of real local foliage.
 - ⬜ Vineyard generator.
 - ⬜ Landmarks: lighthouses, wineries and cellar doors, surf car parks (Yallingup, Surfers Point), the caves' entrances.
 
