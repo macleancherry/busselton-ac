@@ -55,6 +55,7 @@ import { camerasIni, placeCameras } from "./cameras";
 import { cullable } from "./cull";
 import { bakedShadowParams, extConfig } from "./cspConfig";
 import { buildBarriers } from "./fences";
+import { buildFarmRoadsides, farmTextures } from "./farmRoadsides";
 import { chunkPhotoSampler, frontageHouses } from "./frontage";
 import { ArtList, type ArtRenderer } from "./art";
 import { challengeCheckpoints, challengesIni } from "./challenges";
@@ -152,6 +153,8 @@ export interface OsmFeatures {
   powerLines?: LngLat[][];
   /** Rock groynes and breakwaters (OSM man_made=groyne|breakwater) near the route. */
   groynes?: LngLat[][];
+  /** Busselton fork: cattle grids (OSM barrier=cattle_grid nodes) on or near the route. */
+  cattleGrids?: LngLat[];
 }
 
 export interface TrackResult {
@@ -1303,6 +1306,16 @@ export async function buildTrack(
   const rails = buildGuardRails(plan, opts, needs);
   const postMask = needs.map((side, k) => side.map((v, i) => v || nearRing[i] || mouth(k === 0 ? 1 : -1, plan.samples[i].s) || kerbAt(i, k === 0 ? 1 : -1))) as [boolean[], boolean[]];
   const posts = opts.guidePosts ? buildGuidePosts(plan, opts, postMask) : [];
+  // Busselton fork: country roadsides: farm driveways, gates, mailboxes and cattle grids (farmRoadsides.ts).
+  const farm = opts.farmRoadsides ? buildFarmRoadsides({
+    lines: (sources.streets?.lines ?? []).map((l) => ({ cls: l.cls, service: l.service, pts: l.pts.map((p) => proj.toLocal(p)) })),
+    cattleGrids: (sources.osm?.cattleGrids ?? []).map((p) => proj.toLocal(p)),
+    plan, index, opts, ground,
+    drawn: (x, y) => streetIndex.clearance(x, y) < 0.5,
+    blocked: (x, y) => !inCover(x, y, 3) || streetIndex.clearance(x, y) < 0.2 || kept.some((b) => pointInRing(x, y, b.ring)) || !!inRoundabout(plan, x, y, 3),
+    skip: (seg, side) => town[seg] >= 2 || kerbAt(seg, side),
+  }) : null;
+  if (farm) for (const t of farmTextures()) addScenery(`${t.name}.png`, t.png, material(t.name, `${t.name}.png`, { ambient: 0.45, diffuse: 0.45, specular: t.name === "farm_gravel" ? 0 : 0.2, exp: 15 }));
   // Inside the corridor buildings stand on the detailed terrain; further out, on the horizon mesh.
   const buildingGround = (x: number, y: number) => {
     return inCover(x, y, 1) ? ground(x, y) : backdropHeight(farDem, index, opts, x, y, area ? cover : undefined) - 0.6;
@@ -1623,6 +1636,7 @@ export async function buildTrack(
         group("TREES", [...trees, ...(houseTrees.length && !opts.cspTrees ? buildTrees(houseTrees, ground, "HOUSETREES") : [])]),
         group("RAILS", [...railsClear.nodes, ...rails.posts]),
         group("GUIDEPOSTS", posts),
+        group("FARM", farm?.nodes ?? []),
         group("BUILDINGS", [...houses, ...specNodes]),
         group("SHOPS", shopMeshes),
         group("FENCES", keepOffRoute(barriers, onRoad).nodes),

@@ -169,6 +169,12 @@ export interface BuildOptions {
   raceDress: boolean;
   /** Sponsors on the banners and flags, comma-separated. */
   sponsors: string;
+  /**
+   * Busselton fork: country roadsides (farmRoadsides.ts): gravel farm driveways with a gate and a
+   * mailbox where OSM tracks and driveways leave the route, and cattle grids where OSM maps them.
+   * On in the country preset, off otherwise.
+   */
+  farmRoadsides?: boolean;
 }
 
 export const DEFAULT_OPTIONS: BuildOptions = {

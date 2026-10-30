@@ -177,7 +177,8 @@ export async function fetchOsm(routeCoords: LngLat[], areas: LngLat[][] = []): P
     node(${pl})[power=pole];
     node(${pl})[highway=street_lamp];
     way(${pl})[power~"^(line|minor_line)$"];
-    way(${pl})[barrier~"^(fence|wall|hedge|retaining_wall)$"];`).join("");
+    way(${pl})[barrier~"^(fence|wall|hedge|retaining_wall)$"];
+    node(${pl})[barrier=cattle_grid];`).join("");
   const query = `[out:json][timeout:${poly ? 90 : 40}];(
     way(around:12,${around})[highway];
     way(around:15,${around})[barrier=guard_rail];
@@ -186,6 +187,7 @@ export async function fetchOsm(routeCoords: LngLat[], areas: LngLat[][] = []): P
     node(around:40,${around})[highway=street_lamp];
     way(around:40,${around})[power~"^(line|minor_line)$"];
     way(around:45,${around})[barrier~"^(fence|wall|hedge|retaining_wall)$"];
+    node(around:30,${around})[barrier=cattle_grid];
     way(around:300,${around})[man_made~"^(groyne|breakwater)$"];${inArea}
   );out tags geom;`;
   let elements: OverpassWay[] | undefined;
@@ -211,7 +213,7 @@ export async function fetchOsm(routeCoords: LngLat[], areas: LngLat[][] = []): P
     }
   }
   if (!elements) warnMissing("OpenStreetMap (Overpass): roundabouts, road widths, poles, lights, fences");
-  const features: OsmFeatures = { buildings: [], guardRails: [], roundaboutRings: [], poles: [], lamps: [], powerLines: [], barriers: [], groynes: [] };
+  const features: OsmFeatures = { buildings: [], guardRails: [], roundaboutRings: [], poles: [], lamps: [], powerLines: [], barriers: [], groynes: [], cattleGrids: [] };
   if (!elements) return { features };
 
   const ways: Way[] = [];
@@ -221,6 +223,7 @@ export async function fetchOsm(routeCoords: LngLat[], areas: LngLat[][] = []): P
     if (e.type === "node") {
       if (tags.power === "pole") features.poles!.push([e.lon!, e.lat!]);
       else if (tags.highway === "street_lamp") features.lamps!.push([e.lon!, e.lat!]);
+      else if (tags.barrier === "cattle_grid") features.cattleGrids!.push([e.lon!, e.lat!]);
       continue;
     }
     const pts = e.geometry!.map((g) => [g.lon, g.lat] as LngLat);
