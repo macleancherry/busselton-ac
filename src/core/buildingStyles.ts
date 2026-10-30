@@ -1,14 +1,14 @@
 // What buildings are made of, and which kinds of building wear what.
 //
 // A facade is a wall finish (brick, weatherboard, fibro, render, cladding,
-// Colorbond, tilt-up concrete, curtain glass, lattice) in one colour, with a
+// Colorbond, tilt-up concrete, curtain glass) in one colour, with a
 // layout of windows and doors that repeats every `period` metres along the
 // wall and every `storey` metres up it. Its texture is painted from that
 // spec at 32 px a metre; glass panes (the "window" material, which CSP
 // lights at night) go over the same openings.
 //
 // A building type picks facades, a roof shape and finish, storeys and extras
-// (stumps and a verandah on a Queenslander, an awning and parapet on a shop)
+// (a verandah on a cottage, an awning and parapet on a shop)
 // from what's known about the building: OSM tags, its height and footprint,
 // and points of interest inside it.
 
@@ -18,7 +18,7 @@ import { fill, valueNoise } from "./textures";
 
 type RGB = [number, number, number];
 
-export type WallKind = "brick" | "weatherboard" | "fibro" | "render" | "cladding" | "corrugated" | "panel" | "glass" | "lattice";
+export type WallKind = "brick" | "weatherboard" | "fibro" | "render" | "cladding" | "corrugated" | "panel" | "glass";
 
 /** A window or door in a layout: metres along the period, and up from the storey's floor. */
 export interface Opening {
@@ -37,8 +37,8 @@ export interface Layout {
   panes: boolean;
   /** A band up the storey with no openings, for gable ends. */
   plain: [number, number];
-  /** Extra painting: a shop sign above the windows, balcony slabs and balustrades, hoods over windows. */
-  band?: "sign" | "balcony" | "hood";
+  /** Extra painting: a shop sign above the windows, balcony slabs and balustrades. */
+  band?: "sign" | "balcony";
 }
 
 export const LAYOUTS = {
@@ -46,8 +46,6 @@ export const LAYOUTS = {
   house: { period: 8, storey: 3, openings: [{ x0: 1.125, x1: 3.375, z0: 0.94, z1: 2.25 }, { x0: 5.31, x1: 6.56, z0: 1.44, z1: 2.25 }], panes: true, plain: [0.1, 0.85] },
   // Floor-to-ceiling sliders and a tall slot window.
   modern: { period: 8, storey: 3, openings: [{ x0: 0.8, x1: 3.8, z0: 0.15, z1: 2.45 }, { x0: 5.6, x1: 6.2, z0: 0.6, z1: 2.45 }], panes: true, plain: [2.5, 2.95] },
-  // Pairs of tall double-hung windows under hoods.
-  queenslander: { period: 4, storey: 3, openings: [{ x0: 0.9, x1: 1.75, z0: 0.75, z1: 2.3 }, { x0: 2.25, x1: 3.1, z0: 0.75, z1: 2.3 }], panes: true, plain: [0.1, 0.7], band: "hood" },
   // Brick walk-up flats: living window and a small bathroom window, 2.8 m storeys.
   flats: { period: 6, storey: 2.8, openings: [{ x0: 0.8, x1: 2.6, z0: 0.9, z1: 2.2 }, { x0: 4, x1: 4.9, z0: 1.3, z1: 2.2 }], panes: true, plain: [0.1, 0.85] },
   // Modern apartments: full-height glass behind a balcony, and a bedroom window.
@@ -112,11 +110,6 @@ export const FACADES: Facade[] = [
   f("render_terracotta", "render", [196, 142, 112], "modern", WHITE),
   f("clad_timber", "cladding", [146, 112, 80], "modern", DARK),
   f("clad_black", "cladding", [58, 58, 60], "modern", [200, 200, 196]),
-  // Queenslanders: weatherboard on stumps, with a coloured trim.
-  f("qld_white", "weatherboard", [240, 238, 230], "queenslander", [60, 96, 72]),
-  f("qld_cream", "weatherboard", [236, 226, 196], "queenslander", [128, 44, 40]),
-  f("qld_blue", "weatherboard", [200, 214, 222], "queenslander", WHITE),
-  f("qld_yellow", "weatherboard", [238, 224, 170], "queenslander", [60, 80, 110]),
   // Walk-up flats.
   f("flats_red", "brick", [150, 78, 58], "flats"),
   f("flats_cream", "brick", [214, 190, 148], "flats"),
@@ -155,9 +148,6 @@ export const FACADES: Facade[] = [
   // Churches, halls and schools.
   f("hall_brick", "brick", [150, 78, 58], "hall"),
   f("hall_cream", "brick", [214, 190, 148], "hall"),
-  // Under a Queenslander.
-  f("lattice_white", "lattice", [236, 236, 230], "blank"),
-  f("lattice_green", "lattice", [60, 96, 72], "blank"),
 ];
 
 export const FACADE_INDEX = new Map(FACADES.map((x, i) => [x.name, i]));
@@ -257,11 +247,6 @@ function wallAt(fc: Facade, x: number, z: number, n: number, stain: number): RGB
     }
     case "glass":
       return fc.trim;
-    case "lattice": {
-      // Diagonal timber lattice over a dark void.
-      const d1 = ((x + z) / 0.15) % 1, d2 = ((x - z + 100) / 0.15) % 1;
-      return d1 < 0.3 || d2 < 0.3 ? k(1) : [34 + n, 32 + n, 30 + n];
-    }
   }
 }
 
@@ -302,16 +287,10 @@ export function facadeTexture(fc: Facade): Uint8Array {
     for (const o of L.openings) {
       const inside = x > o.x0 && x < o.x1 && z > o.z0 && z < o.z1;
       const inFrame = x > o.x0 - frame && x < o.x1 + frame && z > o.z0 - frame && z < o.z1 + frame;
-      if (L.band === "hood" && x > o.x0 - 0.12 && x < o.x1 + 0.12 && z > o.z1 + 0.08 && z < o.z1 + 0.3) {
-        // A sun hood over the window, in the trim colour, darker underneath.
-        const k = z < o.z1 + 0.12 ? 0.6 : 1;
-        return [fc.trim[0] * k + n, fc.trim[1] * k + n, fc.trim[2] * k + n];
-      }
       if (!inFrame) continue;
       if (!inside) return [fc.trim[0] + n, fc.trim[1] + n, fc.trim[2] + n];
       const u = (x - o.x0) / (o.x1 - o.x0), t = (o.z1 - z) / (o.z1 - o.z0);
-      const mull = (o.x1 - o.x0 > 1.6 && Math.abs(u - 0.5) * (o.x1 - o.x0) < 0.03)
-        || (fc.layout === "queenslander" && Math.abs(t - 0.5) * (o.z1 - o.z0) < 0.03);
+      const mull = o.x1 - o.x0 > 1.6 && Math.abs(u - 0.5) * (o.x1 - o.x0) < 0.03;
       if (mull) return [fc.trim[0] + n, fc.trim[1] + n, fc.trim[2] + n];
       if (fc.wall === "glass") {
         // Spandrel at the slab, then vision glass.
@@ -374,7 +353,7 @@ export type RoofShape = "flat" | "gable" | "hip" | "skillion";
 
 /** How a building is dressed: set by dressBuilding, read by buildBuildings. */
 export interface Dress {
-  /** What kind of building it is (house, queenslander, shop, ...). */
+  /** What kind of building it is (house, shop, ...). */
   type: string;
   facade: number;
   /** A different ground floor (shopfronts under offices or flats). */
@@ -383,11 +362,8 @@ export interface Dress {
   roofColour: number;
   /** Roof pitch, degrees. */
   pitch: number;
-  /** Wall height to the eaves (or roof), metres, above any stumps. */
+  /** Wall height to the eaves (or roof), metres. */
   height: number;
-  /** Raised on stumps this high, with lattice (this facade) between them. */
-  stumps?: number;
-  under?: number;
   /** A verandah across the street front. */
   verandah?: boolean;
   /** A shop awning over the footpath. */
@@ -409,8 +385,6 @@ export interface DressInfo {
   poi?: string;
   /** Roof colour seen in the aerial photo, if any (index into ROOF_COLOURS). */
   photoRoof?: number;
-  /** In Queensland, where raised timber houses are common. */
-  queensland: boolean;
   /** Rectangular enough for a pitched roof. */
   rectangle: boolean;
   /** On the street front (for shops: awnings over the footpath). */
@@ -438,7 +412,6 @@ const BRICK = ["brick_red", "brick_cream", "brick_brown", "brick_tan", "brick_da
 const WEATHERBOARD = ["wb_white", "wb_cream", "wb_grey", "wb_sage", "wb_blue", "wb_yellow"];
 const FIBRO = ["fibro_white", "fibro_mint", "fibro_blue", "fibro_pink"];
 const MODERN = ["render_white", "render_grey", "render_charcoal", "render_sand", "render_terracotta", "clad_timber", "clad_black"];
-const QLD = ["qld_white", "qld_cream", "qld_blue", "qld_yellow"];
 const METAL = ["surfmist", "shalegrey", "windspray", "woodland", "monument", "cream", "paperbark", "jasper", "manorred", "deepocean", "basalt", "dune"];
 const TILES = ["terracotta", "terracotta_aged", "tile_charcoal", "tile_slate", "tile_brown", "tile_red", "tile_sand"];
 
@@ -507,17 +480,10 @@ export function dressBuilding(info: DressInfo): Dress {
   }
   // Houses.
   const style = weighted(rand, [
-    ["brick", 34], ["modern", 16], ["weatherboard", 14], ["fibro", 7], ["queenslander", info.queensland ? 16 : 0], ["townhouse", info.area > 140 ? 9 : 0],
+    ["brick", 34], ["modern", 16], ["weatherboard", 14], ["fibro", 7], ["townhouse", info.area > 140 ? 9 : 0],
   ] as [string, number][]);
-  const twoStorey = style === "townhouse" || (style !== "queenslander" && style !== "fibro" && info.area > 150 && rand() < 0.25);
+  const twoStorey = style === "townhouse" || (style !== "fibro" && info.area > 150 && rand() < 0.25);
   const wallHeight = twoStorey ? 5.7 : 2.7;
-  if (style === "queenslander") {
-    return {
-      type: "queenslander", facade: facadeIndex(pick(rand, QLD)), roof: info.rectangle ? (rand() < 0.7 ? "hip" : "gable") : "flat",
-      roofColour: info.photoRoof !== undefined && ROOF_COLOURS[info.photoRoof].kind === "metal" ? info.photoRoof : roofIndex(pick(rand, METAL)),
-      pitch: 30, height: 2.9, stumps: 1.6 + rand() * 0.8, under: facadeIndex(rand() < 0.7 ? "lattice_white" : "lattice_green"), verandah: info.fronted,
-    };
-  }
   if (style === "modern" || style === "townhouse") {
     const shape = info.rectangle ? weighted(rand, [["skillion", 4], ["flat", 3], ["hip", 2], ["gable", 1]] as [RoofShape, number][]) : "flat";
     return {

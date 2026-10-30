@@ -4,7 +4,7 @@ import { dressBuilding, FACADES, facadeTexture, LAYOUTS, ROOF_COLOURS, roofTextu
 import { decodeOwnPng } from "../src/core/png";
 import type { Kn5MeshNode } from "../src/core/kn5";
 
-const info = (o: Partial<DressInfo>): DressInfo => ({ area: 160, queensland: false, rectangle: true, fronted: true, seed: 1, ...o });
+const info = (o: Partial<DressInfo>): DressInfo => ({ area: 160, rectangle: true, fronted: true, seed: 1, ...o });
 
 describe("building types", () => {
   it("makes tall buildings towers or apartments, with flat roofs behind a parapet", () => {
@@ -31,20 +31,8 @@ describe("building types", () => {
     expect(dressBuilding(info({ area: 18 })).type).toBe("shed");
   });
 
-  it("raises some Queensland houses on stumps with a verandah, and none elsewhere", () => {
-    const qld = Array.from({ length: 200 }, (_, seed) => dressBuilding(info({ queensland: true, seed })));
-    const raised = qld.filter((d) => d.type === "queenslander");
-    expect(raised.length).toBeGreaterThan(15);
-    for (const d of raised) {
-      expect(d.stumps).toBeGreaterThan(1.5);
-      expect(d.verandah).toBe(true);
-      expect(ROOF_COLOURS[d.roofColour].kind).toBe("metal");
-    }
-    expect(Array.from({ length: 200 }, (_, seed) => dressBuilding(info({ seed }))).some((d) => d.type === "queenslander")).toBe(false);
-  });
-
   it("uses many different facades and roofs across a suburb", () => {
-    const ds = Array.from({ length: 300 }, (_, seed) => dressBuilding(info({ queensland: true, seed, area: 80 + (seed % 7) * 40 })));
+    const ds = Array.from({ length: 300 }, (_, seed) => dressBuilding(info({ seed, area: 80 + (seed % 7) * 40 })));
     expect(new Set(ds.map((d) => d.facade)).size).toBeGreaterThan(20);
     expect(new Set(ds.map((d) => d.roofColour)).size).toBeGreaterThan(12);
   });
@@ -87,23 +75,17 @@ describe("building geometry", () => {
     Array.from({ length: n.normals.length / 3 }, (_, i) => [n.normals[i * 3], -n.normals[i * 3 + 2], n.normals[i * 3 + 1]]));
   const facade = (name: string) => FACADES.findIndex((f) => f.name === name);
 
-  it("raises a Queenslander on stumps behind lattice, with a verandah, deck and posts out front", () => {
-    const nodes = build({ type: "queenslander", facade: facade("qld_white"), stumps: 2, under: facade("lattice_white"), verandah: true, pitch: 30, height: 2.9 });
-    const lattice = verts(nodes, /^1WALL_BLD_lattice_white/);
-    expect(Math.max(...lattice.map((p) => p[2]))).toBeCloseTo(12, 3); // up to the floor
-    const wall = verts(nodes, /^1WALL_BLD_qld_white/);
-    expect(Math.min(...wall.map((p) => p[2]))).toBeCloseTo(12, 3); // walls start at the floor
-    expect(Math.max(...wall.map((p) => p[2]))).toBeCloseTo(14.9, 3);
-    const deck = verts(nodes, /^DECK_/);
-    expect(deck.every((p) => Math.abs(p[2] - 12) < 1e-3)).toBe(true);
-    expect(Math.min(...deck.map((p) => p[1]))).toBeLessThan(-2); // out in front (south)
-    expect(normals(nodes, /^DECK_/).every((n) => n[2] > 0.99)).toBe(true);
+  it("gives a cottage a verandah on posts out front, sloping down away from the house", () => {
+    const nodes = build({ facade: facade("wb_white"), verandah: true, pitch: 20, height: 2.7 });
+    const wall = verts(nodes, /^1WALL_BLD_wb_white/);
+    expect(Math.max(...wall.map((p) => p[2]))).toBeCloseTo(12.7, 3);
+    expect(nodes.some((n) => /^DECK_/.test(n.name))).toBe(false);
     const posts = verts(nodes, /^POSTS_/);
     expect(posts.length).toBeGreaterThan(0);
-    // The verandah roof slopes down away from the house.
+    expect(Math.min(...posts.map((p) => p[1]))).toBeLessThan(-1.4); // out in front (south)
     const roofFront = verts(nodes, /^ROOF_/).filter((p) => p[1] < -1);
     expect(roofFront.length).toBeGreaterThan(0);
-    expect(Math.max(...roofFront.map((p) => p[2]))).toBeLessThan(14.9);
+    expect(Math.max(...roofFront.map((p) => p[2]))).toBeLessThan(12.7);
   });
 
   it("gives a shop a shopfront, a parapet above its flat roof and an awning facing up and out", () => {

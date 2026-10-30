@@ -12,7 +12,7 @@ Replaces `src/core/buildingStyles.ts` (upstream-derived, about 95% match, plus t
 
 ## Layouts
 
-A layout has: period (metres along the wall before it repeats), storey height, a list of openings (each x0..x1 along the period and z0..z1 up from the storey floor, kind window, shop or door), whether glass panes go over the windows (CSP lights rooms behind them), a plain band (z range of the storey with no openings, used for gable ends), and optional extra painting (shop sign band, balcony, window hoods).
+A layout has: period (metres along the wall before it repeats), storey height, a list of openings (each x0..x1 along the period and z0..z1 up from the storey floor, kind window, shop or door), whether glass panes go over the windows (CSP lights rooms behind them), a plain band (z range of the storey with no openings, used for gable ends), and optional extra painting (shop sign band, balcony).
 
 Layouts needed (names are referenced by name elsewhere; dimensions are the design, keep or tune):
 
@@ -20,7 +20,6 @@ Layouts needed (names are referenced by name elsewhere; dimensions are the desig
 | --- | --- | --- | --- | --- | --- |
 | house | 8 | 3 | a wide living window (about 2.25 m wide, sill 0.94, head 2.25) and a small high one | yes | |
 | modern | 8 | 3 | a floor-to-ceiling slider (3 m) and a tall slot window | yes | |
-| queenslander | 4 | 3 | a pair of tall double-hung windows | yes | hoods |
 | flats | 6 | 2.8 | living window and small bathroom window | yes | |
 | apartment | 7 | 3 | full-height glass (4.6 m) and a bedroom window | yes | balcony |
 | office | 3 | 3.6 | a ribbon of glass nearly the full period | yes | |
@@ -33,14 +32,13 @@ Layouts needed (names are referenced by name elsewhere; dimensions are the desig
 
 ## Facades
 
-Each: a name (unique; used in material and mesh names and in house looks), wall kind, colour, trim (window frames; mullions on glass), layout, optional sign colour. Wall kinds: brick, weatherboard, fibro, render, cladding, corrugated, panel, glass, lattice.
+Each: a name (unique; used in material and mesh names and in house looks), wall kind, colour, trim (window frames; mullions on glass), layout, optional sign colour. Wall kinds: brick, weatherboard, fibro, render, cladding, corrugated, panel, glass.
 
 The set (names matter: `houseLooks.ts`, route `houseStyle` mixes, house-look JSON files and `specHouse` refer to them by name):
 
 - Brick veneer houses: `brick_red`, `brick_cream`, `brick_brown`, `brick_tan`, `brick_dark`, `brick_painted` (painted brick, dark trim).
 - Weatherboard: `wb_white`, `wb_cream`, `wb_grey`, `wb_sage`, `wb_blue`, `wb_yellow`. Fibro: `fibro_white`, `fibro_mint`, `fibro_blue`, `fibro_pink`.
 - Modern (render or cladding, dark frames, modern layout): `render_white`, `render_grey`, `render_charcoal`, `render_sand`, `render_terracotta`, `clad_timber`, `clad_black`.
-- Queenslanders: `qld_white`, `qld_cream`, `qld_blue`, `qld_yellow` (coloured trim).
 - Walk-up flats: `flats_red`, `flats_cream`, `flats_brown`, `flats_render`.
 - Apartments: `apt_white`, `apt_grey`, `apt_sand`, `apt_charcoal`.
 - Offices: `office_grey`, `office_brick`, `office_white`.
@@ -48,7 +46,6 @@ The set (names matter: `houseLooks.ts`, route `houseStyle` mixes, house-look JSO
 - Shopfronts (with sign colours red, blue, green, black, yellow): `shop_red`, `shop_blue`, `shop_green`, `shop_black`, `shop_yellow`. Above shops: `upper_brick`, `upper_cream`, `upper_blue`.
 - Sheds and warehouses (Colorbond corrugated, or tilt-up panels): `shed_surfmist`, `shed_shale`, `shed_woodland`, `shed_ocean`, `shed_cream`, `tiltup`.
 - Halls: `hall_brick`, `hall_cream`.
-- Under a Queenslander: `lattice_white`, `lattice_green`.
 
 Colours: pick plausible real-world values for each name (brick reds and creams, the published Colorbond colours for the shed and roof finishes). Export a name-to-index map. Order matters only within a build (indices are stored on buildings during a build), so the new list may reorder freely as long as everything looks names up.
 
@@ -68,12 +65,11 @@ One period wide, one storey tall, floor at the bottom. Per pixel, in priority or
 
 1. **Shop sign band** (sign layouts): a fascia in the sign colour from 3.1 to 3.85 m, with pale blocky "lettering" in its middle third (rows of short pale bars, some missing). Not real text.
 2. **Balcony** (balcony layouts): a slab edge slightly lighter than the wall at the floor (up to 0.22 m); a glass balustrade to 1.15 m in front of the big window, with a trim-colour top rail and ends; behind it the window or wall, washed toward a pale blue-grey.
-3. **Hoods** (hood layouts): a trim-colour hood just above each window, darker on its underside.
-4. **Openings:** a 6 cm frame in the trim colour around each opening; mullions in wide openings (over 1.6 m: a vertical centre bar) and on Queenslander windows (a horizontal centre bar). Inside:
+3. **Openings:** a 6 cm frame in the trim colour around each opening; a mullion (vertical centre bar) in wide openings (over 1.6 m). Inside:
    - glass facades: the glass colour, darker in the spandrel below 0.9 m, brighter toward the top;
    - shop windows and doors: a lit interior (pale walls getting darker downward, shelf lines and coloured goods in the upper part of shop windows);
    - other windows: glass reflecting sky (brighter at the top) with a hint of curtain at the sides.
-5. **Bare wall** by kind (real-world sizes, joints at least a pixel wide so they survive 32 px a metre):
+4. **Bare wall** by kind (real-world sizes, joints at least a pixel wide so they survive 32 px a metre):
    - brick: 230 x 76 mm bricks with 10 mm mortar, stretcher bond, each brick a slightly different tone, light mortar;
    - weatherboard: 150 mm boards, a shadow line under each lap;
    - fibro: 1.2 m sheets behind cover strips;
@@ -81,8 +77,7 @@ One period wide, one storey tall, floor at the bottom. Per pixel, in priority or
    - cladding: vertical 140 mm boards with grooves, each board a slightly different tone;
    - corrugated: vertical ribs (every other rib of 76 mm pitch, so it doesn't alias);
    - panel: 3 m by one-storey precast panels with joints;
-   - glass: the trim colour (mullions and spandrels);
-   - lattice: diagonal timber lattice over a dark void.
+   - glass: the trim colour (mullions and spandrels).
    A low-frequency stain noise and per-pixel grain vary every finish slightly.
 
 ### Roof texture
@@ -97,7 +92,7 @@ Grain on all of them.
 
 ## Dressing (`dressBuilding`)
 
-**Inputs:** known height (only if OSM actually gave one; a guess must be passed as unknown), OSM `building` kind, footprint area, the class of a point of interest inside it, the roof finish seen in the photo, whether it's in Queensland, whether the footprint is a rectangle, whether it's on the street front (setback under 15 m), and a seed. The pipeline seeds from the centroid, so the same building looks the same every build.
+**Inputs:** known height (only if OSM actually gave one; a guess must be passed as unknown), OSM `building` kind, footprint area, the class of a point of interest inside it, the roof finish seen in the photo, whether the footprint is a rectangle, whether it's on the street front (setback under 15 m), and a seed. The pipeline seeds from the centroid, so the same building looks the same every build.
 
 **Output:** the dress fields (see the building record in buildings.md).
 
@@ -110,8 +105,7 @@ Rules, first match wins. "Photo roof" means use the photo's finish when known, e
 5. **Warehouses:** kind industrial, warehouse, manufacture, factory, hangar, barn, farm_auxiliary, or area over 700 m^2. Shed or tilt-up facade (tilt-up weighted double). Rectangle: gable at pitch 6 with a metal photo roof; else flat. Height known, clamped 5 to 10 (7 if unknown). Garage door.
 6. **Sheds:** kind garage, garages, shed, carport, hut, cabin, roof, or area under 30 m^2. Shed facade; rectangle: gable or skillion; else flat; pitch 10; height 2.4.
 7. **Mid-size low building on the street:** over 350 m^2 and fronted, half the time a single-storey shop with an awning.
-8. **Houses:** weighted style: brick 34, modern 16, weatherboard 14, fibro 7, Queenslander 16 (only in Queensland), townhouse 9 (only over 140 m^2). Two storeys for townhouses, or (not Queenslander or fibro) over 150 m^2 and 25%: wall height 5.7, else 2.7.
-   - Queenslander: Queenslander facade; rectangle: hip 70% / gable; metal roof (photo roof if it's metal); pitch 30; height 2.9; stumps 1.6 to 2.4 m with white (70%) or green lattice; verandah if fronted.
+8. **Houses:** weighted style: brick 34, modern 16, weatherboard 14, fibro 7, townhouse 9 (only over 140 m^2). Two storeys for townhouses, or (not fibro) over 150 m^2 and 25%: wall height 5.7, else 2.7.
    - Modern or townhouse: modern facade; rectangle: weighted skillion 4, flat 3, hip 2, gable 1; flat roofs membrane/gravel with a 0.5 m parapet, others a metal photo roof; pitch 6 for skillion, else 20.
    - Brick, weatherboard, fibro: that style's facades; rectangle: hip 68% / gable; brick roofs from tiles or the first six metals, others metal; pitch 22 for brick under a tile photo roof, else 20. Weatherboard fronted: verandah 40%.
 
@@ -129,7 +123,6 @@ The pipeline keeps a garage flag the building already had if the dress doesn't s
 
 - Known height 0 or missing vs a guessed height: the pipeline must pass unknown for a guess (it does: vector-tile `render_height` 5 is treated as a guess).
 - Photo roof on a flat-roofed type: halls and shops use it; flat towers ignore it.
-- Queenslander with a non-metal photo roof: falls back to a random metal.
 - A weighted draw where all weights for a style are 0 (not possible with brick always present).
 - Facade names containing surface keys (`sand`): buildings.md makes mesh names safe.
 
@@ -141,12 +134,10 @@ The pipeline keeps a garage flag the building already had if the dress doesn't s
 4. Facade textures: dimensions are period x storey at 32 px/m rounded to multiples of 4; same bytes twice; a window's centre pixel differs from the wall; brick shows mortar lines; a shopfront has the sign colour in its sign band.
 5. Roof textures: 128 x 128; same bytes twice; terracotta mostly red, membrane near its grey.
 6. Dressing, one per rule: a church is a hall; a 40 m tower; an office at 20 m is glass; apartments at 12 m; a cafe POI gives a shop with an awning when fronted; a 900 m^2 unknown building is a warehouse with a garage; a 20 m^2 one a shed; a plain 150 m^2 house is a house with a pitched roof when rectangular, flat when not.
-7. Queenslanders never outside Queensland (many seeds); sometimes inside it, always with stumps and lattice.
-8. Same info and seed give the same dress; different seeds vary facades.
-9. The photo roof is used where the rules say so.
+7. Same info and seed give the same dress; different seeds vary facades.
+8. The photo roof is used where the rules say so.
 
 ## Could be deleted instead of rewritten (for Mac)
 
-- **Queenslander type** (its layout, four facades, two lattice facades, stumps, raised decks in buildings.md). Only chosen in Queensland; never in WA. Delete it all.
 - **Glass towers and the curtain layout** (towers need 30 m of mapped height, or an 18 m office). Probably nothing in the South West qualifies. Cheap to keep; delete if Mac wants a smaller module.
 - **Fibro facades** are real in old WA towns; keep.

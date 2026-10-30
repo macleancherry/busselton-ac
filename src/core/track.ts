@@ -460,7 +460,6 @@ function dressBuildings(buildings: Building[], ctx: {
   /** Distance from a point to the nearest road edge (route or street), metres. */
   roadEdge: (x: number, y: number) => number;
   pois: { at: Vec2; cls: string; subclass: string }[];
-  queensland: boolean;
 }): void {
   const SHOPLIKE = /^(shop|grocery|clothing_store|cafe|restaurant|fast_food|bar|pub)$/;
   buildings.forEach((b) => {
@@ -495,7 +494,6 @@ function dressBuildings(buildings: Building[], ctx: {
       area: Math.abs(ringArea(b.ring)),
       poi: poi?.cls,
       photoRoof: b.source !== "osm" || tags["roof:colour"] ? b.roofColour : undefined,
-      queensland: ctx.queensland,
       rectangle: isRectangle(b.ring),
       fronted: b.setback !== undefined && b.setback < 15,
       // From where the building is, not its place in the list (which can arrive in a different
@@ -892,7 +890,6 @@ export async function buildTrack(
       return Math.min(n ? n.dist - index.at(n).width / 2 : Infinity, streetIndex.clearance(x, y));
     },
     pois: (sources.pois ?? []).map((p) => ({ at: proj.toLocal(p.at), cls: p.cls, subclass: p.subclass })),
-    queensland: proj.origin[1] > -29.2 && proj.origin[1] < -10 && proj.origin[0] > 138,
   });
   // Only the wall and roof finishes these buildings wear go in the file.
   const finishes = usedFinishes(kept);

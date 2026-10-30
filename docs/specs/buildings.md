@@ -7,12 +7,12 @@ Replaces `src/core/buildings.ts` (upstream-derived, about 95% match). The kinds 
 1. Turns OSM footprints into buildings (height from tags, a roof guess for small houses).
 2. Detects roofs in aerial photo chunks and makes placeholder houses from them.
 3. Filters buildings against the road and against each other.
-4. Builds the meshes: walls (collidable), roofs, soffits, window glass, garage and front doors, driveways, verandahs, decks, shop awnings.
+4. Builds the meshes: walls (collidable), roofs, soffits, window glass, garage and front doors, driveways, verandahs, shop awnings.
 5. Small geometry helpers others use: signed ring area, point in ring, centroid, rectangle test.
 
 ## The building record
 
-A footprint ring (local metres, first point not repeated), where it came from (`osm`, `detected` from the photo, or `frontage`: a house found along a street frontage by `frontage.ts`), OSM tags if mapped, plus the dress fields from buildingStyles (type, facade, optional ground-floor facade, roof shape, roof finish, pitch, wall height, stumps and the facade between them, verandah, awning, parapet, garage). Optional, when known: the front wall (its two corners), the setback from the road edge to the front wall, what's along the front boundary (none, limestone, brick, hedge) and hedge height (used by `lots.ts`).
+A footprint ring (local metres, first point not repeated), where it came from (`osm`, `detected` from the photo, or `frontage`: a house found along a street frontage by `frontage.ts`), OSM tags if mapped, plus the dress fields from buildingStyles (type, facade, optional ground-floor facade, roof shape, roof finish, pitch, wall height, verandah, awning, parapet, garage). Optional, when known: the front wall (its two corners), the setback from the road edge to the front wall, what's along the front boundary (none, limestone, brick, hedge) and hedge height (used by `lots.ts`).
 
 Other modules (`frontage.ts`, `lots.ts`, `shops.ts`, `houseLooks.ts`, `specHouse` users, the pipeline) read and write this record, so keep the field names or update them together.
 
@@ -67,15 +67,14 @@ The pipeline adds more filters (rings near roundabouts, detected roofs on street
 
 - Make the ring counter-clockwise.
 - Sample `ground` at every corner, every edge midpoint and the centroid. Floor = the lowest corner; base of the walls = the lowest of all samples minus SINK. (The old version used corners only and a fixed 0.4 m skirt; sampling the edges as well covers a dip under a long wall without a deep skirt.)
-- Wall top = highest corner + stumps + wall height. Parapets add on top for flat roofs.
+- Wall top = highest corner + wall height. Parapets add on top for flat roofs.
 - Pitched roofs only on four-cornered footprints; anything else gets flat.
 
 ### Walls in bands
 
 Walls go up in bands, each with its own facade and window layout:
-1. Between stumps (if raised and there's an under-facade, e.g. lattice): from the base to the raised floor, blank layout.
-2. A ground-floor facade (shopfront under offices or flats), if given: one storey of that layout from the floor.
-3. The main facade up to the wall top.
+1. A ground-floor facade (shopfront under offices or flats), if given: from the base to one storey of that layout above the floor.
+2. The main facade up to the wall top.
 
 Each band is one quad per wall, outside on the right of each edge, flat normals. UVs: u runs continuously round the building (metres / layout period), v counts storeys from that band's floor (v = 1 at the floor, decreasing upward), so the facade texture lines up storey by storey.
 
@@ -84,7 +83,7 @@ Each band is one quad per wall, outside on the right of each edge, flat normals.
 ### Roofs
 
 - **Flat:** the ring triangulated (earcut) at the wall top, normal up, faces wound upward; UVs = metres / 2. A parapet above it: plain wall outside and in.
-- **Pitched (hip, gable, skillion):** rotate the ring so its first edge is a long side. Eave overhang: 0.6 m on a Queenslander, 0.2 m on warehouses and sheds, 0.45 m otherwise. The roof edge is the footprint grown by the overhang along both axes and lowered by overhang times the pitch.
+- **Pitched (hip, gable, skillion):** rotate the ring so its first edge is a long side. Eave overhang: 0.2 m on warehouses and sheds, 0.45 m otherwise. The roof edge is the footprint grown by the overhang along both axes and lowered by overhang times the pitch.
   - *Gable:* ridge along the long axis at wall top + half the span times tan(pitch), running the full length out to the overhang. Two roof planes; each gable end is a wall triangle up to the ridge, in the wall's plane, textured with the facade's plain band (no windows) squeezed to fit.
   - *Hip:* ridge shortened by half the span at each end (never past the middle); two trapezoid planes and two hip triangles.
   - *Skillion:* one plane rising from the second long side to the first; the high wall continues up to the roof and the ends are wall triangles.
@@ -93,21 +92,21 @@ Each band is one quad per wall, outside on the right of each edge, flat normals.
 
 ### Street front (only when the front wall is known)
 
-- **Doors:** for houses, townhouses and warehouses, not raised houses. Warehouse: one roller door a third of the way along if the wall is at least 8 m (4.5 m wide, 4.2 m high). House with a garage and a front wall of at least 6 m: a 2.6 x 2.1 m roller door 0.6 m from the wall's start, and a 0.85 x 2.05 m front door near the far end (at most 4.2 m along, at least 1.4 m from the end); with no garage, the front door a third of the way along. Doors stand 2 cm proud, their bottom at the lower of `ground` at their two ends. Walls of under 5 m get none. Meshes `GARAGE_NNN` (material `garage`) and `DOOR_NNN` (`door`).
+- **Doors:** for houses, townhouses and warehouses. Warehouse: one roller door a third of the way along if the wall is at least 8 m (4.5 m wide, 4.2 m high). House with a garage and a front wall of at least 6 m: a 2.6 x 2.1 m roller door 0.6 m from the wall's start, and a 0.85 x 2.05 m front door near the far end (at most 4.2 m along, at least 1.4 m from the end); with no garage, the front door a third of the way along. Doors stand 2 cm proud, their bottom at the lower of `ground` at their two ends. Walls of under 5 m get none. Meshes `GARAGE_NNN` (material `garage`) and `DOOR_NNN` (`door`).
 - **Driveway:** from the garage door out toward the road to where the nature strip starts (setback minus 3.5 m), if that's over 1 m: a quad 0.2 m wider than the door each side, 3 cm above `ground` at each corner. Mesh `DRIVEWAY_NNN`, material `concrete`.
-- **Verandah:** if the building has one, the front wall is at least 5 m and the depth fits (depth = min(2.6, setback minus 1.2), at least 1.5): a skillion of the roof's finish from just under the eaves out to depth + 0.3 m at a 10 degree fall, 0.2 m past each end; its underside as soffit; timber posts (mesh `POSTS_NNN`, material `canopy`) about every 2.6 m along at the depth line, from SINK below `ground` at each post to the verandah's underside. On a raised house (stumps over 0.3 m), a deck at floor height (mesh `DECK_NNN`, `timber`) with a lattice skirt round its three open sides.
+- **Verandah:** if the building has one, the front wall is at least 5 m and the depth fits (depth = min(2.6, setback minus 1.2), at least 1.5): a skillion of the roof's finish from just under the eaves out to depth + 0.3 m at a 10 degree fall, 0.2 m past each end; its underside as soffit; timber posts (mesh `POSTS_NNN`, material `canopy`) about every 2.6 m along at the depth line, from SINK below `ground` at each post to the verandah's underside.
 - **Shop awning:** if the building has one, the front wall is at least 4 m and reach = min(3, setback minus 0.4) is at least 1.2: a cantilevered slab 3 m above the floor, 0.35 m thick, top, underside and fascia on the three open sides. Mesh `AWNING_NNN`, material `canopy`.
 
 ### Mesh names and materials
 
 - Walls per facade: `1WALL_BLD_<facade name>_NNN`, material `facade_<facade name>`. AC picks a mesh's surface by matching surface keys anywhere in its name, so first make the facade name safe: replace `sand` with `snd`, `grass` with `grs`, `gravel` with `grvl`, `kerb` with `krb`, `road` with `rd`, `dirt` with `drt` (case-insensitive). Without this `render_sand` walls were also sand.
 - Roofs per finish: `ROOF_<finish name>_NNN`, material `roof_<finish name>`.
-- Soffits, windows, garage, doors, driveways: no shadows. Posts, decks, awnings, walls and roofs cast shadows.
+- Soffits, windows, garage, doors, driveways: no shadows. Posts, awnings, walls and roofs cast shadows.
 - All via the chunked mesh accumulator.
 
 ### Which textures ship (`usedFinishes`)
 
-The set of facades (main, ground-floor, and the under-facade on raised houses) and roof finishes the buildings use, so the pipeline only writes those textures.
+The set of facades (main and ground-floor) and roof finishes the buildings use, so the pipeline only writes those textures.
 
 ## Call sites
 
@@ -135,15 +134,14 @@ Helpers (ring area, point in ring, centroid, rectangle) are general geometry: pu
 4. Roof colour: a terracotta RGB maps to a tile finish, pale grey to a pale metal; membrane and gravel never chosen.
 5. Detection: a synthetic 12 x 9 m pale rectangle on grass gives one building close to that size and orientation; a 1 m wide pale line (a path) gives none; a 30 x 30 m patch (over 700 m^2) none; a terracotta patch gets a tile finish.
 6. Filtering: a detected roof inside a mapped building dropped; a building on the verge dropped; one beyond the max distance dropped.
-7. Meshes on a tilted ground: wall bases at least SINK under the lowest sample, wall tops at highest corner + height; a raised house's floor at stumps height.
+7. Meshes on a tilted ground: wall bases at least SINK under the lowest sample, wall tops at highest corner + height.
 8. Each roof shape: triangle counts and that every roof normal points up; a gable has two wall triangles, a hip four roof faces.
 9. Windows: none over doors or past the wall ends; none on layouts without panes; none behind the garage on the front wall.
 10. Front: a house with a garage gets a garage door, a front door and a driveway; no front wall known, none; a warehouse gets one big door.
 11. Names: a `render_sand` facade's wall mesh doesn't contain "sand"; walls start `1WALL_BLD_`; roofs `ROOF_`; window material `window`.
-12. usedFinishes lists every facade (including lattice under a raised house) and roof finish used.
+12. usedFinishes lists every facade (main and ground-floor) and roof finish used.
 
 ## Could be deleted instead of rewritten (for Mac)
 
-- **Stumps, lattice skirts and raised decks** only come from the Queenslander type, which is only chosen in Queensland. No WA build will ever make one. Delete with the Queenslander type (buildingStyles spec).
 - **Warehouse roller door** is cheap; keep.
 - **Photo roof detection** stays: it's most of the houses (564 of 715 buildings in the Busselton base).

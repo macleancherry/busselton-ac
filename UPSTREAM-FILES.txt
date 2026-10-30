@@ -25,6 +25,7 @@ src/core/lots.ts
 src/core/markings.ts
 src/core/materials.ts
 src/core/mesh.ts
+src/core/network/geom.ts
 src/core/options.ts
 src/core/paintLines.ts
 src/core/photoSurface.ts
