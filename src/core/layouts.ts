@@ -15,7 +15,7 @@ import { aiHintsIni, buildAiLine } from "./aiLine";
 import { layoutChallengesIni } from "./challengeFiles";
 import type { ChallengesOption } from "./challenges";
 import { landmarkShots, type Landmark } from "./landmarkShots";
-import { writeFastLaneAi } from "./aiSpline";
+import { readFastLaneAi, writeFastLaneAi, type AiPoint } from "./aiSpline";
 import { camerasIni, placeCameras } from "./cameras";
 import { outlinePng, previewPng, trackMap, uiTrackJson, type TrackMeta } from "./acFiles";
 import { frameTransform, IDENTITY, writeKn5, type Kn5GroupNode, type Kn5Model, type Kn5Node } from "./kn5";
@@ -106,11 +106,23 @@ export interface LayoutSpec {
   name: string;
   /** A route over the world's roads: the routed geometry, [lng, lat]. */
   coords?: LngLat[];
-  /** Free roam: where cars start, [lng, lat] and heading in degrees clockwise from north. */
+  /**
+   * Free roam: where cars start, [lng, lat] and heading in degrees clockwise from north. With
+   * `coords` as well, those are the free roam's own AI loop (for AI Flood) instead of the main
+   * layout's line.
+   */
   spawns?: { at: LngLat; heading: number }[];
   /** Busselton fork: hand-picked checkpoints for the Busselton Challenges app (challenges.ts). */
   challenges?: ChallengesOption;
+  /**
+   * Free roam: pit boxes in all (default FLOOD_PITS). Track Day gives each AI car a pit box, so
+   * this caps how many AI cars AI Flood can use; the extra boxes go on the AI line (floodPits).
+   */
+  aiPits?: number;
 }
+
+/** Free roam's default pit box count: enough AI cars for AI Flood in town without loading the 4060. */
+export const FLOOD_PITS = 24;
 
 export interface World {
   slug: string;
@@ -120,6 +132,8 @@ export interface World {
   meta: Partial<TrackMeta>;
   /** The main layout's AI line, for free roam (AC wants one). */
   mainAi?: Uint8Array;
+  /** The main layout's AI hints (speed limits), which go with mainAi. */
+  mainHints?: Uint8Array;
   /**
    * The world's road and street centrelines (local metres) and its roundabouts: a layout's route
    * is pulled onto them, since the router's line and the built street can sit metres apart.
@@ -234,6 +248,68 @@ function fillHeights(hs: (number | null)[], fallback: number): number[] {
 const dummy = (name: string, pos: [number, number, number], fwd: [number, number, number]): Kn5GroupNode =>
   ({ kind: "node", name, transform: frameTransform(pos, fwd), children: [] });
 
+/**
+ * A route's AI line on the world's streets: the route pulled onto the built centrelines, heights
+ * from the road surface, and the speed limit of the street under each stretch.
+ */
+function routeAi(world: World, coords: LngLat[], opts: BuildOptions, height: (x: number, y: number) => number | null) {
+  const local = coords.map((p) => world.proj.toLocal(p));
+  // On to the world's own streets (densified first, so long straight legs follow them too).
+  const dense: Vec2[] = [];
+  local.forEach((p, i) => {
+    if (i) {
+      const q = local[i - 1], n = Math.ceil(Math.hypot(p[0] - q[0], p[1] - q[1]) / 4);
+      for (let k = 1; k < n; k++) dense.push([q[0] + ((p[0] - q[0]) * k) / n, q[1] + ((p[1] - q[1]) * k) / n]);
+    }
+    dense.push(p);
+  });
+  const plan = planRoad(world.lines?.length ? snapToLines(dense, world.lines, world.rings) : local, opts);
+  const hs = fillHeights(plan.samples.map((s) => height(s.pos[0], s.pos[1])), 0);
+  plan.samples.forEach((s, i) => { s.h = hs[i]; s.bank = 0; });
+  const ai = keepOnSurface(buildAiLine(plan), height);
+  // Speed limits from the street each stretch is on (the world's), so the AI drives a town street
+  // at 50 rather than at the grip limit.
+  let limitAt: ((d: number) => number | undefined) | undefined;
+  if (world.lines?.length && world.speeds?.length) {
+    const grid = new LineGrid(world.lines, 12);
+    const lim = plan.samples.map((smp) => { const n = grid.nearest(smp.pos); return n ? world.speeds![n.line] : undefined; });
+    const total = ai.length ? ai[ai.length - 1].distance + ai[ai.length - 1].length : 1;
+    limitAt = (d) => lim[Math.max(0, Math.min(lim.length - 1, Math.round((d / total) * (lim.length - 1))))];
+  }
+  return { plan, hs, ai, limitAt, hints: aiHintsIni(ai, limitAt, !plan.closed) };
+}
+
+/**
+ * Pit boxes for AI Flood (CSP, Track Day): `n` spots spread evenly round the AI line, each on the
+ * line and facing along it, so every AI car starts on its line and drives straight off (there is no
+ * pit lane). Kept off tight corners and roundabouts (radius under 80 m) and 25 m clear of `avoid`
+ * (the free roam's own spawns, local metres) and of each other. Positions in AC space, on the line.
+ */
+export function floodPits(ai: AiPoint[], n: number, avoid: Vec2[] = []): { pos: [number, number, number]; fwd: [number, number, number] }[] {
+  if (n <= 0 || ai.length < 2) return [];
+  const total = ai[ai.length - 1].distance + ai[ai.length - 1].length;
+  const step = total / n;
+  const taken: Vec2[] = [...avoid];
+  const out: { pos: [number, number, number]; fwd: [number, number, number] }[] = [];
+  let i = 0;
+  for (let k = 0; k < n; k++) {
+    const target = (k + 0.5) * step;
+    while (i < ai.length - 1 && ai[i].distance < target) i++;
+    // Forward from there, up to most of a step, to the first good spot.
+    for (let j = i; j < ai.length && ai[j].distance < target + step * 0.8; j++) {
+      const p = ai[j];
+      const xy: Vec2 = [p.position[0], -p.position[2]];
+      if (p.radius < 80) continue;
+      if (taken.some((t) => Math.hypot(t[0] - xy[0], t[1] - xy[1]) < 25)) continue;
+      const f = Math.hypot(p.forward[0], p.forward[2]) || 1;
+      out.push({ pos: [p.position[0], p.position[1], p.position[2]], fwd: [p.forward[0] / f, 0, p.forward[2] / f] });
+      taken.push(xy);
+      break;
+    }
+  }
+  return out;
+}
+
 /** A layout's own files (dummies kn5, AI line, data, ui), on the world's road surface. */
 export function layoutFiles(world: World, layout: LayoutSpec, trackObjects: (plan: RoadPlan, opts: BuildOptions) => Kn5GroupNode[]): Record<string, Uint8Array> {
   const opts = withDefaults({ ...world.options, name: layout.name });
@@ -243,36 +319,69 @@ export function layoutFiles(world: World, layout: LayoutSpec, trackObjects: (pla
   const meta: TrackMeta = { ...world.meta, name: layout.name };
   const base = `${slug}/${layout.id}`;
   let outline: [number, number][];
-  let closed = false, length = 0;
+  let closed = false, length = 0, pitboxes = opts.pitCount;
 
-  if (layout.coords && layout.coords.length >= 2) {
-    const local = layout.coords.map((p) => proj.toLocal(p));
-    // On to the world's own streets (densified first, so long straight legs follow them too).
-    const dense: Vec2[] = [];
-    local.forEach((p, i) => {
-      if (i) {
-        const q = local[i - 1], n = Math.ceil(Math.hypot(p[0] - q[0], p[1] - q[1]) / 4);
-        for (let k = 1; k < n; k++) dense.push([q[0] + ((p[0] - q[0]) * k) / n, q[1] + ((p[1] - q[1]) * k) / n]);
-      }
-      dense.push(p);
+  if (layout.spawns?.length) {
+    const spots = layout.spawns.map(({ at, heading }) => {
+      const [x, y] = proj.toLocal(at);
+      const r = (heading * Math.PI) / 180;
+      const fwd: Vec2 = [Math.sin(r), Math.cos(r)];
+      return { x, y, fwd, h: height(x, y) };
     });
-    const plan = planRoad(world.lines?.length ? snapToLines(dense, world.lines, world.rings) : local, opts);
-    const hs = fillHeights(plan.samples.map((s) => height(s.pos[0], s.pos[1])), 0);
-    plan.samples.forEach((s, i) => { s.h = hs[i]; s.bank = 0; });
+    const dummies: Kn5GroupNode[] = [];
+    spots.forEach((s, k) => {
+      const h = (s.h ?? 0) + 0.5;
+      const pos: [number, number, number] = [s.x, h, -s.y], fwd: [number, number, number] = [s.fwd[0], 0, -s.fwd[1]];
+      dummies.push(dummy(`AC_START_${k}`, pos, fwd), dummy(`AC_PIT_${k}`, pos, fwd));
+    });
+    // The AI line: the free roam's own loop if it has one (pins), else the main layout's, with its
+    // speed limits either way (AI Flood's cars are town traffic, not racers).
+    let ai: AiPoint[] = [];
+    if (layout.coords && layout.coords.length >= 2) {
+      const r = routeAi(world, layout.coords, opts, height);
+      ai = r.ai;
+      files[`${base}/ai/fast_lane.ai`] = writeFastLaneAi(ai);
+      files[`${base}/data/ai_hints.ini`] = enc.encode(r.hints);
+    } else if (world.mainAi) {
+      files[`${base}/ai/fast_lane.ai`] = world.mainAi;
+      if (world.mainHints) files[`${base}/data/ai_hints.ini`] = world.mainHints;
+      ai = readFastLaneAi(world.mainAi);
+    }
+    if (ai.length > 1) {
+      const last = ai[ai.length - 1];
+      length = last.distance + last.length;
+      const gap = Math.hypot(last.position[0] - ai[0].position[0], last.position[2] - ai[0].position[2]);
+      closed = gap < 50;
+    }
+    // More pit boxes on the AI line, for Track Day's AI cars (one box each).
+    const extra = floodPits(ai, (layout.aiPits ?? FLOOD_PITS) - spots.length, spots.map((s) => [s.x, s.y] as Vec2));
+    extra.forEach((p, j) => {
+      const k = spots.length + j;
+      const h = (height(p.pos[0], -p.pos[2]) ?? p.pos[1]) + 0.5;
+      const pos: [number, number, number] = [p.pos[0], h, p.pos[2]];
+      dummies.push(dummy(`AC_START_${k}`, pos, p.fwd), dummy(`AC_PIT_${k}`, pos, p.fwd));
+    });
+    pitboxes = spots.length + extra.length;
+    // A timing line 15 m ahead of the first spot, so sessions that want one have it.
+    const s0 = spots[0], ahead: Vec2 = [s0.x + s0.fwd[0] * 15, s0.y + s0.fwd[1] * 15], left: Vec2 = [-s0.fwd[1], s0.fwd[0]];
+    const h0 = (height(ahead[0], ahead[1]) ?? s0.h ?? 0) + 1;
+    const f3: [number, number, number] = [s0.fwd[0], 0, -s0.fwd[1]];
+    dummies.push(
+      dummy("AC_HOTLAP_START_0", [s0.x, (s0.h ?? 0) + 0.5, -s0.y], f3),
+      dummy("AC_TIME_0_L", [ahead[0] + left[0] * 5, h0, -(ahead[1] + left[1] * 5)], f3),
+      dummy("AC_TIME_0_R", [ahead[0] - left[0] * 5, h0, -(ahead[1] - left[1] * 5)], f3),
+    );
+    files[`${slug}/layout_${layout.id}.kn5`] = dummiesKn5(layout.id, dummies);
+    const challenges = layoutChallengesIni(layout.name, null, (p) => proj.toLocal(p), (x, y) => height(x, y) ?? spots[0].h ?? 0, layout.challenges);
+    if (challenges) files[`${base}/data/challenges.ini`] = enc.encode(challenges);
+    outline = spots.map((s) => [s.x, -s.y] as [number, number]);
+    if (outline.length < 2) outline.push([outline[0][0] + 1, outline[0][1] + 1]);
+  } else if (layout.coords && layout.coords.length >= 2) {
+    const { plan, hs, ai, limitAt, hints } = routeAi(world, layout.coords, opts, height);
     closed = plan.closed;
     length = plan.length;
-    const ai = keepOnSurface(buildAiLine(plan), height);
     files[`${base}/ai/fast_lane.ai`] = writeFastLaneAi(ai);
-    // Speed limits from the street each stretch is on (the world's), so the AI drives a town street
-    // at 50 rather than at the grip limit.
-    let limitAt: ((d: number) => number | undefined) | undefined;
-    if (world.lines?.length && world.speeds?.length) {
-      const grid = new LineGrid(world.lines, 12);
-      const lim = plan.samples.map((smp) => { const n = grid.nearest(smp.pos); return n ? world.speeds![n.line] : undefined; });
-      const total = ai.length ? ai[ai.length - 1].distance + ai[ai.length - 1].length : 1;
-      limitAt = (d) => lim[Math.max(0, Math.min(lim.length - 1, Math.round((d / total) * (lim.length - 1))))];
-    }
-    files[`${base}/data/ai_hints.ini`] = enc.encode(aiHintsIni(ai, limitAt, !plan.closed));
+    files[`${base}/data/ai_hints.ini`] = enc.encode(hints);
     // The automatic test's limits for this layout (autotest.lua reads it; 50 where unknown).
     const pct = Array.from({ length: 100 }, (_, k) => {
       const ap = ai[Math.min(ai.length - 1, Math.round(((k + 0.5) / 100) * (ai.length - 1)))];
@@ -289,34 +398,6 @@ export function layoutFiles(world: World, layout: LayoutSpec, trackObjects: (pla
     files[`${base}/data/cameras_1.ini`] = enc.encode(camerasIni(placeCameras(plan, opts, ground, () => false)));
     outline = simplify(plan.samples.map((s) => s.pos), 0.5).map(([x, y]) => [x, -y] as [number, number]);
     if (closed) outline.push(outline[0]);
-  } else if (layout.spawns?.length) {
-    const spots = layout.spawns.map(({ at, heading }) => {
-      const [x, y] = proj.toLocal(at);
-      const r = (heading * Math.PI) / 180;
-      const fwd: Vec2 = [Math.sin(r), Math.cos(r)];
-      return { x, y, fwd, h: height(x, y) };
-    });
-    const dummies: Kn5GroupNode[] = [];
-    spots.forEach((s, k) => {
-      const h = (s.h ?? 0) + 0.5;
-      const pos: [number, number, number] = [s.x, h, -s.y], fwd: [number, number, number] = [s.fwd[0], 0, -s.fwd[1]];
-      dummies.push(dummy(`AC_START_${k}`, pos, fwd), dummy(`AC_PIT_${k}`, pos, fwd));
-    });
-    // A timing line 15 m ahead of the first spot, so sessions that want one have it.
-    const s0 = spots[0], ahead: Vec2 = [s0.x + s0.fwd[0] * 15, s0.y + s0.fwd[1] * 15], left: Vec2 = [-s0.fwd[1], s0.fwd[0]];
-    const h0 = (height(ahead[0], ahead[1]) ?? s0.h ?? 0) + 1;
-    const f3: [number, number, number] = [s0.fwd[0], 0, -s0.fwd[1]];
-    dummies.push(
-      dummy("AC_HOTLAP_START_0", [s0.x, (s0.h ?? 0) + 0.5, -s0.y], f3),
-      dummy("AC_TIME_0_L", [ahead[0] + left[0] * 5, h0, -(ahead[1] + left[1] * 5)], f3),
-      dummy("AC_TIME_0_R", [ahead[0] - left[0] * 5, h0, -(ahead[1] - left[1] * 5)], f3),
-    );
-    files[`${slug}/layout_${layout.id}.kn5`] = dummiesKn5(layout.id, dummies);
-    if (world.mainAi) files[`${base}/ai/fast_lane.ai`] = world.mainAi;
-    const challenges = layoutChallengesIni(layout.name, null, (p) => proj.toLocal(p), (x, y) => height(x, y) ?? spots[0].h ?? 0, layout.challenges);
-    if (challenges) files[`${base}/data/challenges.ini`] = enc.encode(challenges);
-    outline = spots.map((s) => [s.x, -s.y] as [number, number]);
-    if (outline.length < 2) outline.push([outline[0][0] + 1, outline[0][1] + 1]);
   } else {
     throw new Error(`Layout ${layout.id} needs a route (pins) or spawns`);
   }
@@ -324,7 +405,7 @@ export function layoutFiles(world: World, layout: LayoutSpec, trackObjects: (pla
   files[`${base}/map.png`] = map.png;
   files[`${base}/data/map.ini`] = enc.encode(map.ini);
   files[`${slug}/ui/${layout.id}/ui_track.json`] = enc.encode(uiTrackJson(meta, {
-    length, width: 7, pitboxes: layout.spawns?.length ?? opts.pitCount, closed, centre: proj.toLngLat([0, 0]),
+    length, width: 7, pitboxes, closed, centre: proj.toLngLat([0, 0]),
   }));
   files[`${slug}/ui/${layout.id}/outline.png`] = outlinePng(outline);
   files[`${slug}/ui/${layout.id}/preview.png`] = previewPng(outline, closed);
