@@ -8,8 +8,14 @@
 //   Norfolk Island pine: straight trunk, flat tiers of horizontal branches.
 //   tuart (Eucalyptus gomphocephala): massive pale trunk, crooked spreading limbs, open clumps.
 //   palm (Canary Island date palm): thick trunk, a ball of long arching fronds.
+//   karri (Eucalyptus diversicolor): very tall, straight clean trunk with smooth patchy cream,
+//     salmon and grey bark; ascending branches only in the top third, a narrow crown of clumps.
+//   marri (Corymbia calophylla): short thick trunk with rough tessellated grey-brown bark and
+//     red kino stains, thick spreading limbs, a broad dense dome of dark glossy leaves.
 //
-// The same order as TREE_SPECIES (treeSprites.ts), so a tree's variant picks its model.
+// The first five are in the same order as TREE_SPECIES (treeSprites.ts), so a tree's variant picks
+// its model. Karri and marri have no card sprite: they only exist as CSP trees, placed by
+// treeZones.ts (a tree's `model`), with the tuart card's trunk and crown size standing in.
 
 import { encodeDdsDxt5 } from "./dds";
 import type { TreeModel, TreeSubMesh } from "./cspTrees";
@@ -183,6 +189,68 @@ function palm(seed: number): Skeleton {
   return { limbs, cards, crown: trunk.tip };
 }
 
+function karri(seed: number): Skeleton {
+  const r = rng(seed);
+  const limbs: Limb[] = [], cards: Card[] = [];
+  // A tall clean bole, barely wandering, then a thinner leader up into the crown.
+  const bole = crooked(r, [0, 0, 0], [0.02, 0.01, 1], 26, 0.72, 0.36, 6, 0.035);
+  limbs.push(...bole.limbs);
+  const leader = crooked(r, bole.tip, [0.04, -0.02, 1], 12, 0.36, 0.1, 3, 0.12);
+  limbs.push(...leader.limbs);
+  const stem = [...bole.limbs, ...leader.limbs];
+  /** The point on the stem at height z. */
+  const at = (z: number): V3 => {
+    for (const l of stem) if (l.b[2] >= z) { const t = (z - l.a[2]) / (l.b[2] - l.a[2] || 1); return add(l.a, mul(sub(l.b, l.a), Math.max(0, Math.min(1, t)))); }
+    return leader.tip;
+  };
+  // Ascending limbs from the top third only (22 m up), shorter toward the top: a high crown,
+  // irregular but filled, about a quarter as wide as the tree is tall.
+  const nMain = 11;
+  for (let m = 0; m < nMain; m++) {
+    const f = m / (nMain - 1);
+    const az = m * 2.4 + r() * 0.6; // golden-angle spiral round the stem
+    const main = crooked(r, at(22 + f * 14), dir(az, 0.7 + f * 0.4 + r() * 0.25), (6.5 - f * 3) * (0.8 + r() * 0.4), 0.2 - f * 0.08, 0.05, 3, 0.3);
+    limbs.push(...main.limbs);
+    for (let s = 0; s < 3; s++) {
+      const sub_ = crooked(r, main.limbs[Math.min(2, s)].b, add(main.dir, dir(az + (r() - 0.5) * 2, 0.4 + r() * 0.5)), 2 + r() * 1.8, 0.06, 0.025, 2, 0.5);
+      limbs.push(...sub_.limbs);
+      for (let i = 0; i < 11; i++) cards.push({ c: add(sub_.tip, [(r() - 0.5) * 3, (r() - 0.5) * 3, (r() - 0.35) * 2]), kind: "cluster", w: 1.6 + r() * 0.5, h: 1.5 + r() * 0.5, az: r() * Math.PI, variant: Math.floor(r() * 4) });
+    }
+  }
+  for (let i = 0; i < 8; i++) cards.push({ c: add(leader.tip, [(r() - 0.5) * 2.5, (r() - 0.5) * 2.5, (r() - 0.5) * 1.5]), kind: "cluster", w: 1.6, h: 1.5, az: r() * Math.PI, variant: Math.floor(r() * 4) });
+  return { limbs, cards, crown: [0, 0, 34] };
+}
+
+function marri(seed: number): Skeleton {
+  const r = rng(seed);
+  const limbs: Limb[] = [], cards: Card[] = [];
+  const trunk = crooked(r, [0, 0, 0], [0.06, 0.03, 1], 6.5, 0.68, 0.5, 3, 0.12);
+  limbs.push(...trunk.limbs);
+  // Thick limbs spreading wide from a low fork.
+  const nMain = 5;
+  for (let m = 0; m < nMain; m++) {
+    const az = (m / nMain) * Math.PI * 2 + r() * 0.7;
+    const start = add(trunk.tip, [0, 0, -r() * 1.5]);
+    const main = crooked(r, start, dir(az, 0.55 + r() * 0.3), 6 + r() * 2, 0.36, 0.15, 3, 0.3);
+    limbs.push(...main.limbs);
+    for (let s = 0; s < 3; s++) {
+      const from = main.limbs[Math.min(main.limbs.length - 1, 1 + (s % 2))].b;
+      const sub_ = crooked(r, from, add(main.dir, dir(az + (r() - 0.5) * 2, 0.45 + r() * 0.5)), 3 + r() * 1.5, 0.13, 0.05, 2, 0.45);
+      limbs.push(...sub_.limbs);
+      // Denser clumps than the tuart: the marri's crown reads as one dark mass.
+      for (let i = 0; i < 16; i++) cards.push({ c: add(sub_.tip, [(r() - 0.5) * 3.4, (r() - 0.5) * 3.4, (r() - 0.35) * 2.2]), kind: "cluster", w: 1.7 + r() * 0.6, h: 1.6 + r() * 0.5, az: r() * Math.PI, variant: Math.floor(r() * 4) });
+    }
+    for (let i = 0; i < 8; i++) cards.push({ c: add(main.tip, [(r() - 0.5) * 3, (r() - 0.5) * 3, (r() - 0.3) * 2]), kind: "cluster", w: 1.9, h: 1.8, az: r() * Math.PI, variant: Math.floor(r() * 4) });
+  }
+  // Fill the top of the dome so it doesn't break into separate clouds like a tuart.
+  const centre: V3 = [0, 0, 13];
+  for (let i = 0; i < 30; i++) {
+    const az = r() * Math.PI * 2, el = 0.3 + r() * 1.1, R = 6.5 + r() * 1.5;
+    cards.push({ c: add(centre, [Math.cos(az) * Math.cos(el) * R, Math.sin(az) * Math.cos(el) * R, Math.sin(el) * R * 0.6]), kind: "cluster", w: 2.0, h: 1.8, az: r() * Math.PI, variant: Math.floor(r() * 4) });
+  }
+  return { limbs, cards, crown: centre };
+}
+
 /* ---------------- meshes ---------------- */
 
 class Part {
@@ -351,6 +419,32 @@ function drawFoliage(at: Atlas, species: number, v: number) {
       if (r() < 0.12) continue; // gaps
       at.ellipse(x, y, 16 + r() * 8, 4 + r() * 2, Math.PI / 2 + (r() - 0.5) * 1.2, shade(base, 0.7 + (1 - d / (S * 0.46)) * 0.35, r, 26), 0.95);
     }
+  } else if (species === 5) {
+    // Karri: a dense cloud of lance leaves, dark green above with paler undersides showing.
+    const base: RGB = [58, 86, 46], under: RGB = [112, 132, 92];
+    const cx = ox + S / 2, cy = oy + S / 2;
+    for (let i = 0; i < 620; i++) {
+      const a = r() * Math.PI * 2, d = Math.sqrt(r()) * S * 0.46;
+      const x = cx + Math.cos(a) * d, y = cy + Math.sin(a) * d * 0.8;
+      if (r() < 0.08) continue;
+      const c = r() < 0.18 ? under : base;
+      at.ellipse(x, y, 15 + r() * 7, 3.6 + r() * 1.6, Math.PI / 2 + (r() - 0.5) * 1.6, shade(c, 0.72 + (1 - d / (S * 0.46)) * 0.35, r, 22), 0.95);
+    }
+  } else if (species === 6) {
+    // Marri: broader dark glossy leaves packed tight, and a few cream blossom clusters.
+    const base: RGB = [48, 78, 40];
+    const cx = ox + S / 2, cy = oy + S / 2;
+    for (let i = 0; i < 700; i++) {
+      const a = r() * Math.PI * 2, d = Math.sqrt(r()) * S * 0.47;
+      const x = cx + Math.cos(a) * d, y = cy + Math.sin(a) * d * 0.85;
+      if (r() < 0.05) continue;
+      at.ellipse(x, y, 17 + r() * 7, 5.5 + r() * 2, Math.PI / 2 + (r() - 0.5) * 1.4, shade(base, 0.7 + (1 - d / (S * 0.47)) * 0.4, r, 24), 0.97);
+    }
+    for (let b = 0; b < 5; b++) {
+      const a = r() * Math.PI * 2, d = (0.2 + r() * 0.6) * S * 0.4;
+      const x = cx + Math.cos(a) * d, y = cy + Math.sin(a) * d;
+      for (let k = 0; k < 18; k++) at.ellipse(x + (r() - 0.5) * 26, y + (r() - 0.5) * 26, 3.5, 3.5, 0, shade([236, 228, 204], 0.9 + r() * 0.1, r, 10), 0.95);
+    }
   } else {
     // Palm frond: a rachis down the middle with long leaflets angled out both sides.
     const base: RGB = [88, 118, 56];
@@ -367,9 +461,33 @@ function drawFoliage(at: Atlas, species: number, v: number) {
 function drawBark(species: number): Atlas {
   const at = new Atlas(512);
   const r = rng(77 + species);
-  const base: RGB = ([[70, 62, 54], [72, 60, 50], [104, 84, 66], [178, 172, 160], [120, 104, 82]] as RGB[])[species];
+  const base: RGB = ([[70, 62, 54], [72, 60, 50], [104, 84, 66], [178, 172, 160], [120, 104, 82], [206, 194, 172], [100, 84, 70]] as RGB[])[species];
   for (let y = 0; y < 512; y++) for (let x = 0; x < 512; x++) at.blend(x, y, shade(base, 0.92 + r() * 0.1, r, 8), 1);
-  if (species === 4) {
+  if (species === 5) {
+    // Karri: smooth, shedding in patches: salmon-orange new bark, grey and cream old bark.
+    const patches: RGB[] = [[214, 150, 108], [168, 164, 154], [228, 216, 192], [190, 120, 86]];
+    for (let i = 0; i < 70; i++) {
+      at.ellipse(r() * 512, r() * 512, 10 + r() * 22, 30 + r() * 70, (r() - 0.5) * 0.2, shade(patches[Math.floor(r() * patches.length)], 0.92 + r() * 0.12, r, 10), 0.55 + r() * 0.3);
+    }
+    for (let i = 0; i < 40; i++) {
+      const x = r() * 512, y = r() * 512;
+      at.line(x, y, x + (r() - 0.5) * 6, y + 40 + r() * 120, 1.5, shade(base, 0.85, r), 0.35);
+    }
+  } else if (species === 6) {
+    // Marri: rough bark broken into small squarish blocks, with red kino bleeding down.
+    for (let y = 0; y < 512; y += 16 + Math.floor(r() * 8)) {
+      for (let x = 0; x < 512; x++) at.blend(x, y + Math.sin(x / 23 + y) * 2, shade(base, 0.5, r), 0.8);
+      let x = r() * 20;
+      while (x < 512) {
+        at.line(x, y, x + (r() - 0.5) * 4, y + 18, 2.5, shade(base, 0.5, r), 0.85);
+        x += 14 + r() * 16;
+      }
+    }
+    for (let i = 0; i < 9; i++) {
+      const x = r() * 512, y = r() * 512;
+      at.line(x, y, x + (r() - 0.5) * 8, y + 30 + r() * 80, 3 + r() * 3, shade([118, 40, 28], 0.9 + r() * 0.2, r, 10), 0.75);
+    }
+  } else if (species === 4) {
     // Palm: horizontal rings of old frond bases.
     for (let y = 0; y < 512; y += 22) for (let x = 0; x < 512; x++) at.blend(x, y + Math.sin(x / 30) * 3, shade(base, 0.6, r), 0.8);
   } else {
@@ -442,11 +560,12 @@ function normalMap(rgba: Uint8Array, size: number, mode: "leaves" | "bark"): Uin
   return out;
 }
 
-export const MODEL_NAMES = ["peppermint", "sheoak", "norfolk", "tuart", "palm"];
-const SKELETONS = [peppermint, sheoak, norfolk, tuart, palm];
+export const MODEL_NAMES = ["peppermint", "sheoak", "norfolk", "tuart", "palm", "karri", "marri"];
+const SKELETONS = [peppermint, sheoak, norfolk, tuart, palm, karri, marri];
 /** tree.ini shading per species: needle and fine foliage scatter less light and shine less. */
 const SHADING: Record<string, string>[] = [
   { SUBSCATTERING: "0.6" }, { SUBSCATTERING: "0.35", SPECULAR: "0.05" }, { SUBSCATTERING: "0.3", SPECULAR: "0.05" }, { SUBSCATTERING: "0.5" }, { SUBSCATTERING: "0.45", SPECULAR: "0.15" },
+  { SUBSCATTERING: "0.5" }, { SUBSCATTERING: "0.4", SPECULAR: "0.15" },
 ];
 
 /** A species' model with three LODs, its textures as DDS. */

@@ -70,6 +70,29 @@ describe("CSP trees", () => {
     }
   });
 
+  it("karri is tall with a high narrow crown, marri short with a broad dome", { timeout: 60_000 }, () => {
+    const box = (name: string) => {
+      const m = treeModel(MODEL_NAMES.indexOf(name));
+      let h = 0, reach = 0, leafLow = Infinity;
+      for (const s of m.lods[0].subs) for (let i = 0; i < s.positions.length; i += 3) {
+        h = Math.max(h, s.positions[i + 1]);
+        reach = Math.max(reach, Math.hypot(s.positions[i], s.positions[i + 2]));
+        if (s.diffuse.includes("leaves")) leafLow = Math.min(leafLow, s.positions[i + 1]);
+      }
+      return { h, reach, leafLow, ini: new TextDecoder().decode(unzipSync(writeTreeBin(m))["tree.ini"]) };
+    };
+    const karri = box("karri"), marri = box("marri"), tuart = box("tuart");
+    expect(karri.h).toBeGreaterThan(36);
+    expect(karri.h).toBeLessThan(50);
+    expect(karri.leafLow / karri.h).toBeGreaterThan(0.5); // a clean bole: no leaves in the lower half
+    expect(karri.reach * 2 / karri.h).toBeLessThan(0.6);
+    expect(marri.h).toBeGreaterThan(16);
+    expect(marri.h).toBeLessThan(26);
+    expect(marri.reach * 2 / marri.h).toBeGreaterThan(0.8); // wider than it is... nearly
+    expect(karri.h).toBeGreaterThan(tuart.h * 1.8);
+    expect(marri.ini).toMatch(/SPECULAR=0\.15/);
+  });
+
   it("writes the tree list", () => {
     const t = treeList([{ model: "tuart.bin", pos: [1, 2, -3], angle: 90, size: 1.2 }]);
     expect(t).toContain("tree: tuart.bin; pos=1.00, 2.00, -3.00; angle=90; size=1.20");

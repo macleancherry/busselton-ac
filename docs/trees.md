@@ -284,3 +284,30 @@ Rough load in a town view: about 30 trees at A, about 120 at B and about 250 at 
 ### The one check that needs Content Manager
 
 `scripts/trees/make_reference.ts tuart <dir>` then `blender --background --python scripts/trees/obj_to_fbx.py -- <dir>/tuart.obj <dir>/tuart.fbx` make a reference model. Convert `tuart.fbx` in CM (Content > Tools > Creator tools > Tree model converter) to `tuart_cm.bin`, and compare it with ours: `npx tsx scripts/trees/compare_bin.ts <dir>/tuart.bin tuart_cm.bin` (tree.ini, each LOD's counts and box, winding). Then a build with `cspTrees` on, driven: are the trees where the card trees were, upright, the right way round, lit from the right side?
+
+## Karri, marri and trees by place (30 Oct)
+
+- **Two more models** in `src/core/treeModels.ts`, drawn the same way, three LODs each:
+  - **karri** (*Eucalyptus diversicolor*): about 42 m. A straight clean bole for the first 26 m, smooth bark in cream, salmon-orange and grey patches, ascending limbs only in the top third, a narrow crown of clumps (dark green with paler undersides).
+  - **marri** (*Corymbia calophylla*): about 21 m. A short thick trunk forking low into heavy spreading limbs, rough tessellated grey-brown bark with red kino streaks, a broad dense dome of dark glossy leaves with a few cream blossom clusters. A little shinier (`SPECULAR=0.15`).
+  - They have no card sprite. Where the kn5 needs a tree's size (trunk collision, crown room) they use the tuart's.
+- **Species by place**, `src/core/treeZones.ts`: `speciesWeightsAt(lng, lat, { coastal })` gives each native species a weight (summing to 1) from rough zones blended over a kilometre or two: karri on the Leeuwin ridge south of Margaret River (Boranup) and in the southern forest (Pemberton to Walpole); tuart and peppermint on the coastal plain north of the Whicher Scarp (Dunsborough to Bunbury); peppermint and she-oak within a kilometre or two of the bay and the capes' west coast, or wherever the aerial shows water close by; jarrah-marri forest everywhere else. Jarrah uses the marri model until it has its own.
+- **Only with `cspTrees` on**, and only for bush trees: kerbed town streets (peppermints) and the foreshore (Norfolk pines, palms) keep their planted species. A tree's `model` (on `TreeSpot`) names its CSP model; its `variant` stays a card sprite. With `cspTrees` off nothing changes.
+- **Landscape zones will replace it.** When `zoneAt(x, y)` lands, swap the `speciesWeightsAt(...)` call in `track.ts` (the `planted` map in "Placing scenery") for the zone's weights. `pickWeighted`, `MODEL_FOR` and `CARD_FOR` stay.
+
+Draft renders: `scripts/trees/make_reference.ts <species> <dir>` writes the OBJ and textures that a Blender scene can load (karri, marri, tuart side by side, then each one's three LODs).
+
+## Making 3D trees the default
+
+Still off. Turn it on only after Mac has driven `busselton_trees` and is happy with the look (silhouette, LOD changes, colour, frame rate on the RTX 4060).
+
+1. In `scripts/headless/presets.mjs`, add `cspTrees: true` to the `build` of **both** presets:
+   ```js
+   country: { options: { ... }, build: { ..., cspTrees: true } },
+   town:    { options: { ... }, build: { ..., cspTrees: true } },
+   ```
+   A route's own `build.cspTrees: false` still wins, so any route can opt back out.
+2. Routes without a preset (`busselton.json`, `foreshore.json`, the private estate and Home Run routes) need `"cspTrees": true` in their own `build`, or a preset.
+3. Rebuild Busselton through `scripts/upgrade/base.mjs build`, then `scripts/check/all.mjs` (budget: the card trees leave the kn5, so triangles and draw calls should drop) and `accept`.
+4. Workstation: `run-test.ps1 <slug>` for FPS and screenshots; rebake AO if the build will be a keeper (instanced trees cast into the bake).
+5. Update ROADMAP.md (3D trees ✅ on by default) and the line above ("Still off").
