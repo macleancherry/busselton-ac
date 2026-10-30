@@ -1,0 +1,19 @@
+{
+  "note": "hand-made detail layer: scripts/blender/landmarks/cape_naturaliste_lighthouse.py (scripts/blender/landmarks/build.sh cape_naturaliste_lighthouse)",
+  "replaces": [
+    {
+      "at": [
+        115.018705,
+        -33.537391
+      ],
+      "radius": 11
+    },
+    {
+      "at": [
+        115.01884,
+        -33.537421
+      ],
+      "radius": 5
+    }
+  ]
+}

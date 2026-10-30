@@ -75,5 +75,8 @@
  },
  "looks": [
   "routes/landmarks/cape_naturaliste_road_looks.json"
+ ],
+ "layers": [
+  "routes/layers/cape_naturaliste_road"
  ]
 }

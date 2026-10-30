@@ -1,0 +1,12 @@
+{
+  "note": "hand-made detail layer: scripts/blender/landmarks/cape_leeuwin_lighthouse.py (scripts/blender/landmarks/build.sh cape_leeuwin_lighthouse)",
+  "replaces": [
+    {
+      "at": [
+        115.136325,
+        -34.375062
+      ],
+      "radius": 12
+    }
+  ]
+}

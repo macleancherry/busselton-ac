@@ -3,15 +3,6 @@
  "houses": [
   {
    "at": [
-    115.136325,
-    -34.375062
-   ],
-   "specFile": "routes/landmarks/cape_leeuwin_lighthouse.json",
-   "name": "Cape Leeuwin Lighthouse",
-   "facing": 0
-  },
-  {
-   "at": [
     115.136452,
     -34.372606
    ],

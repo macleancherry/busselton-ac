@@ -3,15 +3,6 @@
  "houses": [
   {
    "at": [
-    115.018705,
-    -33.537391
-   ],
-   "specFile": "routes/landmarks/cape_naturaliste_lighthouse.json",
-   "name": "Cape Naturaliste Lighthouse",
-   "facing": 165
-  },
-  {
-   "at": [
     115.019367,
     -33.539073
    ],

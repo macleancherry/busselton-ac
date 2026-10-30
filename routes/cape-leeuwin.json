@@ -67,5 +67,8 @@
  },
  "looks": [
   "routes/landmarks/cape_leeuwin_looks.json"
+ ],
+ "layers": [
+  "routes/layers/cape_leeuwin"
  ]
 }
