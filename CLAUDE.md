@@ -38,6 +38,15 @@ The scripts read and write there by default. **Laptop session:** when this chat 
 
 Both Windows machines can run AC at the same time; LAN racing uses Content Manager's built-in LAN mode, with no server software. The workstation has 16 GB RAM: close AC and Blender before photogrammetry, and keep scans under about 200 photos.
 
+## Generate, freeze, polish
+
+How tracks are worked on (ROADMAP.md, strategy; `tracks/README.md` has the commands):
+- **Two tiers.** Showcase tracks (Busselton, the estate, later Yallingup, Margaret River and so on) get polished landmark by landmark. Drive-anywhere tracks are generated, rebuilt freely and never hand-polished.
+- **Frozen inputs.** A showcase track's base rebuilds from its snapshot (`SNAPSHOT=<dir>`; manifest in its folder, zip in the share), not live data.
+- **Polish is layers.** Landmarks (`routes/landmarks/`) compile to `lm_<slug>.kn5` with `scripts/polish/landmarks.ts`, in about 20 s, as a polish zip that `install-track.ps1 -Overlay` lays over the installed track. Never hand-edit a generated mesh: replace it with a layer.
+- **Base upgrades are deliberate.** `scripts/upgrade/base.mjs build|accept|rollback`, with `scripts/check/all.mjs` running every check and comparing against the accepted base.
+- **One folder per track.** `tracks/<slug>/` holds its status page, `snapshot.json` and `base.json`; private tracks keep theirs under `routes/private/tracks/`.
+
 ## Build loop
 
 1. Route file in `routes/` (pins as `[lng, lat]`; `loop: true` for a circuit).
