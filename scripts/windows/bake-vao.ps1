@@ -53,6 +53,7 @@ if ($Quality -eq "test" -and (Test-Path $params)) {
 # The bakery waits for a key press after an error: give it an empty input so it ends instead.
 $empty = New-TemporaryFile
 $log = Join-Path $dir "vao-bake.log"
+$usedSettings = Get-Content $params -ErrorAction SilentlyContinue
 Write-Host "Baking $($inputs.Count) layout(s) of $Track ..."
 $started = Get-Date
 $p = Start-Process -FilePath $Bakery -ArgumentList ($inputs | ForEach-Object { "`"$_`"" }) `
@@ -61,7 +62,20 @@ $p = Start-Process -FilePath $Bakery -ArgumentList ($inputs | ForEach-Object { "
 Remove-Item $empty
 if ($null -ne $saved) { Set-Content $params $saved -NoNewline }
 $mins = [math]::Round(((Get-Date) - $started).TotalMinutes, 1)
+# The log and its time in the share's bakes folder, for the laptop session.
+. (Join-Path $PSScriptRoot "share.ps1")
+$share = Get-BusseltonShare
+if ($share) {
+  $sum = Join-Path $share ("bakes\" + $started.ToString("yyyy-MM-dd_HHmm") + "-$Track.log")
+  $head = @("track: $Track", "quality: $Quality", "exit: $($p.ExitCode)", "minutes: $mins", "inputs: $($inputs -join ', ')",
+    "settings used:", $usedSettings, "", "patches:",
+    (Get-ChildItem $dir -Filter *.vao-patch | ForEach-Object { "$($_.Name) $($_.Length) bytes" }), "", "--- vao-bake.log ---")
+  $head | Set-Content $sum
+  Get-Content $log -ErrorAction SilentlyContinue | Add-Content $sum
+  if ((Test-Path "$log.err") -and (Get-Item "$log.err").Length) { "--- vao-bake.log.err ---" | Add-Content $sum; Get-Content "$log.err" | Add-Content $sum }
+  Write-Host "Bake log: $sum"
+}
 if ($p.ExitCode -ne 0) { throw "AO bake failed (exit $($p.ExitCode)) after $mins min; see $log" }
 Write-Host "Baked in $mins min:" -ForegroundColor Green
 Get-ChildItem $dir -Filter *.vao-patch | Format-Table Name, @{ n = "MB"; e = { [math]::Round($_.Length / 1MB, 1) } }, LastWriteTime
-Write-Host "Report the time above with the test results (bake times aren't documented anywhere)."
+Write-Host "The time and log are in the share's bakes folder."

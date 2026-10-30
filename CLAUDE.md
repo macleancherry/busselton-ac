@@ -20,9 +20,20 @@ Code is written in one place only. Check which machine you're on before you chan
 
 **If you are Claude Code on the workstation:**
 - Never edit source, route files or docs, and never commit or push. The kids use this machine too, so it isn't always logged in or free; nothing in the project may depend on it.
-- To test: `git pull` (or take the zip Mac gives you). For an unattended AI run use `scripts\windows\run-test.ps1 -Zip <zip>` (step 5c) and don't write your own automation. Otherwise install the build (unzip into AC's `content\tracks`, or `scripts\windows\install-track.ps1` on an existing zip), run the smoke test (step 5 below), and collect AC and CSP logs.
-- When something is wrong, don't fix it. Write a short report: what you did, what happened, which file or mesh it looks like, and the relevant log lines. Save it as `reports/<date>-<topic>.md` (gitignored) and tell Mac, so he can paste it into the laptop session.
+- To test: `git pull`, then take builds from the share's `builds\` folder (see "The share" below). For an unattended AI run use `scripts\windows\run-test.ps1 <slug>` (step 5c) and don't write your own automation. Otherwise install with `scripts\windows\install-track.ps1 -Zip <slug>` (or `-All`), run the smoke test (step 5 below), and collect AC and CSP logs.
+- When something is wrong, don't fix it. Write a short report: what you did, what happened, which file or mesh it looks like, and the relevant log lines. Save it in the share as `reports\<date>-<topic>.md`, with any files it points to in `reports\<date>-<topic>\` (screenshots, converted files, logs), and tell Mac it's there. Never ask Mac to copy files around: everything goes in the share.
 - If you find local changes in the repo, leave them uncommitted and tell Mac; don't push them.
+
+## The share
+
+`D:\busselton-share` on the workstation (`BUSSELTON_SHARE`; layout in `scripts/windows/share.ps1`) is the one place files move between machines and sessions. Mac shouldn't have to copy, attach or download anything by hand.
+
+- `builds\<slug>.zip`: the latest build of each track.
+- `tests\<date>_<time>-<slug>-<layout>\` (and `.zip`): automatic AI runs (`run-test.ps1`).
+- `bakes\`: AO bake logs with their times (`bake-vao.ps1`).
+- `reports\<date>-<topic>.md`: workstation reports, with their files in `reports\<date>-<topic>\`.
+
+The scripts read and write there by default. **Laptop session:** when this chat is linked to the workstation (the remote-devices tools are present and a call succeeds), write each finished build straight into `builds\` and read `tests\`, `bakes\` and `reports\` yourself; when it isn't linked, send the files in chat and say the share is waiting for the link. **Workstation:** put everything for the laptop session in the share, never in Downloads or the repo.
 
 Both Windows machines can run AC at the same time; LAN racing uses Content Manager's built-in LAN mode, with no server software. The workstation has 16 GB RAM: close AC and Blender before photogrammetry, and keep scans under about 200 photos.
 
@@ -41,7 +52,7 @@ Both Windows machines can run AC at the same time; LAN racing uses Content Manag
 4e. Budget: `npx tsx scripts/check/budget.ts out/<slug>.zip` (triangles, draw calls, texture memory, kn5 size against limits for the RTX 4060) must pass.
 5. Smoke test (workstation, reported back, never fixed there): it loads, the car spawns on the grid, timing and pits work, and AI completes a lap.
 5b. Traffic test (workstation or rig): `docs/traffic-test.md`.
-5c. Automatic AI test (workstation, unattended): `scripts\windows\run-test.ps1 -Zip <zip>` installs the build, starts a practice session with the AI driving the player's car (an Abarth 500 at AI level 75 by default: town streets, not a race; `-Car`, `-AiLevel` change it) (the build's `extension/autotest.lua` track script, active only for a driver named "Busselton Test"), logs the drive and takes screenshots, quits, and puts logs, screenshots, replay and `btest.csv` in `$env:BUSSELTON_TEST_SHARE\<date>-<slug>` plus a zip. Mac attaches the zip here; read it with `python3 -I scripts/check/autotest_report.py <zip> out/<slug>.surface.json`.
+5c. Automatic AI test (workstation, unattended): `scripts\windows\run-test.ps1 <slug>` installs the build, starts a practice session with the AI driving the player's car (an Abarth 500 at AI level 75 by default: town streets, not a race; `-Car`, `-AiLevel` change it) (the build's `extension/autotest.lua` track script, active only for a driver named "Busselton Test"), logs the drive and takes screenshots, quits, and puts logs, screenshots, replay and `btest.csv` in the share's `tests\<date>_<time>-<slug>-<layout>` plus a zip. Read it with `python3 -I scripts/check/autotest_report.py <zip> out/<slug>.surface.json` (it finds the layout from the run's `race.ini.used`). `-SkipInstall` drives what's installed (e.g. after an AO bake); reinstalling the same build keeps the bake.
 
 Busselton is flat, so town routes use `"banking": false` in options, plus `terrainStep: 1.5` and `terrainUnderRoad: 0.12` in `build`. The upstream defaults are for hilly roads: up to 6% banking, a 3 m terrain grid and ground sunk 0.6 m under the road, which together made tilted corners and 40 to 60 cm drops at the road edges here.
 

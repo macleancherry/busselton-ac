@@ -7,27 +7,26 @@ The workstation never edits code, route files or docs, and never commits (CLAUDE
 ## 0. Get ready
 
 1. `git pull` in the repo.
-2. Put these zips from Mac in `Downloads`:
+2. The zips are in the share's `builds\` folder (`D:\busselton-share\builds`):
    - `busselton_and_broadwater.zip`: the whole map
    - `busselton.zip`: the public map
    - `busselton_trees.zip`: the public map with the 3D trees on
-   - `tree-reference.zip`: for the Content Manager tree check
 3. Close AC, Content Manager and Blender.
 4. Write down:
    - the CSP version (Content Manager > Settings > Custom Shaders Patch, at the top)
    - whether Pure is installed, and its version
    - the Nvidia driver version
-5. Check that `BUSSELTON_TEST_SHARE` is set (`echo $env:BUSSELTON_TEST_SHARE`). Optional: `BUSSELTON_RIG_TRACKS`, so the installs copy to the rig too.
+5. Set the share once if it isn't: `setx BUSSELTON_SHARE D:\busselton-share`. Optional: `BUSSELTON_RIG_TRACKS`, so the installs copy to the rig too.
 
-Start a report as `reports/2026-10-30-workstation-test.md` and fill it in as you go.
+Start a report in the share as `reports\<date>-workstation-test.md` (files it points to in `reports\<date>-workstation-test\`) and fill it in as you go.
 
 ## 1. Install (5 minutes)
 
 ```powershell
 cd <repo>
-.\scripts\windows\install-track.ps1 -Zip $HOME\Downloads\busselton_and_broadwater.zip
-.\scripts\windows\install-track.ps1 -Zip $HOME\Downloads\busselton.zip
-.\scripts\windows\install-track.ps1 -Zip $HOME\Downloads\busselton_trees.zip
+.\scripts\windows\install-track.ps1 -Zip busselton_and_broadwater
+.\scripts\windows\install-track.ps1 -Zip busselton
+.\scripts\windows\install-track.ps1 -Zip busselton_trees
 ```
 
 This also installs the Busselton Map app and Busselton Challenges into `apps\lua`. Note any errors.
@@ -49,14 +48,14 @@ Take a screenshot (F8) at each of these spots, and note each spot so the "after"
 
 ```powershell
 foreach ($l in "estate", "town", "foreshore", "home_run") {
-  .\scripts\windows\run-test.ps1 -Zip $HOME\Downloads\busselton_and_broadwater.zip -Layout $l
+  .\scripts\windows\run-test.ps1 busselton_and_broadwater -Layout $l
 }
 foreach ($l in "foreshore", "town") {
-  .\scripts\windows\run-test.ps1 -Zip $HOME\Downloads\busselton.zip -Layout $l
+  .\scripts\windows\run-test.ps1 busselton -Layout $l
 }
 ```
 
-Each run leaves a zip in `$env:BUSSELTON_TEST_SHARE\<date>-<slug>`. List the zip paths in the report; Mac attaches them in the laptop session.
+Each run leaves a folder and zip in the share's `tests\`. List them in the report.
 
 ## 4. AO bake (the main new thing)
 
@@ -123,7 +122,7 @@ Follow `README.txt` in `tree-reference.zip`:
 2. Convert `tuart.fbx`.
 3. Save the result as `tuart_cm.bin`.
 
-List its path in the report; Mac attaches it in the laptop session.
+Put it in the report's folder in the share (`reports\<date>-workstation-test\tuart_cm.bin`).
 
 ### b. In game
 
@@ -182,4 +181,4 @@ Save `reports/2026-10-30-workstation-test.md` with:
 - paths to the run zips and `tuart_cm.bin`
 - the log lines from step 9
 
-Tell Mac it's done. He attaches the report, the run zips and `tuart_cm.bin` in the laptop session.
+Tell Mac it's done. Everything is in the share; nothing needs copying.

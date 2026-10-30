@@ -12,7 +12,8 @@ const [zipPath, outPath] = process.argv.slice(2);
 const files = unzipSync(new Uint8Array(readFileSync(zipPath)));
 // The world kn5 (<slug>/<slug>.kn5), not a layout's dummies or a layer.
 const kn5Name = Object.keys(files).find((f) => { const [d, b] = f.split("/"); return b === `${d}.kn5`; }) ?? Object.keys(files).find((f) => f.endsWith(".kn5"))!;
-const aiName = Object.keys(files).find((f) => f.endsWith("ai/fast_lane.ai"))!;
+// The main AI line (<slug>/ai/fast_lane.ai) when there is one.
+const aiName = Object.keys(files).find((f) => /^[^/]+\/ai\/fast_lane\.ai$/.test(f)) ?? Object.keys(files).find((f) => f.endsWith("ai/fast_lane.ai"))!;
 const model = readKn5(files[kn5Name]);
 const meshes: { name: string; p: number[]; i: number[] }[] = [];
 const walk = (n: Kn5Node) => {
@@ -21,6 +22,14 @@ const walk = (n: Kn5Node) => {
   } else n.children.forEach(walk);
 };
 walk(model.root);
-const ai = readFastLaneAi(files[aiName]) as unknown as { position: number[]; forward: number[]; distance: number; radius: number }[];
-writeFileSync(outPath, JSON.stringify({ meshes, ai: ai.map((p) => ({ position: p.position, forward: p.forward, distance: p.distance, radius: p.radius })) }));
-console.log(`${meshes.length} drivable meshes, ${ai.length} AI points -> ${outPath}`);
+type AiPoint = { position: number[]; forward: number[]; distance: number; radius: number };
+const line = (name: string) => (readFastLaneAi(files[name]) as unknown as AiPoint[]).map((p) => ({ position: p.position, forward: p.forward, distance: p.distance, radius: p.radius }));
+const ai = line(aiName);
+// Each layout's own AI line (<slug>/<layout>/ai/fast_lane.ai), for a map with several layouts.
+const layouts: Record<string, ReturnType<typeof line>> = {};
+for (const f of Object.keys(files)) {
+  const m = f.match(/^[^/]+\/([^/]+)\/ai\/fast_lane\.ai$/);
+  if (m) layouts[m[1]] = line(f);
+}
+writeFileSync(outPath, JSON.stringify({ meshes, ai, layouts }));
+console.log(`${meshes.length} drivable meshes, ${ai.length} AI points${Object.keys(layouts).length ? `, layouts ${Object.keys(layouts).join(", ")}` : ""} -> ${outPath}`);

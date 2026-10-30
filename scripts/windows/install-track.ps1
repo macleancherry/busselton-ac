@@ -5,8 +5,10 @@
   a route file here, but code and route changes are never made on this machine (see CLAUDE.md).
 
 .EXAMPLE
-  .\scripts\windows\install-track.ps1 -Zip $HOME\Downloads\busselton_foreshore.zip
-  .\scripts\windows\install-track.ps1 -Zip $HOME\Downloads\busselton_foreshore.zip -RigTracks \\GAMINGRIG\tracks
+  .\scripts\windows\install-track.ps1 -Zip busselton            # <share>\builds\busselton.zip
+  .\scripts\windows\install-track.ps1 -Zip busselton -RigTracks \\GAMINGRIG\tracks
+  .\scripts\windows\install-track.ps1 -All                       # every zip in <share>\builds
+  .\scripts\windows\install-track.ps1 -Zip C:\somewhere\busselton_foreshore.zip
   .\scripts\windows\install-track.ps1 routes\foreshore.json
   .\scripts\windows\install-track.ps1 routes\foreshore.json -RigTracks \\GAMINGRIG\tracks
   .\scripts\windows\install-track.ps1 routes\foreshore.json -SkipBuild    # reinstall the last build
@@ -23,7 +25,9 @@ param(
   [string]$AcPath = $env:BUSSELTON_AC_PATH,
   [string]$RigTracks = $env:BUSSELTON_RIG_TRACKS,
   [switch]$SkipBuild,
-  [switch]$SkipCheck
+  [switch]$SkipCheck,
+  # Install every track zip in the share's builds folder.
+  [switch]$All
 )
 $ErrorActionPreference = "Stop"
 $repo = Resolve-Path (Join-Path $PSScriptRoot "..\..")
@@ -52,7 +56,17 @@ if (-not $AcPath -or -not (Test-Path (Join-Path $AcPath "content\tracks"))) {
   throw "Couldn't find Assetto Corsa. Pass -AcPath 'D:\SteamLibrary\steamapps\common\assettocorsa' or set BUSSELTON_AC_PATH."
 }
 if (Get-Command py -ErrorAction SilentlyContinue) { $pyExe = "py"; $pyArgs = @("-3") } else { $pyExe = "python"; $pyArgs = @() }
-if (-not $Route -and -not $Zip) { throw "Pass -Zip <track.zip> (usual) or a route file." }
+. (Join-Path $PSScriptRoot "share.ps1")
+if ($All) {
+  $share = Get-BusseltonShare
+  if (-not $share) { throw "No share: set BUSSELTON_SHARE." }
+  foreach ($z in Get-ChildItem (Join-Path $share "builds") -Filter *.zip) {
+    & $PSCommandPath -Zip $z.FullName -AcPath $AcPath -RigTracks $RigTracks
+  }
+  return
+}
+if (-not $Route -and -not $Zip) { throw "Pass -Zip <slug or track.zip> (usual), -All, or a route file." }
+if ($Zip) { $Zip = Resolve-BusseltonZip $Zip }
 
 if ($Zip) {
   # A finished build: the zip's top folder is the track's slug (the file may have been renamed on download).
@@ -93,9 +107,32 @@ function Install-Into([string]$tracks) {
   $tmp = Join-Path $env:TEMP "busselton-$slug"
   if (Test-Path $tmp) { Remove-Item $tmp -Recurse -Force }
   Expand-Archive -Path $zip -DestinationPath $tmp
-  if (Test-Path $dest) { Remove-Item $dest -Recurse -Force }
+  # An AO bake (*.vao-patch, scripts/windows/bake-vao.ps1) matches the geometry it was baked on:
+  # keep it when every kn5 is the same as before, so reinstalling the same build doesn't need a rebake.
+  $keep = Join-Path $env:TEMP "busselton-vao-$slug"
+  if (Test-Path $keep) { Remove-Item $keep -Recurse -Force }
+  $sameGeometry = $false
+  if (Test-Path $dest) {
+    $patches = @(Get-ChildItem $dest -Filter *.vao-patch -ErrorAction SilentlyContinue)
+    if ($patches) {
+      $hashes = { param($dir) (Get-ChildItem $dir -Filter *.kn5 | Sort-Object Name | ForEach-Object { "$($_.Name)=$((Get-FileHash $_.FullName -Algorithm SHA1).Hash)" }) -join ";" }
+      $sameGeometry = (& $hashes $dest) -eq (& $hashes (Join-Path $tmp $slug))
+      if ($sameGeometry) {
+        New-Item -ItemType Directory -Path $keep | Out-Null
+        $patches | Copy-Item -Destination $keep
+      } else {
+        Write-Warning "New geometry: the AO bake for $slug no longer fits and was removed. Bake again with scripts\windows\bake-vao.ps1 -Track $slug."
+      }
+    }
+    Remove-Item $dest -Recurse -Force
+  }
   Copy-Item (Join-Path $tmp $slug) $dest -Recurse
   Remove-Item $tmp -Recurse -Force
+  if ($sameGeometry) {
+    Copy-Item (Join-Path $keep "*") $dest
+    Remove-Item $keep -Recurse -Force
+    Write-Host "Same geometry as before: kept the AO bake." -ForegroundColor Green
+  }
   Write-Host "Installed $slug -> $dest" -ForegroundColor Green
 }
 Install-Into (Join-Path $AcPath "content\tracks")

@@ -4,18 +4,18 @@ For the workstation (test bench) and the rig (driving). Nothing here changes cod
 
 ## 1. Automatic runs, one per layout (workstation)
 
-`git pull` first, so the test runner knows about layouts. Then, with the zip in Downloads:
+`git pull` first, so the test runner knows about layouts. The zip is in the share's `builds\` folder:
 
 ```powershell
 cd <repo>
 foreach ($l in "estate", "town", "foreshore", "home_run") {
-  .\scripts\windows\run-test.ps1 -Zip $HOME\Downloads\busselton_and_broadwater.zip -Layout $l
+  .\scripts\windows\run-test.ps1 busselton_and_broadwater -Layout $l
 }
 ```
 
 The public map is the same with `busselton.zip` and the layouts `foreshore`, `town` (no estate or Home Run). Free roam has no lap to finish, so drive it by hand (section 2).
 
-Each run lands in `$env:BUSSELTON_TEST_SHARE\<date>-<slug>` with a zip. Attach the zips in the laptop session; they're read with `scripts/check/autotest_report.py`.
+Each run lands in the share's `tests\<date>_<time>-<slug>-<layout>` with a zip, read in the laptop session with `scripts/check/autotest_report.py`.
 
 ## 2. By hand (rig or workstation)
 

@@ -1,6 +1,9 @@
 """Read a workstation test run (scripts/windows/run-test.ps1) and say where the AI left the road.
 
-    python3 -I scripts/check/autotest_report.py <results.zip or folder> out/<slug>.surface.json
+    python3 -I scripts/check/autotest_report.py <results.zip or folder> out/<slug>.surface.json [--layout <id>]
+
+On a map with several layouts, the run's layout comes from race.ini.used in the results (or --layout),
+and the car is measured against that layout's AI line.
 
 Uses btest.csv (the track script's drive log): prints how the run ended, each off-road and
 stuck event with its distance round the lap and how far the car was from the AI line, and writes
@@ -38,12 +41,52 @@ def read_csv(path):
     return rows
 
 
+def run_layout(path):
+    """CONFIG_TRACK from the race.ini the run used, or None."""
+    try:
+        if path.endswith(".zip"):
+            with zipfile.ZipFile(path) as z:
+                name = next((n for n in z.namelist() if n.endswith("race.ini.used")), None)
+                text = z.read(name).decode("utf-8", "replace") if name else ""
+        else:
+            f = os.path.join(path, "race.ini.used")
+            text = open(f, encoding="utf-8", errors="replace").read() if os.path.exists(f) else ""
+    except (OSError, zipfile.BadZipFile):
+        return None
+    section = None
+    for line in text.splitlines():
+        line = line.strip().lstrip("\ufeff")
+        if line.startswith("["):
+            section = line.strip("[]").upper()
+        elif section == "RACE" and line.upper().startswith("CONFIG_TRACK"):
+            v = line.split("=", 1)[1].strip()
+            return v or None
+    return None
+
+
 def main():
-    src, surf = sys.argv[1], sys.argv[2]
+    args = [a for a in sys.argv[1:]]
+    layout = None
+    if "--layout" in args:
+        i = args.index("--layout")
+        layout = args[i + 1]
+        del args[i:i + 2]
+    src, surf = args[0], args[1]
     rows = read_csv(src)
     if not rows:
         sys.exit("btest.csv is empty: the test script didn't run. Check logs/custom_shaders_patch.log for autotest.lua.")
-    ai = json.load(open(surf))["ai"]
+    data = json.load(open(surf))
+    layout = layout or run_layout(src)
+    lines = data.get("layouts") or {}
+    if layout and layout in lines:
+        ai = lines[layout]
+        print(f"layout: {layout}")
+    else:
+        if layout and lines:
+            print(f"layout {layout} has no AI line of its own in {surf}: using the main one")
+        elif lines:
+            print("layout unknown (no race.ini.used, no --layout): using the main AI line")
+        ai = data["ai"]
     P = np.array([[a["position"][0], a["position"][2]] for a in ai])
     D = np.array([a["distance"] for a in ai])
     length = D[-1] + np.linalg.norm(P[0] - P[-1])

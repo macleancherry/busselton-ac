@@ -5,27 +5,32 @@
   collect logs, screenshots, the replay and the results into a shared folder.
 
 .EXAMPLE
-  .\scripts\windows\run-test.ps1 -Zip $HOME\Downloads\busselton_foreshore.zip
-  .\scripts\windows\run-test.ps1 -Zip $HOME\Downloads\busselton_foreshore.zip -Car ks_mazda_mx5_nd -AiLevel 90 -Minutes 10
+  .\scripts\windows\run-test.ps1 busselton -Layout town
+  .\scripts\windows\run-test.ps1 busselton -Layout foreshore -Car ks_mazda_mx5_nd -AiLevel 90 -Minutes 10
+  .\scripts\windows\run-test.ps1 C:\somewhere\busselton.zip
 
 .NOTES
   Runs code from the repo, never edits it (see CLAUDE.md). Needs the build to have traffic on (the
   test script ships with it) and CSP installed.
-  -Share is where results go; set it once with:  setx BUSSELTON_TEST_SHARE \\NAS\busselton-tests
+  The track is a slug (its zip is <share>\builds\<slug>.zip) or a zip's path. Results go to
+  <share>\tests\<date>_<time>-<slug>-<layout> and a zip of it (share.ps1 has the share's layout).
   The car is an everyday hatch (the Abarth 500 that comes with AC) driven at AI level 75, so the
   test drives a town street the way a person would, not flat out in a race car. -Car and -AiLevel
   change them (-Car "" keeps the car from the last session Content Manager started).
   Close AC before running. The script restores race.ini afterwards.
 #>
 param(
-  [Parameter(Mandatory = $true)][string]$Zip,
+  [Parameter(Mandatory = $true, Position = 0)][Alias("Track")][string]$Zip,
   [string]$Car = "abarth500",
   [int]$AiLevel = 75,
   [int]$Minutes = 9,
-  [string]$Share = $env:BUSSELTON_TEST_SHARE,
+  [string]$Share = "",
   [string]$AcPath = $env:BUSSELTON_AC_PATH,
   # Which layout, on a map with several (models_<layout>.ini); the first one when not given.
   [string]$Layout = "",
+  # Drive what's installed now (e.g. after an AO bake) instead of installing the zip again.
+  # The zip is still read for the track's name.
+  [switch]$SkipInstall,
   # Where the Drive button is in AC's window, as a fraction of its width and height: the top icon
   # of the left-hand bar (AC scales its menus with the resolution; measured on the workstation's 4K screen).
   [double]$DriveX = 0.013,
@@ -33,13 +38,16 @@ param(
 )
 $ErrorActionPreference = "Stop"
 $repo = Resolve-Path (Join-Path $PSScriptRoot "..\..")
+. (Join-Path $PSScriptRoot "share.ps1")
+$Zip = Resolve-BusseltonZip $Zip
+if (-not $Share) { $Share = Get-BusseltonShare }
 $docs = Join-Path ([Environment]::GetFolderPath("MyDocuments")) "Assetto Corsa"
 $raceIni = Join-Path $docs "cfg\race.ini"
 if (-not (Test-Path $raceIni)) { throw "No $raceIni yet: start any session once from Content Manager first." }
 if (Get-Process acs -ErrorAction SilentlyContinue) { throw "Assetto Corsa is running: close it first." }
 
 # 1. Install (same script as a normal install).
-& (Join-Path $PSScriptRoot "install-track.ps1") -Zip $Zip -AcPath $AcPath
+if (-not $SkipInstall) { & (Join-Path $PSScriptRoot "install-track.ps1") -Zip $Zip -AcPath $AcPath }
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 $archive = [IO.Compression.ZipFile]::OpenRead((Resolve-Path $Zip).Path)
 try { $slug = ($archive.Entries[0].FullName -split '[/\\]')[0] } finally { $archive.Dispose() }
@@ -222,8 +230,8 @@ Start-Sleep -Seconds 3
 
 # 4. Collect.
 $stamp = $started.ToString("yyyy-MM-dd_HHmm")
-$base = if ($Share -and (Test-Path $Share)) { $Share } else { Join-Path $repo "reports" }
-$dest = Join-Path $base "$stamp-$slug"
+$base = if ($Share -and (Test-Path $Share)) { Join-Path $Share "tests" } else { Join-Path $repo "reports" }
+$dest = Join-Path $base ("$stamp-$slug" + $(if ($Layout) { "-$Layout" } else { "" }))
 New-Item -ItemType Directory -Force -Path $dest | Out-Null
 Copy-Item (Join-Path $docs "logs") (Join-Path $dest "logs") -Recurse -Force -ErrorAction SilentlyContinue
 $screens = Get-ChildItem (Join-Path $docs "screens") -File -ErrorAction SilentlyContinue | Where-Object { $_.LastWriteTime -ge $started }
@@ -242,7 +250,7 @@ $finish = $lines | Where-Object { $_ -match '^BTEST,finish' } | Select-Object -L
 $off = ($lines | Where-Object { $_ -match '^BTEST,offroad' }).Count
 $start = $lines | Where-Object { $_ -match '^BTEST,start' } | Select-Object -First 1
 
-# One zip of the lot, to attach in the laptop session.
+# One zip of the lot, for the laptop session.
 $zipOut = "$dest.zip"
 if (Test-Path $zipOut) { Remove-Item $zipOut }
 [IO.Compression.ZipFile]::CreateFromDirectory($dest, $zipOut)
@@ -253,4 +261,4 @@ Write-Host ("  started:   " + ($(if ($start) { $start } else { "no BTEST lines: 
 Write-Host ("  finished:  " + ($(if ($finish) { $finish } else { "no finish line (timed out or crashed)" })))
 Write-Host "  off-road events: $off"
 Write-Host "  results:   $dest"
-Write-Host "  zip:       $zipOut  (attach this in the laptop session)"
+Write-Host "  zip:       $zipOut"
