@@ -69,6 +69,7 @@ import { groundAlbedo } from "./pureConfig";
 import { buildBarriers } from "./fences";
 import { buildFarmland, vineLeafTexture, type FarmPolygon } from "./farm";
 import { buildFarmRoadsides, farmTextures } from "./farmRoadsides";
+import { addTrafficLights, buildTrafficLights, findSignalSites, trafficLightMaterials } from "./trafficLights";
 import { chunkPhotoSampler, frontageHouses } from "./frontage";
 import { ArtList, type ArtRenderer } from "./art";
 import { challengeFiles } from "./challengeFiles";
@@ -177,6 +178,8 @@ export interface OsmFeatures {
   kerbside?: ({ pts: LngLat[] } & KerbTags)[];
   /** Busselton fork: cattle grids (OSM barrier=cattle_grid nodes) on or near the route. */
   cattleGrids?: LngLat[];
+  /** Busselton fork: traffic signals (OSM highway=traffic_signals, signalised crossings) on or near the route. */
+  trafficSignals?: { at: LngLat; crossing: boolean }[];
   /** Busselton fork: unsealed roads (OSM surface=unpaved, gravel...; the tiles' unpaved), for gravel on the route (unsealed.ts). */
   unsealed?: LngLat[][];
 }
@@ -242,6 +245,8 @@ export interface TrackResult {
     parkedCars?: number;
     /** Busselton fork: kerbside parking bays, bike lane metres and bicycle symbols painted (kerbside.ts). */
     kerbside?: { bays: number; bikeLaneMetres: number; symbols: number };
+    /** Busselton fork: signalled sites, posts and heads built, and sites the traffic planner can run (trafficLights.ts). */
+    trafficLights?: { sites: number; poles: number; heads: number; working: number };
     /** Houses whose walls were set from street photos. */
     housesLooked?: number;
     /** Shopfronts built, and how many have a verandah. */
@@ -1420,6 +1425,30 @@ export async function buildTrack(
     blocked: (x, y) => !inCover(x, y, 3) || streetIndex.clearance(x, y) < 0.2 || kept.some((b) => pointInRing(x, y, b.ring)) || !!inRoundabout(plan, x, y, 3),
     skip: (seg, side) => town[seg] >= 2 || kerbAt(seg, side),
   }) : null;
+  // Busselton fork: traffic lights where OSM maps signals: posts, heads, stop lines (trafficLights.ts).
+  const signalSites = opts.trafficLights !== false && sources.osm?.trafficSignals?.length
+    ? findSignalSites(
+      sources.osm.trafficSignals.map((n) => ({ at: proj.toLocal(n.at), crossing: n.crossing })),
+      [
+        { pts: [...plan.samples.map((p) => p.pos), ...(plan.closed ? [plan.samples[0].pos] : [])], widths: [...plan.samples.map((p) => p.width), ...(plan.closed ? [plan.samples[0].width] : [])], width: opts.defaultWidth, main: true },
+        ...(opts.sideStreets ? streetPlan.streets.filter((st) => !/^(parking_aisle|driveway|drive-through)$/.test(st.service ?? "")).map((st) => ({ pts: st.pts, width: st.width, widths: st.widths })) : []),
+      ],
+      (x, y) => !!inRoundabout(plan, x, y, 6),
+    )
+    : [];
+  const signals = signalSites.length ? buildTrafficLights({
+    sites: signalSites,
+    roadZ: (x, y) => {
+      const n = index.nearest(x, y, 30);
+      return n && Math.abs(n.t) < index.at(n).width / 2 + 0.2 ? surfaceHeight(plan.samples[n.seg], n.t, opts.crown) : ground(x, y) + 0.1;
+    },
+    groundZ: (x, y) => Math.max(ground(x, y), onMesh(x, y)),
+    onRoad: (x, y) => {
+      const n = index.nearest(x, y, 30);
+      return (!!n && Math.abs(n.t) < index.at(n).width / 2 + 0.3) || streetIndex.clearance(x, y) < 0.3;
+    },
+  }) : null;
+  if (signals) for (const t of trafficLightMaterials()) addScenery(t.texture, t.png, t.material);
   if (farmRoad) for (const t of farmTextures()) addScenery(`${t.name}.png`, t.png, material(t.name, `${t.name}.png`, { ambient: 0.45, diffuse: 0.45, specular: t.name === "farm_gravel" ? 0 : 0.2, exp: 15 }));
   // Inside the corridor buildings stand on the detailed terrain; further out, on the horizon mesh.
   const buildingGround = (x: number, y: number) => {
@@ -1747,6 +1776,7 @@ export async function buildTrack(
         group("RAILS", [...railsClear.nodes, ...rails.posts]),
         group("GUIDEPOSTS", posts),
         group("FARMROAD", farmRoad?.nodes ?? []),
+        group("TRAFFICLIGHTS", signals?.nodes ?? []),
         group("BUILDINGS", [...houses, ...specNodes]),
         group("SHOPS", shopMeshes),
         group("FENCES", keepOffRoute(barriers, onRoad).nodes),
@@ -1833,7 +1863,8 @@ export async function buildTrack(
     return trafficJson(roads, rbs, opts.trafficSetting);
   };
 
-  const trafficText = opts.traffic ? trafficData() : "";
+  // Busselton fork: the signalled junctions' lights run by the traffic planner (trafficLights.ts).
+  const trafficText = opts.traffic ? addTrafficLights(trafficData(), signals ? signalSites : []) : "";
   if (trafficText && parked.length) {
     // No parked car within 1.8 m of a traffic lane (AC space: x, z = -north).
     const lanePts = new LineIndex((JSON.parse(trafficText).lanes as { points: [number, number, number][] }[])
@@ -2011,6 +2042,7 @@ export async function buildTrack(
       carsPainted,
       parkedCars: parked.length,
       ...(kerbside ? { kerbside: { bays: kerbside.bays, bikeLaneMetres: Math.round(kerbside.bikeLaneMetres), symbols: kerbside.symbols } } : {}),
+      ...(signals ? { trafficLights: { sites: signalSites.length, poles: signals.poles, heads: signals.heads, working: signalSites.filter((st) => st.sidesOk).length } } : {}),
       housesLooked,
       shops: shopStats(shopfronts).shops,
       verandahs: shopStats(shopfronts).verandahs,

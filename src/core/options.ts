@@ -253,6 +253,12 @@ export interface BuildOptions {
    * (jettyTrain.ts). The train stands at the shore platform either way. On unless false.
    */
   jettyTrain?: boolean;
+  /**
+   * Busselton fork: traffic lights where OSM maps signals (highway=traffic_signals, signalised
+   * pedestrian crossings): Australian posts and heads, stop lines, and working lights through CSP's
+   * traffic planner when the track has traffic (trafficLights.ts). On unless false.
+   */
+  trafficLights?: boolean;
 }
 
 export const DEFAULT_OPTIONS: BuildOptions = {
