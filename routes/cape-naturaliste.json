@@ -1,0 +1,42 @@
+{
+ "name": "Cape Naturaliste Road",
+ "_note": "Cape Naturaliste Road (Tourist Drive 250) from the north edge of Dunsborough to the Cape Naturaliste lighthouse: past the Eagle Bay turn-off, then up onto the cape through coastal heath and peppermint, ending at the lighthouse car park loop (the one-way loop itself left out). Point to point, about 11 km. 5 m LiDAR covers only the first 3 km out of Dunsborough; the cape is on the 30 m fallback.",
+ "loop": false,
+ "preset": "country",
+ "pins": [
+  [
+   115.09785,
+   -33.60945
+  ],
+  [
+   115.08951,
+   -33.59608
+  ],
+  [
+   115.06726,
+   -33.58633
+  ],
+  [
+   115.05207,
+   -33.57971
+  ],
+  [
+   115.04115,
+   -33.56959
+  ],
+  [
+   115.03632,
+   -33.55447
+  ],
+  [
+   115.02669,
+   -33.54442
+  ]
+ ],
+ "build": {
+  "origin": [
+   115.06,
+   -33.578
+  ]
+ }
+}

@@ -1,0 +1,42 @@
+{
+ "name": "Cape Leeuwin",
+ "_note": "Augusta to Cape Leeuwin: Blackwood Avenue through the town, then Leeuwin Road south over the low hills past the turn to the water wheel, ending at the lighthouse car park where the Indian and Southern Oceans meet. Point to point, about 7.5 km, on the 30 m fallback heights.",
+ "loop": false,
+ "preset": "country",
+ "pins": [
+  [
+   115.16068,
+   -34.31778
+  ],
+  [
+   115.16229,
+   -34.32137
+  ],
+  [
+   115.16585,
+   -34.33317
+  ],
+  [
+   115.16653,
+   -34.34649
+  ],
+  [
+   115.16447,
+   -34.35975
+  ],
+  [
+   115.15182,
+   -34.36646
+  ],
+  [
+   115.13645,
+   -34.3699
+  ]
+ ],
+ "build": {
+  "origin": [
+   115.155,
+   -34.343
+  ]
+ }
+}
