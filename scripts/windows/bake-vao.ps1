@@ -43,8 +43,11 @@ if (-not $inputs) { $inputs = @(Get-ChildItem $dir -Filter "$Track.kn5" | ForEac
 if (-not $inputs) { throw "Nothing to bake in $dir." }
 
 $params = Join-Path $dir "baked_shadow_params.ini"
+$saved = $null
 if ($Quality -eq "test" -and (Test-Path $params)) {
-  (Get-Content $params) -replace '^RAYS_PER_SAMPLE = \d+', 'RAYS_PER_SAMPLE = 32' | Set-Content $params
+  # Only for this bake: the shipped settings are put back afterwards, so a later final bake is final.
+  $saved = Get-Content $params -Raw
+  ($saved -replace '(?m)^RAYS_PER_SAMPLE = \d+', 'RAYS_PER_SAMPLE = 32') | Set-Content $params -NoNewline
 }
 
 # The bakery waits for a key press after an error: give it an empty input so it ends instead.
@@ -56,6 +59,7 @@ $p = Start-Process -FilePath $Bakery -ArgumentList ($inputs | ForEach-Object { "
   -WorkingDirectory $dir -NoNewWindow -Wait -PassThru `
   -RedirectStandardInput $empty -RedirectStandardOutput $log -RedirectStandardError "$log.err"
 Remove-Item $empty
+if ($null -ne $saved) { Set-Content $params $saved -NoNewline }
 $mins = [math]::Round(((Get-Date) - $started).TotalMinutes, 1)
 if ($p.ExitCode -ne 0) { throw "AO bake failed (exit $($p.ExitCode)) after $mins min; see $log" }
 Write-Host "Baked in $mins min:" -ForegroundColor Green
