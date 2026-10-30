@@ -27,6 +27,15 @@
    "specFile": "routes/landmarks/settlers_tavern.json",
    "name": "Settlers Tavern",
    "facing": 96
+  },
+  {
+   "at": [
+    115.074701,
+    -33.947267
+   ],
+   "specFile": "routes/landmarks/itc_store.json",
+   "name": "International Trading Company Store (REDSEA Gallery)",
+   "facing": 271
   }
  ]
 }

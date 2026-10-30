@@ -1,5 +1,5 @@
 {
- "note": "International Trading Company Store (former), 83 Bussell Hwy, Margaret River's third store (1925), later the Margaret River Art Gallery and Jahroc, REDSEA Gallery since 2024 (local heritage list MR(T)-04). From the inHerit record and a 2019 street photo; footprint NOT measured (placement unconfirmed). A single-storey timber weatherboard shop, dark oiled timber, with a gabled Zincalume roof to the street, a modern bull-nosed verandah over the footpath, a splayed central entry between big timber-framed shop windows, the 2005 flat-roofed contemporary gallery (black, deep red fascia) beside it, and the old cottage behind (outbuilding). Name in plain lettering. Metres: x left to right as seen from Bussell Hwy (north to south), y back (east) from the shopfront.",
+ "note": "International Trading Company Store (former), 83 Bussell Hwy, Margaret River's third store (1925), later the Margaret River Art Gallery and Jahroc, REDSEA Gallery since 2024 (local heritage list MR(T)-04). Placed from the Landgate aerial (Oct 2026), OSM (the old 'Jahroc Gallery' point) and 2019 street photos showing the Jah Roc signs: the complex just north of Wino's and south of the tyre shop's car park. A single-storey timber weatherboard shop, dark oiled timber, gabled to the street, with a lower gabled wing on its north side, a modern bull-nosed verandah over the footpath and a central entry between big timber-framed shop windows; behind it the 2005 flat-roofed contemporary gallery (black, deep red fascia), and the old cottage behind that (outbuilding). Name in plain lettering. Metres: x left to right as seen from Bussell Hwy (north to south), y back (east) from the shopfront. Outlines are the roofs in the aerial.",
  "wallHeight": 3.8,
  "setback": 4,
  "road": {
@@ -15,8 +15,8 @@
  "cameras": {
   "street": {
    "eye": [
-    -6,
-    -18,
+    -12,
+    -16,
     1.6
    ],
    "look": [
@@ -28,13 +28,13 @@
   },
   "aerial": {
    "eye": [
-    -20,
-    -30,
-    24
+    -26,
+    -32,
+    26
    ],
    "look": [
     2,
-    12,
+    14,
     1
    ],
    "lens": 30
@@ -65,37 +65,38 @@
   {
    "name": "shop",
    "x0": 0.0,
-   "x1": 8.0,
+   "x1": 10.6,
    "y0": 0.0,
-   "y1": 14.0,
-   "roof": "gable"
+   "y1": 12.5,
+   "roof": "gable",
+   "pitch": 28
+  },
+  {
+   "name": "north_wing",
+   "x0": -4.0,
+   "x1": 0.0,
+   "y0": 0.3,
+   "y1": 10.6,
+   "roof": "gable",
+   "pitch": 25,
+   "wallHeight": 3.0
   },
   {
    "name": "gallery_2005",
-   "x0": -13.0,
-   "x1": -0.5,
-   "y0": 2.0,
-   "y1": 20.0,
+   "x0": -5.0,
+   "x1": 10.5,
+   "y0": 12.5,
+   "y1": 25.0,
    "roof": "none",
    "wallHeight": 5.4,
    "walls": "black"
   },
   {
-   "name": "link",
-   "x0": 0.5,
-   "x1": 7.5,
-   "y0": 14.0,
-   "y1": 22.0,
-   "roof": "none",
-   "wallHeight": 4.0,
-   "walls": "black"
-  },
-  {
    "name": "cottage",
-   "x0": 0.0,
-   "x1": 9.0,
-   "y0": 22.0,
-   "y1": 32.0,
+   "x0": -10.0,
+   "x1": 3.0,
+   "y0": 25.0,
+   "y1": 38.0,
    "roof": "gable",
    "wallHeight": 3.0,
    "outbuilding": true
@@ -103,10 +104,19 @@
  ],
  "panels": [
   {
-   "x0": -13.05,
-   "x1": -0.45,
-   "y0": 1.86,
-   "y1": 1.98,
+   "x0": -5.05,
+   "x1": 10.55,
+   "y0": 12.38,
+   "y1": 12.5,
+   "z0": 4.8,
+   "z1": 5.45,
+   "walls": "red"
+  },
+  {
+   "x0": -5.12,
+   "x1": -5.0,
+   "y0": 12.38,
+   "y1": 25.05,
    "z0": 4.8,
    "z1": 5.45,
    "walls": "red"
@@ -115,7 +125,7 @@
  "verandahs": [
   {
    "x0": 0.0,
-   "x1": 8.0,
+   "x1": 10.6,
    "y0": -2.6,
    "y1": 0.0,
    "wallHeight": 3.8,
@@ -123,16 +133,16 @@
    "deckHeight": 0.05,
    "posts": [
     0.2,
-    4.0,
-    7.8
+    5.3,
+    10.4
    ]
   }
  ],
  "doors": [
   {
    "type": "front",
-   "x0": 3.3,
-   "x1": 4.7,
+   "x0": 4.6,
+   "x1": 6.0,
    "y": 0.0,
    "height": 2.3,
    "z0": 0.15,
@@ -143,31 +153,31 @@
   {
    "facing": "front",
    "wall": 0.0,
-   "at": 1.65,
-   "width": 2.4,
+   "at": 2.2,
+   "width": 2.8,
    "height": 1.9,
    "sill": 0.5
   },
   {
    "facing": "front",
    "wall": 0.0,
-   "at": 6.35,
-   "width": 2.4,
+   "at": 8.4,
+   "width": 2.8,
    "height": 1.9,
    "sill": 0.5
   },
   {
    "facing": "front",
-   "wall": 2.0,
-   "at": -9.0,
-   "width": 4.0,
-   "height": 2.2,
-   "sill": 0.4
+   "wall": 0.3,
+   "at": -2.0,
+   "width": 1.6,
+   "height": 1.3,
+   "sill": 0.8
   }
  ],
  "paving": [
   {
-   "x0": -15,
+   "x0": -6,
    "y0": -5.0,
    "x1": 12,
    "y1": 0.0,
@@ -177,8 +187,8 @@
  ],
  "signs": [
   {
-   "x0": 1.2,
-   "x1": 6.8,
+   "x0": 2.0,
+   "x1": 8.6,
    "y": -2.75,
    "z0": 2.5,
    "z1": 2.85,
@@ -189,13 +199,13 @@
  ],
  "trees": [
   {
-   "x": -14.0,
+   "x": -7.0,
    "y": -2.0,
    "height": 6,
    "spread": 4
   },
   {
-   "x": 10.5,
+   "x": 12.5,
    "y": 2.0,
    "height": 5,
    "spread": 4

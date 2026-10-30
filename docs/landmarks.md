@@ -27,7 +27,7 @@ Status: ✅ built · 📝 described · 📷 gathering photos · ⬜ to do
 | 15 | Busselton Volunteer Fire and Rescue station | Town centre | ✅ ([description](landmarks/fire_station.md)) |
 | 16 | Busselton Bowling Club, Churchill Park, Barnard Park | East of the jetty | ✅ bowling club; Churchill and Barnard specced, outside the built area |
 | 17 | Victoria Square, Mitchell Park, the Japanese Friendship Garden | Town centre | ✅ |
-| 18 | Kookaburra Caravan Park | Marine Tce | ⬜ |
+| 18 | Busselton Jetty Tourist Park (the old Kookaburra Caravan Park) | Marine Tce and Brown St | ✅ ([description](landmarks/kookaburra_caravan_park.md)) |
 | 19 | St Mary's Anglican Church (1845, the oldest stone church in WA) and bell tower | Queen St and Peel Tce | ✅ ([description](landmarks/st_marys.md)) |
 
 ## The whole map (private)

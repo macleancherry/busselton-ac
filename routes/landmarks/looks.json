@@ -189,6 +189,15 @@
    "specFile": "routes/landmarks/banksia_tavern.json",
    "name": "The Banksia Tavern",
    "facing": 170
+  },
+  {
+   "at": [
+    115.347801,
+    -33.646069
+   ],
+   "specFile": "routes/landmarks/kookaburra_caravan_park.json",
+   "name": "Busselton Jetty Tourist Park (the old Kookaburra Caravan Park)",
+   "facing": 350
   }
  ]
 }
