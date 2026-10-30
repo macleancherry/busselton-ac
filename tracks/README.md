@@ -17,6 +17,7 @@ The route stays in `routes/` and the landmarks in `routes/landmarks/`. Private t
 | [Cape Naturaliste Road](cape_naturaliste_road/README.md) | Drive-anywhere (showcase later) | `routes/cape-naturaliste.json` | First 3 km only |
 | [Margaret River](margaret_river/README.md) | Drive-anywhere (showcase later) | `routes/margaret-river.json` | No |
 | [Caves Road, Boranup](caves_road_boranup/README.md) | Drive-anywhere (showcase later) | `routes/caves-road-boranup.json` | No |
+| [Boranup Drive](boranup_drive/README.md) | Drive-anywhere (showcase later); gravel | `routes/boranup-drive.json` | No |
 | [Cape Leeuwin](cape_leeuwin/README.md) | Drive-anywhere (showcase later) | `routes/cape-leeuwin.json` | No |
 | [Collie Motorplex](collie_motorplex/README.md) | Showcase | `routes/collie-motorplex.json` | No |
 

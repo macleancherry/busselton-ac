@@ -30,7 +30,9 @@
    -33.4318
   ],
   "traffic": false,
-  "corridor": 60
+  "corridor": 60,
+  "armco": false,
+  "farmRoadsides": false
  },
  "ways": [
   89374807,

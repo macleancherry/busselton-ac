@@ -108,6 +108,33 @@
    "specFile": "routes/landmarks/orana_cinemas.json",
    "name": "Orana Cinemas",
    "facing": 167
+  },
+  {
+   "at": [
+    115.345603,
+    -33.652773
+   ],
+   "specFile": "routes/landmarks/st_marys.json",
+   "name": "St Mary's Anglican Church",
+   "facing": 270
+  },
+  {
+   "at": [
+    115.346398,
+    -33.647204
+   ],
+   "specFile": "routes/landmarks/pioneer_cemetery.json",
+   "name": "Busselton Pioneer Cemetery",
+   "facing": 346
+  },
+  {
+   "at": [
+    115.347919,
+    -33.651811
+   ],
+   "specFile": "routes/landmarks/fire_station.json",
+   "name": "Busselton Volunteer Fire and Rescue",
+   "facing": 346
   }
  ]
 }

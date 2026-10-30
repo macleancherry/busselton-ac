@@ -1,0 +1,36 @@
+{
+ "name": "Boranup Drive",
+ "_note": "Boranup Drive: the graded limestone scenic drive through the Boranup karri forest, west of Caves Road south of Margaret River. One OSM way, 31541578 (unclassified, surface=unpaved, tracktype=grade3, 13.7 km), with both ends on Caves Road: north near -34.0988 (just north of Allan Road), south near -34.1796. OSRM won't route it, so the centreline comes from the way ('ways'). Driven north to south (the way runs south to north; the pins set the direction). Start pin about 150 m in from Caves Road (between the service road and Allan Road) so the grid stays off the junction, finish about 100 m before the southern junction, one pin mid-road clear of the Anchor Road junction. Forced unsealed end to end (OSM tags it, but this keeps it gravel whatever the tags do). Country preset with: no banking (a crowned gravel road, not banked), no Armco (there is none), no farm gates or mailboxes (the side tracks are national park 4WD tracks, not driveways), no traffic (a quiet narrow forest drive). Not on 5 m LiDAR: about 30 m global heights, so check the grades over the karri ridges. Caves Road through the same forest is routes/caves-road-boranup.json.",
+ "loop": false,
+ "preset": "country",
+ "ways": [
+  31541578
+ ],
+ "pins": [
+  [
+   115.05328,
+   -34.1001
+  ],
+  [
+   115.06786,
+   -34.14661
+  ],
+  [
+   115.07937,
+   -34.17932
+  ]
+ ],
+ "options": {
+  "banking": false
+ },
+ "build": {
+  "origin": [
+   115.066,
+   -34.14
+  ],
+  "unsealed": true,
+  "armco": false,
+  "farmRoadsides": false,
+  "traffic": false
+ }
+}

@@ -1,0 +1,299 @@
+{
+ "note": "Busselton Volunteer Fire and Rescue station, between Albert St, Stanley Pl and Cammilleri St (OSM way 370721434). From the Landgate aerial (Oct 2026) and a 2019 Mapillary view of its west side. A tan face-brick hall under a terracotta tile gable roof, the ridge running back from Albert St, two roller doors for the appliances in the gable end onto the concrete apron, a small flat-roofed entry block beside them, flat-roofed wings to the west (with the brick screen wall and the covered parking slab) and to the south. The roof is drawn about 20 x 21 m (in life about 21 wide by 19 deep) so the ridge runs front to back: specHouse ridges the longer side. Sign is plain lettering only and its wording is a guess. Metres: x left to right as seen from Albert St (east to west), y back from the front wall.",
+ "wallHeight": 4.2,
+ "setback": 20.5,
+ "road": {
+  "width": 8,
+  "verge": 3.5
+ },
+ "lawn": "#7f8c4c",
+ "sunFrom": [
+  0.5,
+  -0.8,
+  1.0
+ ],
+ "cameras": {
+  "street": {
+   "eye": [
+    -6,
+    -24,
+    1.6
+   ],
+   "look": [
+    9,
+    6,
+    3.2
+   ],
+   "lens": 24
+  },
+  "aerial": {
+   "eye": [
+    -24,
+    -40,
+    28
+   ],
+   "look": [
+    10,
+    10,
+    1
+   ],
+   "lens": 26
+  }
+ },
+ "walls": {
+  "kind": "brick",
+  "colour": "#c39f74"
+ },
+ "finishes": {
+  "screen": {
+   "kind": "brick",
+   "colour": "#bf9a6c"
+  },
+  "cladding": {
+   "kind": "cladding",
+   "colour": "#d9d6cc"
+  }
+ },
+ "trim": "#4f5a5c",
+ "roof": {
+  "pitch": 18,
+  "colour": "#b9614a",
+  "eaves": 0.5
+ },
+ "blocks": [
+  {
+   "name": "hall",
+   "x0": -0.4,
+   "x1": 19.3,
+   "y0": 0.0,
+   "y1": 19.8,
+   "roof": "gable"
+  },
+  {
+   "name": "entry",
+   "x0": 10.6,
+   "x1": 14.6,
+   "y0": -3.6,
+   "y1": 0.0,
+   "roof": "hip",
+   "wallHeight": 2.9,
+   "pitch": 4,
+   "eaves": 0.3,
+   "roofColour": "#dcdcd6"
+  },
+  {
+   "name": "west_wing",
+   "x0": 19.3,
+   "x1": 24.9,
+   "y0": 0.4,
+   "y1": 11.9,
+   "roof": "hip",
+   "wallHeight": 3.0,
+   "pitch": 4,
+   "eaves": 0.3,
+   "roofColour": "#dcdcd6"
+  },
+  {
+   "name": "south_wing",
+   "x0": 9.0,
+   "x1": 20.5,
+   "y0": 19.8,
+   "y1": 28.6,
+   "roof": "hip",
+   "wallHeight": 3.0,
+   "pitch": 12,
+   "eaves": 0.4,
+   "roofColour": "#dcdcd6"
+  }
+ ],
+ "doors": [
+  {
+   "type": "roller",
+   "x0": 0.6,
+   "x1": 4.6,
+   "y": 0.0,
+   "height": 3.8,
+   "colour": "#e4e4de"
+  },
+  {
+   "type": "roller",
+   "x0": 5.6,
+   "x1": 9.6,
+   "y": 0.0,
+   "height": 3.8,
+   "colour": "#e4e4de"
+  },
+  {
+   "type": "front",
+   "x0": 12.0,
+   "x1": 13.0,
+   "y": -3.6,
+   "height": 2.2,
+   "z0": 0.0,
+   "colour": "#3b3f40"
+  }
+ ],
+ "windows": [
+  {
+   "facing": "front",
+   "wall": -3.6,
+   "at": 13.9,
+   "width": 0.9,
+   "height": 1.2,
+   "sill": 0.9
+  },
+  {
+   "facing": "front",
+   "wall": 0.0,
+   "at": 16.8,
+   "width": 1.6,
+   "height": 1.2,
+   "sill": 1.0
+  },
+  {
+   "facing": "left",
+   "wall": -0.4,
+   "at": 4.5,
+   "width": 1.4,
+   "height": 1.0,
+   "sill": 1.2
+  },
+  {
+   "facing": "left",
+   "wall": -0.4,
+   "at": 9.0,
+   "width": 1.4,
+   "height": 1.0,
+   "sill": 1.2
+  },
+  {
+   "facing": "left",
+   "wall": -0.4,
+   "at": 13.5,
+   "width": 1.4,
+   "height": 1.0,
+   "sill": 1.2
+  },
+  {
+   "facing": "left",
+   "wall": -0.4,
+   "at": 17.5,
+   "width": 1.4,
+   "height": 1.0,
+   "sill": 1.2
+  },
+  {
+   "facing": "right",
+   "wall": 24.9,
+   "at": 3.0,
+   "width": 1.2,
+   "height": 1.0,
+   "sill": 1.1
+  },
+  {
+   "facing": "right",
+   "wall": 24.9,
+   "at": 6.5,
+   "width": 1.2,
+   "height": 1.0,
+   "sill": 1.1
+  },
+  {
+   "facing": "right",
+   "wall": 24.9,
+   "at": 10.0,
+   "width": 1.2,
+   "height": 1.0,
+   "sill": 1.1
+  },
+  {
+   "facing": "front",
+   "wall": 0.4,
+   "at": 22.0,
+   "width": 1.6,
+   "height": 1.0,
+   "sill": 1.1
+  }
+ ],
+ "fences": [
+  {
+   "x0": 25.1,
+   "y0": 11.9,
+   "x1": 25.35,
+   "y1": 21.5,
+   "height": 1.8,
+   "colour": "#bf9a6c",
+   "kind": "brick"
+  }
+ ],
+ "paving": [
+  {
+   "x0": -3.4,
+   "y0": -20.5,
+   "x1": 10.6,
+   "y1": 0.0,
+   "colour": "#c9c5bb",
+   "kind": "concrete"
+  },
+  {
+   "x0": 10.6,
+   "y0": -6.5,
+   "x1": 16.5,
+   "y1": -3.6,
+   "colour": "#c9c5bb",
+   "kind": "concrete"
+  },
+  {
+   "x0": 20.6,
+   "y0": 11.9,
+   "x1": 25.0,
+   "y1": 21.0,
+   "colour": "#c9c5bb",
+   "kind": "concrete"
+  }
+ ],
+ "signs": [
+  {
+   "x0": 0.9,
+   "x1": 9.3,
+   "y": -0.1,
+   "z0": 4.0,
+   "z1": 4.5,
+   "text": "BUSSELTON VOLUNTEER FIRE & RESCUE",
+   "colour": "#f0efe9",
+   "ink": "#b3261e"
+  }
+ ],
+ "trees": [
+  {
+   "x": 30.5,
+   "y": 3.0,
+   "height": 14,
+   "spread": 6
+  },
+  {
+   "x": 31.0,
+   "y": 13.0,
+   "height": 14,
+   "spread": 6
+  },
+  {
+   "x": 30.0,
+   "y": 22.0,
+   "height": 13,
+   "spread": 6
+  },
+  {
+   "x": 19.0,
+   "y": -14.0,
+   "height": 12,
+   "spread": 6
+  },
+  {
+   "x": -7.0,
+   "y": -12.0,
+   "height": 13,
+   "spread": 6
+  }
+ ]
+}
