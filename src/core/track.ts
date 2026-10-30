@@ -3,7 +3,7 @@
 // tiles) and in Node tests (synthetic terrain).
 
 import { buildPaths, footPathTexture, sharedPathTexture, type PathLine } from "./paths";
-import { pickSpecies, treeSpeciesAtlas } from "./treeSprites";
+import { pickSpecies, TREE_SPECIES, treeSpeciesAtlas } from "./treeSprites";
 import { FENCE_COLOURS, fenceTexture, frontWallTexture, hedgeTexture, mulchTexture, shrubAtlas } from "./houseTextures";
 import { buildLots, shrub } from "./lots";
 import { buildParkedCars, carTexture, paintFor, type ParkedCar } from "./parkedCars";
@@ -18,6 +18,7 @@ import { Area, areaRings, makeCover } from "./area";
 import { buildJettyPrecinct, JETTY_MATERIALS, type JettyFeatures } from "./jetty";
 import { treeList, writeTreeBin } from "./cspTrees";
 import { MODEL_NAMES, treeModel } from "./treeModels";
+import { ZoneMap, type LandcoverPolygon } from "./zones";
 import { asLayout, dummiesKn5 } from "./layouts";
 import { BACKDROP_CHUNK, backdropHeight, buildBackdropChunk, planBackdrop } from "./backdrop";
 import { writeFastLaneAi } from "./aiSpline";
@@ -129,7 +130,7 @@ export interface DataSources {
   drawSigns?: SignDrawer;
   /** Busselton fork: landmarks built as layers after the base (landmarkLayer.ts): the automatic test photographs them. */
   landmarks?: { name: string; at: LngLat }[];
-  coast?: { ocean: { rings: LngLat[][]; edge: boolean[][] }[]; piers: { rings: LngLat[][]; edge: boolean[][] }[]; beaches?: { rings: LngLat[][]; edge: boolean[][] }[] };
+  coast?: { ocean: { rings: LngLat[][]; edge: boolean[][] }[]; piers: { rings: LngLat[][]; edge: boolean[][] }[]; beaches?: { rings: LngLat[][]; edge: boolean[][] }[]; landcover?: LandcoverPolygon[] };
   /** Busselton fork: what stands on the jetties (osm.ts fetchPierFeatures; jetty.ts builds it). */
   jetty?: { railways: LngLat[][]; platforms: { pts: LngLat[]; shelter: boolean }[]; buildings: { pts: LngLat[]; name: string }[] };
   /** Tiled ground detail textures for ksMultilayer terrain (lawn, rough, sand, litter); null to keep plain photo terrain. */
@@ -557,6 +558,9 @@ export async function buildTrack(
   const sea = new SeaMask(ocean, farBounds.minX, farBounds.minY, farBounds.maxX, farBounds.maxY);
   const dem = ocean.length ? withSeabed(landDem, sea) : landDem;
   const farDem = ocean.length ? withSeabed(landFarDem, sea) : landFarDem;
+  // Busselton fork: landscape zones (zones.ts) choose tree species and density, the ground detail mix and the verge colour.
+  const zones = opts.zones ? new ZoneMap({ toLngLat: (v) => proj.toLngLat(v), toLocal: (p) => proj.toLocal(p), landcover: sources.coast?.landcover, sea: ocean.length ? (x, y) => sea.has(x, y) : undefined, bounds: farBounds }) : null;
+  const treeModels = opts.cspTrees ? MODEL_NAMES : TREE_SPECIES.map((t) => t.name);
   // Busselton fork: an area build's roundabouts away from the route, as rings like the route's own
   // (side streets stop at them and open their verges), so every street's roundabouts are there to
   // drive round. They're on no stretch of the route: sIn and sOut are NaN.
@@ -589,7 +593,7 @@ export async function buildTrack(
   const chunks = planTerrainChunks(plan, index, opts, area);
   const backdrop = planBackdrop(plan, index, opts, area);
   const textures: Kn5Texture[] = [
-    { name: "verge.png", data: vergeTexture() },
+    { name: "verge.png", data: zones ? zones.vergeTexture(plan.samples.map((s) => s.pos)) : vergeTexture() },
     { name: "grass.png", data: grassTexture() },
     { name: "wall.png", data: solidTexture([128, 128, 128]) },
   ];
@@ -605,8 +609,9 @@ export async function buildTrack(
     materials.push(mat);
   };
   /** A ground mask for a photo texture (see groundMask); returns the mask's texture name. */
-  const photoMask = (name: string, rgba: Uint8Array | Uint8ClampedArray, w: number, h: number) => {
+  const photoMask = (name: string, rgba: Uint8Array | Uint8ClampedArray, w: number, h: number, chunk?: TerrainChunk) => {
     const mask = groundMask(rgba, w, h);
+    if (zones && chunk) zones.biasMask(mask, chunk);
     textures.push({ name: `${name}_mask.dds`, data: encodeDdsDxt1(mask.rgba, mask.width, mask.height) });
     return `${name}_mask.dds`;
   };
@@ -744,7 +749,7 @@ export async function buildTrack(
         // Grass, dirt and plain detail where the photo shows them, placed by a small mask; the photo
         // (with parked cars painted out) stays DXT1.
         textures.push({ name: tex, data: photoData });
-        materials.push(groundMaterial(`${job.prefix}_${job.chunk.key}`, tex, photoMask(`${job.prefix}_${job.chunk.key}`, photo, job.size, job.size), photoLight));
+        materials.push(groundMaterial(`${job.prefix}_${job.chunk.key}`, tex, photoMask(`${job.prefix}_${job.chunk.key}`, photo, job.size, job.size, job.chunk), photoLight));
       } else {
         textures.push({ name: tex, data: photoData });
         materials.push(material(`${job.prefix}_${job.chunk.key}`, tex, photoLight));
@@ -1208,11 +1213,16 @@ export async function buildTrack(
     }
     return false;
   });
-  const planted = filterTrees(treeSpots, index, opts, opts.maxTrees, area ? cover : undefined).map((t) => {
+  const planted0 = filterTrees(treeSpots, index, opts, opts.maxTrees, area ? cover : undefined).map((t) => {
     const n = index.nearest(t.x, t.y, opts.corridor + 10);
     const town = !!n && kerbedNear[n.seg];
-    return { ...t, variant: pickSpecies(speciesRand(), !!t.coastal, town, ocean.length > 0 && sea.near(t.x, t.y, FORESHORE)) };
-  });
+    const foreshore = ocean.length > 0 && sea.near(t.x, t.y, FORESHORE);
+    // Busselton fork: out of town and off the foreshore, the landscape zone picks the tree (or thins it out).
+    if (zones && !town && !foreshore) return zones.tree(t, treeModels, speciesRand());
+    return { ...t, variant: pickSpecies(speciesRand(), !!t.coastal, town, foreshore) };
+  }).filter((t): t is TreeSpot => t !== null);
+  // A zone's species and size change the crown, so keep it clear of the road again.
+  const planted = zones ? filterTrees(planted0, index, opts, opts.maxTrees, area ? cover : undefined) : planted0;
   const treesKept = offStreets(offRings(planted)).filter((t) => !cleared(t.x, t.y, true));
   // Busselton fork: with CSP trees on, the trees go in CSP's tree list instead of the kn5 (below).
   const trees = opts.cspTrees ? [] : buildTrees(treesKept, ground);
@@ -1222,7 +1232,8 @@ export async function buildTrack(
   const farStep = Math.max(1, far.length / 3000);
   const horizonTrees = buildTrees(
     Array.from({ length: Math.floor(far.length / farStep) }, (_, i) => far[Math.floor(i * farStep)])
-      .map((t) => ({ ...t, scale: t.scale * 1.15, variant: pickSpecies(speciesRand(), !!t.coastal, false) })),
+      .map((t) => ({ ...t, scale: t.scale * 1.15, variant: pickSpecies(speciesRand(), !!t.coastal, false) }))
+      .flatMap((t) => (zones ? zones.tree(t, TREE_SPECIES.map((s) => s.name), speciesRand()) ?? [] : [t])),
     (x, y) => backdropHeight(farDem, index, opts, x, y, area ? cover : undefined) - 0.6,
     "HORIZONTREES",
   ).map((m) => ({ ...m, castShadows: false }));

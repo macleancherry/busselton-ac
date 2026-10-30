@@ -102,7 +102,7 @@ Generated tracks across the region at a lighter detail level, rebuilt whenever t
 - 🔨 **A drive-anywhere preset:** ✅ `"preset": "country"` (`scripts/headless/presets.mjs`). Still to do: country settings (wider terrain grid, corridor and horizon sized to the budget, gentle banking) so a new road is one route file. Check 30+ km roads and draw distances.
 - ⬜ **Country roadsides:** gravel shoulders, guideposts (done), Armco on bends and drop-offs, farm driveways, mailboxes, cattle grids.
 - ⬜ **Unsealed roads:** gravel surface physics, dust, a limestone gravel texture (Boranup, farm roads).
-- ⬜ **Landscape zones:** each with its own trees, ground and roadside.
+- 🔨 **Landscape zones:** each with its own trees, ground and roadside. ✅ The zone system (`src/core/zones.ts`, on in the country preset): tree species and density, ground detail mix and verge colour per zone, from landcover, distance to the sea and a coarse region map. Still to do: granite boulders on the coast, sedge, vine rows and fences, karri/marri/jarrah/paperbark/banksia models (they borrow the nearest model until then).
   - coast: white sand, peppermint, granite
   - capes heath
   - tuart woodland

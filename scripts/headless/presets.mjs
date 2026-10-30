@@ -3,7 +3,8 @@
 //
 // country: a drive-anywhere road (ROADMAP.md phase C). A 70 m corridor and a 2.5 m terrain grid
 //   keep 10-30 km inside the RTX 4060 budget; a 1 km photo horizon; gentle banking (up to 4%) on
-//   bends; traffic on; no trace guard (country roads aren't traced from the aerial).
+//   bends; traffic on; no trace guard (country roads aren't traced from the aerial); landscape zones
+//   (src/core/zones.ts) for the trees, ground and verges.
 // town: a flat South West town (Busselton). No banking, a fine terrain grid and the ground only
 //   just under the road, so kerbs and edges stay true (CLAUDE.md, "Busselton is flat").
 export const PRESETS = {
@@ -17,6 +18,7 @@ export const PRESETS = {
       corridor: 70,
       horizon: 1000,
       maxBank: 0.04,
+      zones: true,
     },
   },
   town: {

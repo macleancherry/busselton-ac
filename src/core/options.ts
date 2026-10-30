@@ -154,6 +154,12 @@ export interface BuildOptions {
    * place of the alpha-tested card trees in the kn5. Needs CSP; the browser preview shows no trees.
    */
   cspTrees?: boolean;
+  /**
+   * Busselton fork: landscape zones (zones.ts): each part of the South West gets its own tree species
+   * and density, ground detail mix and verge colour, from the tiles' landcover, the distance to the
+   * sea and a coarse region map. Towns and the foreshore keep their street trees. On in the country preset.
+   */
+  zones?: boolean;
   /** Kerb and gutter where the photos (or a built-up area) show them, instead of a gravel verge. */
   kerbs: boolean;
   /**
