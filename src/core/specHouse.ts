@@ -39,6 +39,18 @@ export interface HouseSpec {
   fences?: { x0: number; y0: number; x1: number; y1: number; height?: number; colour?: string }[];
   hedges?: { x0: number; x1: number; y0: number; depth?: number; height?: number }[];
   trees?: { x: number; y: number; height: number; spread?: number }[];
+  /** Flat paving (brick, concrete) laid on the ground. */
+  paving?: { x0: number; y0: number; x1: number; y1: number; colour?: string }[];
+  /** Outdoor tables with bench seats (picnic style), `along` x unless `turned`. */
+  tables?: { x: number; y: number; length?: number; turned?: boolean; colour?: string }[];
+  /** Market umbrellas: a pole and an eight-sided canopy. */
+  umbrellas?: { x: number; y: number; radius?: number; height?: number; colour?: string }[];
+  /** Shade sails: three or four corners [x, y, z], with a post up to each corner more than 1 m up. */
+  sails?: { pts: [number, number, number][]; colour?: string }[];
+  /** Feather flags on a pole, facing the street. */
+  flags?: { x: number; y: number; height?: number; colour?: string }[];
+  /** A sign board facing the street, lettered with `text`, on two posts when `posts`. */
+  signs?: { x0: number; x1: number; y: number; z0: number; z1: number; text?: string; colour?: string; ink?: string; posts?: boolean }[];
 }
 
 type RGB = [number, number, number];
@@ -69,6 +81,8 @@ export interface SpecHouse {
   trees: TreeSpot[];
   /** Each block's footprint on the map, counter-clockwise (to clear generated houses away). */
   footprints: Vec2[][];
+  /** Lettered sign faces: material name, text and colours, and the board's size in metres (for the texture's shape). */
+  signs: { name: string; text: string; bg: RGB; ink: RGB; width: number; height: number }[];
 }
 
 export function nearestRoof(rgb: RGB): number {
@@ -264,10 +278,73 @@ export function buildSpecHouse(spec: HouseSpec, place: SpecPlacement, tag: strin
     return { x: p[0], y: p[1], scale: Math.max(0.5, Math.min(1.2, tr.height / 7)), variant: 0 };
   });
 
+  // The yard: paving, tables, umbrellas, shade sails, flags and signs.
+  /** Both faces of a thin surface. */
+  const twoSided = (mat: string, pts: Vec3[]) => {
+    poly(mesh(mat), pts, planar);
+    poly(mesh(mat), [...pts].reverse(), planar);
+  };
+  for (const [k, pv] of (spec.paving ?? []).entries()) {
+    poly(mesh(solid(`paving${k}`, hex(pv.colour, [156, 84, 64]))), [W(pv.x0, pv.y0, 0.03), W(pv.x1, pv.y0, 0.03), W(pv.x1, pv.y1, 0.03), W(pv.x0, pv.y1, 0.03)], planar);
+  }
+  for (const tb of spec.tables ?? []) {
+    const m = solid(`table_${(tb.colour ?? "#5a3d2b").slice(1)}`, hex(tb.colour, [90, 61, 43]));
+    const L = (tb.length ?? 1.8) / 2;
+    const at = (a: number, c: number): [number, number] => (tb.turned ? [tb.x + c, tb.y + a] : [tb.x + a, tb.y + c]);
+    const slab = (a0: number, c0: number, a1: number, c1: number, z0: number, z1: number) => {
+      const [x0, y0] = at(a0, c0), [x1, y1] = at(a1, c1);
+      box(m, Math.min(x0, x1), Math.min(y0, y1), z0, Math.max(x0, x1), Math.max(y0, y1), z1);
+    };
+    slab(-L, -0.38, L, 0.38, 0.72, 0.76);
+    for (const c of [-0.68, 0.68]) slab(-L, c - 0.13, L, c + 0.13, 0.42, 0.45);
+    for (const a of [-L + 0.2, L - 0.2]) slab(a - 0.04, -0.75, a + 0.04, 0.75, 0, 0.72);
+  }
+  for (const u of spec.umbrellas ?? []) {
+    const r = u.radius ?? 1.4, h = u.height ?? 2.6, m = solid(`umbrella_${(u.colour ?? "#f2f0ea").slice(1)}`, hex(u.colour, [242, 240, 234]));
+    box(solid("pole", [70, 70, 72]), u.x - 0.025, u.y - 0.025, 0, u.x + 0.025, u.y + 0.025, h + 0.1);
+    const apex = W(u.x, u.y, h + 0.1);
+    for (let k = 0; k < 8; k++) {
+      const a0 = (k / 8) * 2 * Math.PI, a1 = ((k + 1) / 8) * 2 * Math.PI;
+      twoSided(m, [W(u.x + r * Math.cos(a0), u.y + r * Math.sin(a0), h - 0.3), W(u.x + r * Math.cos(a1), u.y + r * Math.sin(a1), h - 0.3), apex]);
+    }
+  }
+  for (const sl of spec.sails ?? []) {
+    const m = solid(`sail_${(sl.colour ?? "#8c9196").slice(1)}`, hex(sl.colour, [140, 145, 150]));
+    twoSided(m, sl.pts.map(([x, y, z]) => W(x, y, z)));
+    for (const [x, y, z] of sl.pts) if (z > 1) box(solid("pole", [70, 70, 72]), x - 0.05, y - 0.05, 0, x + 0.05, y + 0.05, z, false, true);
+  }
+  for (const f of spec.flags ?? []) {
+    const h = f.height ?? 4, m = solid(`flag_${(f.colour ?? "#f4f4f2").slice(1)}`, hex(f.colour, [244, 244, 242]));
+    box(solid("pole", [70, 70, 72]), f.x - 0.02, f.y - 0.02, 0, f.x + 0.02, f.y + 0.02, h);
+    // A feather: straight along the pole, the outer edge bowing out and rounding over the top.
+    const w = 0.75, z0 = 0.9;
+    const edge: [number, number][] = [];
+    for (let k = 0; k <= 8; k++) {
+      const q = k / 8, z = z0 + (h - 0.15 - z0) * q;
+      edge.push([w * (0.75 + 0.25 * Math.sin(q * Math.PI * 0.8)) * (q > 0.85 ? Math.cos(((q - 0.85) / 0.15) * Math.PI / 2) : 1), z]);
+    }
+    for (let k = 0; k < 8; k++) {
+      const [wa, za] = edge[k], [wb, zb] = edge[k + 1];
+      twoSided(m, [W(f.x, f.y, za), W(f.x + wa, f.y, za), W(f.x + wb, f.y, zb), W(f.x, f.y, zb)]);
+    }
+  }
+  const signs: SpecHouse["signs"] = [];
+  for (const [k, sg] of (spec.signs ?? []).entries()) {
+    const bg = hex(sg.colour, [28, 28, 30]), ink = hex(sg.ink, [245, 245, 242]);
+    box(solid(`signboard${k}`, bg), sg.x0, sg.y, sg.z0, sg.x1, sg.y + 0.08, sg.z1);
+    if (sg.posts) for (const x of [sg.x0 + 0.05, sg.x1 - 0.05]) box(solid(`signboard${k}`, bg), x - 0.06, sg.y + 0.01, 0, x + 0.06, sg.y + 0.07, sg.z1 + 0.05, false, true);
+    if (sg.text) {
+      const name = `spec_${tag}_sign${k}`;
+      signs.push({ name, text: sg.text, bg, ink, width: sg.x1 - sg.x0, height: sg.z1 - sg.z0 });
+      const z0 = sg.z0 + 0.04, z1 = sg.z1 - 0.04, y = sg.y - 0.01;
+      poly(mesh(name), [W(sg.x0 + 0.04, y, z0), W(sg.x1 - 0.04, y, z0), W(sg.x1 - 0.04, y, z1), W(sg.x0 + 0.04, y, z1)], (_p, j) => [j === 1 || j === 2 ? 1 : 0, j < 2 ? 1 : 0]);
+    }
+  }
+
   const nodes: Kn5MeshNode[] = [];
   let i = 0;
   for (const [mat, mb] of meshes) if (mb.indices.length) nodes.push(mb.toKn5(`SPECHOUSE_${tag}_${i++}`, mat));
   // What the car hits: the walls and fences, invisible.
   if (solidWalls.indices.length) nodes.push({ ...solidWalls.toKn5(`1WALL_SPECHOUSE_${tag}`, trim), renderable: false });
-  return { nodes, facades, roof, solids, trees, footprints };
+  return { nodes, facades, roof, solids, trees, footprints, signs };
 }

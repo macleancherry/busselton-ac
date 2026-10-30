@@ -186,5 +186,8 @@
    ],
    "_note": "Spawns in the ten biggest car parks (the middle of their longest aisle, at least 180 m apart), from OSM's parking aisles."
   }
+ ],
+ "looks": [
+  "routes/landmarks/looks.json"
  ]
 }

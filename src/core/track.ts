@@ -1443,6 +1443,13 @@ export async function buildTrack(
         buildingScenery(`roof_${c.name}`, roofTexture(c), { ambient: 0.45, diffuse: 0.45, specular: 0.25, exp: 25 }, 4);
       }
       for (const so of sh.solids) addScenery(`${so.name}.png`, solidTexture(so.rgb), material(so.name, `${so.name}.png`, { ambient: 0.45, diffuse: 0.45, specular: 0.1, exp: 10 }));
+      // Lettered signs: the browser's fonts when the build has them, else a plain board.
+      for (const sg of sh.signs) {
+        const w = 1024, h = Math.max(64, Math.min(512, Math.round((w * sg.height) / Math.max(0.1, sg.width) / 32) * 32));
+        const drawn = sources.drawSigns?.([{ text: sg.text, bg: sg.bg, ink: sg.ink, squeeze: 1 }], w, h);
+        const png = drawn ? encodePng(new Uint8Array(drawn.buffer, drawn.byteOffset, drawn.byteLength), w, h) : solidTexture(sg.bg);
+        addScenery(`${sg.name}.png`, png, material(sg.name, `${sg.name}.png`, { ambient: 0.5, diffuse: 0.45, specular: 0.1, exp: 15 }));
+      }
       specNodes.push(...sh.nodes);
       houseTrees.push(...sh.trees);
       housesLooked++;

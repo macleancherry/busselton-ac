@@ -36,4 +36,20 @@ describe("spec houses", () => {
     const roof = h.nodes.find((n) => n.material === `roof_${ROOF_COLOURS[h.roof].name}`)!;
     for (let i = 1; i < roof.normals.length; i += 3) expect(roof.normals[i]).toBeGreaterThan(0);
   });
+
+  it("builds a yard: paving facing up, umbrellas, sails, flags, tables and a lettered sign facing the street", async () => {
+    const { readFileSync } = await import("node:fs");
+    const rr = JSON.parse(readFileSync("routes/landmarks/rocky_ridge.json", "utf8"));
+    const y = buildSpecHouse(rr, { centre: [0, 0], toRoad: [0, 1], z: 2 }, "rr");
+    expect(y.signs).toHaveLength(1);
+    expect(y.signs[0].text).toBe("ROCKY RIDGE");
+    const mats = y.nodes.map((n) => n.material);
+    for (const m of ["paving0", "umbrella_f2f0ea", "sail_80868b", "flag_f4f4f2", "signboard0", "sign0"]) expect(mats.some((x) => x.endsWith(m))).toBe(true);
+    const paving = y.nodes.find((n) => n.material.endsWith("paving0"))!;
+    for (let i = 1; i < paving.normals.length; i += 3) expect(paving.normals[i]).toBeGreaterThan(0.99);
+    // The sign's face looks at the road (+y here is north, toward the road; AC z is south).
+    const face = y.nodes.find((n) => n.material.endsWith("_sign0"))!;
+    expect(face.normals[2]).toBeLessThan(-0.99);
+  });
 });
+
