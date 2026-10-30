@@ -12,7 +12,10 @@ What the importer gets wrong for a track, put right here:
     real holes that the kn5 didn't flag), and Cycles gets enough transparent bounces that stacked
     cards don't turn into dark blocks.
   - The sea: its material becomes water (dark, glossy, rippled, reflecting the sky) instead of a
-    flat painted ground.
+    flat painted ground. With the bay's photo under it (photoSea: materials sea_photo*), the
+    surface is clear water instead, as in game: the photo's colour shows through and the sky is
+    reflected at a glancing angle (Fresnel), with small waves. The photo layer is matte, and the
+    foam line (shore_foam) is blended by its alpha rather than cut out.
 """
 import json
 import math
@@ -105,14 +108,94 @@ def make_water(mat):
     nt.links.new(bsdf.outputs["BSDF"], out.inputs["Surface"])
 
 
+def wave_bump(nt):
+    """Small waves: noise plus stretched waves into a bump, shared by both waters."""
+    coords = nt.nodes.new("ShaderNodeTexCoord")
+    mapping = nt.nodes.new("ShaderNodeMapping")
+    mapping.inputs["Scale"].default_value = (0.6, 1.0, 0.6)
+    noise = nt.nodes.new("ShaderNodeTexNoise")
+    noise.inputs["Scale"].default_value = 1.5
+    noise.inputs["Detail"].default_value = 6.0
+    wave = nt.nodes.new("ShaderNodeTexWave")
+    wave.inputs["Scale"].default_value = 0.4
+    wave.inputs["Distortion"].default_value = 6.0
+    mix = nt.nodes.new("ShaderNodeMath")
+    mix.operation = "ADD"
+    bump = nt.nodes.new("ShaderNodeBump")
+    bump.inputs["Strength"].default_value = 0.18  # a calm bay: the waves mustn't hide the photo
+    bump.inputs["Distance"].default_value = 0.3
+    nt.links.new(coords.outputs["Object"], mapping.inputs["Vector"])
+    nt.links.new(mapping.outputs["Vector"], noise.inputs["Vector"])
+    nt.links.new(mapping.outputs["Vector"], wave.inputs["Vector"])
+    nt.links.new(noise.outputs["Fac"], mix.inputs[0])
+    nt.links.new(wave.outputs["Fac"], mix.inputs[1])
+    nt.links.new(mix.outputs[0], bump.inputs["Height"])
+    return bump
+
+
+def make_clear_water(mat):
+    """The water over the bay's photo: clear with a faint turquoise tint, the sky reflected by Fresnel."""
+    nt = mat.node_tree
+    nt.nodes.clear()
+    out = nt.nodes.new("ShaderNodeOutputMaterial")
+    bump = wave_bump(nt)
+    clear = nt.nodes.new("ShaderNodeBsdfTransparent")
+    clear.inputs["Color"].default_value = (0.82, 0.94, 0.95, 1)
+    gloss = nt.nodes.new("ShaderNodeBsdfGlossy")
+    gloss.inputs["Roughness"].default_value = 0.04
+    fres = nt.nodes.new("ShaderNodeFresnel")
+    fres.inputs["IOR"].default_value = 1.33
+    mix = nt.nodes.new("ShaderNodeMixShader")
+    nt.links.new(bump.outputs["Normal"], gloss.inputs["Normal"])
+    nt.links.new(bump.outputs["Normal"], fres.inputs["Normal"])
+    nt.links.new(fres.outputs["Fac"], mix.inputs["Fac"])
+    nt.links.new(clear.outputs["BSDF"], mix.inputs[1])
+    nt.links.new(gloss.outputs["BSDF"], mix.inputs[2])
+    nt.links.new(mix.outputs["Shader"], out.inputs["Surface"])
+    if hasattr(mat, "use_transparent_shadow"):
+        mat.use_transparent_shadow = True
+
+
+def matte(mat):
+    """The photo under the water: no sheen of its own (the water above has it)."""
+    bsdf = next((n for n in mat.node_tree.nodes if n.bl_idname == "ShaderNodeBsdfPrincipled"), None)
+    if not bsdf:
+        return
+    bsdf.inputs["Roughness"].default_value = 1.0
+    for k in ("Specular IOR Level", "Specular"):
+        if k in bsdf.inputs:
+            bsdf.inputs[k].default_value = 0.0
+
+
+def blend_alpha(mat):
+    """The foam line: the texture's alpha, smoothly, into the BSDF's alpha (not cut out)."""
+    nt = mat.node_tree
+    bsdf = next((n for n in nt.nodes if n.bl_idname == "ShaderNodeBsdfPrincipled"), None)
+    tex = next((n for n in nt.nodes if n.bl_idname == "ShaderNodeTexImage" and n.image), None)
+    if not bsdf or not tex:
+        return
+    tex.image.alpha_mode = "STRAIGHT"
+    if not bsdf.inputs["Alpha"].is_linked:
+        nt.links.new(tex.outputs["Alpha"], bsdf.inputs["Alpha"])
+    bsdf.inputs["Roughness"].default_value = 0.8
+    if hasattr(mat, "surface_render_method"):
+        mat.surface_render_method = "BLENDED"
+
+
 def fix_materials():
     cache, cut, water = {}, [], []
+    names = [m.name.split(".")[0].lower() for m in bpy.data.materials]
+    photo_sea = any(n.startswith("sea_photo") for n in names)
     for mat in bpy.data.materials:
         if not mat.use_nodes:
             continue
         base = mat.name.split(".")[0].lower()
-        if base == "sea" or base.startswith("sea_"):
-            make_water(mat)
+        if base.startswith("sea_photo"):
+            matte(mat)
+        elif base == "shore_foam":
+            blend_alpha(mat)
+        elif base == "sea" or base.startswith("sea_"):
+            (make_clear_water if photo_sea else make_water)(mat)
             water.append(mat.name)
         elif fix_cutouts(mat, cache):
             cut.append(mat.name)

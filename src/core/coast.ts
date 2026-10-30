@@ -92,12 +92,12 @@ export function withSeabed(dem: HeightFn, sea: SeaMask): HeightFn {
 }
 
 /** The water surface: the sea polygons, flat at SEA_LEVEL. */
-export function buildSea(polys: CoastPolygon[]): Kn5MeshNode[] {
+export function buildSea(polys: CoastPolygon[], extra: Partial<Kn5MeshNode> = {}): Kn5MeshNode[] {
   const out: Kn5MeshNode[] = [];
   let mb = new MeshBuilder();
   mb.normals = [];
   const flush = () => {
-    if (mb.indices.length) out.push(mb.toKn5(`SEA_${String(out.length).padStart(2, "0")}`, "sea", { castShadows: false }));
+    if (mb.indices.length) out.push(mb.toKn5(`SEA_${String(out.length).padStart(2, "0")}`, "sea", { castShadows: false, ...extra }));
     mb = new MeshBuilder();
     mb.normals = [];
   };

@@ -47,6 +47,8 @@ export interface CspOptions {
   drySummer?: boolean;
   /** Busselton fork: there's sea in the track (Material_Water and light bounced off it). */
   sea?: boolean;
+  /** Busselton fork: the bay's photo lies under the water (photoSea.ts): the water surface is partly clear. */
+  photoSea?: boolean;
   /** Busselton fork: CSP instanced trees: the tree list's path under extension/ (e.g. trees/trees.txt). */
   trees?: string;
   /** Busselton fork: there are vine rows (farm.ts, material vine_leaf): gold from autumn through winter. */
@@ -66,6 +68,16 @@ export interface CspOptions {
   flags?: boolean;
   /** Busselton fork: load extension/jetty_train.lua, which runs the jetty train (jettyTrain.ts). */
   jettyTrain?: boolean;
+}
+
+/**
+ * Busselton fork: keys added to [Material_Water] when the bay's photo lies under the water (photoSea.ts).
+ * The surface's alpha (txDiffuse's) lets the photo layer through, and DepthAware refracts it and lays
+ * caustics on it, which needs that alpha and a transparent mesh: CSP's [TEMPLATE: Material_Water] in
+ * common/materials_track.ini, and its shipped ks_laguna_seca.ini, which sets exactly these four.
+ */
+export function photoSeaWaterLines(): string[] {
+  return ["UseAlphaFromDiffuse = 1", "DepthAware = 1", "CausticsMultiplier = 1.0", "IS_TRANSPARENT = 1"];
 }
 
 /** Busselton fork: what CSP's RainFX height map is built from: the ground and roads, not buildings or trees. */
@@ -249,7 +261,7 @@ export function extConfig(lights: Vec3[], opts: CspOptions = {}): string {
     // CSP's instanced 3D trees (docs/trees.md). Every species here is evergreen: no seasonal tint.
     lines.push("[TREES]", `LIST_0 = ${opts.trees}`, "", "[LIGHTING]", "ENABLE_TREES_LIGHTING = 1", "");
   }
-  if (opts.sea) lines.push("[Material_Water]", "Materials = sea", "Type = SEA", "UseRecommendedTextures = 1", "");
+  if (opts.sea) lines.push("[Material_Water]", "Materials = sea", "Type = SEA", "UseRecommendedTextures = 1", ...(opts.photoSea ? photoSeaWaterLines() : []), "");
   if (opts.drySummer) {
     lines.push(
       // 1 (straw) from December to April, 0 (green) June to September, blending in May and October-November.
@@ -327,7 +339,7 @@ export function bakedShadowParams(quality: "test" | "final" = "final"): string {
     "BAKE_AS_GRASS = shader:ksGrass?",
     "TREES_LIGHT_PASS_CHANCE = 0.9",
     "TREES_SHADOW_FACTOR = 0.8",
-    "EXCLUDE_FROM_BAKING = renderable:n, material:sea, material:backdrop_?",
+    "EXCLUDE_FROM_BAKING = renderable:n, material:sea, material:sea_photo?, material:shore_foam, material:backdrop_?",
     "FORCE_PASSING_LIGHT = material:sea, material:glass, material:window, material:shop_window",
     "EXT_EXCLUDE_POBJECTS = 1",
     "EXT_REBAKE_DARK_OBJECTS = 1",

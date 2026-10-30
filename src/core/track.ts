@@ -14,6 +14,7 @@ import { townCentreFromMap, zoneRoads } from "./trafficZones";
 import autotestLua from "./lua/autotest.lua?raw";
 import { buildGroynes, buildPiers, pierDeckZ, SEA_LEVEL, buildSea, jettyLights, buildSeawall, deckTexture, rockTexture, SeaMask, seaTexture, withSeabed, type CoastPolygon } from "./coast";
 import type { GroundDetail, GroundLayer } from "./ground";
+import { BeachLook, buildPhotoSea, buildShoreFoam, foamMaterial, foamTexture, sandDetailTexture, seaSurfaceMaterial, seaSurfaceTexture, withSandDetail, type SeaPhoto } from "./photoSea";
 import { aiHintsIni, buildAiLine } from "./aiLine";
 import { Area, areaRings, makeCover } from "./area";
 import { buildJettyPrecinct, JETTY_MATERIALS, type JettyFeatures } from "./jetty";
@@ -699,7 +700,10 @@ export async function buildTrack(
   addScenery("concrete.png", concreteTexture(), material("concrete", "concrete.png", { ambient: 0.45, diffuse: 0.45, specular: 0.05, exp: 10 }));
   addScenery("guidepost.png", postTexture(), material("guidepost", "guidepost.png", { ambient: 0.45, diffuse: 0.45, specular: 0.1, exp: 10 }));
   const matte = { ambient: 0.45, diffuse: 0.45, specular: 0.05, exp: 10 };
-  addScenery("sea.png", seaTexture(), material("sea", "sea.png", { ambient: 0.4, diffuse: 0.35, specular: 0.7, exp: 90 }));
+  // Busselton fork: with photoSea the surface is half clear over the bay's photo (photoSea.ts).
+  const photoSea = opts.photoSea !== false && ocean.length > 0;
+  if (photoSea) addScenery("sea.png", seaSurfaceTexture(), seaSurfaceMaterial());
+  else addScenery("sea.png", seaTexture(), material("sea", "sea.png", { ambient: 0.4, diffuse: 0.35, specular: 0.7, exp: 90 }));
   reliefScenery("rock", rockTexture(), { ambient: 0.45, diffuse: 0.45, specular: 0.05, exp: 10 }, 4);
   addScenery("jetty_deck.png", deckTexture(), material("jetty_deck", "jetty_deck.png", { ambient: 0.45, diffuse: 0.45, specular: 0.05, exp: 10 }));
   if (jettyFeatures) {
@@ -737,6 +741,10 @@ export async function buildTrack(
   const textured = new Set<string>();
   // Aerial photos carry their own light and shadow, so lean on ambient.
   const photoLight = { ambient: 0.6, diffuse: 0.2, specular: 0, exp: 1 };
+  // Busselton fork: white beaches in the ground photos, and the photos of the bay for the sea (photoSea.ts).
+  const beachLook = photoSea ? new BeachLook(beaches, sea) : null;
+  const seaPhotos: SeaPhoto[] = [];
+  let beachChunks = 0;
   if (sources.imagery && opts.imageryZoom > 0) {
     const jobs = [
       ...chunks.map((c) => ({ chunk: c, zoom: opts.imageryZoom, size: opts.textureSize, prefix: "terrain" })),
@@ -775,14 +783,18 @@ export async function buildTrack(
         const rings = opts.carParkIslands ? findIslands(clean.rgba, job.size, job.chunk) : [];
         if (rings.length) islandsFound.push({ chunk: job.chunk, rings });
       }
-      const photo = clean?.rgba ?? img.rgba;
-      const tex = `${job.prefix}_${job.chunk.key}.${clean ? "dds" : img.ext}`;
-      const photoData = clean ? encodeDdsDxt1(clean.rgba, job.size, job.size) : img.data;
+      if (photoSea && img.rgba && sea.near((job.chunk.minX + job.chunk.maxX) / 2, (job.chunk.minY + job.chunk.maxY) / 2, (job.chunk.maxX - job.chunk.minX) * 0.71)) seaPhotos.push({ chunk: job.chunk, rgba: img.rgba, size: job.size });
+      const toned = beachLook && (clean?.rgba ?? img.rgba) ? beachLook.tone(job.chunk, (clean?.rgba ?? img.rgba)!, job.size) : null;
+      if (toned) beachChunks++;
+      const photo = toned ?? clean?.rgba ?? img.rgba;
+      const tex = `${job.prefix}_${job.chunk.key}.${clean || toned ? "dds" : img.ext}`;
+      const photoData = toned || clean ? encodeDdsDxt1((toned ?? clean!.rgba), job.size, job.size) : img.data;
       if (opts.detailShaders && photo && job.prefix === "terrain") {
         // Grass, dirt and plain detail where the photo shows them, placed by a small mask; the photo
         // (with parked cars painted out) stays DXT1.
         textures.push({ name: tex, data: photoData });
-        materials.push(groundMaterial(`${job.prefix}_${job.chunk.key}`, tex, photoMask(`${job.prefix}_${job.chunk.key}`, photo, job.size, job.size, job.chunk), photoLight));
+        const ground = groundMaterial(`${job.prefix}_${job.chunk.key}`, tex, photoMask(`${job.prefix}_${job.chunk.key}`, photo, job.size, job.size, job.chunk), photoLight);
+        materials.push(toned ? withSandDetail(ground) : ground);
       } else {
         textures.push({ name: tex, data: photoData });
         materials.push(material(`${job.prefix}_${job.chunk.key}`, tex, photoLight));
@@ -796,6 +808,14 @@ export async function buildTrack(
       if (img.rgba && job.prefix === "backdrop" && opts.trees > 0) farTreeSpots.push(...treeSpotsFromImagery(img.rgba, job.size, job.chunk, 1));
     }
   }
+  // Busselton fork: the bay's photo under the water, foam along the shore, the sand grain (photoSea.ts).
+  const seaLayer = photoSea ? buildPhotoSea({ ocean, piers, photos: seaPhotos, bounds: farBounds }) : null;
+  if (seaLayer) {
+    textures.push(...seaLayer.textures);
+    materials.push(...seaLayer.materials);
+  }
+  if (photoSea) addScenery("shore_foam.png", foamTexture(), foamMaterial());
+  if (beachChunks && opts.detailShaders) textures.push({ name: "ground_sand.dds", data: sandDetailTexture() });
 
   // Other streets: planned now so buildings, trees and verges can keep clear.
   const streetPlan = planSideStreets(
@@ -1793,7 +1813,11 @@ export async function buildTrack(
       // Already in compact chunks (terrain, horizon), or never drawn (walls).
       group("TERRAIN", terrainNodes),
       group("HORIZON", [...backdropNodes, ...horizonTrees]),
-      group("SEA", ocean.length ? buildSea(ocean) : []),
+      group("SEA", ocean.length ? [
+        ...buildSea(ocean, photoSea ? { transparent: true } : {}),
+        ...(seaLayer?.nodes ?? []),
+        ...(photoSea ? buildShoreFoam(ocean, sea, piers) : []),
+      ] : []),
       group("WALLS", [...walls, ...trunks, ...(houseTrees.length ? treeTrunks(houseTrees, ground) : [])]),
       // Busselton fork: a layout's dummies go in their own kn5 (layouts.ts).
       ...(opts.layout ? [] : trackObjects(plan, opts)),
@@ -1968,6 +1992,7 @@ export async function buildTrack(
       // Busselton fork: south-west WA's dry summer, and the bay.
       drySummer: centre[0] > 112 && centre[0] < 119.5 && centre[1] < -30 && centre[1] > -36,
       sea: ocean.length > 0,
+      photoSea,
       trees: opts.cspTrees && Object.keys(cspTreeFiles).length ? "trees/trees.txt" : undefined,
       vines: !!farm?.vineMetres,
       hollows,

@@ -217,6 +217,12 @@ export interface BuildOptions {
    * bright sand (pureConfig.ts). On unless false; false writes CSP's generic [PURE] values.
    */
   pureTuning?: boolean;
+  /**
+   * Busselton fork: the sea and beaches from the aerial photo (photoSea.ts): the bay's photo (shallows,
+   * sand bars, weed) under a partly clear CSP water surface, fading to deep blue far out; white sand,
+   * wet sand and a foam line at the water's edge. On unless false (needs `sea`).
+   */
+  photoSea?: boolean;
   /** Kerb and gutter where the photos (or a built-up area) show them, instead of a gravel verge. */
   kerbs: boolean;
   /**
