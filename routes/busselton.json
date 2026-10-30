@@ -112,27 +112,27 @@
   {
    "id": "sights",
    "name": "Busselton Sights",
-   "_note": "A short loop past the town landmarks for a cruise and for the automatic test's landmark screenshots: east on Marine Tce past Rocky Ridge, the Old Courthouse (Queen St roundabout) and the Esplanade Hotel, south on Brown St, west on Adelaide St, back up to Marine Tce.",
+   "_note": "A short loop past the town landmarks, for a cruise and the automatic test's landmark screenshots: east on Marine Tce past Rocky Ridge, the Old Courthouse (Queen St roundabout) and the Esplanade Hotel, south on Stanley St, west on Adelaide St and back up. Starts on Adelaide St so the landmarks come mid-lap.",
    "pins": [
+    [
+     115.3427,
+     -33.64808
+    ],
     [
      115.3425,
      -33.647
     ],
     [
-     115.346,
-     -33.64626
+     115.345,
+     -33.64646
     ],
     [
-     115.3487,
-     -33.6474
+     115.34604,
+     -33.64685
     ],
     [
      115.345,
      -33.6476
-    ],
-    [
-     115.3427,
-     -33.64808
     ]
    ],
    "loop": true
