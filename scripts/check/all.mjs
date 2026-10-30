@@ -56,6 +56,8 @@ summary.kinks10 = num(r.text, />10 cm (\d+)/);
 r = run("streets", "python3", ["-I", "scripts/check/street_ground.py", `out/${slug}.surface.json`]);
 results.push(r);
 summary.groundThroughStreetsCm = num(r.text, /worst ([\d.]+) cm/);
+r = run("paths", "python3", ["-I", "scripts/check/path_ground.py", `out/${slug}.surface.json`]);
+results.push(r);
 
 if (names.some((n) => n.endsWith("traffic.json"))) {
   r = run("traffic", "python3", ["-I", "scripts/check/traffic_check.py", `out/${slug}.zip`, `out/${slug}.surface.json`]);
