@@ -6,6 +6,7 @@ import { warnMissing } from "./dataWarnings";
 import { JETTY_SNAPSHOT, JETTY_SNAPSHOT_BOX } from "./jettySnapshot";
 import { haversine, type LngLat } from "../core/geo";
 import { trimSpurs } from "../core/spurs";
+import { kerbsideFromTags } from "../core/kerbside";
 import type { OsmFeatures } from "../core/track";
 import type { RoundaboutHint } from "../core/roundabout";
 
@@ -243,6 +244,9 @@ export async function fetchOsm(routeCoords: LngLat[], areas: LngLat[][] = []): P
       const width = wayWidth(tags);
       if (width !== undefined) ways.push({ width, pts });
       const cls = TILE_CLASS[tags.highway];
+      // Busselton fork: kerbside parking and bike lanes (kerbside.ts).
+      const kerb = cls ? kerbsideFromTags(tags) : null;
+      if (kerb) (features.kerbside ??= []).push({ pts, ...kerb });
       if (cls && tags.area !== "yes" && tags.access !== "no" && tags.access !== "private") {
         const oneway = tags.oneway === "yes" || tags.oneway === "1" ? 1 : tags.oneway === "-1" ? -1 : undefined;
         const brunnel = tags.bridge && tags.bridge !== "no" ? "bridge" : tags.tunnel && tags.tunnel !== "no" ? "tunnel" : undefined;

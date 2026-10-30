@@ -5,7 +5,8 @@
 //   keep 10-30 km inside the RTX 4060 budget; a 1 km photo horizon; gentle banking (up to 4%) on
 //   bends; traffic on; no trace guard (country roads aren't traced from the aerial).
 // town: a flat South West town (Busselton). No banking, a fine terrain grid and the ground only
-//   just under the road, so kerbs and edges stay true (CLAUDE.md, "Busselton is flat").
+//   just under the road, so kerbs and edges stay true (CLAUDE.md, "Busselton is flat"). Kerbside
+//   parking bays and bike lanes painted (kerbside.ts).
 export const PRESETS = {
   country: {
     options: { imagery: "high", banking: true },
@@ -21,7 +22,7 @@ export const PRESETS = {
   },
   town: {
     options: { imagery: "high", banking: false },
-    build: { terrainStep: 1.5, terrainUnderRoad: 0.12 },
+    build: { terrainStep: 1.5, terrainUnderRoad: 0.12, kerbside: true },
   },
 };
 
