@@ -36,6 +36,7 @@ import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium } from "playwright";
 import { unzipSync, zipSync } from "fflate";
+import { applyPreset } from "./presets.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const routeFile = process.argv[2];
@@ -43,7 +44,7 @@ if (!routeFile) {
   console.error("usage: node scripts/headless/build-track.mjs <route.json>");
   process.exit(1);
 }
-const spec = JSON.parse(readFileSync(routeFile, "utf8"));
+const spec = applyPreset(JSON.parse(readFileSync(routeFile, "utf8")));
 // KEY=value lines from .env.local (gitignored), without overriding the real environment.
 const envFile = join(dirname(fileURLToPath(import.meta.url)), "..", "..", ".env.local");
 if (existsSync(envFile)) {

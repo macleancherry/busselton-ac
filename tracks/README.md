@@ -33,4 +33,4 @@ That takes about 20 s, and its polish zip goes on with `install-track.ps1 -Zip <
 1. Run `node scripts/upgrade/base.mjs build routes/<route>.json`. It rebuilds from the snapshot, runs every check and compares against the accepted base, writing the result to `out/<slug>.upgrade.md`.
 2. Then run `base.mjs accept routes/<route>.json` to keep it, or `base.mjs rollback routes/<route>.json` to go back.
 
-**Drive-anywhere tracks** are simply rebuilt whenever the generator improves (with the same checks). No polish, so nothing to protect.
+**Drive-anywhere tracks** are simply rebuilt whenever the generator improves (with the same checks). No polish, so nothing to protect. A new one is a route file with `"preset": "country"`, its pins and a `build.origin`; the preset (`scripts/headless/presets.mjs`) fills in the country settings, and anything the route sets itself wins. Flat towns use `"preset": "town"`.
