@@ -1,174 +1,203 @@
-// Little-endian growable byte buffer, plus a matching reader for tests.
-// Every Assetto Corsa binary format we write (kn5, fast_lane.ai) is
-// little-endian with uint32 length-prefixed UTF-8 strings.
+// Little-endian byte output and input for the AC file formats (kn5, fast_lane.ai).
+// Written from docs/specs/binary.md.
 
-const encoder = new TextEncoder();
-const decoder = new TextDecoder();
+const encodeUtf8 = (s: string) => new TextEncoder().encode(s);
+const utf8 = new TextDecoder("utf-8");
 
-export class BinaryWriter {
-  private buf: Uint8Array;
-  private view: DataView;
-  private pos = 0;
+/** Appends little-endian values; storage doubles whenever it fills, so long writes stay linear. */
+export class ByteSink {
+  #store: Uint8Array;
+  #dv: DataView;
+  #used = 0;
 
-  constructor(initialSize = 1 << 16) {
-    this.buf = new Uint8Array(initialSize);
-    this.view = new DataView(this.buf.buffer);
+  constructor(expectedBytes = 65536) {
+    this.#store = new Uint8Array(Math.max(expectedBytes, 16));
+    this.#dv = new DataView(this.#store.buffer);
   }
 
-  get length(): number {
-    return this.pos;
+  /** Bytes written so far. */
+  get size(): number {
+    return this.#used;
   }
 
-  private ensure(extra: number): void {
-    const need = this.pos + extra;
-    if (need <= this.buf.length) return;
-    let size = this.buf.length * 2;
-    while (size < need) size *= 2;
-    const next = new Uint8Array(size);
-    next.set(this.buf.subarray(0, this.pos));
-    this.buf = next;
-    this.view = new DataView(next.buffer);
+  /** Makes room for `n` more bytes and returns where they start. */
+  #grab(n: number): number {
+    const start = this.#used;
+    const end = start + n;
+    if (end > this.#store.length) {
+      let cap = this.#store.length;
+      do cap *= 2; while (cap < end);
+      const bigger = new Uint8Array(cap);
+      bigger.set(this.#store.subarray(0, start));
+      this.#store = bigger;
+      this.#dv = new DataView(bigger.buffer);
+    }
+    this.#used = end;
+    return start;
   }
 
-  u8(v: number): this {
-    this.ensure(1);
-    this.view.setUint8(this.pos, v);
-    this.pos += 1;
+  byte(x: number): this {
+    const p = this.#grab(1);
+    this.#store[p] = x;
     return this;
   }
 
-  bool(v: boolean): this {
-    return this.u8(v ? 1 : 0);
+  flag(x: boolean): this {
+    return this.byte(x ? 1 : 0);
   }
 
-  u16(v: number): this {
-    this.ensure(2);
-    this.view.setUint16(this.pos, v, true);
-    this.pos += 2;
+  uint16(x: number): this {
+    const p = this.#grab(2);
+    this.#dv.setUint16(p, x, true);
     return this;
   }
 
-  i32(v: number): this {
-    this.ensure(4);
-    this.view.setInt32(this.pos, v, true);
-    this.pos += 4;
+  int32(x: number): this {
+    const p = this.#grab(4);
+    this.#dv.setInt32(p, x, true);
     return this;
   }
 
-  u32(v: number): this {
-    this.ensure(4);
-    this.view.setUint32(this.pos, v, true);
-    this.pos += 4;
+  uint32(x: number): this {
+    const p = this.#grab(4);
+    this.#dv.setUint32(p, x, true);
     return this;
   }
 
-  f32(v: number): this {
-    this.ensure(4);
-    this.view.setFloat32(this.pos, v, true);
-    this.pos += 4;
+  float(x: number): this {
+    const p = this.#grab(4);
+    this.#dv.setFloat32(p, x, true);
     return this;
   }
 
-  f32s(values: ArrayLike<number>): this {
-    for (let i = 0; i < values.length; i++) this.f32(values[i]);
+  floats(xs: ArrayLike<number>): this {
+    const p = this.#grab(4 * xs.length);
+    for (let k = 0; k < xs.length; k++) this.#dv.setFloat32(p + 4 * k, xs[k], true);
     return this;
   }
 
-  bytes(data: Uint8Array): this {
-    this.ensure(data.length);
-    this.buf.set(data, this.pos);
-    this.pos += data.length;
+  raw(chunk: Uint8Array): this {
+    const p = this.#grab(chunk.length);
+    this.#store.set(chunk, p);
     return this;
   }
 
-  /** Raw ASCII with no length prefix (file magic). */
-  magic(s: string): this {
-    return this.bytes(encoder.encode(s));
+  /** ASCII with no length prefix (file magic). */
+  text(ascii: string): this {
+    const p = this.#grab(ascii.length);
+    for (let k = 0; k < ascii.length; k++) this.#store[p + k] = ascii.charCodeAt(k);
+    return this;
   }
 
-  /** uint32 byte length + UTF-8 bytes. */
-  string(s: string): this {
-    const b = encoder.encode(s);
-    this.u32(b.length);
-    return this.bytes(b);
+  /** u32 byte count, then the UTF-8 bytes. */
+  str(s: string): this {
+    const enc = encodeUtf8(s);
+    return this.uint32(enc.length).raw(enc);
   }
 
-  /** uint32 byte length + raw bytes. */
-  blob(data: Uint8Array): this {
-    this.u32(data.length);
-    return this.bytes(data);
+  /** u32 byte count, then the bytes. */
+  blob(chunk: Uint8Array): this {
+    return this.uint32(chunk.length).raw(chunk);
   }
 
-  finish(): Uint8Array {
-    return this.buf.slice(0, this.pos);
+  /** A fresh copy of exactly the bytes written. */
+  bytes(): Uint8Array {
+    return this.#store.slice(0, this.#used);
   }
 }
 
-export class BinaryReader {
-  private view: DataView;
-  pos = 0;
+/** Reads little-endian values from a Uint8Array, which may be a view into a larger buffer. */
+export class ByteSource {
+  readonly #src: Uint8Array;
+  readonly #dv: DataView;
+  #pos = 0;
 
-  constructor(private readonly data: Uint8Array) {
-    this.view = new DataView(data.buffer, data.byteOffset, data.byteLength);
+  constructor(src: Uint8Array) {
+    this.#src = src;
+    this.#dv = new DataView(src.buffer, src.byteOffset, src.byteLength);
   }
 
-  get remaining(): number {
-    return this.data.length - this.pos;
+  get position(): number {
+    return this.#pos;
   }
 
-  u8(): number {
-    return this.view.getUint8(this.pos++);
+  /** Bytes not yet read. */
+  get left(): number {
+    return this.#src.length - this.#pos;
   }
 
-  bool(): boolean {
-    return this.u8() !== 0;
+  /** Moves past `n` bytes, returning where they start; throws if they aren't all there. */
+  #advance(n: number): number {
+    const start = this.#pos;
+    if (!(n >= 0) || start + n > this.#src.length) {
+      throw new RangeError(`unexpected end of data: wanted ${n} bytes at offset ${start}, ${this.#src.length - start} left`);
+    }
+    this.#pos = start + n;
+    return start;
   }
 
-  u16(): number {
-    const v = this.view.getUint16(this.pos, true);
-    this.pos += 2;
-    return v;
+  skip(n: number): void {
+    this.#advance(n);
   }
 
-  i32(): number {
-    const v = this.view.getInt32(this.pos, true);
-    this.pos += 4;
-    return v;
+  byte(): number {
+    return this.#src[this.#advance(1)];
   }
 
-  u32(): number {
-    const v = this.view.getUint32(this.pos, true);
-    this.pos += 4;
-    return v;
+  flag(): boolean {
+    return this.byte() !== 0;
   }
 
-  f32(): number {
-    const v = this.view.getFloat32(this.pos, true);
-    this.pos += 4;
-    return v;
+  uint16(): number {
+    return this.#dv.getUint16(this.#advance(2), true);
   }
 
-  f32s(n: number): number[] {
-    const out: number[] = [];
-    for (let i = 0; i < n; i++) out.push(this.f32());
-    return out;
+  int32(): number {
+    return this.#dv.getInt32(this.#advance(4), true);
   }
 
-  bytes(n: number): Uint8Array {
-    const v = this.data.subarray(this.pos, this.pos + n);
-    this.pos += n;
-    return v;
+  uint32(): number {
+    return this.#dv.getUint32(this.#advance(4), true);
   }
 
-  magic(n: number): string {
-    return decoder.decode(this.bytes(n));
+  float(): number {
+    return this.#dv.getFloat32(this.#advance(4), true);
   }
 
-  string(): string {
-    return decoder.decode(this.bytes(this.u32()));
+  /** `n` floats into a new Float32Array. */
+  floats(n: number): Float32Array {
+    const p = this.#advance(4 * n);
+    const got = new Float32Array(n);
+    for (let k = 0; k < n; k++) got[k] = this.#dv.getFloat32(p + 4 * k, true);
+    return got;
   }
 
+  /** `n` u16 values into a new Uint16Array. */
+  uint16s(n: number): Uint16Array {
+    const p = this.#advance(2 * n);
+    const got = new Uint16Array(n);
+    for (let k = 0; k < n; k++) got[k] = this.#dv.getUint16(p + 2 * k, true);
+    return got;
+  }
+
+  /** A view of the next `n` bytes (not a copy). */
+  raw(n: number): Uint8Array {
+    const p = this.#advance(n);
+    return this.#src.subarray(p, p + n);
+  }
+
+  /** `n` bytes of ASCII. */
+  text(n: number): string {
+    return String.fromCharCode(...this.raw(n));
+  }
+
+  /** u32 byte count, then UTF-8. */
+  str(): string {
+    return utf8.decode(this.raw(this.uint32()));
+  }
+
+  /** A copy of a u32-length-prefixed byte run. */
   blob(): Uint8Array {
-    return this.bytes(this.u32());
+    return this.raw(this.uint32()).slice();
   }
 }

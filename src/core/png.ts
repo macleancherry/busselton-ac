@@ -1,109 +1,172 @@
-// Minimal PNG encoder (8-bit RGBA or RGB, filter type "up"), so textures and
-// UI images can be produced the same way in the browser and in Node tests.
+// PNG encoder, and a decoder for 8-bit RGB/RGBA non-interlaced PNGs.
+// Written from docs/specs/png.md and the W3C PNG specification. zlib comes from fflate.
 
-import { unzlibSync, zlibSync } from "fflate";
+import * as zlib from "fflate";
 
-const CRC_TABLE = (() => {
-  const t = new Uint32Array(256);
-  for (let n = 0; n < 256; n++) {
-    let c = n;
-    for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
-    t[n] = c >>> 0;
-  }
-  return t;
+type Pixels = Uint8Array | Uint8ClampedArray;
+type ZLevel = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
+
+const PNG_SIGNATURE = Uint8Array.of(0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a);
+const COLOUR_RGB = 2;
+const COLOUR_RGBA = 6;
+
+/** CRC-32 lookup (reflected polynomial 0xEDB88320), built on first use. */
+const crcLookup = (() => {
+  let table: Uint32Array | null = null;
+  return () => {
+    if (table) return table;
+    table = new Uint32Array(256);
+    for (let byte = 0; byte < 256; byte++) {
+      let reg = byte;
+      for (let bit = 0; bit < 8; bit++) reg = (reg >>> 1) ^ (reg & 1 ? 0xedb88320 : 0);
+      table[byte] = reg >>> 0;
+    }
+    return table;
+  };
 })();
 
-function crc32(data: Uint8Array, start: number, end: number): number {
-  let c = 0xffffffff;
-  for (let i = start; i < end; i++) c = CRC_TABLE[(c ^ data[i]) & 0xff] ^ (c >>> 8);
-  return (c ^ 0xffffffff) >>> 0;
+/** CRC-32 of bytes[from, to). */
+function crcOf(bytes: Uint8Array, from: number, to: number): number {
+  const table = crcLookup();
+  let reg = ~0;
+  for (let at = from; at < to; at++) reg = table[(reg ^ bytes[at]) & 255] ^ (reg >>> 8);
+  return ~reg >>> 0;
 }
 
-function chunk(type: string, data: Uint8Array): Uint8Array {
-  const out = new Uint8Array(12 + data.length);
-  const view = new DataView(out.buffer);
-  view.setUint32(0, data.length);
-  for (let i = 0; i < 4; i++) out[4 + i] = type.charCodeAt(i);
-  out.set(data, 8);
-  view.setUint32(8 + data.length, crc32(out, 4, 8 + data.length));
-  return out;
-}
+const writeBE = (dst: Uint8Array, at: number, value: number) => {
+  for (let k = 0; k < 4; k++) dst[at + k] = (value >>> (24 - 8 * k)) & 255;
+};
+const readBE = (src: Uint8Array, at: number) => ((src[at] << 24) | (src[at + 1] << 16) | (src[at + 2] << 8) | src[at + 3]) >>> 0;
 
-/** Encodes RGBA pixels (row-major, top row first). Pass `alpha: false` to drop the alpha channel. */
-export function encodePng(
-  rgba: Uint8Array | Uint8ClampedArray,
-  width: number,
-  height: number,
-  opts: { alpha?: boolean; level?: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 } = {},
-): Uint8Array {
-  const alpha = opts.alpha ?? true;
-  const channels = alpha ? 4 : 3;
-  const stride = width * channels;
-  const raw = new Uint8Array((stride + 1) * height);
-  let prev = new Uint8Array(stride);
-  const row = new Uint8Array(stride);
-  for (let y = 0; y < height; y++) {
-    for (let x = 0; x < width; x++) {
-      const s = (y * width + x) * 4;
-      const d = x * channels;
-      row[d] = rgba[s];
-      row[d + 1] = rgba[s + 1];
-      row[d + 2] = rgba[s + 2];
-      if (alpha) row[d + 3] = rgba[s + 3];
-    }
-    const o = y * (stride + 1);
-    raw[o] = 2; // "up" filter: cheap and compresses imagery well
-    for (let i = 0; i < stride; i++) raw[o + 1 + i] = (row[i] - prev[i]) & 0xff;
-    prev = row.slice();
-  }
-  const ihdr = new Uint8Array(13);
-  const v = new DataView(ihdr.buffer);
-  v.setUint32(0, width);
-  v.setUint32(4, height);
-  ihdr[8] = 8;
-  ihdr[9] = alpha ? 6 : 2;
-  const sig = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]);
-  const parts = [sig, chunk("IHDR", ihdr), chunk("IDAT", zlibSync(raw, { level: opts.level ?? 6 })), chunk("IEND", new Uint8Array(0))];
-  const out = new Uint8Array(parts.reduce((n, p) => n + p.length, 0));
-  let off = 0;
-  for (const p of parts) {
-    out.set(p, off);
-    off += p.length;
-  }
-  return out;
+function checkSize(w: number, h: number, given: number): void {
+  if (!Number.isInteger(w) || !Number.isInteger(h) || w < 1 || h < 1) throw new Error(`PNG: invalid size ${w} x ${h}`);
+  if (given < 4 * w * h) throw new Error(`PNG: pixel data too short (${given} bytes for ${w} x ${h})`);
 }
 
 /**
- * Decodes a PNG made by encodePng (8-bit RGB or RGBA, "up" filter only)
- * back to RGBA pixels: for deriving maps from textures we generate.
+ * Encodes RGBA pixels (top row first, four bytes per pixel in) as a PNG file.
+ * `alpha: false` writes RGB and drops the input alpha; `level` is the zlib level (default 6).
+ * Every row uses the Up filter, which suits photo-like textures and is cheap.
+ */
+export function encodePng(rgba: Pixels, width: number, height: number, opts: { alpha?: boolean; level?: number } = {}): Uint8Array {
+  checkSize(width, height, rgba.length);
+  const keepAlpha = opts.alpha !== false;
+  const bytesPerPixel = keepAlpha ? 4 : 3;
+  const lineBytes = 1 + width * bytesPerPixel;
+  const scan = new Uint8Array(lineBytes * height);
+  const srcLine = width * 4;
+  for (let row = 0, out = 0; row < height; row++) {
+    scan[out++] = 2; // Up
+    const here = row * srcLine;
+    const above = here - srcLine;
+    for (let px = 0; px < width; px++) {
+      for (let ch = 0; ch < bytesPerPixel; ch++) {
+        const s = here + 4 * px + ch;
+        scan[out++] = rgba[s] - (row ? rgba[above + 4 * px + ch] : 0);
+      }
+    }
+  }
+  const header = new Uint8Array(13);
+  writeBE(header, 0, width);
+  writeBE(header, 4, height);
+  header.set([8, keepAlpha ? COLOUR_RGBA : COLOUR_RGB, 0, 0, 0], 8);
+  const parts: [string, Uint8Array][] = [
+    ["IHDR", header],
+    ["IDAT", zlib.zlibSync(scan, { level: (opts.level ?? 6) as ZLevel })],
+    ["IEND", new Uint8Array(0)],
+  ];
+  const file = new Uint8Array(parts.reduce((sum, [, body]) => sum + body.length + 12, PNG_SIGNATURE.length));
+  file.set(PNG_SIGNATURE);
+  let at = PNG_SIGNATURE.length;
+  for (const [tag, body] of parts) {
+    writeBE(file, at, body.length);
+    for (let k = 0; k < 4; k++) file[at + 4 + k] = tag.charCodeAt(k);
+    file.set(body, at + 8);
+    writeBE(file, at + 8 + body.length, crcOf(file, at + 4, at + 8 + body.length));
+    at += body.length + 12;
+  }
+  return file;
+}
+
+/** The Paeth predictor from the PNG specification. */
+function paeth(left: number, up: number, upLeft: number): number {
+  const guess = left + up - upLeft;
+  const dl = Math.abs(guess - left), du = Math.abs(guess - up), dul = Math.abs(guess - upLeft);
+  if (dl <= du && dl <= dul) return left;
+  return du <= dul ? up : upLeft;
+}
+
+/**
+ * Decodes an 8-bit RGB or RGBA, non-interlaced PNG (any of the five row filters) to RGBA
+ * (alpha 255 for RGB). Throws a clear error on anything else, on a bad CRC or on short data.
  */
 export function decodeOwnPng(png: Uint8Array): { rgba: Uint8Array; width: number; height: number } {
-  const view = new DataView(png.buffer, png.byteOffset, png.byteLength);
-  const width = view.getUint32(16), height = view.getUint32(20);
-  const channels = png[25] === 6 ? 4 : 3;
-  const idat: Uint8Array[] = [];
-  for (let p = 8; p < png.length;) {
-    const len = view.getUint32(p);
-    const type = String.fromCharCode(png[p + 4], png[p + 5], png[p + 6], png[p + 7]);
-    if (type === "IDAT") idat.push(png.subarray(p + 8, p + 8 + len));
-    p += 12 + len;
+  if (png.length < 8 || !PNG_SIGNATURE.every((b, k) => png[k] === b)) throw new Error("PNG: bad signature");
+  let w = 0, h = 0, colour = -1;
+  const compressed: Uint8Array[] = [];
+  let at = 8;
+  let sawEnd = false;
+  while (!sawEnd && at + 12 <= png.length) {
+    const len = readBE(png, at);
+    const tag = String.fromCharCode(png[at + 4], png[at + 5], png[at + 6], png[at + 7]);
+    const body = at + 8;
+    if (body + len + 4 > png.length) throw new Error(`PNG: chunk ${tag} runs past the end of the file`);
+    if (crcOf(png, at + 4, body + len) !== readBE(png, body + len)) throw new Error(`PNG: CRC mismatch in ${tag} chunk`);
+    if (tag === "IHDR") {
+      if (len !== 13) throw new Error("PNG: bad IHDR length");
+      w = readBE(png, body);
+      h = readBE(png, body + 4);
+      const [depth, type, method, filterMethod, interlace] = png.subarray(body + 8, body + 13);
+      colour = type;
+      if (depth !== 8) throw new Error(`PNG: unsupported bit depth ${depth} (only 8)`);
+      if (type !== COLOUR_RGB && type !== COLOUR_RGBA) throw new Error(`PNG: unsupported colour type ${type} (only RGB 2 and RGBA 6)`);
+      if (method !== 0 || filterMethod !== 0) throw new Error("PNG: unsupported compression or filter method");
+      if (interlace !== 0) throw new Error("PNG: interlaced images are not supported");
+      if (!w || !h) throw new Error("PNG: zero size");
+    } else if (tag === "IDAT") compressed.push(png.subarray(body, body + len));
+    else if (tag === "IEND") sawEnd = true;
+    at = body + len + 4;
   }
-  const joined = new Uint8Array(idat.reduce((n, c) => n + c.length, 0));
-  idat.reduce((o, c) => (joined.set(c, o), o + c.length), 0);
-  const raw = unzlibSync(joined);
-  const stride = width * channels;
-  const rgba = new Uint8Array(width * height * 4);
-  let prev = new Uint8Array(stride);
-  for (let y = 0; y < height; y++) {
-    const o = y * (stride + 1);
-    if (raw[o] !== 2 && raw[o] !== 0) throw new Error("decodeOwnPng: only the up and none filters are supported");
-    const row = new Uint8Array(stride);
-    for (let i = 0; i < stride; i++) row[i] = (raw[o + 1 + i] + (raw[o] === 2 ? prev[i] : 0)) & 0xff;
-    for (let x = 0; x < width; x++) {
-      for (let k = 0; k < channels; k++) rgba[(y * width + x) * 4 + k] = row[x * channels + k];
-      if (channels === 3) rgba[(y * width + x) * 4 + 3] = 255;
+  if (colour < 0) throw new Error("PNG: no IHDR chunk");
+  if (!sawEnd) throw new Error("PNG: truncated (no IEND chunk)");
+
+  const joined = new Uint8Array(compressed.reduce((sum, c) => sum + c.length, 0));
+  compressed.reduce((off, c) => (joined.set(c, off), off + c.length), 0);
+  let scan: Uint8Array;
+  try {
+    scan = zlib.unzlibSync(joined);
+  } catch (err) {
+    throw new Error(`PNG: image data does not inflate (${(err as Error).message})`);
+  }
+
+  const bpp = colour === COLOUR_RGBA ? 4 : 3;
+  const lineBytes = w * bpp;
+  if (scan.length < (lineBytes + 1) * h) throw new Error(`PNG: image data too short (${scan.length} bytes, need ${(lineBytes + 1) * h})`);
+  let line = new Uint8Array(lineBytes);
+  let prior = new Uint8Array(lineBytes);
+  const pixels = new Uint8Array(4 * w * h);
+  for (let row = 0; row < h; row++) {
+    const start = row * (lineBytes + 1);
+    const kind = scan[start];
+    if (kind > 4) throw new Error(`PNG: bad filter type ${kind} on row ${row}`);
+    for (let k = 0; k < lineBytes; k++) {
+      const left = k < bpp ? 0 : line[k - bpp];
+      const up = prior[k];
+      const upLeft = k < bpp ? 0 : prior[k - bpp];
+      const pred = kind === 0 ? 0 : kind === 1 ? left : kind === 2 ? up : kind === 3 ? (left + up) >> 1 : paeth(left, up, upLeft);
+      line[k] = scan[start + 1 + k] + pred;
     }
-    prev = row;
+    const dst = row * w * 4;
+    if (bpp === 4) pixels.set(line, dst);
+    else {
+      for (let px = 0, o = dst; px < w; px++, o += 4) {
+        pixels[o] = line[3 * px];
+        pixels[o + 1] = line[3 * px + 1];
+        pixels[o + 2] = line[3 * px + 2];
+        pixels[o + 3] = 255;
+      }
+    }
+    [line, prior] = [prior, line];
   }
-  return { rgba, width, height };
+  return { rgba: pixels, width: w, height: h };
 }
