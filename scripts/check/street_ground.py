@@ -44,7 +44,7 @@ def main():
     data = json.load(open(sys.argv[1]))
     street = {}
     for m in data["meshes"]:
-        if m["name"].startswith("1STREET"):
+        if m["name"].startswith(("1STREET", "1UNPAVED")):
             for k, h in cells(m).items():
                 if h > street.get(k, -1e9):
                     street[k] = h

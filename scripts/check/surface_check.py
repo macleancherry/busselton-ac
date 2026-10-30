@@ -175,7 +175,7 @@ def main():
     path = sys.argv[1]
     data = json.load(open(path))
     meshes, ai = (data["meshes"], data["ai"]) if isinstance(data, dict) else (data, [])
-    drivable = [m for m in meshes if m["name"][:2] == "1R" or m["name"].startswith(("1STREET", "1KERB"))]
+    drivable = [m for m in meshes if m["name"][:2] == "1R" or m["name"].startswith(("1STREET", "1KERB", "1UNSEALED", "1UNPAVED"))]
     if ai:
         edge_report(ai, meshes)
     meshes = drivable

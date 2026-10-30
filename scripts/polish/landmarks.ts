@@ -59,7 +59,7 @@ const proj = new LocalProjection(route.build.origin);
 // Ground: any surface you can stand on (terrain, roads, paths, car parks; not walls) under a point,
 // else the nearest within 40 m (a landmark's middle can sit on a spot the base cleared or paved).
 const terrain = surfaceHeight(world, /^\d(?!WALL)/);
-const roads = surfaceHeight(world, /^\d(ROAD|STREET)/);
+const roads = surfaceHeight(world, /^\d(ROAD|STREET|UNSEALED|UNPAVED)/);
 const ground = (x: number, y: number) => {
   const h = terrain(x, y);
   if (h !== null) return h;

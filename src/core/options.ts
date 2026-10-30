@@ -175,6 +175,14 @@ export interface BuildOptions {
    * in the trees. Needs the placeholder bank (extension/sfx/README.txt) filled on the workstation.
    */
   trackSounds?: boolean;
+  /**
+   * Busselton fork: roads OSM tags unsealed (surface=unpaved, gravel, compacted, dirt..., and
+   * untagged tracks) are built as limestone gravel with gravel physics, no markings and no kerbs
+   * (unsealed.ts). On unless false.
+   */
+  gravelRoads?: boolean;
+  /** Busselton fork: the whole route is unsealed gravel whatever OSM says (Boranup-style forest drives). */
+  unsealed?: boolean;
   /** Kerb and gutter where the photos (or a built-up area) show them, instead of a gravel verge. */
   kerbs: boolean;
   /**

@@ -18,6 +18,7 @@ import { classWidths, fetchCoast, fetchTileFeatures, roadClassLookup } from "./v
 import { clearDataWarnings, dataWarnings, warnMissing } from "./dataWarnings";
 import { drawSigns } from "./signs";
 import { fetchFarmland } from "./landcover";
+import { isUnsealed } from "../core/unsealed";
 
 export interface BuildJob {
   coords: LngLat[];
@@ -98,6 +99,8 @@ export async function runBuild(job: BuildJob, report: Report, traceProgress: (te
       waterways: tiles?.waterways ?? [],
     };
   }
+  // Busselton fork: the tiles' unsealed roads too, for gravel on the route (unsealed.ts).
+  if (tiles) osm.features.unsealed = [...(osm.features.unsealed ?? []), ...tiles.roads.filter((r) => r.cls !== "path" && isUnsealed(r.surface, r.cls)).map((r) => r.pts)];
   // Busselton fork: what stands on the jetties (railway, platforms, buildings), over their own box.
   const pierPts = (coast?.piers ?? []).flatMap((p) => p.rings[0] ?? []);
   const jetty = pierPts.length && opts.sea !== false
