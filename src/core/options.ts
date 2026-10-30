@@ -265,6 +265,12 @@ export interface BuildOptions {
    * traffic planner when the track has traffic (trafficLights.ts). On unless false.
    */
   trafficLights?: boolean;
+  /**
+   * Busselton fork: run the network-first road core prototype (src/core/network,
+   * docs/specs/road-network.md) over the build's streets and write network/network.json into the
+   * zip for inspection. It doesn't change the track. Off unless true.
+   */
+  networkCore?: boolean;
 }
 
 export const DEFAULT_OPTIONS: BuildOptions = {
