@@ -17,12 +17,16 @@
 //   that takes drops, and line paint marked for the physics (slippery wet).
 // - Shadows: thin two-sided things (fences, signs, tree sprites) cast them
 //   without acne.
+// - Busselton fork: flags wave in the wind (flags.ts) and the jetty train
+//   runs on its timetable (a track script, jettyTrain.ts).
 //
 // Syntax follows CSP's documentation (acc-extension-config wiki: Tracks -
 // Lights, Conditions, Grass FX, RainFX) and its shipped configs for Kunos
 // tracks, and the templates in common/materials_track.ini.
 
 import type { Vec3 } from "./mesh";
+import { flagCspLines } from "./flags";
+import { jettyTrainConfig } from "./jettyTrain";
 
 const f = (v: number) => v.toFixed(2);
 
@@ -42,6 +46,10 @@ export interface CspOptions {
   sea?: boolean;
   /** Busselton fork: CSP instanced trees: the tree list's path under extension/ (e.g. trees/trees.txt). */
   trees?: string;
+  /** Busselton fork: flags (ksFlags meshes) wave in CSP's wind (flags.ts). */
+  flags?: boolean;
+  /** Busselton fork: load extension/jetty_train.lua, which runs the jetty train (jettyTrain.ts). */
+  jettyTrain?: boolean;
 }
 
 /** `lights` are lamp heads in local metres (x east, y north, z up). */
@@ -226,7 +234,9 @@ export function extConfig(lights: Vec3[], opts: CspOptions = {}): string {
       "",
     );
   }
+  if (opts.flags) lines.push(...flagCspLines());
   if (opts.autotest) lines.push("[SCRIPT_0]", "SCRIPT = autotest.lua", "");
+  if (opts.jettyTrain) lines.push(...jettyTrainConfig());
   return lines.join("\r\n");
 }
 

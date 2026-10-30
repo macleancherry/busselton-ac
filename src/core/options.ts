@@ -169,6 +169,16 @@ export interface BuildOptions {
   raceDress: boolean;
   /** Sponsors on the banners and flags, comma-separated. */
   sponsors: string;
+  /**
+   * Busselton fork: flags (landmark feather flags, marshal flags) wave in the wind: AC's flag shader,
+   * CSP's dynamic flags (flags.ts). On unless false.
+   */
+  wavingFlags?: boolean;
+  /**
+   * Busselton fork: ship the jetty train's track script, which runs it out along the jetty and back
+   * (jettyTrain.ts). The train stands at the shore platform either way. On unless false.
+   */
+  jettyTrain?: boolean;
 }
 
 export const DEFAULT_OPTIONS: BuildOptions = {

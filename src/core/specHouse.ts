@@ -10,6 +10,7 @@
 import type { Vec2 } from "./geo";
 import type { Kn5MeshNode } from "./kn5";
 import { MeshBuilder, type Vec3 } from "./mesh";
+import { cloth, FLAG_BACK_PREFIX } from "./flags";
 import { ROOF_COLOURS, type Facade, type WallKind } from "./buildingStyles";
 import type { TreeSpot } from "./scenery";
 import type { SurfaceKind } from "./surfaceTextures";
@@ -83,8 +84,11 @@ export interface SpecHouse {
   facades: Facade[];
   /** Roof finishes (indexes into ROOF_COLOURS) it wears: the spec's first, then any blocks' own. */
   roofs: number[];
-  /** Colours it needs: material name and colour, and a surface texture (surfaceTextures.ts) for some. */
-  solids: { name: string; rgb: RGB; surface?: SurfaceKind }[];
+  /**
+   * Colours it needs: material name and colour, and a surface texture (surfaceTextures.ts) for some.
+   * `flag`: a flag's cloth, to get a flag material (flags.ts: ksFlags, waving in CSP's wind).
+   */
+  solids: { name: string; rgb: RGB; surface?: SurfaceKind; flag?: boolean }[];
   trees: TreeSpot[];
   /** Each block's footprint on the map, counter-clockwise (to clear generated houses away). */
   footprints: Vec2[][];
@@ -140,10 +144,10 @@ export function buildSpecHouse(spec: HouseSpec, place: SpecPlacement, tag: strin
     if (!roofs.includes(r)) roofs.push(r);
     return `roof_${ROOF_COLOURS[r].name}`;
   };
-  const solids: { name: string; rgb: RGB; surface?: SurfaceKind }[] = [];
-  const solid = (name: string, rgb: RGB, surface?: SurfaceKind) => {
+  const solids: { name: string; rgb: RGB; surface?: SurfaceKind; flag?: boolean }[] = [];
+  const solid = (name: string, rgb: RGB, surface?: SurfaceKind, flag?: boolean) => {
     const n = `spec_${tag}_${name}`;
-    if (!solids.some((s) => s.name === n)) solids.push({ name: n, rgb, surface });
+    if (!solids.some((s) => s.name === n)) solids.push({ name: n, rgb, surface, ...(flag ? { flag } : {}) });
     return n;
   };
   const trim = solid("trim", trimRgb);
@@ -363,20 +367,20 @@ export function buildSpecHouse(spec: HouseSpec, place: SpecPlacement, tag: strin
     twoSided(m, sl.pts.map(([x, y, z]) => W(x, y, z)));
     for (const [x, y, z] of sl.pts) if (z > 1) box(solid("pole", [70, 70, 72], "steel"), x - 0.05, y - 0.05, 0, x + 0.05, y + 0.05, z, false, true);
   }
+  // Flag cloth's back faces (for AC without CSP; flags.ts), by material.
+  const flagBacks = new Map<string, MeshBuilder>();
   for (const f of spec.flags ?? []) {
-    const h = f.height ?? 4, m = solid(`flag_${(f.colour ?? "#f4f4f2").slice(1)}`, hex(f.colour, [244, 244, 242]), "canvas");
+    const h = f.height ?? 4, m = solid(`flag_${(f.colour ?? "#f4f4f2").slice(1)}`, hex(f.colour, [244, 244, 242]), undefined, true);
     box(solid("pole", [70, 70, 72], "steel"), f.x - 0.02, f.y - 0.02, 0, f.x + 0.02, f.y + 0.02, h);
-    // A feather: straight along the pole, the outer edge bowing out and rounding over the top.
-    const w = 0.75, z0 = 0.9;
-    const edge: [number, number][] = [];
-    for (let k = 0; k <= 8; k++) {
-      const q = k / 8, z = z0 + (h - 0.15 - z0) * q;
-      edge.push([w * (0.75 + 0.25 * Math.sin(q * Math.PI * 0.8)) * (q > 0.85 ? Math.cos(((q - 0.85) / 0.15) * Math.PI / 2) : 1), z]);
-    }
-    for (let k = 0; k < 8; k++) {
-      const [wa, za] = edge[k], [wb, zb] = edge[k + 1];
-      twoSided(m, [W(f.x, f.y, za), W(f.x + wa, f.y, za), W(f.x + wb, f.y, zb), W(f.x, f.y, zb)]);
-    }
+    // A feather: straight along the pole, the outer edge bowing out and rounding over the top. One
+    // single-sided cloth with u = 0 on the pole, so it waves (flags.ts).
+    const w = 0.75, z0 = 0.9, zTop = h - 0.15;
+    const width = (q: number) => Math.max(0.04, w * (0.75 + 0.25 * Math.sin(q * Math.PI * 0.8)) * (q > 0.85 ? Math.cos(((q - 0.85) / 0.15) * Math.PI / 2) : 1));
+    if (!flagBacks.has(m)) flagBacks.set(m, new MeshBuilder());
+    cloth(mesh(m), flagBacks.get(m)!, (u, v) => {
+      const q = 1 - v;
+      return W(f.x + u * width(q), f.y, z0 + (zTop - z0) * q);
+    }, 3, 8, (u, v) => [u * width(1 - v) / w, v]);
   }
   const signs: SpecHouse["signs"] = [];
   for (const [k, sg] of (spec.signs ?? []).entries()) {
@@ -394,6 +398,7 @@ export function buildSpecHouse(spec: HouseSpec, place: SpecPlacement, tag: strin
   const nodes: Kn5MeshNode[] = [];
   let i = 0;
   for (const [mat, mb] of meshes) if (mb.indices.length) nodes.push(mb.toKn5(`SPECHOUSE_${tag}_${i++}`, mat));
+  for (const [mat, mb] of flagBacks) if (mb.indices.length) nodes.push(mb.toKn5(`${FLAG_BACK_PREFIX}SPECHOUSE_${tag}_${i++}`, mat, { castShadows: false }));
   // What the car hits: the walls and fences, invisible.
   if (solidWalls.indices.length) nodes.push({ ...solidWalls.toKn5(`1WALL_SPECHOUSE_${tag}`, trim), renderable: false });
   return { nodes, facades, roofs, solids, trees, footprints, signs };

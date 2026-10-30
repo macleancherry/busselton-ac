@@ -18,6 +18,7 @@ import { buildTrees } from "./scenery";
 import { surfaceTexture } from "./surfaceTextures";
 import type { SignDrawer } from "./shops";
 import { material, nmMaterial } from "./materials";
+import { flagMaterial } from "./flags";
 
 type Light = { ambient: number; diffuse: number; specular: number; exp: number };
 
@@ -85,6 +86,15 @@ export function landmarkModel(
   for (const fc of sh.facades) relief(`facade_${fc.name}`, facadeTexture(fc), { ambient: 0.45, diffuse: 0.45, specular: 0.05, exp: 10 }, 3);
   for (const r of sh.roofs) relief(`roof_${ROOF_COLOURS[r].name}`, roofTexture(ROOF_COLOURS[r]), { ambient: 0.45, diffuse: 0.45, specular: 0.25, exp: 25 }, 4);
   for (const so of sh.solids) {
+    // Flag cloth: the flag shader, so it waves (flags.ts).
+    if (so.flag) {
+      if (!have.has(so.name)) {
+        have.add(so.name);
+        textures.push({ name: `${so.name}.png`, data: solidTexture(so.rgb) });
+        materials.push(flagMaterial(so.name, `${so.name}.png`));
+      }
+      continue;
+    }
     if (so.surface) relief(so.name, surfaceTexture(so.surface, so.rgb), { ambient: 0.45, diffuse: 0.45, specular: so.surface === "steel" || so.surface === "colorbond" ? 0.25 : 0.06, exp: 15 }, so.surface === "brick" ? 4 : 2);
     else plain(so.name, solidTexture(so.rgb), { ambient: 0.45, diffuse: 0.45, specular: 0.1, exp: 10 });
   }

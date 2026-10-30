@@ -266,6 +266,32 @@ MATERIALS = shader:ksTree?
 MATERIAL_FLAG_0 = 1
 ```
 
+### Flags in the wind (have it: `src/core/flags.ts`)
+CSP has no cloth simulation for tracks, but it turns AC's own flag shader (`ksFlags`) into "dynamic flags" that follow its wind. From the [General options wiki page](https://github.com/ac-custom-shaders-patch/acc-extension-config/wiki/Tracks-%E2%80%93-General-options), `[WIND] DYNAMIC_FLAGS = AUTO ; Valid values: NONE, AUTO, or regular mesh filter`; CSP's own configs add `DYNAMIC_FLAGS_TESSELLATION = 1` (ks_nurburgring, monaco_1966) and use filters like `'{ shader:ksFlags & !FLAG9 }'` (ks_silverstone, ks_monza66). What we write:
+```ini
+[WIND]
+DYNAMIC_FLAGS = '{ shader:ksFlags & !FLAGBACK_? }'
+DYNAMIC_FLAGS_TESSELLATION = 1
+
+[SHADER_REPLACEMENT_...]
+MATERIALS = shader:ksFlags
+CULL_MODE = DOUBLESIDED
+DOUBLE_FACE_SHADOW_BIASED = 1
+
+[SHADER_REPLACEMENT_...]
+MESHES = FLAGBACK_?
+IS_VISIBLE = 0
+CAST_SHADOWS = 0
+```
+The mesh rules, from track makers ([assettocorsamods.net, "Dynamic Flags issue"](https://assettocorsamods.net/goto/post?id=20936)): UVs inside 0..1 with the texture's left edge (u = 0) on the pole, which CSP holds still; one single-sided cloth drawn from both sides (two coincident sides cut through each other as they wave); a grid of vertices, not one quad. Without CSP, `ksFlags` waves the whole cloth gently by its `frequency` and `distortion` (0.3 and 0.05, the values in CSP's pfc_chayka config), and a back-face copy (`FLAGBACK_...`) shows the other side; CSP hides it. **[to check in game]**: the flags move with the wind, the pole edge stays put, nothing flickers.
+
+Which flags: the landmark specs' feather flags and the race-day marshal flags (yellow, chequered). The race sponsor feathers are printed in the sign atlas, which can't give each flag its own u = 0 edge, so they stay still.
+
+### Animated objects and track scripts (the jetty train)
+Two ways CSP moves things on a track ([Animated objects wiki page](https://github.com/ac-custom-shaders-patch/acc-extension-config/wiki/Tracks-%E2%80%93-Animated-objects)): `[ANIMATED_...]` sections (windmills, weather vanes, clocks, keyframes, and a "train" that follows a hidden strip mesh, `MOVE_ALONG`, with `TICK_TOCK_MODE` for out and back), or a Lua track script (`[SCRIPT_...] SCRIPT = file.lua`, API in `ac_track_script.lua` of [acc-lua-sdk](https://github.com/ac-custom-shaders-patch/acc-lua-sdk)). Either way only nodes move: "meshes can't be moved unless they are within their own nodes" (wiki), so each car is a node of its own in our kn5.
+
+The jetty train is a script (`src/core/lua/jetty_train.lua`, filled in by `src/core/jettyTrain.ts`), so it can keep the real timetable: on the hour by the session's clock (`ac.getSim().timeHours/timeMinutes`), about 5 km/h each way, 5 minutes at the end, back pushed. It only calls `ac.findNodes(name):setPosition()/setOrientation(look, up)` (look is the node's Z row, as in `mat4x4.look`), so it needs no physics permission (`[_SCRIPTING_PHYSICS] ALLOW_TRACK_SCRIPTS` is only for the physics API, per the extended physics wiki page). Settings in its ext_config section: `speedKmh`, `firstDeparture`, `lastDeparture`, `everyMinutes`, `waitAtEnd`, `nonStop = 1` to watch it without waiting. Auto-numbered `[SCRIPT_...]` and `[SHADER_REPLACEMENT_...]` sections can sit beside numbered ones (CSP's chang.ini, imola.ini do). **[to check in game]**: the train runs at 9:00 with `nonStop = 0`, the cars follow the bend, and it stands at the shore platform at night.
+
 ### Lighting knobs
 ```ini
 [LIGHTING]
