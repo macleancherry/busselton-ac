@@ -3,6 +3,7 @@
 // the app, as their usage policies ask.
 
 import { warnMissing } from "./dataWarnings";
+import { JETTY_SNAPSHOT, JETTY_SNAPSHOT_BOX } from "./jettySnapshot";
 import { haversine, type LngLat } from "../core/geo";
 import { trimSpurs } from "../core/spurs";
 import type { OsmFeatures } from "../core/track";
@@ -369,6 +370,9 @@ export async function fetchPierFeatures(box: [number, number, number, number]): 
       ctl.abort();
     }
   }
+  // Every mirror down: the Busselton Jetty has a snapshot (jettySnapshot.ts); anywhere else goes without.
+  const [w, so, e, n] = JETTY_SNAPSHOT_BOX;
+  if (box[0] < e && box[2] > w && box[1] < n && box[3] > so) return JETTY_SNAPSHOT;
   warnMissing("jetty features (OSM: its railway, platforms, buildings)");
   return empty;
 }
