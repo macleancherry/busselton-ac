@@ -1,0 +1,56 @@
+{
+ "name": "Caves Road Yallingup",
+ "_note": "Caves Road (Tourist Drive 250) from Dunsborough to Yallingup and on south past the Ngilgi Cave turn: west along the coast through peppermint and marri, climbing onto the Leeuwin-Naturaliste ridge to Yallingup. Point to point, about 11 km. The first South West track; Busselton to Dunsborough can be added later. Country road settings like Tuart Drive's: a 70 m corridor and coarser terrain to keep the length within budget; gentle banking on the bends.",
+ "loop": false,
+ "pins": [
+  [
+   115.097,
+   -33.61937
+  ],
+  [
+   115.08,
+   -33.62197
+  ],
+  [
+   115.064,
+   -33.63162
+  ],
+  [
+   115.052,
+   -33.64052
+  ],
+  [
+   115.04,
+   -33.64574
+  ],
+  [
+   115.03441,
+   -33.648
+  ],
+  [
+   115.03306,
+   -33.659
+  ],
+  [
+   115.03086,
+   -33.671
+  ]
+ ],
+ "options": {
+  "imagery": "high",
+  "banking": true
+ },
+ "build": {
+  "terrainStep": 2.5,
+  "terrainUnderRoad": 0.2,
+  "traceGuard": false,
+  "traffic": true,
+  "corridor": 70,
+  "horizon": 1000,
+  "origin": [
+   115.064,
+   -33.642
+  ],
+  "maxBank": 0.04
+ }
+}
