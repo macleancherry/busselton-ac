@@ -36,7 +36,7 @@ export interface HouseSpec {
   verandahs?: { x0: number; x1: number; y0: number; y1: number; height?: number; deckHeight?: number; posts?: number[]; wallHeight?: number }[];
   doors?: { type: "front" | "garage" | "roller"; x0: number; x1: number; y: number; height?: number; z0?: number; colour?: string }[];
   windows?: { facing: "front" | "back" | "left" | "right"; wall: number; at: number; width?: number; height?: number; sill?: number }[];
-  fences?: { x0: number; y0: number; x1: number; y1: number; height?: number; colour?: string }[];
+  fences?: { x0: number; y0: number; x1: number; y1: number; height?: number; colour?: string; open?: boolean }[];
   hedges?: { x0: number; x1: number; y0: number; depth?: number; height?: number }[];
   trees?: { x: number; y: number; height: number; spread?: number }[];
   /** Flat paving (brick, concrete) laid on the ground. */
@@ -271,7 +271,27 @@ export function buildSpecHouse(spec: HouseSpec, place: SpecPlacement, tag: strin
     const [g0, g1, g2, g3] = r(ww / 2, 0.08);
     box("window", g0, g1, sill, g2, g3, sill + wh);
   }
-  spec.fences?.forEach((f, k) => box(solid(`fence${k}`, hex(f.colour, [236, 235, 230])), f.x0, f.y0, -0.2, f.x1, f.y1, f.height ?? 1.8, false, true));
+  spec.fences?.forEach((f, k) => {
+    const m = solid(`fence${k}`, hex(f.colour, [236, 235, 230])), H = f.height ?? 1.8;
+    if (!f.open) return box(m, f.x0, f.y0, -0.2, f.x1, f.y1, H, false, true);
+    // An open rail: posts every 1.8 m and a top rail (what the car hits is still the whole run).
+    const along = Math.abs(f.x1 - f.x0) >= Math.abs(f.y1 - f.y0), L = along ? f.x1 - f.x0 : f.y1 - f.y0;
+    const n = Math.max(1, Math.round(Math.abs(L) / 1.8));
+    const mx = (f.x0 + f.x1) / 2, my = (f.y0 + f.y1) / 2;
+    for (let i = 0; i <= n; i++) {
+      const q = (along ? f.x0 : f.y0) + (L * i) / n;
+      if (along) box(m, q - 0.05, my - 0.05, -0.2, q + 0.05, my + 0.05, H - 0.12);
+      else box(m, mx - 0.05, q - 0.05, -0.2, mx + 0.05, q + 0.05, H - 0.12);
+    }
+    box(m, f.x0, f.y0 - (along ? 0.06 : 0), H - 0.15, f.x1, f.y1 + (along ? 0.06 : 0), H);
+    const wire = solid("wire", [150, 150, 150]);
+    for (const z of [0.35, 0.6, 0.85]) if (z < H - 0.2) box(wire, f.x0, f.y0 + (along ? 0.0 : 0), z, f.x1, f.y1, z + 0.008);
+    const c: [number, number][] = [[f.x0, f.y0], [f.x1, f.y0], [f.x1, f.y1], [f.x0, f.y1]];
+    for (let j = 0; j < 4; j++) {
+      const [ax, ay] = c[j], [bx, by] = c[(j + 1) % 4];
+      poly(solidWalls, [W(ax, ay, -0.2), W(bx, by, -0.2), W(bx, by, H), W(ax, ay, H)], planar);
+    }
+  });
   for (const h of spec.hedges ?? []) box("hedge", h.x0, h.y0, -0.2, h.x1, h.y0 + (h.depth ?? 0.9), h.height ?? 1.2);
   const trees: TreeSpot[] = (spec.trees ?? []).map((tr) => {
     const p = W(tr.x, tr.y, 0);
