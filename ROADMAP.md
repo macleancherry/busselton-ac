@@ -1,285 +1,219 @@
 # Busselton AC roadmap
 
-**Goal:** Busselton and then the wider South West, from the Busselton Jetty to Cape Leeuwin, as Assetto Corsa tracks you can just drive around in. Real roads, real heights, the trees and buildings locals would recognise, traffic, day and night, summer and winter. Built from free data and free tools, for personal use.
+**Goal:** the South West of WA in Assetto Corsa, from the Busselton Jetty to Cape Leeuwin. A few well-known places built in high detail, landmark by landmark; everywhere else a reasonably accurate area where every road is drivable. Real roads and heights, local trees and buildings, traffic, day and night, summer and winter. Free data and free tools, for personal use, driving with the kids.
 
-This is the plan for this fork. (`docs/roadmap.md` is upstream's own roadmap for the general track builder, kept as-is so merges stay clean.) The generator itself is [honestjams/ac-track-builder](https://github.com/honestjams/ac-track-builder); anything that's useful beyond the South West goes back upstream (see [Working with upstream](#working-with-upstream)).
+This is the plan for this fork. (`docs/roadmap.md` is upstream's own roadmap for the general track builder, kept as-is so merges stay clean.) The generator itself is [honestjams/ac-track-builder](https://github.com/honestjams/ac-track-builder); anything useful beyond the South West goes back upstream (see [Working with upstream](#working-with-upstream)).
 
 Status key: ✅ done · 🔨 in progress · ⬜ planned · ❓ needs checking first
 
 ---
 
-## Where we are (v0.7, 29 October 2026)
+## The strategy: generate, freeze, polish (30 Oct 2026)
 
-Five tracks build from route files with one command, then pass automatic checks:
+Until now every change rebuilt a whole track from live data: map servers, imagery, Mapillary, heights. That was right while the generator was being built, but it won't scale to a region: a build takes 20 minutes, fails when Overpass is down, and moving one umbrella means re-testing everything. Exporting a finished track to Blender and hand-polishing it is worse: it cuts the track off from everything the generator does well (AI lines, traffic, terrain fixes, CSP config, checks), so every fix would have to be redone by hand on every frozen track.
 
-- **Busselton Foreshore**: a 4.3 km circuit along Geographe Bay Rd, Queen St and Marine Tce.
-- **Busselton town centre**: a 2.2 km loop down Queen St, along Albert St and back by Marine Tce, with shopfronts and traffic.
-- **Tuart Drive, Ludlow**: 16.6 km point to point through Tuart Forest, from Wonnerup to Ludlow.
-- **A 3.6 km point-to-point sprint** through the western suburbs, and **a whole-estate build** where every street inside the estate is drivable (both route files private).
+So:
 
-What a build has today:
+1. **Two tiers of track.**
+   - **Showcase areas** (Busselton, the estate, Yallingup, Margaret River, Cape Naturaliste, Boranup): polished landmark by landmark.
+   - **Drive-anywhere areas** (everything in between): generated, reasonably accurate, rebuilt freely whenever the generator improves, never hand-polished.
+2. **Freeze each track's inputs, not its geometry.** Each track keeps a snapshot of its map data, imagery, heights and Mapillary detections (in the share; the imagery licence keeps it out of GitHub). Builds become offline, identical every time, and don't fail when a server is down.
+3. **Split base and polish.**
+   - The **base** (terrain, roads, generic buildings, AI, traffic, layouts) is rebuilt only on purpose.
+   - The **polish** (landmarks, hand-set looks, Blender detail, corrections) is separate files on fixed coordinates: each landmark compiles to its own small model in seconds and drops into the installed track, with no base rebuild.
+4. **Base upgrades are a deliberate step.** Rebuild from the frozen inputs, run the checks and the before/after renders, accept or roll back. The polish carries over because it sits on fixed coordinates.
+5. **One folder per track** with its route, snapshot manifest, landmarks, layers, notes and status. One repo, because the generator is shared.
 
-- ✅ Landgate aerial imagery and Geoscience Australia's 5 m LiDAR heights for Busselton, Vasse and Broadwater
-- ✅ Smooth town roads: no banking, kerbs at the right height, flat roundabouts
-- ✅ Close-up ground detail (`ksMultilayer`, upstream's grass, dirt and paving), with Grass FX tuned for straw-coloured verges
-- ✅ Local trees: she-oak, Norfolk pine, peppermint and tuart
-- ✅ The red shared path and footpaths
-- ✅ Upstream's building types (about 60 wall finishes, 20 roofs, shops, flats, sheds), plus Colorbond fences, front walls, hedges and garden beds
-- ✅ Street lights with CSP night lighting
-- ✅ The bay as water, and the 1.8 km jetty
-- ✅ Horizon tree lines
-- ✅ Headless builds, checks (photo overlay, DEM heights, bumps, edge steps) and driver's-eye renders
-- ✅ Upstream's houses (doors, garages, driveways), power poles, wires, photo footpaths, culling and replay cameras, merged in
-- ✅ Real power poles, street lights and signs from Mapillary detections
-- ✅ A rock seawall and groynes, Norfolk pines and palms along the foreshore
-- ✅ CSP traffic lanes (`data/traffic.json`), checked automatically; not yet driven with in game
-- ✅ An unattended AI test run on the workstation, with a drive log, replay and report
-- ✅ Shopfronts: verandahs on posts, fascia signs and shop windows where the photo and map show shops
-- ✅ Forest: grey-olive tuart and eucalypt canopy read from the photo as trees (Tuart Drive went from 1,700 to about 8,000)
-- ✅ A performance budget check on every build, and checks that work on long tracks
-- ✅ Parked cars back where the photo had them, real shop names on the verandah signs
-- ✅ Builds that retry map data and stop if any is still missing, so they come out the same every time
-- ✅ House looks: wall kind and colour from street photos or set by hand, front hedges and trees, and an area's own mix of facades
-- ✅ The AI slowed to the speed limit (50 in town) and for tight corners, tested in an everyday car
-- ✅ Roundabout islands painted with their own aerial photo (mulch, plantings, paving or lawn), with a tree and shrubs on the bigger ones
+Rules that follow: never hand-edit a generated mesh (replace it with a layer instead); every polish item is data or a layer that a rebuild re-applies; a showcase area's base changes only through step 4.
+
+---
+
+## The tracks
+
+AC can't load the whole South West as one map, so it's a set of tracks, each inside the RTX 4060's budget (about 1.5M triangles).
+
+| Track | Tier | Status |
+| --- | --- | --- |
+| **Busselton** (Foreshore and town centre; layouts Foreshore, Town, Sights, Free Roam) | Showcase | 🔨 base built, 2 of 18 landmarks done, 6 more described |
+| **The whole map** (private: adds the estate and the Home Run) | Showcase | 🔨 base built; private landmarks described |
+| **Tuart Drive, Ludlow** (16 km) | Drive-anywhere | ✅ built, waiting on a drive |
+| **Caves Road, Dunsborough to Yallingup** (11 km) | Drive-anywhere, Yallingup a showcase later | 🔨 route ready; needs sharper heights west of Dunsborough (see below) |
+| **Bussell Highway, Busselton to Dunsborough** | Drive-anywhere | ⬜ |
+| **Margaret River town** | Showcase | ⬜ |
+| **Caves Road, Yallingup to Margaret River** | Drive-anywhere | ⬜ |
+| **Boranup Drive and the karri** | Showcase | ⬜ (needs gravel, 3D karri) |
+| **Cape Naturaliste Road and the lighthouse** | Showcase | ⬜ |
+| **Cape Leeuwin, Augusta** | Showcase | ⬜ |
+| **Collie Motorplex** (a real 1.6 km circuit) | Showcase | ⬜ |
+| ❓ **Forest Rally stage, backroads** (Wildwood Rd, Tom Cullity Dr, Rosa Brook Rd) | Drive-anywhere | ⬜ drive them first, then pick |
+
+---
+
+## Phase A: Generate, freeze, polish (the tooling) 🔨
+
+What makes polishing cheap. First, because every landmark after it is quicker.
+
+- ⬜ **A1. Base and polish split.**
+  - Landmarks (spec buildings) compile to their own layer `.kn5`s in seconds, outside the base build, clearing the generated buildings they stand on (the layer system already does this).
+  - A polish-only build updates an installed track without regenerating it.
+  - The automatic test and the checks work on base plus layers.
+- ⬜ **A2. Per-track input snapshots.** Pin a track's map data, imagery, heights and Mapillary detections into a snapshot (in the share, with a manifest in the repo), and build from it offline. The pieces exist: the download cache (14 days), `JETTY_SNAPSHOT`, fixed map origins.
+- ⬜ **A3. Base upgrades.** Rebuild from the snapshot, run every check and `render_diff`, and show what changed; then accept or roll back. Refresh a snapshot only on purpose (e.g. new OSM edits).
+- ⬜ **A4. One folder per track** (`tracks/<name>/`, private ones under `routes/private/`): route, snapshot manifest, landmarks, layers, notes, and a status page.
+- ✅ **Already in place:**
+  - spec buildings with yards and lettered signs (`specHouse.ts`)
+  - surface textures (brick, timber, canvas, steel)
+  - hand-made layers over the generated track (`models.ini`, sidecars that clear what they replace)
+  - Blender both ways in the track's own coordinates
+  - Blender renders of any spec in this workspace (`bpy`)
+  - landmark descriptions from the aerial and photos (`docs/landmarks/`)
+  - the share for moving files between machines
+
+## Phase B: Busselton, polished (the template for every showcase area) 🔨
+
+- 🔨 **Landmarks** ([docs/landmarks.md](docs/landmarks.md)):
+  - ✅ built: the jetty precinct, Rocky Ridge
+  - 🔨 being specced: the Esplanade Hotel, The Goose, the Old Courthouse group, the Hilton Garden Inn, the Visitor Centre, the Busselton Museum
+  - ⬜ to do: the foreshore playground and sculptures, the foreshore cafes, the yacht club, the cinema, the pubs, the cemetery, the fire station, the parks
+  - private landmarks: listed in `routes/private/landmarks/` (photos of their street faces still needed)
+- 🔨 **Houses from the photo walk:** spec houses from Mac's street photos (`scripts/houses/photo_walk.py`), street by street. Waiting on the first street of photos.
+- 🔨 **Detail layers in Blender** for what a spec can't say: Rocky Ridge's vine pergola and festoon lights, the farm cottage's stonework. Judge from in-game screenshots first.
+- 🔨 **In game:** the workstation retest (`docs/workstation-retest.md`) covers the AI on every layout, the AO bake, the 3D trees and the landmark screenshots. Mac's own checks: time of day and seasons, water, rain, night, the jetty, the map app, free roam.
+- ⬜ **Town details:** kerbside parking bays, bike lanes, traffic lights (Busselton has few), car parks beyond the detailed ground.
+- ✅ **Base work done:**
+  - one map with layouts: Foreshore, Town, Sights and Free Roam on one world, and the private whole map with the estate and Home Run
+  - every street drivable, traced from the aerial
+  - roundabouts, kerbs and returns, footpaths, shopfronts with real names, parked cars
+  - the seawall and groynes, the jetty precinct
+  - Mapillary poles, lights and signs; local trees; CSP night lighting, seasons and water
+  - the AI kept to the road and to the limits, with Kunos's lookup grid
+  - spawns in the car parks
+  - the map app and checkpoint challenges
+  - the ground never through a street (`street_ground.py`)
+
+## Phase C: Drive-anywhere South West 🔨
+
+Generated tracks across the region at a lighter detail level, rebuilt whenever the generator improves.
+
+- 🔨 **Heights.**
+  - ✅ Geoscience Australia's 5 m LiDAR covers Busselton to Ludlow and west to Dunsborough.
+  - It stops just west of Dunsborough: Yallingup, the capes and most of Caves Road fall back to about 30 m global heights, which smooth the hills.
+  - ❓ Next: order the capes LiDAR from GA's ELVIS portal (free, links emailed), cut it into tiles.
+- 🔨 **Caves Road, Dunsborough to Yallingup:** route ready (`routes/caves-road.json`). Build once the heights are sorted.
+- ⬜ **A drive-anywhere preset:** country settings (wider terrain grid, corridor and horizon sized to the budget, gentle banking) so a new road is one route file. Check 30+ km roads and draw distances.
+- ⬜ **Country roadsides:** gravel shoulders, guideposts (done), Armco on bends and drop-offs, farm driveways, mailboxes, cattle grids.
+- ⬜ **Unsealed roads:** gravel surface physics, dust, a limestone gravel texture (Boranup, farm roads).
+- ⬜ **Landscape zones:** each with its own trees, ground and roadside.
+  - coast: white sand, peppermint, granite
+  - capes heath
+  - tuart woodland
+  - jarrah-marri forest
+  - karri
+  - vineyards and paddocks: vine rows from `landuse=vineyard`, post-and-wire fences, green in winter and gold in summer
+  - Vasse-Wonnerup wetlands
+- 🔨 **3D trees:** CSP instanced trees, five local species, three levels of detail. The file format is confirmed against Content Manager; in-game look being tested (`busselton_trees`). Next: on by default, then karri and marri, then photo textures of real foliage.
+
+## Phase D: More showcase areas ⬜
+
+Each starts as a drive-anywhere base, then gets the Phase B treatment: Yallingup, Margaret River's main street, Cape Naturaliste, Boranup, Cape Leeuwin, Collie Motorplex. Landmarks for each are listed in [docs/landmarks.md](docs/landmarks.md).
+
+## Phase E: A living world 🔨
+
+- 🔨 **Traffic.**
+  - ✅ CSP traffic-planner lanes (`data/traffic.json`) with one-way streets and limits, checked automatically.
+  - ⬜ Next:
+    - an in-game test with the planner (`docs/traffic-test.md`)
+    - AI Flood in Track Day on Free Roam
+    - density zones (busy Queen St, quiet estates)
+    - an Aussie traffic car pack (Hilux, Ranger, Corolla, i30, utes with trailers, caravans)
+    - calmer settings for the kids
+  - ❓ Does offline traffic work in Content Manager LAN?
+- 🔨 **Atmosphere (CSP and Pure).**
+  - ✅ The sun's real position, dry-season grass, bounced light, the bay as CSP water, wind, the tiling fix, Pure settings.
+  - ✅ Night lighting.
+  - ✅ AO baking (first bakes take under a minute on the 4060).
+  - ⬜ Next:
+    - RainFX puddles in low spots from the heights
+    - track sounds: surf, magpies and kookaburras, the jetty train
+    - animated flags and the jetty train
+    - per-track Pure tuning for the bright WA sun
+
+## Phase F: Testing and tooling 🔨
+
+- ✅ The build checks:
+  - photo overlay, heights, spikes, bumps and edge steps
+  - budget, layouts, traffic
+  - ground through streets
+- ✅ Renders and before/after comparison, CI on every push, headless builds from a snapshot of the repo.
+- ✅ The workstation:
+  - the automatic AI test per layout, with landmark screenshots
+  - AO bakes; everything goes to `\\media\busselton-share`
+- 🔨 Link this chat to Mac's laptop so builds go straight into the share and reports come straight back.
+- ⬜ A night run and a several-AI-cars run in the automatic test; a traffic-planner run.
+- ⬜ A one-click install link for the rig.
+
+## Phase G: Fun 🔨
+
+- 🔨 **Checkpoint challenges:** Busselton Challenges app, checkpoints against the clock. To check in game, then hand-picked checkpoints per track.
+- ✅ The Sights layout: a cruise past the town landmarks.
+- ⬜ Point-to-point time trials between towns with LAN leaderboards, cruise mode, drift spots in empty car parks.
 
 ---
 
 ## What the best AC maps get right
 
-What makes the most-loved community maps feel alive, and what we take from each:
-
 | Map | What it does well | What we take |
 | --- | --- | --- |
-| **Shutoko Revival Project** | Huge, accurate road network, dense traffic (through AssettoServer), superb night lighting, a living community | Open-world layout, traffic as a first-class feature, night as good as day |
-| **Arrabassada** (Barcelona) | Urban highway into mountain road, working traffic lights, viewpoints and parking areas, night mode | Traffic lights, places to stop, a mix of town and country in one drive |
-| **Slea Head Drive** (Ireland) | 48 trackside cameras, AI, rain effects, detailed buildings | Replay cameras, RainFX, care on buildings |
-| **Wicklow Mountains** | ~47 km open world, two layouts with AI | Several layouts from one map, open world plus routes |
-| **Mulholland Drive** | Racing version and free-roam version with two-way traffic | One race layout and one cruise layout per area |
+| **Shutoko Revival Project** | Huge, accurate road network, dense traffic, superb night lighting | Open world, traffic as a first-class feature, night as good as day |
+| **Arrabassada** (Barcelona) | Urban highway into mountain road, traffic lights, viewpoints, night mode | Places to stop, town and country in one drive |
+| **Slea Head Drive** (Ireland) | 48 trackside cameras, AI, rain, detailed buildings | Replay cameras, RainFX, care on buildings |
+| **Wicklow Mountains** | ~47 km open world, two layouts with AI | Several layouts from one map |
+| **Mulholland Drive** | A race version and a free-roam version with traffic | One race layout and one cruise layout per area |
 | **Santa Monica Mountains** | Photogrammetry scenery | Our own photo scans for landmarks |
-| **Street2Sim** | Pins to track, camber from DEM, automatic checks, optional `.blend` export, area builds for car parks and intersections, a library of built roads | `.blend`/FBX export for hand detail, area builds, a track index |
+| **Street2Sim** | Pins to track, automatic checks, `.blend` export, area builds | Area builds, a track index |
 
 Sources: [OverTake: six real-road maps for free roaming](https://racedepartment.com/news/comments/76810/), [Street2Sim](https://www.street2sim.com/) and [our notes on how it works](docs/how-street2sim-works.md).
 
----
-
 ## Who builds what: us and upstream
 
-Upstream ([honestjams/ac-track-builder](https://github.com/honestjams/ac-track-builder)) is a general tool: any real road, anywhere, as a time-trial track, built in the browser. It moves fast (about 50 commits in four days in late October), almost all on looks and scenery: houses and building types, ground and road detail shaders, CSP lighting, race-day dressing. Its research is deep where it works ([docs/realism.md](docs/realism.md) reads the CSP shaders from source) and its in-game checklist is thorough ([docs/verification.md](docs/verification.md)). Its own plan ([docs/roadmap.md](docs/roadmap.md)): time trials tested in game, CSP 3D trees, a pit lane, front fences, balconies, shareable builds with open imagery.
+Upstream ([honestjams/ac-track-builder](https://github.com/honestjams/ac-track-builder)) is a general tool: any real road, anywhere, as a time-trial track, built in the browser. Its work is mostly looks and scenery: houses and building types, ground and road detail shaders, CSP lighting, race-day dressing. It has slowed since 29 October; where we need its planned work sooner, we build it ourselves after researching it properly, and offer it back.
 
-So we split the work:
-
-- **Upstream's:** general looks and scenery (buildings, materials, shaders, ground and road detail, lighting quality, race dressing, general road furniture). We take these in by merging and don't build our own. If we need one before they get to it, we build it as a PR for them.
-- **Ours:** what a general road tool won't do. One Busselton map with layouts, open world and spawn points; traffic; the AI driving like a local; headless builds, automatic checks and the workstation test; our own data (WA heights, Mapillary footage, house looks, local trees, the coast); the South West tracks; fun modes for the kids.
-- **Before starting anything general,** check upstream's roadmap and recent commits (`git log main..upstream/main`). If it's on their list, wait for it or send it to them.
-
-## Phase 1: Foundations 🔨
-
-Get the base right before adding more.
-
-- ✅ **Merge upstream.** honestjams' houses, poles and wires, photo-read footpaths and driveways, culling and draw distances, road-edge ramp, U-turn spur removal, replay cameras, CSP realism and detail shaders. Checked again after every tranche of work.
-- 🔨 **The AI driving off the road.** The main cause was found and fixed on 28 Oct: spawn points faced backwards, so the AI's first move was a U-turn. Since then:
-  - corner hints (`ai_hints.ini`) for tight corners, and the AI kept a metre off the kerbs
-  - a smoothed line through roundabouts
-  - (29 Oct) hints slowing it to the speed limit (50 in town), roundabouts found where the route goes straight over them, and the workstation test now driving an everyday hatch instead of a GT3 (which hit 174 km/h on a suburban street)
-
-  The AI now gets 2.4 km round the Foreshore (past the 2.1 km corner and the first roundabout), then beaches on the nature strip at the exit of the second roundabout. A GT3 car on kerbed town streets will keep finding kerbs, so this is about good enough: traffic is what fills the streets.
-  - ✅ (30 Oct) The AI line's lookup grid, laid out like Kunos's (read from Black Cat County and Magione on the workstation): 10 m cells, each with its 10 nearest points. To confirm: the `NO POSITION DATA FOUND` warning is gone.
-- 🔨 **In-game check.** Done: roundabout lip (fixed), power poles, night lighting. Still to check: ground detail scale, Grass FX on dry verges, the water edge, frame rate on the RTX 4060.
-  - ⬜ A full pass of upstream's 36-item checklist ([docs/verification.md](docs/verification.md)) on one town build, by the workstation: map position, signs and markings the right way round, kerbs, Grass FX, rain, night windows, replay cameras. Our automatic test only covers the driving.
-- ✅ **Terrain level of detail.** Fine grid near the road, flat blocks drawn as fans further out: the Foreshore went from 1.0M to 0.75M triangles.
-- ✅ **Performance budget per track.** `scripts/check/budget.ts`: triangles, draw calls, texture memory and kn5 size per build, checked against limits, with the biggest groups listed.
-- ✅ **Layouts** (29 Oct). One track folder with several layouts (circuit, town loop, free roam) on one shared world, the way Kunos and the big mods do it. First use: the single Busselton map. [docs/one-map.md](docs/one-map.md)
-- 🔨 **Blender trial** (29 Oct): `scripts/blender/house.py` builds and renders a house from a spec (sizes, cladding, roof, garage, windows, hedge, trees, street) with Cycles on the workstation's GPU, and can export it as glTF for AC later.
-- 🔨 **Spec houses** (29 Oct): a house we know is built from its spec (the Blender script's parts mode: blocks with hip or gable roofs, gable ends, verandahs, doors, windows, fences, hedges, trees) with the game's own wall and roof textures, in place of the generated one (`specFile` in a house look). First one in: a private house in the estate build. Photo walk pipeline ready (`scripts/houses/photo_walk.py`: match photos to houses, draft specs from each house's outline and roof, renders, a review page, the looks file). Next: Mac's first street of photos.
-- ✅ **Kept layers** (29 Oct): hand-made `.kn5` models in a layers folder load over the generated track (models.ini) and clear the generated houses and trees they stand on; every route has a fixed map origin so they stay lined up when a route changes.
-- ✅ **Blender both ways** (29 Oct): the generated track around a spot exported as glTF with its textures (`scripts/blender/export_base.ts`), opened in Blender as a locked reference (`new_layer.py`), and what's modelled against it exported (`export_layer.py`) and turned into a layer kn5 with our own converter (`make_layer.ts`), no ksEditor. All in the track's own coordinates.
-
-## Phase 2: Busselton, properly 🔨
-
-Make town feel like town before going regional.
-
-- 🔨 **Foreshore showcase:**
-  - car park islands with kerbs, line marking and arrows as real 3D
-  - ✅ cars painted out of the ground photo, including dark cars and cars between bay lines (only near streets and car-park aisles, so forest shadows are left alone)
-  - ✅ the rock seawall (limestone revetment along the back of the beach) and rock groynes
-  - ✅ Norfolk pines along the foreshore, with palms mixed in (the photo can't tell a palm from other trees)
-  - garden beds along the path
-  - jetty precinct buildings: waiting on Mac's Mapillary footage for their fronts
-- 🔨 **Jetty precinct** (30 Oct): the train line (1,067 mm rails on sleepers), both platforms, the red train at the shore platform, the Interpretive Centre's four blue boatsheds and the Observatory's drum and pavilion, from OSM ([docs/jetty.md](docs/jetty.md)). Still to do: night lighting checked against photos, the train running to the timetable, sizes nobody publishes (a tape-measure walk).
-- 🔨 **Queen St and the town centre:** ✅ its own route, ✅ shopfronts with verandahs, posts, signs and windows, ✅ real shop names on the signs, ✅ parked cars where the photo had them. Still to do: kerbside parking bays marked out.
-- 🔨 **WA road details:**
-  - ✅ give-way lines at roundabouts; stop and give-way lines where street photos saw them (side streets show their own lines in the aerial photo)
-  - bike lanes and bicycle symbols
-  - ✅ bus stops: a post and plate, and a shelter where there's room (from the map's bus stops)
-  - ✅ Australian guideposts: white, a red reflector facing traffic on your side and a white one facing the other way
-  - ✅ street name blades, white on blue
-  - ✅ kangaroo signs on country stretches: one each way about 300 m in, then every 4 km
-- 🔨 **Parked cars:** ✅ low-poly cars put back where the photo had parked cars (same spot, angle and roughly the colour), with collision boxes and none in a traffic lane. Still to do: better car models (CSP or our own, with LODs), and car parks beyond the detailed ground.
-- 🔨 **Roundabout landscaping:** ✅ each island shows its real aerial photo (when it sits inside one photo tile), plus a tree and a ring of shrubs. Still to do: 3D garden beds and limestone edging from the photo.
-- ⬜ **Landmarks list:** the buildings and spots locals would point at, each modelled by hand or from photos.
-
-## Phase 3: Open world ⬜
-
-Go from "a route" to "a town you can drive anywhere in".
-
-- 🔨 **One Busselton map.** `routes/busselton.json`: the Foreshore and the town centre as one area with every street and roundabout drivable, and three layouts (the Foreshore circuit, the town loop, free roam from the car parks), about 1.28M triangles. A private whole map adds the estate, joined by the Home Run: five layouts, 1.31M triangles after a thinning pass. Every check passes on both. Next: test them in game. Tuart Drive stays its own track; it goes in a South West map later. [docs/one-map.md](docs/one-map.md)
-
-- ✅ **Area builds** (29 Oct): `build.area`, a polygon whose every street is built and drivable, streets from OSM's own geometry. Every street is traced from the photo (30 Oct).
-- ✅ **Spawn points around town** (30 Oct): free roam starts in the ten biggest car parks.
-- ⬜ **Traffic lights** where OSM maps them, with working phases (CSP).
-- ⬜ **Points of interest:** viewpoints and places to stop, as in Arrabassada.
-- ✅ **A town map app** (30 Oct): Busselton Map (`apps/lua/BusseltonMap`), every street with you and the other cars on it. To check in game.
-
-## Phase 4: Traffic ⬜
-
-The big one for making it feel real, and a gap in almost every generated track.
-
-There are two ways AC does traffic. We should generate both from the same road graph:
-
-1. **Offline, single player: the CSP traffic planner.** CSP ships a traffic tool (by x4fab, CC0) that reads `data/traffic.json`: lanes as point lists, intersections with allowed turns, and areas. It runs thousands of cars cheaply. The track needs custom physics enabled in `surfaces.ini` (`[_SCRIPTING_PHYSICS] ALLOW_TOOLS=1`). [Source](https://github.com/ac-custom-shaders-patch/acc-lua-internal/tree/main/included-tools/traffic).
-2. **AI splines** (`fast_lane.ai` per lane) for CSP's AI Flood in Track Day mode, and for AssettoServer if we ever host. [AssettoServer AI traffic](https://space-node.net/blog/assettoserver-ai-traffic-freeroam-setup-2026).
-
-Plan:
-
-- 🔨 **Generate `traffic.json`.** Done: lanes on the left (two each way on wide roads), intersections at every junction, roundabouts as a clockwise ring with priority, speeds from road class and town, and a check that fails on overlapping junctions or loose lane ends. Still to do:
-  - ✅ speeds from OSM `maxspeed` (shared with the AI hints)
-  - ✅ (29 Oct) no overlaps or loose lane ends on the whole-estate build: junction zones near a roundabout no longer spread down side streets
-  - an in-game test with the planner (steps in [docs/traffic-test.md](docs/traffic-test.md))
-  - ✅ one-way streets (from the map tiles): lanes all one way, across the whole road
-  - lanes from OSM `lanes`
-- ⬜ **Generate per-lane AI splines**, both directions, for AI Flood.
-- ⬜ **Traffic density zones:** busy Bussell Hwy and Queen St, quiet estates, school-zone speeds.
-- ⬜ **An Aussie traffic car pack:**
-  - Hilux, Ranger, Corolla, i30, Camry, Commodore, Falcon, Prado, RAV4
-  - utes with trailers, cars towing caravans and boats (very South West)
-  - LOD models, set up for the traffic tool
-- ⬜ **Kid-friendly settings:** slower, calmer traffic.
-- ❓ **LAN with traffic:** check whether CSP offline traffic works in Content Manager LAN sessions, or whether that needs AssettoServer.
-
-## Phase 5: Atmosphere (CSP and Pure) ⬜
-
-What makes a map look great at any time of day and in any weather.
-
-- ✅ **Seasons** (30 Oct): grass, verges and paddocks go straw from December to April and green from June to September, by date (CSP's seasonAutumn), trees stay green. To check in game.
-- ⬜ **RainFX:**
-  - wet roads, with puddles in low spots found from the DEM
-  - wet kerbs and gutters
-- ✅ **Night:**
-  - ✅ house windows lit at random
-  - ✅ light pollution over town
-  - ✅ distant emissives on the street lights
-  - ✅ shop signs lit and shop windows glowing (the fork's named fascias)
-  - ✅ car park lights: a tall double-headed pole every 35 m along each car park aisle, lit at night
-  - ✅ the jetty lights: lamp posts every 45 m down both sides of the jetty, following its bend
-- ⬜ **Water:** CSP's water shader for the bay, waves at the beach, boats at moorings.
-- ⬜ **Audio:** surf at the beach, magpies and kookaburras in the morning, wind in the she-oaks, the jetty train (CSP track audio).
-- 🔨 **Baked ambient occlusion** (30 Oct): every build ships the bakery's settings and `scripts/windows/bake-vao.ps1` bakes each layout on the workstation ([docs/csp.md](docs/csp.md)). Also done from the same research: the sun's real position and time zone for CSP and Pure, bounced light, the sea as CSP water, the tiling fix, wind. First bakes (30 Oct): 0.6 min for the public map and 0.8 min for the whole map on the RTX 4060 (Vulkan ray tracing), and CSP loads them. Reinstalling the same build keeps the bake.
-- Lighting quality otherwise (local cubemaps, fog, detail normal maps): upstream's area, taken in by merging.
-- ⬜ **Pure:** tune Pure's lighting per track so the bright WA sun and glare off the bay look right.
-- ⬜ **Animated objects:** flags, swaying trees, the jetty train.
-
-CSP track config reference: [acc-extension-config wiki](https://github.com/ac-custom-shaders-patch/acc-extension-config/wiki/Tracks-%E2%80%93-Miscellaneous-options).
-
-## Phase 6: The South West ⬜
-
-From the bay to the capes. AC can't stream a whole region, so this is a set of tracks plus one long drive, each a few tens of km at most.
-
-### Drives and tracks
-
-| Track | Why | Character |
-| --- | --- | --- |
-| **Caves Road: Busselton to Yallingup** | The start of [Tourist Drive 250](https://en.wikipedia.org/wiki/Caves_Road_(Western_Australia)), through Dunsborough | Coastal peppermint woodland, then climbing onto the Leeuwin-Naturaliste ridge |
-| **Caves Road: Yallingup to Margaret River** | Wine country, surf breaks | Narrow and winding, vineyards, cellar doors |
-| **Caves Road and Boranup Drive** | The [only karri forest between the capes](https://australiassouthwest.com/listings/boranup-forest/). Boranup Drive is limestone gravel | Tall karri regrowth, dappled light, a gravel loop |
-| **Margaret River town** | The main street and surrounds | Town centre, roundabouts |
-| **Cape Naturaliste Rd** | To the lighthouse, near Sugarloaf Rock and Meelup | Coastal heath, granite, ocean views |
-| **Cape Leeuwin, Augusta** | The far end of Caves Road (111 km), the lighthouse | Exposed coastal heath |
-| 🔨 **Tuart Drive, Ludlow** (built, waiting on a drive) | ~15 km through the [largest pure tuart forest in the world](https://en.wikipedia.org/wiki/Tuart_Forest_National_Park), the old Bussell Hwy | Huge pale tuarts, quiet two-lane road |
-| **Bussell Highway** | The fast way between towns | Dual carriageway, 110 km/h, overtaking lanes |
-| **Collie Motorplex** | A real [1.6 km circuit](https://www.westernaustralia.com/au/attraction/collie-motorplex/5bdbda6151e41a8860149e69) in the South West | A proper race track, from LiDAR |
-| ❓ **Forest Rally Busselton stage** | The gravel stage the [Forest Rally](https://bdtimes.com.au/news/busselton-dunsborough-times/entries-sought-for-west-cape-classic-ng-b88750922z) runs, also used by the West Cape Classic | Gravel, forest |
-| ❓ **Backroads** | Wildwood Rd, Tom Cullity Dr, Rosa Brook Rd and others: drive them, then pick the best | Rolling farmland and forest |
-
-### Landscape zones
-
-Each needs its own trees, ground and roadside:
-
-- **Coast:** white sand, dunes, peppermint and she-oak, limestone, granite at Canal Rocks and Sugarloaf.
-- **Capes heath:** low windswept scrub on limestone, ocean views.
-- **Tuart woodland:** Ludlow, around Busselton.
-- **Jarrah-marri forest:** the ridge and inland.
-- **Karri forest:** Boranup and the south. Very tall straight trunks; needs proper 3D trees, not sprites.
-- **Vineyards and paddocks:**
-  - vine rows laid out along `landuse=vineyard` and the row direction in the photo
-  - post-and-wire fences, farm gates, cattle grids
-  - green in winter, gold in summer
-- **Wetlands:** Vasse-Wonnerup, with black swans.
-
-### What the generator needs for this
-
-- 🔨 More DEM: ✅ the 5 m tiles now reach Ludlow and Tuart Forest; still to go: the capes and Collie. ❓ Check whether Landgate or GA have 1 m LiDAR here.
-- ⬜ Unsealed roads: gravel surface physics, dust, a limestone gravel texture.
-- ⬜ Country roadsides:
-  - gravel shoulders and white guideposts
-  - Armco on bends and drop-offs
-  - farm driveways and mailboxes on posts
-- 🔨 Long roads: ✅ 16 km builds within budget (coarser terrain grid and horizon per route); still to check: 30+ km, draw distances.
-- 🔨 Proper trees (30 Oct): CSP instanced 3D trees with our own models of peppermint, she-oak, Norfolk pine, tuart and palm, three LODs each, behind `build.cspTrees`; Content Manager's converter confirmed the file format (30 Oct) ([docs/trees.md](docs/trees.md)). Next: the in-game look (`busselton_trees`), then on by default, then karri and marri, and photo textures of real local foliage.
-- ⬜ Vineyard generator.
-- ⬜ Landmarks: lighthouses, wineries and cellar doors, surf car parks (Yallingup, Surfers Point), the caves' entrances.
-
-## Phase 7: Our own capture ⬜
-
-Real photos beat procedural textures. Everything we capture ourselves can also go into a public version.
-
-- 🔨 **Mapillary walks and drives** through key areas, for real signs, poles and street detail ([capture kit](scripts/capture/README.md)). Mac's first uploads (28 Oct) are processing. Ready for them:
-  - ✅ a coverage check (`scripts/mapillary/coverage.py`)
-  - ✅ house matching, which sets each house's walls from the photos (`scripts/mapillary/house_looks.py`)
-- ⬜ **Texture photos:** brick, render, limestone, peppermint and karri bark, local roof colours, made into seamless CC0 textures.
-- ⬜ **Photogrammetry** of landmarks: the jetty buildings, the foreshore, lighthouses. ❓ Check the CASA drone rules near Busselton airport first.
-- ⬜ **Reference sets:** Street View and real estate photos as reference only, never copied into the track.
-
-## Phase 8: Tooling and quality ⬜
-
-- ✅ Build checks: photo overlay, DEM heights, hairpin spikes, surface bumps and edge steps.
-- ✅ Driver's-eye renders from the headless build.
-- 🔨 **Before/after render sets,** to catch visual regressions: ✅ `scripts/check/render_diff.py` compares a build's shots with the last saved set and makes a before/after/changed sheet. ✅ `SHOTS=auto` renders the same views on every build (five along the drive, each roundabout from above). ✅ Builds come out the same each time near the road: map tiles and Mapillary detections were joined in arrival order, which changed houses' facades and trees' species between rebuilds.
-- ✅ **CI on GitHub:** tests, type-check and build on every push.
-- 🔨 **Automated in-game test** (`scripts/windows/run-test.ps1`, run on the workstation):
-  - ✅ it loads, presses Drive, hands the car to the AI, logs the drive, saves the replay and closes AC
-  - ✅ a report here of where the AI left the road (`scripts/check/autotest_report.py`)
-  - 🔨 screenshots: CSP's screenshot call doesn't work from a track script, so the test runner now presses F8 for each one (first run pending)
-  - ✅ frame rate logged every 5 s and for the whole drive, with the slowest spot in the report
-  - ⬜ a night run (needs a time-of-day setting that works with CSP)
-  - ⬜ several AI cars at once (what LAN racing will look like)
-  - ⬜ a traffic planner run (the manual steps in docs/traffic-test.md first)
-- ⬜ **One-click install:** a Content Manager install link for the LAN rig.
-
-## Phase 9: Fun stuff 🔨
-
-- 🔨 **Checkpoint challenges** (CSP Lua): find the jetty, the lighthouse, the big tuart. Good for the kids. ✅ First version: every build ships up to six checkpoints (named places by the road, or streets), and the Busselton Challenges app (`apps/lua/BusseltonChallenges`, installed with each track) shows the next one, warmer or colder, a beacon over it, the clock and your best time. Still to check in game, then: hand-picked checkpoints per track.
-- ⬜ **Point-to-point time trials** between towns, with leaderboards on the LAN.
-- ⬜ **Cruise mode:** traffic on, no timing, start anywhere.
-- ⬜ **Drift spots:** empty car parks and industrial areas as area builds (Street2Sim's drift lots idea).
-
----
+- **Upstream's:** general looks and scenery (buildings, materials, shaders, ground and road detail, lighting, race dressing, general road furniture). We take these in by merging.
+- **Ours:** what a general road tool won't do.
+  - the generate-freeze-polish workflow and landmarks
+  - one map with layouts, open world and spawns
+  - traffic, and AI that drives like a local
+  - headless builds, checks and the workstation test
+  - our own data: WA heights, Mapillary, house looks, local trees, the coast
+  - the South West tracks; fun modes for the kids
+- **Before starting anything general,** check upstream's roadmap and recent commits (`git log main..upstream/main`).
 
 ## Working with upstream
 
-[honestjams/ac-track-builder](https://github.com/honestjams/ac-track-builder) is the generator. We send back anything that isn't South West specific, and take its improvements in. Sent so far: kerb and roundabout fixes, the U-turn warning, `terrainUnderRoad` and no-trace zones, and Landgate imagery (all merged). Open (28 Oct): #6 spawn direction, roundabout mouths and AI corner hints; #7 terrain level of detail; #8 CSP traffic lanes; #9 the coast (sea, jetties, seawall, groynes).
+[honestjams/ac-track-builder](https://github.com/honestjams/ac-track-builder) is the generator. We send back anything that isn't South West specific, and take its improvements in.
 
-Open (29 Oct): #10 retrying map data, and saying when it's missing.
+- **Merged:** kerb and roundabout fixes, the U-turn warning, `terrainUnderRoad` and no-trace zones, Landgate imagery.
+- **Open:**
+  - #6 spawn direction, roundabout mouths and AI corner hints
+  - #7 terrain level of detail (now with a second level)
+  - #8 CSP traffic lanes
+  - #9 the coast
+  - #10 retrying map data
+- **Ready on Mac's fork, not opened yet:**
+  - the U-turn spur fix (`pr/spur-side-street`)
+  - CSP sun position, wind, bounced light, Pure and the AO bake settings (`pr/csp-pass`, after the in-game test)
 
 Candidates to send next:
-
 - dry-grass Grass FX tuning
 - house lots
-- the AI line through roundabouts
-- headless builds, the check scripts and the automatic AI test (his repo has no headless tooling yet)
-- Australian guideposts and kangaroo signs, one-way streets in the traffic lanes, roundabout islands from the photo
+- the AI line through roundabouts and its lookup grid
+- headless builds and the checks
+- guideposts and kangaroo signs
+- one-way streets in the traffic lanes
+- roundabout islands from the photo
+- the 3D tree writer (once confirmed in game)
 
 ## Data and sharing
 
 - **Landgate and Esri imagery:** personal, non-commercial use only. **Mapillary:** CC BY-SA. **OpenStreetMap:** ODbL. **GA DEM:** CC BY 4.0. **ambientCG textures:** CC0.
-- Builds stay private. A public South West release would need imagery off, our own CC0 textures and scans, and no Mapillary data. That's a later decision.
+- Builds and snapshots stay private (snapshots live in the share). A public South West release would need imagery off, our own CC0 textures and scans, and no Mapillary data. That's a later decision.
