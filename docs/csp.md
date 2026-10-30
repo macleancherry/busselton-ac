@@ -170,6 +170,17 @@ Guidance from the wiki:
 
 Our current section is right in shape. Suggested additions: `concrete, path_?` stay SOAKING only (done); add kerb material to PUDDLES; add `TRACK_OCCLUDER_BOX` for jetty/awnings later; consider `jetty_?` as SOAKING (wet timber darkens) rather than ROUGH.
 
+### Puddles in the real hollows (`rainHollows: true`, src/core/rainHollows.ts)
+
+CSP has no key that puts a puddle at a spot. It places puddles itself, more of them in the local minima of a height map of the track, and builds that map from every mesh unless `RELIEF_MATERIALS` says otherwise (wiki "Tracks – RainFX"). The wiki says that key is "broken at the moment", but CSP's own shipped configs still set it to ground materials: `ks_brands_hatch.ini` (`asph?, grass?, sand?, concrete_green`), `nevadadrift.ini` (`road?, sand_usa_drag`), and the `{ dynamic:no & !Bx? }` form in `estoril.ini` and `luccaring.ini`. So with the option on:
+- `RELIEF_MATERIALS` lists the roads, paths, kerbs and ground only (`RELIEF_MATERIALS` in cspConfig.ts), so houses and trees don't make false hollows beside them.
+- The build finds the hollows itself from the drivable physics meshes (road, street, gutter, kerb in a 1 m height grid, highest surface per cell so kerbs hold water). A priority flood fills each cell to the level water could leave at (an open road edge or a driveway gap drains, a kerb doesn't), each basin is capped at 15 cm over its lowest point (side-entry pits), and pools of at least 2 cm and 4 m² on road or street (not footpaths) count. They're written in `[RAIN_FX]` as comments, lowest point in AC x, y, z with depth and area, so the workstation can fly there (F7, Objects Inspector) in the rain and check that water stands there. On the accepted Busselton base: 49 hollows, the biggest 614 m² and 8 cm deep, in about 0.4 s.
+- Conditions `RAIN_WETNESS` and `RAIN_WATER` (wiki "Tracks – Conditions") exist for anything else that should follow the water; nothing uses them yet.
+
+### Track sounds (`trackSounds: true`, src/core/trackSounds.ts)
+
+Wiki "Tracks – Audio": an FMOD bank in `extension/sfx/` (`sfx.bank` and the `GUIDs.txt` FMOD Studio exports), `[SOUNDBANK_0] BANK = … GUIDS = …`, then an `[EVENT_n]` per emitter with `ID` (the event path as GUIDs.txt lists it, e.g. `event:/busselton/surf`; CSP's own fireworks bank lists `event:/extra_fireworks/hiss`), `POSITION` in AC space, `REVERB_RESPONSE`, `VOLUME` and `CAMERA_INTERIOR/EXTERIOR/TRACK_MULT`. Any number can be a condition. CSP ships no ambient sounds a track can use (its only bank is `lua/fireworks/holidays/extra_fireworks.bank`), so the bank is a placeholder with fixed names: `extension/sfx/busselton.bank` with `event:/busselton/surf`, `/magpie` and `/kookaburra`, described in the build's `extension/sfx/README.txt`, CC0 or own recordings only. Emitters: waves every ~110 m along the real shoreline within 350 m of a road (24 at most), and a bird in each 60 m cell holding 6+ trees within 250 m of a road, at least 140 m apart (24 at most), kookaburras where most of them are tuarts and magpies elsewhere. Birds follow the sun (kookaburras loudest at dawn and dusk) and go quiet in the rain, through `CONDITION_20`..`24` with expressions such as `'BUSS_DAYLIGHT * (1 - RAIN)'`. Leave the option off until the bank exists: what CSP does with a missing bank isn't confirmed.
+
 ---
 
 ## 3. Seasonal grass/verge colour

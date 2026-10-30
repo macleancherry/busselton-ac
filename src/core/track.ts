@@ -54,6 +54,9 @@ import { landmarkShots } from "./landmarkShots";
 import { camerasIni, placeCameras } from "./cameras";
 import { cullable } from "./cull";
 import { bakedShadowParams, extConfig } from "./cspConfig";
+import { trackHollows } from "./rainHollows";
+import { birdEmitters, soundReadme, surfEmitters } from "./trackSounds";
+import { TREE_SPECIES } from "./treeSprites";
 import { buildBarriers } from "./fences";
 import { chunkPhotoSampler, frontageHouses } from "./frontage";
 import { ArtList, type ArtRenderer } from "./art";
@@ -1748,7 +1751,15 @@ export async function buildTrack(
   const meanWidth = plan.samples.reduce((a, s) => a + s.width, 0) / plan.samples.length;
   const cameras = placeCameras(plan, opts, (x, y) => terrainAt(x, y).h, (x, y) => kept.some((b) => pointInRing(x, y, b.ring)));
   const trackMeta: TrackMeta = { name: opts.name, ...meta };
+  // Busselton fork: where rain pools on the road (rainHollows.ts), and track sounds placed from the map (trackSounds.ts).
+  const hollows = opts.rainHollows ? trackHollows(model.root) : undefined;
+  const sounds = opts.trackSounds ? (() => {
+    const so = { roads: [plan.samples.map((smp) => smp.pos), ...streetPlan.streets.map((st) => st.pts)], ground };
+    const bush = TREE_SPECIES.findIndex((sp) => sp.name === "tuart");
+    return [...surfEmitters(ocean, so), ...birdEmitters(treesKept.map((t) => ({ x: t.x, y: t.y, bush: t.variant === bush })), so)];
+  })() : undefined;
   const files: Record<string, Uint8Array> = {
+    ...(sounds?.length ? { [`${slug}/extension/sfx/README.txt`]: enc.encode(soundReadme(sounds)) } : {}),
     [`${slug}/${slug}.kn5`]: kn5,
     [`${slug}/ai/fast_lane.ai`]: ai,
     [`${slug}/data/ai_hints.ini`]: enc.encode(aiHintsIni(aiPoints, (d) => {
@@ -1780,6 +1791,8 @@ export async function buildTrack(
       drySummer: centre[0] > 112 && centre[0] < 119.5 && centre[1] < -30 && centre[1] > -36,
       sea: ocean.length > 0,
       trees: opts.cspTrees && Object.keys(cspTreeFiles).length ? "trees/trees.txt" : undefined,
+      hollows,
+      sounds,
       // A town's glow at night where most of the route is built up.
       builtUp: town.filter((t) => t >= 1).length > town.length / 2,
       radiusKm: Math.max(...outline2d.map((p) => Math.hypot(p[0] - outline2d[0][0], p[1] - outline2d[0][1]))) / 2000,
