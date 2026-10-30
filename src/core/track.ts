@@ -376,7 +376,7 @@ function dressBuildings(buildings: Building[], ctx: {
   queensland: boolean;
 }): void {
   const SHOPLIKE = /^(shop|grocery|clothing_store|cafe|restaurant|fast_food|bar|pub)$/;
-  buildings.forEach((b, i) => {
+  buildings.forEach((b) => {
     if (!b.front && b.ring.length >= 3) {
       // The wall nearest a road that faces it.
       let best = -1, bestD = 25;
@@ -411,7 +411,9 @@ function dressBuildings(buildings: Building[], ctx: {
       queensland: ctx.queensland,
       rectangle: isRectangle(b.ring),
       fronted: b.setback !== undefined && b.setback < 15,
-      seed: 7919 + i * 31 + Math.round(Math.abs(b.ring[0][0]) * 13),
+      // From where the building is, not its place in the list (which can arrive in a different
+      // order between builds): the same building looks the same every build.
+      seed: (() => { const c = centroid(b.ring); return (Math.imul(Math.round(c[0] * 10) | 0, 73856093) ^ Math.imul(Math.round(c[1] * 10) | 0, 19349663)) >>> 0; })(),
     });
     Object.assign(b, dress, { garage: dress.garage ?? b.garage });
   });
@@ -600,6 +602,12 @@ export async function buildTrack(
   const streetIndex = new LineIndex(streetPlan.streets);
   const mouth = (side: 1 | -1, sd: number) => streetPlan.junctions.some((j) => j.side === side && Math.abs(j.s - sd) < j.width / 2 + 1.5);
 
+  // Busselton fork: roofs and parked cars found in the photos arrive in the order the photo chunks
+  // finish, which changes between builds; sorted by where they are, the build comes out the same
+  // every time from the same inputs (frozen snapshots depend on that).
+  const byPlace = (a: Vec2, b: Vec2) => a[1] - b[1] || a[0] - b[0];
+  detected.sort((a, b) => byPlace(centroid(a.ring), centroid(b.ring)));
+  parkedSpots.sort((a, b) => byPlace(a.at, b.at) || a.dir[0] - b.dir[0] || a.paint - b.paint);
   const mapped: Building[] = opts.buildings
     ? (sources.osm?.buildings ?? []).map((b, i) => fromOsm(b.ring.map((p) => proj.toLocal(p)), b.tags, i))
     : [];
