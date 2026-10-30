@@ -72,6 +72,7 @@ import { buildFarmRoadsides, farmTextures } from "./farmRoadsides";
 import { chunkPhotoSampler, frontageHouses } from "./frontage";
 import { ArtList, type ArtRenderer } from "./art";
 import { challengeFiles } from "./challengeFiles";
+import { cruiseFiles } from "./cruise";
 import { buildPieces, gateSigns, kangarooSigns, landmarks, mergeSightings, seenFeatures, streetSigns } from "./furniture";
 import { barrierConcreteTexture, catchFenceTexture, crowdTexture, raceDressing, tyreWallTexture } from "./raceDress";
 import { carParkLights, placeUtilities } from "./utilities";
@@ -1903,6 +1904,13 @@ export async function buildTrack(
       plan, dummies: trackObjects(plan, opts), nearest: (x, y, r) => index.nearest(x, y, r), toLocal: (p) => proj.toLocal(p), ground,
       pois: (sources.pois ?? []).map((p) => ({ ...p, at: proj.toLocal(p.at) })), routeNames: streetPlan.routeNames, junctions: streetPlan.junctions,
       streets: streetPlan.streets, parked: parked.map((c) => c.at), buildings: shown.map((b) => b.ring),
+    }),
+    // Busselton fork: cruise mode's streets, sights and speed limits for the Busselton Challenges app (cruise.ts).
+    ...cruiseFiles(slug, opts.name, {
+      ai: aiPoints, closed: plan.closed, landmarks: landmarkList, streets: streetPlan.streets,
+      route: { pts: plan.samples.map((s) => s.pos), names: streetPlan.routeNames, limits: plan.samples.map((_, i) => speedAt(i)) },
+      sideLimit: town.filter((t) => t >= 1).length > town.length / 2 ? 50 : undefined,
+      limitAt: (d) => { const l = aiPoints[aiPoints.length - 1], total = l.distance + l.length; return speedAt(Math.min(nS - 1, Math.max(0, Math.round((d / total) * (nS - 1))))); },
     }),
     [`${slug}/data/cameras_1.ini`]: enc.encode(camerasIni(cameras)),
     // The automatic test run (scripts/windows/run-test.ps1): a track script that only wakes up for a

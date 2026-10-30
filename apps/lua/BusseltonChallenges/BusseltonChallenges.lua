@@ -1,4 +1,4 @@
--- Busselton Challenges: three ways to play on a Busselton AC track.
+-- Busselton Challenges: four ways to play on a Busselton AC track.
 --
 --   Checkpoints  drive to each place in turn against the clock. Every build ships
 --                data/challenges.ini: [CHALLENGE] COUNT, RADIUS, SET_NAME, SETS; [CHECKPOINT_n] NAME,
@@ -10,6 +10,9 @@
 --   Drift        empty car parks are drift spots (extension/drift_zones.ini: [ZONE_n] NAME,
 --                POSITION, RADIUS). Inside one, sliding scores points: more angle and more speed,
 --                more points, and a bigger multiplier the longer you keep it going.
+--   Cruise       no clock: the street you're on, the next sight ahead and how far, the speed limit,
+--                and a tick list of the layout's sights that fills as you drive past each one
+--                (extension/cruise.ini and data/cruise.ini; see the Cruise section below).
 --
 -- Best times and scores are kept per driver name (so everyone on the same PC has their own), with a
 -- top-ten board for each challenge. In an online session (Content Manager's LAN races run through
@@ -236,6 +239,240 @@ local function lanPump(dt)
 end
 
 ---------------------------------------------------------------------------------------------------
+-- Cruise: no clock. The street you're on, the next sight ahead, a speed-limit reminder and a tick
+-- list of the sights you've seen. extension/cruise.ini has the whole world's landmarks and named
+-- streets (with their limits where known); data/cruise.ini has this layout's sights in the order it
+-- passes them (AT = fraction of the lap) and its limit at each 1% of the lap (cruise.ts).
+
+local CRUISE_CELL = 50
+local cruise = {
+  landmarks = {}, streets = {}, grid = {}, sights = {}, limits = nil, closed = false, length = 0,
+  seen = {}, seenCount = 0, street = nil, streetAge = 0, lookTimer = 0, next = nil, nextDist = 0,
+  nextWay = '', limit = nil, speed = 0,
+}
+
+local function parseXZ(text)
+  local x, z = string.match(text or '', '([%-%d%.]+)%s*,%s*([%-%d%.]+)')
+  if not x then return nil end
+  return { x = tonumber(x), z = tonumber(z) }
+end
+
+local function cruiseCellKey(cx, cz) return cx .. ',' .. cz end
+
+-- Every street segment goes in each grid cell its box touches (plus 25 m), so a lookup reads one cell.
+local function cruiseAddSegment(street, ax, az, bx, bz)
+  local seg = { street = street, ax = ax, az = az, bx = bx, bz = bz }
+  local reach = 25
+  for cx = math.floor((math.min(ax, bx) - reach) / CRUISE_CELL), math.floor((math.max(ax, bx) + reach) / CRUISE_CELL) do
+    for cz = math.floor((math.min(az, bz) - reach) / CRUISE_CELL), math.floor((math.max(az, bz) + reach) / CRUISE_CELL) do
+      local key = cruiseCellKey(cx, cz)
+      local list = cruise.grid[key]
+      if not list then
+        list = {}
+        cruise.grid[key] = list
+      end
+      list[#list + 1] = seg
+    end
+  end
+end
+
+local function loadCruise(folder)
+  local world = folder and readIni(folder .. '/extension/cruise.ini') or {}
+  local head = world.CRUISE or {}
+  for k = 0, (tonumber(head.LANDMARKS) or 0) - 1 do
+    local l = world['LANDMARK_' .. k]
+    local p = l and parseXZ(l.POSITION)
+    if p then cruise.landmarks[#cruise.landmarks + 1] = { name = l.NAME or 'Landmark', x = p.x, z = p.z, radius = 40, at = -1 } end
+  end
+  for k = 0, (tonumber(head.STREETS) or 0) - 1 do
+    local s = world['STREET_' .. k]
+    if s and s.NAME and s.POINTS then
+      local street = { name = s.NAME, limit = tonumber(s.LIMIT) }
+      cruise.streets[#cruise.streets + 1] = street
+      local nums = {}
+      for v in string.gmatch(s.POINTS, '[^,]+') do nums[#nums + 1] = tonumber(v) end
+      for i = 1, #nums - 3, 2 do cruiseAddSegment(street, nums[i], nums[i + 1], nums[i + 2], nums[i + 3]) end
+    end
+  end
+
+  local lay = readIni(trackFile('cruise.ini')) or {}
+  local lh = lay.CRUISE or {}
+  cruise.closed = lh.CLOSED == '1'
+  cruise.length = tonumber(lh.LENGTH) or 0
+  for k = 0, (tonumber(lh.SIGHTS) or 0) - 1 do
+    local s = lay['SIGHT_' .. k]
+    local p = s and parseXZ(s.POSITION)
+    if p then
+      cruise.sights[#cruise.sights + 1] = { name = s.NAME or 'Sight', x = p.x, z = p.z, radius = tonumber(s.RADIUS) or 40, at = tonumber(s.AT) or -1 }
+    end
+  end
+  if lh.LIMITS then
+    cruise.limits = {}
+    for v in string.gmatch(lh.LIMITS, '[^,]+') do cruise.limits[#cruise.limits + 1] = tonumber(v) end
+    if #cruise.limits == 0 then cruise.limits = nil end
+  end
+  -- No layout file: every landmark is a sight.
+  if #cruise.sights == 0 and not lay.CRUISE then cruise.sights = cruise.landmarks end
+end
+
+local function hasCruise()
+  return #cruise.sights > 0 or #cruise.streets > 0
+end
+
+-- The named street nearest the car, within 20 m.
+local function cruiseStreetAt(x, z)
+  local best, bd = nil, 20
+  for _, seg in ipairs(cruise.grid[cruiseCellKey(math.floor(x / CRUISE_CELL), math.floor(z / CRUISE_CELL))] or {}) do
+    local dx, dz = seg.bx - seg.ax, seg.bz - seg.az
+    local l2 = dx * dx + dz * dz
+    local t = l2 > 0 and math.max(0, math.min(1, ((x - seg.ax) * dx + (z - seg.az) * dz) / l2)) or 0
+    local ex, ez = x - seg.ax - dx * t, z - seg.az - dz * t
+    local d = math.sqrt(ex * ex + ez * ez)
+    if d < bd then best, bd = seg.street, d end
+  end
+  return best
+end
+
+-- Which way something is from the car, in words: ahead, behind, on the left or right.
+-- AC's x is east and z is south, so with y up a positive cross product is to the right.
+local function cruiseWay(car, x, z)
+  local dx, dz = x - car.position.x, z - car.position.z
+  local len = math.sqrt(dx * dx + dz * dz)
+  if len < 1 then return 'right here' end
+  dx, dz = dx / len, dz / len
+  local lx, lz = car.look.x, car.look.z
+  local ll = math.sqrt(lx * lx + lz * lz)
+  if ll < 0.01 then return '' end
+  lx, lz = lx / ll, lz / ll
+  local dot, cross = lx * dx + lz * dz, lx * dz - lz * dx
+  if dot > 0.7 then return 'ahead' end
+  if dot < -0.5 then return 'behind you' end
+  return cross > 0 and 'on your right' or 'on your left'
+end
+
+local function cruiseFlat(car, s)
+  local dx, dz = s.x - car.position.x, s.z - car.position.z
+  return math.sqrt(dx * dx + dz * dz)
+end
+
+-- The next sight you haven't seen: along the layout when it has a lap position and you're on it,
+-- otherwise the nearest one in front of you (or just the nearest).
+local function cruiseNext(car)
+  local best, bestD, bestStraight = nil, math.huge, 0
+  local p = car.splinePosition or 0
+  if cruise.length > 0 then
+    for i, s in ipairs(cruise.sights) do
+      if not cruise.seen[i] and s.at >= 0 then
+        local ahead = s.at - p
+        if ahead < -0.005 and cruise.closed then ahead = ahead + 1 end
+        if ahead >= -0.005 then
+          local d, straight = math.max(0, ahead) * cruise.length, cruiseFlat(car, s)
+          -- Off the layout's road the lap position means little: only trust it when it adds up.
+          if d < bestD and d <= straight * 3 + 100 then best, bestD, bestStraight = i, d, straight end
+        end
+      end
+    end
+  end
+  if best then return best, math.max(bestD, bestStraight) end
+  local nearAhead, dAhead, near, dNear = nil, math.huge, nil, math.huge
+  for i, s in ipairs(cruise.sights) do
+    if not cruise.seen[i] then
+      local d = cruiseFlat(car, s)
+      if d < dNear then near, dNear = i, d end
+      if d < dAhead and cruiseWay(car, s.x, s.z) == 'ahead' then nearAhead, dAhead = i, d end
+    end
+  end
+  if nearAhead then return nearAhead, dAhead end
+  return near, dNear
+end
+
+local function cruiseReset()
+  cruise.seen, cruise.seenCount = {}, 0
+end
+
+local function updateCruise(dt, car, say)
+  cruise.speed = car.speedKmh or 0
+  -- Ticks: drive close enough to a sight and it's seen.
+  for i, s in ipairs(cruise.sights) do
+    if not cruise.seen[i] and cruiseFlat(car, s) <= s.radius then
+      cruise.seen[i] = true
+      cruise.seenCount = cruise.seenCount + 1
+      if cruise.seenCount == #cruise.sights then
+        say(string.format('You saw all %d sights! Well done!', #cruise.sights))
+        pcall(ac.setMessage, 'Well done!', string.format('You saw all %d sights', #cruise.sights))
+      else
+        say('You spotted ' .. s.name .. '!')
+        pcall(ac.setMessage, 'Sight seen!', s.name)
+      end
+    end
+  end
+  cruise.lookTimer = cruise.lookTimer - dt
+  if cruise.lookTimer > 0 then return end
+  cruise.lookTimer = 0.25
+  local st = cruiseStreetAt(car.position.x, car.position.z)
+  if st then
+    cruise.street, cruise.streetAge = st, 0
+  else
+    -- Keep the last name through a junction or a car park for a few seconds.
+    cruise.streetAge = cruise.streetAge + 0.25
+    if cruise.streetAge > 3 then cruise.street = nil end
+  end
+  cruise.limit = cruise.street and cruise.street.limit or nil
+  if not cruise.limit and cruise.limits then
+    cruise.limit = cruise.limits[math.max(1, math.min(#cruise.limits, math.floor((car.splinePosition or 0) * 100) + 1))]
+  end
+  local n, d = cruiseNext(car)
+  cruise.next, cruise.nextDist = n, d or 0
+  cruise.nextWay = n and cruiseWay(car, cruise.sights[n].x, cruise.sights[n].z) or ''
+end
+
+local function cruiseDistance(d)
+  if d >= 1000 then return string.format('%.1f km', d / 1000) end
+  return string.format('%d m', math.floor(d / 10 + 0.5) * 10)
+end
+
+local function windowCruise(car)
+  if not hasCruise() then
+    ui.text('Nothing to cruise to on this track.')
+    return
+  end
+  ui.text('Cruise: no clock, just enjoy the drive.')
+  ui.pushFont(ui.Font.Title)
+  ui.text(cruise.street and cruise.street.name or 'Exploring...')
+  ui.popFont()
+  if cruise.limit then
+    if cruise.speed > cruise.limit + 5 then
+      ui.textColored(string.format('Limit %d. Ease off a little: you\'re doing %d.', cruise.limit, math.floor(cruise.speed)), rgbm(1, 0.6, 0.2, 1))
+    else
+      ui.textColored(string.format('Limit %d. Nice and steady.', cruise.limit), rgbm(0.4, 1, 0.5, 1))
+    end
+  end
+  ui.separator()
+  local total = #cruise.sights
+  if total == 0 then
+    ui.text('No sights on this layout.')
+    return
+  end
+  local s = cruise.next and cruise.sights[cruise.next]
+  if s then
+    ui.text('Next sight:')
+    ui.pushFont(ui.Font.Title)
+    ui.text(string.format('%s  %s %s', s.name, cruiseDistance(cruise.nextDist), cruise.nextWay))
+    ui.popFont()
+  else
+    ui.pushFont(ui.Font.Title)
+    ui.textColored(string.format('You saw all %d sights!', total), rgbm(1, 0.85, 0.2, 1))
+    ui.popFont()
+  end
+  ui.text(string.format('Sights seen: %d of %d', cruise.seenCount, total))
+  for i, sight in ipairs(cruise.sights) do
+    if cruise.seen[i] then ui.textColored('[x] ' .. sight.name, rgbm(0.4, 1, 0.5, 1))
+    else ui.text('[ ] ' .. sight.name) end
+  end
+  if cruise.seenCount > 0 and ui.button('Start again') then cruiseReset() end
+end
+
+---------------------------------------------------------------------------------------------------
 -- Loading
 
 local function load()
@@ -276,8 +513,11 @@ local function load()
     if pos then zones[#zones + 1] = { name = z.NAME or ('Drift spot ' .. (k + 1)), pos = pos, radius = tonumber(z.RADIUS) or 20 } end
   end
 
+  loadCruise(folder)
+
   if #sets == 0 and tt then mode = 'trial' end
-  if #sets == 0 and not tt and #zones == 0 then status = 'No challenges on this track.' end
+  if #sets == 0 and not tt and #zones == 0 and hasCruise() then mode = 'cruise' end
+  if #sets == 0 and not tt and #zones == 0 and not hasCruise() then status = 'No challenges on this track.' end
   lanInit()
 end
 
@@ -458,6 +698,7 @@ function script.update(dt)
   updateCheckpoints(dt, car)
   updateTrial(dt, car, from)
   updateDrift(dt, car)
+  updateCruise(dt, car, say)
 end
 
 ---------------------------------------------------------------------------------------------------
@@ -588,10 +829,13 @@ function script.windowMain(dt)
   tabButton('Time trial', 'trial')
   ui.sameLine()
   tabButton('Drift', 'drift')
+  ui.sameLine()
+  tabButton('Cruise', 'cruise')
   if flashTime > 0 then ui.textColored(flash, rgbm(1, 0.85, 0.2, 1)) end
   ui.separator()
   if mode == 'trial' then windowTrial(car)
   elseif mode == 'drift' then windowDrift(car)
+  elseif mode == 'cruise' then windowCruise(car)
   else windowCheckpoints(car) end
 end
 
@@ -627,6 +871,11 @@ function script.draw3D()
       posts(tt.start, rgbm(0.2, 1, 0.3, 1))
       beam(tt.start.pos, rgbm(0.2, 1, 0.3, 1), 8)
     end
+  end
+  -- Cruise: a soft blue beam over the next sight.
+  if mode == 'cruise' and cruise.next then
+    local s = cruise.sights[cruise.next]
+    beam(vec3(s.x, car and car.position.y or 0, s.z), rgbm(0.3, 0.7, 1, 1), 6)
   end
   -- Drift spots within 250 m: an orange ring on the ground.
   if car then
