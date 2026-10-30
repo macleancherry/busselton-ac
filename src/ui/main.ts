@@ -5,7 +5,7 @@ import { LocalProjection, type LngLat } from "../core/geo";
 import type { TrackResult } from "../core/track";
 import { zipTrack } from "../core/zip";
 import type { BuildOptions } from "../core/options";
-import { reverseGeocode, route, searchPlaces, type Place, type Route } from "../services/osm";
+import { reverseGeocode, route, routeWays, searchPlaces, type Place, type Route } from "../services/osm";
 import { DEM_LABEL, IMAGERY, tileUrl, type DemSource, type ImagerySource } from "../services/tiles";
 import { createPreview, type PreviewScene } from "./preview";
 import { savedToken, saveToken } from "../services/mapillary";
@@ -192,11 +192,21 @@ $("clear").onclick = () => {
   refreshRoute();
 };
 $<HTMLInputElement>("loop").onchange = () => refreshRoute();
+$<HTMLInputElement>("ways").onchange = () => refreshRoute();
 
 let routeTimer: number | undefined;
 function refreshRoute(): void {
   clearTimeout(routeTimer);
   routeTimer = window.setTimeout(doRoute, 250);
+}
+
+/** OSM way ids from the "Follow OSM ways" box: bare ids or openstreetmap.org/way/<id> links. */
+function wayIds(text: string): number[] {
+  return text.split(/[\s,;]+/).filter(Boolean).map((t) => {
+    const m = /^(?:\d+)$/.test(t) ? t : /\bway\/(\d+)/.exec(t)?.[1];
+    if (!m) throw new Error(`"${t}" isn't an OSM way id or way link`);
+    return Number(m);
+  });
 }
 
 async function doRoute(): Promise<void> {
@@ -215,7 +225,9 @@ async function doRoute(): Promise<void> {
   const loop = $<HTMLInputElement>("loop").checked;
   const through = loop ? [...pins, pins[0]] : pins;
   try {
-    const r = await route(through);
+    // OSM way ids in the box: route along those ways (race circuits, gravel tracks) instead of OSRM.
+    const ways = wayIds($<HTMLInputElement>("ways").value);
+    const r = ways.length ? await routeWays(ways, through, { loop }) : await route(through);
     if (seq !== routeSeq) return;
     current = r;
     routeLine?.remove();

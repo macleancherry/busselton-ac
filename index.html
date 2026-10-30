@@ -36,6 +36,9 @@
             <div><b id="route-length">–</b><small>routed length</small></div>
             <div><b id="route-kind">–</b><small>layout</small></div>
           </div>
+          <label class="field" title="For roads the router won't drive, like race circuits and gravel tracks. Paste the way ids (or openstreetmap.org/way/… links) of the road; the route follows those ways through your pins, in pin order.">Follow OSM ways (optional)
+            <input id="ways" type="text" autocomplete="off" spellcheck="false" placeholder="Way ids or links, e.g. 89374807 733256017" />
+          </label>
           <div class="row buttons">
             <button id="add-zone" type="button" aria-pressed="false" title="Then click the map where the photo trace goes wrong (a wide main street with angled parking, say): the road keeps its mapped line within 60 m of there.">No-trace zone</button>
             <small class="hint" id="zones-hint" hidden></small>
