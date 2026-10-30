@@ -205,6 +205,11 @@ export interface BuildOptions {
    * sea and a coarse region map. Towns and the foreshore keep their street trees. On in the country preset.
    */
   zones?: boolean;
+  /**
+   * Busselton fork: Pure haze from where the track is (clear WA air, coast) and calmer photo ground on
+   * bright sand (pureConfig.ts). On unless false; false writes CSP's generic [PURE] values.
+   */
+  pureTuning?: boolean;
   /** Kerb and gutter where the photos (or a built-up area) show them, instead of a gravel verge. */
   kerbs: boolean;
   /**

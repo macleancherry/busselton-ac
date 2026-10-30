@@ -61,6 +61,7 @@ import { cullable } from "./cull";
 import { bakedShadowParams, extConfig } from "./cspConfig";
 import { trackHollows } from "./rainHollows";
 import { birdEmitters, soundReadme, surfEmitters } from "./trackSounds";
+import { groundAlbedo } from "./pureConfig";
 import { buildBarriers } from "./fences";
 import { buildFarmland, vineLeafTexture, type FarmPolygon } from "./farm";
 import { buildFarmRoadsides, farmTextures } from "./farmRoadsides";
@@ -724,6 +725,8 @@ export async function buildTrack(
   const photos: Parameters<typeof chunkPhotoSampler>[0] = [];
 
   const textured = new Set<string>();
+  // Aerial photos carry their own light and shadow, so lean on ambient.
+  const photoLight = { ambient: 0.6, diffuse: 0.2, specular: 0, exp: 1 };
   if (sources.imagery && opts.imageryZoom > 0) {
     const jobs = [
       ...chunks.map((c) => ({ chunk: c, zoom: opts.imageryZoom, size: opts.textureSize, prefix: "terrain" })),
@@ -765,8 +768,6 @@ export async function buildTrack(
       const photo = clean?.rgba ?? img.rgba;
       const tex = `${job.prefix}_${job.chunk.key}.${clean ? "dds" : img.ext}`;
       const photoData = clean ? encodeDdsDxt1(clean.rgba, job.size, job.size) : img.data;
-      // Aerial photos carry their own light and shadow, so lean on ambient.
-      const photoLight = { ambient: 0.6, diffuse: 0.2, specular: 0, exp: 1 };
       if (opts.detailShaders && photo && job.prefix === "terrain") {
         // Grass, dirt and plain detail where the photo shows them, placed by a small mask; the photo
         // (with parked cars painted out) stays DXT1.
@@ -1908,6 +1909,8 @@ export async function buildTrack(
       // A town's glow at night where most of the route is built up.
       builtUp: town.filter((t) => t >= 1).length > town.length / 2,
       radiusKm: Math.max(...outline2d.map((p) => Math.hypot(p[0] - outline2d[0][0], p[1] - outline2d[0][1]))) / 2000,
+      // Busselton fork: Pure haze from where the track is, calmer photo ground on bright sand (pureConfig.ts).
+      pure: opts.pureTuning !== false ? { at: centre, albedo: groundAlbedo(photos), coast: ocean.length > 0, photoLight } : undefined,
     })),
     [`${slug}/map.png`]: map.png,
     // Busselton fork: the whole street network for the Busselton Map app (shared by every layout).

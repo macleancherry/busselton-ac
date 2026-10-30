@@ -356,6 +356,39 @@ No track-config key found; cloud shadows come from the weather script (WeatherFX
   Exact semantics **[unconfirmed]**; the values used everywhere are those above (clear, low haze), which suit a clean coastal town. Safe to add to our ext_config.
 - What Pure depends on from the track (all via CSP): correct lat/long/timezone (section 4: `surfaces.ini [WEATHER_FX]` + ui_track.json geotags), a VAO patch (CSP "expects VAO to be present"), sane material ambient/diffuse (not overbright), and proper emissives with night conditions. **[unconfirmed beyond CSP docs]**
 
+### Per-track Pure tuning (`src/core/pureConfig.ts`, option `pureTuning`, on unless false)
+
+What a track can ship to adjust Pure, as far as public sources show:
+- **`[PURE]` in the track's `extension/ext_config.ini`: the only known hook.** Checked by cloning [acc-extension-config](https://github.com/ac-custom-shaders-patch/acc-extension-config) (Oct 2026): 7 of its ~520 track configs have `[PURE]` (e.g. [ks_red_bull_ring.ini](https://raw.githubusercontent.com/ac-custom-shaders-patch/acc-extension-config/master/config/tracks/ks_red_bull_ring.ini), whose header credits Peter Boese), every one with the identical nine keys above. No other key appears anywhere.
+- **Not a Pure hook:** `[SOL]`/`[SOL2]` (48 configs) have `HORIZON_OFFSET`, `DOME_SIZE`, `EXPOSURE_FIX` and a commented `HUMIDITY_OFFSET` ("0.85 for tracks near the sea or 0.0 for deserts"). Those are Sol's; nothing shows Pure reads them, so we don't write them.
+- **No track key for exposure, sun brightness, ground albedo or tonemapping.** Those are Pure's own player settings (Pure Config app, Pure's PP filter). Pure's script and docs are paid downloads ([Gumroad](https://peterboese.gumroad.com/l/pure), Patreon), so this can't be confirmed from source.
+
+What the build writes (pureConfig.ts), all inside the range CSP's own configs use:
+| Input | From | Effect |
+| --- | --- | --- |
+| Clear air | track centre in south-west WA (lng 112 to 124, lat -27 to -36) | `SMOG_NOON` 0.10 → 0.07, `SMOG_EVENING` 0.15 → 0.10 |
+| Coast | sea in the build | `SMOG_MORNING` 0.05 → 0.08 (sea mist before the breeze) |
+| Ground albedo | mean Rec. 709 brightness of the terrain photos (`groundAlbedo`) | above 0.30 (a typical suburb), the photo ground's `ksAmbient`/`ksDiffuse` scaled by √(0.30/albedo), never below 0.85, through `[SHADER_REPLACEMENT_...] MATERIALS = terrain_?` |
+| Latitude | already in `surfaces.ini [WEATHER_FX]` (the sun path, which Pure uses through CSP) | nothing extra |
+
+Fog and `SUN_DAWN`/`SUN_DUSK` stay at CSP's values. Outside south-west WA and off the coast the output is exactly CSP's generic block. `pureTuning: false` writes the generic block and no ground change.
+
+The ground damping is a CSP material change, so it applies under Sol too, and not in the three.js preview. Why: the aerial photo already holds the sun, and it's lit again (ambient 0.6 + diffuse 0.2); on pale sand and limestone that washes out under a strong sun and pulls auto exposure down, darkening cars and houses. The accepted Busselton base measures **0.48** (Landgate imagery is bright), so it gets the full 0.85: ground ambient 0.51, diffuse 0.17. **[untested in game]** The 0.30 reference and the 0.85 floor are judgement: check the beach and foreshore at noon with Pure, with and without (`pureTuning: false`).
+
+What Pure overrides in our existing ext_config, as far as can be told:
+- Unaffected (CSP engine, any weather script): `[LIGHT_SERIES]`, `[MATERIAL_ADJUSTMENT_*]` on `NIGHT_SMOOTH` (driven by the sun angle), Grass FX, Rain FX (Pure drives the wetness, the materials lists stay ours), `[BOUNCED_LIGHT]`, `[LIGHTING]`, `[Material_Water]`, seasons.
+- Pure's: overall exposure, sky and sun brightness, fog colour and distance (our `[PURE]` keys nudge it), and how bright emissives look at night (Pure's night exposure differs from Sol's, so lit windows and shop signs may need a different strength under Pure: judge in game). `[LIGHT_POLLUTION]` is read by CSP; whether Pure draws it in the sky is **[unconfirmed]**.
+
+### Player side: recommended settings for the WA sun (Content Manager, Pure)
+
+The track can't set these, so Mac sets them once on the rig and the workstation:
+- **CSP → Weather FX:** implementation (style) Pure. Weather from Pure's Weather Planner or Content Manager's weather selection.
+- **Content Manager weather:** "Clear" or "Few clouds" for summer; ambient 24 to 32 °C December to March, 12 to 18 °C June to August. Date set (CM does by default) so the seasons work (`[SEASONS] ALLOW_ADJUSTMENTS = 1`).
+- **Time:** the real time; the sun path is Busselton's (UTC+8, `Australia/Perth`).
+- **Post-processing:** Pure's own neutral PP filter, chosen with Pure's PP app. Third-party filters tuned for Sol make it too dark or too bright under Pure.
+- **Pure Config:** start from its defaults. If sand and white walls blow out at noon, lower Pure's exposure/brightness there before changing the track, and tell the laptop session what worked so the track side can match.
+- **Bake AO** (`bake-vao.ps1`): Pure's ambient looks flat without it.
+
 ---
 
 ## To-do list for the build (suggested order)
