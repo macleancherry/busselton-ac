@@ -1,0 +1,33 @@
+{
+  "note": "hand-made detail layer: scripts/blender/landmarks/margaret_river_rotary_park.py (scripts/blender/landmarks/build.sh margaret_river_rotary_park)",
+  "replaces": [
+    {
+      "at": [
+        115.073906,
+        -33.944812
+      ],
+      "radius": 9
+    },
+    {
+      "at": [
+        115.074321,
+        -33.94476
+      ],
+      "radius": 3.5
+    },
+    {
+      "at": [
+        115.074402,
+        -33.944847
+      ],
+      "radius": 3.5
+    },
+    {
+      "at": [
+        115.07395,
+        -33.94444
+      ],
+      "radius": 4.5
+    }
+  ]
+}

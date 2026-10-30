@@ -53,5 +53,8 @@
  },
  "looks": [
   "routes/landmarks/margaret_river_looks.json"
+ ],
+ "layers": [
+  "routes/layers/margaret_river"
  ]
 }
