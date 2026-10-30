@@ -1186,10 +1186,18 @@ export async function buildTrack(
     const paint = opts.markings ? buildRingMarkings(rb, k) : null;
     if (paint) markings.push(paint);
   });
+  // Busselton fork: the ground stays 4 cm under every street, within a grid step of it: at a mouth
+  // across the route's raised verge, and where the ground bulges, it came up through the street.
+  const underStreets = streetCeiling(sideStreets, opts.terrainStep);
+  const groundAt = (x: number, y: number) => {
+    const t = terrainAt(x, y);
+    const top = underStreets(x, y);
+    return top !== null && t.h > top - 0.04 ? { ...t, h: top - 0.04 } : t;
+  };
   const terrainNodes: Kn5Node[] = [];
   for (const [i, chunk] of chunks.entries()) {
     await progress("Building road and terrain meshes", i / chunks.length);
-    const mesh = buildTerrainChunk(chunk, terrainAt, opts, textured.has(chunk.key), area, (x, y) => streetIndex.clearance(x, y) < 4);
+    const mesh = buildTerrainChunk(chunk, groundAt, opts, textured.has(chunk.key), area, (x, y) => streetIndex.clearance(x, y) < 4);
     if (mesh) terrainNodes.push(mesh);
   }
   const backdropNodes: Kn5Node[] = [];
@@ -1856,4 +1864,52 @@ function pointInside(x: number, y: number, ring: [number, number][]): boolean {
     if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) inside = !inside;
   }
   return inside;
+}
+
+/**
+ * Busselton fork: the lowest street surface within `reach` metres of a point (local x, y), or null
+ * away from streets. From the built street meshes (AC coordinates), on a 1 m grid.
+ */
+function streetCeiling(meshes: Kn5Node[], reach: number): (x: number, y: number) => number | null {
+  const C = 1;
+  const grid = new Map<number, number>();
+  const key = (i: number, j: number) => i * 1_000_003 + j;
+  const walk = (n: Kn5Node) => {
+    if (n.kind !== "mesh") return n.children.forEach(walk);
+    const p = n.positions, ix = n.indices;
+    for (let t = 0; t < ix.length; t += 3) {
+      const a = ix[t] * 3, b = ix[t + 1] * 3, c = ix[t + 2] * 3;
+      // Local x = AC x, local y = -AC z.
+      const ax = p[a], ay = -p[a + 2], bx = p[b], by = -p[b + 2], cx = p[c], cy = -p[c + 2];
+      const den = (by - cy) * (ax - cx) + (cx - bx) * (ay - cy);
+      if (Math.abs(den) < 1e-9) continue;
+      for (let i = Math.floor(Math.min(ax, bx, cx) / C); i <= Math.floor(Math.max(ax, bx, cx) / C); i++) {
+        for (let j = Math.floor(Math.min(ay, by, cy) / C); j <= Math.floor(Math.max(ay, by, cy) / C); j++) {
+          // The cell's middle, clamped into the triangle by barycentric weights.
+          const x = (i + 0.5) * C, y = (j + 0.5) * C;
+          let w1 = ((by - cy) * (x - cx) + (cx - bx) * (y - cy)) / den, w2 = ((cy - ay) * (x - cx) + (ax - cx) * (y - cy)) / den;
+          let w3 = 1 - w1 - w2;
+          if (w1 < -0.5 || w2 < -0.5 || w3 < -0.5) continue;
+          w1 = Math.max(0, w1); w2 = Math.max(0, w2); w3 = Math.max(0, w3);
+          const sum = w1 + w2 + w3;
+          const h = (w1 * p[a + 1] + w2 * p[b + 1] + w3 * p[c + 1]) / sum;
+          const k = key(i, j), old = grid.get(k);
+          if (old === undefined || h < old) grid.set(k, h);
+        }
+      }
+    }
+  };
+  meshes.forEach(walk);
+  const r = Math.ceil(reach / C);
+  return (x, y) => {
+    const i0 = Math.floor(x / C), j0 = Math.floor(y / C);
+    let best: number | null = null;
+    for (let i = i0 - r; i <= i0 + r; i++) {
+      for (let j = j0 - r; j <= j0 + r; j++) {
+        const h = grid.get(key(i, j));
+        if (h !== undefined && (best === null || h < best) && Math.hypot((i + 0.5) * C - x, (j + 0.5) * C - y) <= reach + C) best = h;
+      }
+    }
+    return best;
+  };
 }
