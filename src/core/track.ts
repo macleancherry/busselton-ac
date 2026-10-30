@@ -31,7 +31,7 @@ import { buildBuildings, centroid, detectBuildings, filterBuildings, fromOsm, is
 import { dressBuilding, FACADES, facadeTexture, ROOF_COLOURS, roofTexture } from "./buildingStyles";
 import { camerasIni, placeCameras } from "./cameras";
 import { cullable } from "./cull";
-import { extConfig } from "./cspConfig";
+import { bakedShadowParams, extConfig } from "./cspConfig";
 import { buildBarriers } from "./fences";
 import { chunkPhotoSampler, frontageHouses } from "./frontage";
 import { ArtList, type ArtRenderer } from "./art";
@@ -1104,9 +1104,10 @@ export async function buildTrack(
   const files: Record<string, Uint8Array> = {
     [`${slug}/${slug}.kn5`]: kn5,
     [`${slug}/ai/fast_lane.ai`]: ai,
-    [`${slug}/data/surfaces.ini`]: enc.encode(surfacesIni()),
+    [`${slug}/data/surfaces.ini`]: enc.encode(surfacesIni(centre)),
     [`${slug}/data/map.ini`]: enc.encode(map.ini),
     [`${slug}/data/cameras_1.ini`]: enc.encode(camerasIni(cameras)),
+    [`${slug}/baked_shadow_params.ini`]: enc.encode(bakedShadowParams()),
     [`${slug}/extension/ext_config.ini`]: enc.encode(extConfig(utilities.lights, {
       // A town's glow at night where most of the route is built up.
       builtUp: town.filter((t) => t >= 1).length > town.length / 2,

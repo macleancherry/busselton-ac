@@ -18,7 +18,11 @@ export function slugify(name: string): string {
  * Physics surfaces. Mesh names starting with a digit and one of these keys
  * (1ROAD_000, 1GRASS_t004, 1WALL_L_000) become drivable/collidable.
  */
-export function surfacesIni(): string {
+/**
+ * `at` is where the track is [lng, lat]: written as [WEATHER_FX] so CSP (and Pure) put the sun
+ * where it really is for the session's date and time, rather than at a default location.
+ */
+export function surfacesIni(at?: LngLat): string {
   const surfaces = [
     { KEY: "ROAD", FRICTION: 0.99, DAMPING: 0, WAV: "", WAV_PITCH: 0, FF_EFFECT: "NULL", DIRT_ADDITIVE: 0, IS_VALID_TRACK: 1, BLACK_FLAG_TIME: 0, SIN_HEIGHT: 0, SIN_LENGTH: 0, IS_PITLANE: 0, VIBRATION_GAIN: 0, VIBRATION_LENGTH: 0 },
     // Streets that aren't the route: asphalt underfoot, but leaving the route for one invalidates the run.
@@ -30,7 +34,23 @@ export function surfacesIni(): string {
   ];
   return surfaces
     .map((s, i) => `[SURFACE_${i}]\n` + Object.entries(s).map(([k, v]) => `${k}=${v}`).join("\n"))
-    .join("\n\n") + "\n";
+    .join("\n\n") + "\n"
+    + (at ? `\n[WEATHER_FX]\nLATITUDE=${at[1].toFixed(5)}\nLONGITUDE=${at[0].toFixed(5)}\n${timezoneOf(at) ? `TIMEZONE_ID=${timezoneOf(at)}\n` : ""}` : "");
+}
+
+/**
+ * The IANA time zone for tracks in Australia, from the position (state borders, roughly); undefined
+ * elsewhere, where CSP falls back to its own guess from the longitude.
+ */
+export function timezoneOf([lng, lat]: LngLat): string | undefined {
+  if (lat > -10 || lat < -44 || lng < 112 || lng > 154) return undefined;
+  if (lng < 129) return "Australia/Perth";
+  if (lat > -26 && lng < 138) return "Australia/Darwin";
+  if (lng < 141) return "Australia/Adelaide";
+  if (lat > -29) return "Australia/Brisbane";
+  if (lat < -39.2) return "Australia/Hobart";
+  return lat < -34 && lng < 150 ? "Australia/Melbourne" : "Australia/Sydney";
+
 }
 
 function geotag(lngLat: LngLat): [string, string] {
