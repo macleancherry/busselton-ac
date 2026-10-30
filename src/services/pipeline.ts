@@ -10,7 +10,7 @@ import type { RoundaboutHint } from "../core/roundabout";
 import { buildTrack, type TrackResult } from "../core/track";
 import { renderArt } from "./art";
 import { fetchSeen } from "./mapillary";
-import { fetchOsm, widthLookup } from "./osm";
+import { fetchOsm, fetchPierFeatures, widthLookup } from "./osm";
 import { loadRouteRaster } from "./raster";
 import { DEM_CREDIT, IMAGERY, imageryChain, loadChunkImagery, loadDem, type DemSource, type ImagerySource } from "./tiles";
 import { areaRings } from "../core/area";
@@ -78,6 +78,11 @@ export async function runBuild(job: BuildJob, report: Report, traceProgress: (te
     }) : Promise.resolve(undefined),
   ]);
   if (tiles) osm.features.buildings = tiles.buildings;
+  // Busselton fork: what stands on the jetties (railway, platforms, buildings), over their own box.
+  const pierPts = (coast?.piers ?? []).flatMap((p) => p.rings[0] ?? []);
+  const jetty = pierPts.length && opts.sea !== false
+    ? await fetchPierFeatures(paddedBounds(pierPts, 40))
+    : undefined;
   // Overpass widths when it answered; otherwise widths by road class from the tiles.
   const tileWidths = tiles ? classWidths(tiles.roads) : [];
   const widthAt = opts.widthOverride
@@ -116,6 +121,7 @@ export async function runBuild(job: BuildJob, report: Report, traceProgress: (te
     roadClassAt: tiles ? roadClassLookup(tiles.roads, coords[0][1]) : undefined,
     // Busselton fork: coast, paths, house looks and shop signs.
     coast,
+    jetty,
     paths: tiles
       ? tiles.roads.filter((r) => r.cls === "path" && r.brunnel !== "bridge" && r.brunnel !== "tunnel")
         .flatMap((r) => {

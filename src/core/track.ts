@@ -11,10 +11,11 @@ import { buildShopfronts, findShopfronts, shopSignTexture, shopStats, shopWindow
 import { buildIslands, findIslands, footprintMask, lineMask, paintOutCars } from "./carpark";
 import { trafficJson, type TrafficRoad } from "./traffic";
 import autotestLua from "./lua/autotest.lua?raw";
-import { buildGroynes, buildPiers, buildSea, jettyLights, buildSeawall, deckTexture, rockTexture, SeaMask, seaTexture, withSeabed, type CoastPolygon } from "./coast";
+import { buildGroynes, buildPiers, pierDeckZ, SEA_LEVEL, buildSea, jettyLights, buildSeawall, deckTexture, rockTexture, SeaMask, seaTexture, withSeabed, type CoastPolygon } from "./coast";
 import type { GroundDetail, GroundLayer } from "./ground";
 import { aiHintsIni, buildAiLine } from "./aiLine";
 import { Area, areaRings, makeCover } from "./area";
+import { buildJettyPrecinct, JETTY_MATERIALS, type JettyFeatures } from "./jetty";
 import { asLayout, dummiesKn5 } from "./layouts";
 import { BACKDROP_CHUNK, backdropHeight, buildBackdropChunk, planBackdrop } from "./backdrop";
 import { writeFastLaneAi } from "./aiSpline";
@@ -117,6 +118,8 @@ export interface DataSources {
   /** Draws shop names for their signs (needs a canvas: the browser passes one in). */
   drawSigns?: SignDrawer;
   coast?: { ocean: { rings: LngLat[][]; edge: boolean[][] }[]; piers: { rings: LngLat[][]; edge: boolean[][] }[]; beaches?: { rings: LngLat[][]; edge: boolean[][] }[] };
+  /** Busselton fork: what stands on the jetties (osm.ts fetchPierFeatures; jetty.ts builds it). */
+  jetty?: { railways: LngLat[][]; platforms: { pts: LngLat[]; shelter: boolean }[]; buildings: { pts: LngLat[]; name: string }[] };
   /** Tiled ground detail textures for ksMultilayer terrain (lawn, rough, sand, litter); null to keep plain photo terrain. */
   groundDetails?(): Promise<Record<GroundLayer, GroundDetail> | null>;
   /** Credit line for the imagery source(s), written into the README; read after imagery is fetched. */
@@ -563,6 +566,13 @@ export async function buildTrack(
   const toCoast = (p: { rings: LngLat[][]; edge: boolean[][] }): CoastPolygon => ({ rings: p.rings.map((r) => r.map((q) => proj.toLocal(q))), edge: p.edge });
   const ocean = opts.sea ? (sources.coast?.ocean ?? []).map(toCoast) : [];
   const piers = opts.sea ? (sources.coast?.piers ?? []).map(toCoast) : [];
+  // Busselton fork: what stands on the jetties (jetty.ts), in local metres.
+  const onJetty = (x: number, y: number) => piers.some((p) => pointInRing(x, y, p.rings[0]));
+  const jettyFeatures: JettyFeatures | null = piers.length && sources.jetty ? {
+    railways: sources.jetty.railways.map((l) => l.map((p) => proj.toLocal(p))),
+    platforms: sources.jetty.platforms.map((p) => ({ pts: p.pts.map((q) => proj.toLocal(q)), shelter: p.shelter })),
+    buildings: sources.jetty.buildings.map((b) => ({ pts: b.pts.map((q) => proj.toLocal(q)), name: b.name })),
+  } : null;
   const beaches = opts.sea ? (sources.coast?.beaches ?? []).map(toCoast) : [];
   const sea = new SeaMask(ocean, farBounds.minX, farBounds.minY, farBounds.maxX, farBounds.maxY);
   const dem = ocean.length ? withSeabed(landDem, sea) : landDem;
@@ -674,6 +684,9 @@ export async function buildTrack(
   addScenery("sea.png", seaTexture(), material("sea", "sea.png", { ambient: 0.4, diffuse: 0.35, specular: 0.7, exp: 90 }));
   reliefScenery("rock", rockTexture(), { ambient: 0.45, diffuse: 0.45, specular: 0.05, exp: 10 }, 4);
   addScenery("jetty_deck.png", deckTexture(), material("jetty_deck", "jetty_deck.png", { ambient: 0.45, diffuse: 0.45, specular: 0.05, exp: 10 }));
+  if (jettyFeatures) {
+    for (const m of JETTY_MATERIALS) addScenery(`${m.name}.png`, solidTexture(m.rgb), material(m.name, `${m.name}.png`, { ambient: 0.45, diffuse: 0.5, specular: m.name === "jetty_rail" ? 0.4 : 0.05, exp: 20 }));
+  }
   addScenery("jetty_timber.png", solidTexture([118, 108, 96]), material("jetty_timber", "jetty_timber.png", { ambient: 0.45, diffuse: 0.45, specular: 0, exp: 1 }));
   for (const c of FENCE_COLOURS) {
     reliefScenery(`fence_${c.name}`, fenceTexture(c.rgb), { ambient: 0.45, diffuse: 0.45, specular: 0.2, exp: 25 }, 2);
@@ -818,7 +831,12 @@ export async function buildTrack(
   const kept = filterBuildings([...mapped, ...detected, ...frontage], index, opts, opts.buildingRadius)
     .filter((b) => !b.ring.some(([x, y]) => inRoundabout(plan, x, y, opts.vergeWidth + 2)))
     // Detected roofs on a street are paving, not houses; mapped ones get a little more benefit of the doubt.
-    .filter((b) => !b.ring.some(([x, y]) => streetIndex.clearance(x, y) < (b.source !== "osm" ? 1 : -0.5)));
+    .filter((b) => !b.ring.some(([x, y]) => streetIndex.clearance(x, y) < (b.source !== "osm" ? 1 : -0.5)))
+    // Busselton fork: buildings on a jetty are the jetty precinct's (jetty.ts), not generic ones.
+    .filter((b) => {
+      const [cx, cy] = centroid(b.ring);
+      return !onJetty(cx, cy) && !(jettyFeatures?.buildings.some((o) => pointInRing(cx, cy, o.pts) && o.pts.some(([x, y]) => onJetty(x, y) || sea.has(x, y))));
+    });
   dressBuildings(kept, {
     roadEdge: (x, y) => {
       const n = index.nearest(x, y, 40);
@@ -1316,6 +1334,7 @@ export async function buildTrack(
   );
   // Busselton fork: lamp posts along the jetty, lit at night.
   const jettyLamps = piers.length ? jettyLights(piers, buildingGround, sea) : { nodes: [], lights: [] };
+  const jettyPrecinct = jettyFeatures ? buildJettyPrecinct(jettyFeatures, pierDeckZ(buildingGround, sea), onJetty, SEA_LEVEL) : { nodes: [], footprints: [] };
   // Signs and street furniture; their artwork is drawn in one atlas.
   const art = new ArtList();
   // Race day: barriers, fences, banners, gantries, a grandstand and crowds where the road is the race.
@@ -1600,7 +1619,7 @@ export async function buildTrack(
         group("PATHS", pathMeshes),
         group("LOTS", keepOffRoute(lots, onRoad).nodes),
         group("CARPARKS", islandNodes),
-        group("JETTY", piers.length ? [...buildPiers(piers, buildingGround, sea), ...jettyLamps.nodes] : []),
+        group("JETTY", piers.length ? [...buildPiers(piers, buildingGround, sea), ...jettyLamps.nodes, ...jettyPrecinct.nodes] : []),
         group("SEAWALL", ocean.length ? [
           ...buildSeawall(beaches, buildingGround, sea, (x, y) => !!index.nearest(x, y, 250), piers),
           ...buildGroynes((sources.osm?.groynes ?? []).map((l) => l.map((p) => proj.toLocal(p))), buildingGround),

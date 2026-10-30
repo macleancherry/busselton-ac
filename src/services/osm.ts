@@ -323,3 +323,52 @@ export function joinWays<T extends { pts: LngLat[]; cls: string; oneway?: 1 | -1
   }
   return list.filter((_, i) => alive[i]);
 }
+
+/**
+ * Busselton fork: what stands on a jetty (docs/jetty.md): its railway, platforms (and whether they
+ * have a shelter), and buildings on it or beside it, over the jetty's bounding box
+ * [west, south, east, north]. Empty when Overpass doesn't answer (the jetty is still built, bare).
+ */
+export async function fetchPierFeatures(box: [number, number, number, number]): Promise<{
+  railways: LngLat[][]; platforms: { pts: LngLat[]; shelter: boolean }[]; buildings: { pts: LngLat[]; name: string }[];
+}> {
+  const b = `${box[1].toFixed(6)},${box[0].toFixed(6)},${box[3].toFixed(6)},${box[2].toFixed(6)}`;
+  const query = `[out:json][timeout:40];(
+    way(${b})[railway~"^(narrow_gauge|miniature|light_rail|tram|rail)$"];
+    way(${b})[railway=platform];
+    way(${b})[public_transport=platform];
+    way(${b})[building];
+  );out tags geom;`;
+  const empty = { railways: [], platforms: [], buildings: [] };
+  for (let round = 0; round < 3; round++) {
+    if (round) await new Promise((ok) => setTimeout(ok, 4000 * round));
+    const ctl = new AbortController();
+    const timer = setTimeout(() => ctl.abort(), 45000);
+    try {
+      const elements: OverpassWay[] = await Promise.any(OVERPASS.map(async (url) => {
+        const r = await fetch(url, { method: "POST", body: new URLSearchParams({ data: query }), signal: ctl.signal });
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        const body = await r.json();
+        if (!Array.isArray(body.elements)) throw new Error("no elements");
+        return body.elements;
+      }));
+      const out = { railways: [] as LngLat[][], platforms: [] as { pts: LngLat[]; shelter: boolean }[], buildings: [] as { pts: LngLat[]; name: string }[] };
+      for (const e of elements) {
+        const t = e.tags ?? {};
+        const pts = (e.geometry ?? []).map((g) => [g.lon, g.lat] as LngLat);
+        if (pts.length < 2) continue;
+        if (t.railway === "platform" || t.public_transport === "platform") out.platforms.push({ pts, shelter: t.shelter === "yes" });
+        else if (t.railway) out.railways.push(pts);
+        else if (t.building && pts.length >= 3) out.buildings.push({ pts, name: t.name ?? "" });
+      }
+      return out;
+    } catch {
+      // every mirror failed this round
+    } finally {
+      clearTimeout(timer);
+      ctl.abort();
+    }
+  }
+  warnMissing("jetty features (OSM: its railway, platforms, buildings)");
+  return empty;
+}

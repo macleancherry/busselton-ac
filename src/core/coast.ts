@@ -155,6 +155,11 @@ function inside(x: number, y: number, ring: Vec2[]): boolean {
  * every 7 m along by 3 m across where it stands over the sea, and a handrail.
  * Visual only (no physics).
  */
+/** Busselton fork: the jetty deck's height at a point (as buildPiers lays it), for what stands on it. */
+export function pierDeckZ(ground: HeightFn, sea: SeaMask): (x: number, y: number) => number {
+  return (x, y) => Math.max(SEA_LEVEL + DECK, sea.has(x, y) ? 0 : ground(x, y) + 0.25);
+}
+
 export function buildPiers(polys: CoastPolygon[], ground: HeightFn, sea: SeaMask): Kn5MeshNode[] {
   const deck = new MeshBuilder();
   deck.normals = [];
