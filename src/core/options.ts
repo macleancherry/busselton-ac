@@ -32,6 +32,18 @@ export interface BuildOptions {
   terrainBlend: number;
   /** Terrain / texture chunk size, metres. */
   chunkSize: number;
+  /**
+   * Draw flat ground away from the road in bigger blocks (see buildTerrainChunk): a 4 x 4 block of
+   * cells as one fan, and well away from the road a 4 x 4 group of those as one fan again.
+   */
+  terrainLod: boolean;
+  /** No level-of-detail blocks within this distance of the road's centreline, metres. */
+  terrainLodNear: number;
+  /**
+   * How far the ground may sit off the true surface where it's drawn in bigger blocks more than
+   * 40 m from the road, metres (default 0.05; within 40 m it's 0.02). Larger thins a wide build further.
+   */
+  terrainLodFarTol?: number;
   /** Invisible wall distance from the road edge, metres (0 = no walls). */
   wallOffset: number;
   /** Superelevation in corners. */
@@ -124,6 +136,8 @@ export const DEFAULT_OPTIONS: BuildOptions = {
   terrainUnderRoad: 0.6,
   terrainBlend: 20,
   chunkSize: 200,
+  terrainLod: true,
+  terrainLodNear: 25,
   wallOffset: 10,
   banking: true,
   maxBank: 0.06,
