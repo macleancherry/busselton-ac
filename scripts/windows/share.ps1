@@ -8,6 +8,8 @@
     bakes\     one log per AO bake, with its time: <date>_<time>-<track>.log
     reports\   reports for the laptop session (<date>-<topic>.md) and anything they point to,
                e.g. reports\<date>-<topic>\tuart_cm.bin
+    snapshots\ each track's frozen inputs, <slug>-<date>.zip (scripts/snapshot/snapshot.mjs): what its
+               base is rebuilt from. Keep them; they're the only copy outside the cloud workspace.
 
   Where it is: BUSSELTON_SHARE, else the older BUSSELTON_TEST_SHARE, else D:\busselton-share on the
   machine that hosts it, else \\media\busselton-share (its network address) from any other machine.
@@ -19,7 +21,7 @@ function Get-BusseltonShare {
     $root = @("D:\busselton-share", "\\media\busselton-share") | Where-Object { Test-Path $_ } | Select-Object -First 1
   }
   if (-not $root -or -not (Test-Path $root)) { return $null }
-  foreach ($d in "builds", "tests", "bakes", "reports") {
+  foreach ($d in "builds", "tests", "bakes", "reports", "snapshots") {
     $p = Join-Path $root $d
     if (-not (Test-Path $p)) { New-Item -ItemType Directory -Path $p | Out-Null }
   }
@@ -31,6 +33,7 @@ builds\   track zips from the laptop session: <slug>.zip
 tests\    automatic AI runs: <date>_<time>-<slug>-<layout> (folder and zip)
 bakes\    AO bake logs with their times
 reports\  reports for the laptop session, and files they point to
+snapshots\ each track's frozen inputs (keep them)
 "@
   }
   return (Resolve-Path $root).Path

@@ -24,6 +24,10 @@
 // Downloads (aerial photos, map tiles, Overpass, routing, Mapillary) are cached in out/cache for
 // CACHE_DAYS (default 14), so a rebuild only fetches what's new. NO_CACHE=1 fetches everything fresh
 // (and refreshes the cache); BUILD_CACHE=<dir> puts it somewhere else.
+// Every build writes out/<slug>.inputs.json: the downloads it used (cache keys and hosts, no URLs).
+// SNAPSHOT=<dir> builds only from a frozen snapshot of them (scripts/snapshot/snapshot.mjs), offline:
+// anything not in it fails the build ("not in the snapshot"), whatever its age. SNAPSHOT_FILL=1 fetches
+// what's missing and adds it to the snapshot instead.
 
 import { execFileSync, spawn } from "node:child_process";
 import { createHash } from "node:crypto";
@@ -86,17 +90,41 @@ try {
   const useCache = !process.env.NO_CACHE && cacheDays > 0;
   mkdirSync(cacheDir, { recursive: true });
   let hits = 0, misses = 0;
+  // What the build used (cache key -> host), for out/<slug>.inputs.json and snapshots.
+  const used = new Map();
+  const snapshot = process.env.SNAPSHOT ? resolve(process.env.SNAPSHOT) : null;
+  const snapFill = !!process.env.SNAPSHOT_FILL;
+  let snapMissing = 0;
+  if (snapshot) { mkdirSync(snapshot, { recursive: true }); log(`building from the snapshot ${snapshot}${snapFill ? " (filling gaps)" : " only"}`); }
   await page.route(/^https:\/\//, async (r) => {
     // NET_LOG=1 logs each outside request as it starts and ends (for hangs).
     const req = r.request();
     const url = req.url();
     const key = createHash("sha256").update(`${req.method()} ${url} ${req.postData() ?? ""}`).digest("hex");
+    const host = (() => { try { return new URL(url).host; } catch { return "?"; } })();
+    if (snapshot) {
+      const sb = join(snapshot, `${key}.bin`), sm = join(snapshot, `${key}.json`);
+      if (existsSync(sm) && existsSync(sb)) {
+        const m = JSON.parse(readFileSync(sm, "utf8"));
+        hits++;
+        used.set(key, host);
+        await r.fulfill({ status: m.status, headers: { ...m.headers, "access-control-allow-origin": "*" }, body: readFileSync(sb) });
+        return;
+      }
+      if (!snapFill) {
+        snapMissing++;
+        if (snapMissing <= 5) log(`not in the snapshot: ${host}${new URL(url).pathname.slice(0, 60)}`);
+        await r.abort().catch(() => {});
+        return;
+      }
+    }
     const body = join(cacheDir, `${key}.bin`), meta = join(cacheDir, `${key}.json`);
-    if (useCache && existsSync(meta) && existsSync(body)) {
+    if (useCache && !snapshot && existsSync(meta) && existsSync(body)) {
       try {
         const m = JSON.parse(readFileSync(meta, "utf8"));
         if (Date.now() - m.at < cacheDays * 86_400_000) {
           hits++;
+          used.set(key, host);
           await r.fulfill({ status: m.status, headers: { ...m.headers, "access-control-allow-origin": "*" }, body: readFileSync(body) });
           return;
         }
@@ -118,6 +146,11 @@ try {
         writeFileSync(body, bytes);
         // No URL stored: some carry an API token.
         writeFileSync(meta, JSON.stringify({ at: Date.now(), status: res.status(), headers }));
+        used.set(key, host);
+        if (snapshot) {
+          writeFileSync(join(snapshot, `${key}.bin`), bytes);
+          writeFileSync(join(snapshot, `${key}.json`), JSON.stringify({ at: Date.now(), status: res.status(), headers }));
+        }
       }
       await r.fulfill({ status: res.status(), headers: { ...res.headers(), "access-control-allow-origin": "*" }, body: bytes });
     } catch {
@@ -323,6 +356,11 @@ try {
   }
   writeFileSync(join(out, `${slug}.zip`), zipBytes);
   if (landmarks.length) log(polish([`out/${slug}.zip`, "--into"]).trim());
+  // The downloads this build used: what a snapshot of it needs (scripts/snapshot/snapshot.mjs).
+  const hostCount = {};
+  for (const h of used.values()) hostCount[h] = (hostCount[h] ?? 0) + 1;
+  writeFileSync(join(out, `${slug}.inputs.json`), JSON.stringify({ route: basename(routeFile), built: new Date().toISOString(), snapshot: snapshot ? basename(snapshot) : null, hosts: hostCount, keys: [...used.keys()].sort() }, null, 1));
+  if (snapshot && snapMissing) log(`WARNING: ${snapMissing} downloads weren't in the snapshot (refresh it with SNAPSHOT_FILL=1 if that's intended)`);
   writeFileSync(join(out, `${slug}.stats.json`), JSON.stringify({ route: basename(routeFile), stats, table }, null, 2));
   if (process.env.SHOTS) {
     // Each shot is a lap fraction, or "lng:lat:lookLng:lookLat:height" for a fixed view.

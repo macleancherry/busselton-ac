@@ -31,6 +31,9 @@ const walk = (n: Kn5Node, depth: number, group: string) => {
   } else n.children.forEach((c) => walk(c, depth + 1, depth >= 2 ? group : c.kind === "mesh" ? group : c.name));
 };
 walk(model.root, 0, "");
+// Layers drawn over the world (landmarks lm_*.kn5, hand-made layer_*.kn5) count too.
+const layerModels = Object.keys(files).filter((f) => /\/(lm|layer)_[^/]+\.kn5$/.test(f)).map((f) => readKn5(files[f]));
+for (const lm of layerModels) walk(lm.root, 2, "LAYERS");
 
 // Texture sizes from their headers.
 const dims = (d: Uint8Array): [number, number, number] => {
@@ -47,7 +50,7 @@ const dims = (d: Uint8Array): [number, number, number] => {
   return [0, 0, 0];
 };
 let texBytes = 0;
-for (const t of model.textures) {
+for (const t of [...model.textures, ...layerModels.flatMap((m) => m.textures)]) {
   const [w, h, bpp] = dims(t.data);
   texBytes += w * h * bpp * 1.33;
 }
