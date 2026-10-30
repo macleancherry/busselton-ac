@@ -120,6 +120,8 @@ export interface DataSources {
     spec?: HouseSpec;
     /** Busselton fork: a landmark's name (the automatic test photographs it). */
     name?: string;
+    /** Busselton fork: the compass bearing the spec's front faces (degrees from north), instead of towards the nearest road. */
+    facing?: number;
   }[];
   /** Draws shop names for their signs (needs a canvas: the browser passes one in). */
   drawSigns?: SignDrawer;
@@ -1434,7 +1436,10 @@ export async function buildTrack(
     if (look.spec && Number.isFinite(roadGap(x, y))) {
       const gx = roadGap(x + 1, y) - roadGap(x - 1, y), gy = roadGap(x, y + 1) - roadGap(x, y - 1);
       const gl = Math.hypot(gx, gy) || 1;
-      const sh = buildSpecHouse(look.spec, { centre: [x, y], toRoad: [-gx / gl, -gy / gl], z: buildingGround(x, y) + 0.05 }, String(k));
+      const toRoad: [number, number] = Number.isFinite(look.facing)
+        ? [Math.sin((look.facing! * Math.PI) / 180), Math.cos((look.facing! * Math.PI) / 180)]
+        : [-gx / gl, -gy / gl];
+      const sh = buildSpecHouse(look.spec, { centre: [x, y], toRoad, z: buildingGround(x, y) + 0.05 }, String(k));
       const inside = (b: Building) => {
         const c = centroid(b.ring);
         return sh.footprints.some((f) => pointInRing(c[0], c[1], f)) || b.ring.some(([px, py]) => sh.footprints.some((f) => pointInRing(px, py, f)));
