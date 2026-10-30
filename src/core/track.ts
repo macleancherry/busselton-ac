@@ -602,12 +602,10 @@ export async function buildTrack(
   const streetIndex = new LineIndex(streetPlan.streets);
   const mouth = (side: 1 | -1, sd: number) => streetPlan.junctions.some((j) => j.side === side && Math.abs(j.s - sd) < j.width / 2 + 1.5);
 
-  // Busselton fork: roofs and parked cars found in the photos arrive in the order the photo chunks
-  // finish, which changes between builds; sorted by where they are, the build comes out the same
-  // every time from the same inputs (frozen snapshots depend on that).
+  // Roofs found in the photos arrive in the order the photo chunks finish, which changes between
+  // builds; sorted by where they are, the build comes out the same every time from the same inputs.
   const byPlace = (a: Vec2, b: Vec2) => a[1] - b[1] || a[0] - b[0];
   detected.sort((a, b) => byPlace(centroid(a.ring), centroid(b.ring)));
-  parkedSpots.sort((a, b) => byPlace(a.at, b.at) || a.dir[0] - b.dir[0] || a.paint - b.paint);
   const mapped: Building[] = opts.buildings
     ? (sources.osm?.buildings ?? []).map((b, i) => fromOsm(b.ring.map((p) => proj.toLocal(p)), b.tags, i))
     : [];
