@@ -79,15 +79,11 @@ Pins snap to the nearest road. A pin near a car park, side street or the far car
 
 ## Upstream
 
-honestjams/ac-track-builder moves fast and often builds things we also want. It's a general tool for any road; we're one place. So general looks and scenery (buildings, materials, shaders, ground and road detail, lighting, race dressing) are upstream's: take them by merging, don't build our own. Ours is what a general tool won't do (the single Busselton map, layouts, open world, traffic, AI, testing and checks, our own data, the South West, kids' modes); see "Who builds what" in ROADMAP.md.
+honestjams/ac-track-builder is a source of ideas, not a partner: its owner has moved on (docs/external-review-2026-10-31.md). Don't design around clean merges any more.
 
-Before starting anything general, check upstream's `docs/roadmap.md` and recent commits. If it's on their list, wait for it or build it as a PR for them.
-
-After every tranche of work, before reporting back to Mac:
-
-1. `git fetch upstream` (add it with `git remote add upstream https://github.com/honestjams/ac-track-builder.git` if missing) and `git log main..upstream/main`.
-2. If there's anything new, tell Mac what it is, then merge: take upstream's version where both sides built the same thing, keep the fork's South West work on top, rerun the tests and the checks, and rebuild.
-3. Note anything worth sending back upstream.
+- Look at upstream's commits and `docs/roadmap.md` now and then, take ideas, and write the code fresh. Don't merge upstream code into files we've rewritten.
+- Owning the code is a long-term goal: the fork's own code is under PolyForm Noncommercial 1.0.0 (`LICENSE`); upstream-derived files are excluded and listed in `UPSTREAM-FILES.txt`, made by `scripts/provenance/upstream_overlap.py` (rerun it with `--write` after each rewrite). Rewrite, don't edit: a behaviour spec in `docs/specs/` first, then a fresh module written from the spec by a separate session without the old file open, with fresh tests. Delete what we don't use instead of rewriting it (check with Mac first).
+- Small general fixes can still go upstream as PRs when Mac wants (his merged PRs are his own work).
 
 ## Code map
 
