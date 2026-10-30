@@ -199,7 +199,9 @@ export function buildJettyPrecinct(f: JettyFeatures, deckZ: (x: number, y: numbe
     }
     flush();
   }
-  for (const line of onDeckLines) {
+  for (const full of onDeckLines) {
+    // Rails in 4 m lengths (the line is gently curved): a tenth of the triangles of 1 m ones.
+    const line = full.filter((_, i) => i % 4 === 0 || i === full.length - 1);
     for (const side of [1, -1]) {
       for (let i = 1; i < line.length; i++) {
         const a = line[i - 1], b = line[i];
