@@ -18,6 +18,7 @@ import { aiHintsIni, buildAiLine } from "./aiLine";
 import { Area, areaRings, makeCover } from "./area";
 import { buildJettyPrecinct, JETTY_MATERIALS, type JettyFeatures } from "./jetty";
 import { treeList, writeTreeBin } from "./cspTrees";
+import { CARD_FOR, MODEL_FOR, pickWeighted, speciesWeightsAt } from "./treeZones";
 import { MODEL_NAMES, treeModel } from "./treeModels";
 import { ZoneMap, type LandcoverPolygon } from "./zones";
 import { asLayout, dummiesKn5 } from "./layouts";
@@ -1267,6 +1268,7 @@ export async function buildTrack(
   const offStreets = (spots: TreeSpot[]) => spots.filter((t) => streetIndex.clearance(t.x, t.y) > 1.5);
   // Local species: she-oaks and Norfolk pines on the coast, peppermints on kerbed town streets, tuarts in the bush.
   const speciesRand = rng(4242);
+  const zoneRand = rng(5151);
   // Town: kerb and gutter within ~150 m along the road (kerbs are only built where the photo shows them).
   const FORESHORE = 120;
   const kerbedNear = plan.samples.map((_, i) => {
@@ -1283,7 +1285,13 @@ export async function buildTrack(
     const foreshore = ocean.length > 0 && sea.near(t.x, t.y, FORESHORE);
     // Busselton fork: out of town and off the foreshore, the landscape zone picks the tree (or thins it out).
     if (zones && !town && !foreshore) return zones.tree(t, treeModels, speciesRand());
-    return { ...t, variant: pickSpecies(speciesRand(), !!t.coastal, town, foreshore) };
+    const variant = pickSpecies(speciesRand(), !!t.coastal, town, foreshore);
+    // Busselton fork: with CSP trees and no zones, bush trees (not planted streets or foreshore) by place (treeZones.ts).
+    if (opts.cspTrees && !town && !foreshore) {
+      const sp = pickWeighted(speciesWeightsAt(...proj.toLngLat([t.x, t.y]), { coastal: !!t.coastal }), zoneRand());
+      return { ...t, variant: CARD_FOR[sp], model: MODEL_NAMES.indexOf(MODEL_FOR[sp]) };
+    }
+    return { ...t, variant };
   }).filter((t): t is TreeSpot => t !== null);
   // A zone's species and size change the crown, so keep it clear of the road again.
   const planted = zones ? filterTrees(planted0, index, opts, opts.maxTrees, area ? cover : undefined) : planted0;
@@ -1837,11 +1845,12 @@ export async function buildTrack(
   const cspTreeFiles: Record<string, Uint8Array> = {};
   if (opts.cspTrees) {
     const all = [...treesKept, ...houseTrees];
-    const used = [...new Set(all.map((t) => t.variant))].filter((v) => v >= 0 && v < MODEL_NAMES.length);
+    const modelOf = (t: { variant: number; model?: number }) => t.model ?? t.variant;
+    const used = [...new Set(all.map(modelOf))].filter((v) => v >= 0 && v < MODEL_NAMES.length);
     for (const v of used) cspTreeFiles[`${slug}/extension/trees/${MODEL_NAMES[v]}.bin`] = writeTreeBin(treeModel(v));
     const r = rng(7);
-    cspTreeFiles[`${slug}/extension/trees/trees.txt`] = enc.encode(treeList(all.filter((t) => used.includes(t.variant)).map((t) => ({
-      model: `${MODEL_NAMES[t.variant]}.bin`, pos: toAc(t.x, t.y, ground(t.x, t.y) - 0.1), angle: r() * 360, size: t.scale,
+    cspTreeFiles[`${slug}/extension/trees/trees.txt`] = enc.encode(treeList(all.filter((t) => used.includes(modelOf(t))).map((t) => ({
+      model: `${MODEL_NAMES[modelOf(t)]}.bin`, pos: toAc(t.x, t.y, ground(t.x, t.y) - 0.1), angle: r() * 360, size: t.scale,
     }))));
   }
   await progress("Writing track files");

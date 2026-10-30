@@ -110,7 +110,7 @@ Generated tracks across the region at a lighter detail level, rebuilt whenever t
   - karri
   - vineyards and paddocks: vine rows from `landuse=vineyard`, post-and-wire fences, green in winter and gold in summer
   - Vasse-Wonnerup wetlands
-- 🔨 **3D trees:** CSP instanced trees, five local species, three levels of detail. The file format is confirmed against Content Manager; in-game look being tested (`busselton_trees`). Next: on by default, then karri and marri, then photo textures of real foliage.
+- 🔨 **3D trees:** CSP instanced trees, five local species, three levels of detail. The file format is confirmed against Content Manager; in-game look being tested (`busselton_trees`). Karri and marri models ready, and bush trees picked by place (karri at Boranup, jarrah-marri inland, tuart on the plain, peppermint on the coast; `src/core/treeZones.ts`) when 3D trees are on. Next: on by default once Mac has seen them (docs/trees.md, "Making 3D trees the default"), then photo textures of real foliage.
 
 ## Phase D: More showcase areas ⬜
 

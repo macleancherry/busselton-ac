@@ -56,6 +56,8 @@ export interface TreeSpot {
   scale: number;
   /** Index into TREE_SPECIES. */
   variant: number;
+  /** Busselton fork: the CSP tree model (treeModels.ts MODEL_NAMES index) when it isn't the variant's own (treeZones.ts). */
+  model?: number;
   /** Water within about 60 m in the aerial photo (the foreshore). */
   coastal?: boolean;
 }
