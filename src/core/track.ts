@@ -1153,8 +1153,15 @@ export async function buildTrack(
   const stripOuter = opts.vergeWidth + STRIP_EXTRA;
   const verge = opts.kerbs && raster ? readVerge(plan, raster, kerbs, stripOuter, (x, y) => streetIndex.clearance(x, y) < 0.5) : null;
   const kerbMeshes = buildKerbs(plan, opts, kerbs, stripMaterial, returns?.noRamp, verge ? laybacks(nS, verge) : undefined);
-  const vergeGround = (x: number, y: number, d: number, smp: RoadSample, side: 1 | -1) =>
-    d <= stripOuter ? surfaceHeight(smp, (side * smp.width) / 2, opts.crown) + KERB_H : terrainAt(x, y).h;
+  // The ground under the verge concrete: the strip top (road edge plus a kerb) within the strip, terrain beyond.
+  const vergeGround = (x: number, y: number) => {
+    const n = index.nearest(x, y, opts.vergeWidth + STRIP_EXTRA + 30);
+    if (!n) return terrainAt(x, y).h;
+    const at = index.at(n);
+    if (n.dist - at.width / 2 > stripOuter) return terrainAt(x, y).h;
+    const side = n.t >= 0 ? 1 : -1;
+    return surfaceHeight({ ...plan.samples[n.seg], h: at.h, bank: at.bank, width: at.width }, (side * at.width) / 2, opts.crown) + KERB_H;
+  };
   const vergeConcrete = verge ? buildVergeConcrete(plan, verge, vergeGround) : [];
   // Photo surface on the traced side streets too (the nearest 40, to keep the file in check).
   const photoStreets = new Set(
