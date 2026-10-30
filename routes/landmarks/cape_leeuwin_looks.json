@@ -1,0 +1,32 @@
+{
+ "note": "Landmarks built from their own spec (src/core/specHouse.ts), for the route that lists this file in \"looks\". \"at\" is the middle of each landmark's main blocks (outbuildings left out). \"facing\" is the compass bearing the front faces.",
+ "houses": [
+  {
+   "at": [
+    115.136325,
+    -34.375062
+   ],
+   "specFile": "routes/landmarks/cape_leeuwin_lighthouse.json",
+   "name": "Cape Leeuwin Lighthouse",
+   "facing": 0
+  },
+  {
+   "at": [
+    115.136452,
+    -34.372606
+   ],
+   "specFile": "routes/landmarks/cape_leeuwin_cottages.json",
+   "name": "Cape Leeuwin keepers' cottages",
+   "facing": 270
+  },
+  {
+   "at": [
+    115.135377,
+    -34.368805
+   ],
+   "specFile": "routes/landmarks/cape_leeuwin_waterwheel.json",
+   "name": "Cape Leeuwin Waterwheel",
+   "facing": 175
+  }
+ ]
+}

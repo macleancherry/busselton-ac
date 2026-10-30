@@ -266,7 +266,7 @@ function routeAi(world: World, coords: LngLat[], opts: BuildOptions, height: (x:
   const plan = planRoad(world.lines?.length ? snapToLines(dense, world.lines, world.rings) : local, opts);
   const hs = fillHeights(plan.samples.map((s) => height(s.pos[0], s.pos[1])), 0);
   plan.samples.forEach((s, i) => { s.h = hs[i]; s.bank = 0; });
-  const ai = keepOnSurface(buildAiLine(plan), height);
+  const ai = keepOnSurface(buildAiLine(plan, { keepLeft: opts.aiKeepLeft }), height);
   // Speed limits from the street each stretch is on (the world's), so the AI drives a town street
   // at 50 rather than at the grip limit.
   let limitAt: ((d: number) => number | undefined) | undefined;

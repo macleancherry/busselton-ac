@@ -1,0 +1,32 @@
+{
+ "note": "Margaret River landmarks built from their own spec (src/core/specHouse.ts), loaded by any route that lists this file in \"looks\". \"at\" is the middle of each building's blocks (outbuildings left out). \"facing\" is the compass bearing the front faces (else it faces the nearest road).",
+ "houses": [
+  {
+   "at": [
+    115.074004,
+    -33.951413
+   ],
+   "specFile": "routes/landmarks/margaret_river_hotel.json",
+   "name": "Margaret River Hotel",
+   "facing": 272
+  },
+  {
+   "at": [
+    115.073967,
+    -33.948951
+   ],
+   "specFile": "routes/landmarks/margaret_river_visitor_centre.json",
+   "name": "Margaret River Visitor Centre",
+   "facing": 96
+  },
+  {
+   "at": [
+    115.073693,
+    -33.949923
+   ],
+   "specFile": "routes/landmarks/settlers_tavern.json",
+   "name": "Settlers Tavern",
+   "facing": 96
+  }
+ ]
+}

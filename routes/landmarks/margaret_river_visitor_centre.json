@@ -1,0 +1,406 @@
+{
+ "note": "Margaret River Visitor Centre, 100 Bussell Hwy on the Tunbridge St corner, from the Landgate aerial (Oct 2026) and 2019 street photos. A two-storey block on the corner with a glazed upper floor under a deep-eaved, low hip roof in a grey-green Colorbond (solar panels on it), rust-red rendered lower walls with the big regional map board, and a lower single-storey south block with a pale green verandah along the footpath. The paved forecourt on the north corner faces the Tunbridge St junction. Name in plain lettering. Metres: x left to right as seen from Bussell Hwy (north to south), y back (west) from the front wall.",
+ "wallHeight": 6.4,
+ "setback": 5,
+ "road": {
+  "width": 10,
+  "verge": 0.5
+ },
+ "lawn": "#7f8c4e",
+ "sunFrom": [
+  -0.5,
+  -0.7,
+  1.0
+ ],
+ "cameras": {
+  "street": {
+   "eye": [
+    -6,
+    -22,
+    1.6
+   ],
+   "look": [
+    12,
+    6,
+    4.0
+   ],
+   "lens": 22
+  },
+  "aerial": {
+   "eye": [
+    -24,
+    -40,
+    30
+   ],
+   "look": [
+    14,
+    14,
+    2
+   ],
+   "lens": 30
+  },
+  "corner": {
+   "eye": [
+    -20,
+    -6,
+    1.7
+   ],
+   "look": [
+    6,
+    10,
+    4
+   ],
+   "lens": 24
+  }
+ },
+ "walls": {
+  "kind": "render",
+  "colour": "#86412e"
+ },
+ "finishes": {
+  "glass": {
+   "kind": "render",
+   "colour": "#2b3236"
+  },
+  "frame": {
+   "kind": "render",
+   "colour": "#5c625f"
+  },
+  "board": {
+   "kind": "render",
+   "colour": "#e6e1d2"
+  },
+  "sand": {
+   "kind": "render",
+   "colour": "#c9a77c"
+  }
+ },
+ "trim": "#d8d2c4",
+ "roof": {
+  "pitch": 24,
+  "colour": "#46594f",
+  "eaves": 0.9
+ },
+ "blocks": [
+  {
+   "name": "north",
+   "x0": 0.5,
+   "x1": 17.6,
+   "y0": 0.0,
+   "y1": 22.5,
+   "roof": "hip",
+   "wallHeight": 6.4
+  },
+  {
+   "name": "south",
+   "x0": 16.1,
+   "x1": 32.0,
+   "y0": 4.4,
+   "y1": 28.0,
+   "roof": "hip",
+   "wallHeight": 4.6,
+   "eaves": 0.6
+  }
+ ],
+ "panels": [
+  {
+   "x0": 0.4,
+   "x1": 17.7,
+   "y0": -0.08,
+   "y1": 0.02,
+   "z0": 3.7,
+   "z1": 6.1,
+   "walls": "glass"
+  },
+  {
+   "x0": 0.43,
+   "x1": 0.57,
+   "y0": -0.12,
+   "y1": -0.06,
+   "z0": 3.7,
+   "z1": 6.1,
+   "walls": "frame"
+  },
+  {
+   "x0": 2.57,
+   "x1": 2.71,
+   "y0": -0.12,
+   "y1": -0.06,
+   "z0": 3.7,
+   "z1": 6.1,
+   "walls": "frame"
+  },
+  {
+   "x0": 4.71,
+   "x1": 4.85,
+   "y0": -0.12,
+   "y1": -0.06,
+   "z0": 3.7,
+   "z1": 6.1,
+   "walls": "frame"
+  },
+  {
+   "x0": 6.84,
+   "x1": 6.98,
+   "y0": -0.12,
+   "y1": -0.06,
+   "z0": 3.7,
+   "z1": 6.1,
+   "walls": "frame"
+  },
+  {
+   "x0": 8.98,
+   "x1": 9.12,
+   "y0": -0.12,
+   "y1": -0.06,
+   "z0": 3.7,
+   "z1": 6.1,
+   "walls": "frame"
+  },
+  {
+   "x0": 11.12,
+   "x1": 11.26,
+   "y0": -0.12,
+   "y1": -0.06,
+   "z0": 3.7,
+   "z1": 6.1,
+   "walls": "frame"
+  },
+  {
+   "x0": 13.26,
+   "x1": 13.4,
+   "y0": -0.12,
+   "y1": -0.06,
+   "z0": 3.7,
+   "z1": 6.1,
+   "walls": "frame"
+  },
+  {
+   "x0": 15.39,
+   "x1": 15.53,
+   "y0": -0.12,
+   "y1": -0.06,
+   "z0": 3.7,
+   "z1": 6.1,
+   "walls": "frame"
+  },
+  {
+   "x0": 17.53,
+   "x1": 17.67,
+   "y0": -0.12,
+   "y1": -0.06,
+   "z0": 3.7,
+   "z1": 6.1,
+   "walls": "frame"
+  },
+  {
+   "x0": 0.4,
+   "x1": 17.7,
+   "y0": -0.12,
+   "y1": 0.0,
+   "z0": 3.45,
+   "z1": 3.7,
+   "walls": "sand"
+  },
+  {
+   "x0": 6.5,
+   "x1": 12.5,
+   "y0": -0.1,
+   "y1": 0.0,
+   "z0": 0.8,
+   "z1": 3.1,
+   "walls": "board"
+  }
+ ],
+ "awnings": [
+  {
+   "x0": 16.3,
+   "x1": 32.0,
+   "y0": 1.2,
+   "y1": 4.4,
+   "z": 3.0,
+   "colour": "#a9bba6",
+   "posts": [
+    16.5,
+    20.4,
+    24.2,
+    28.1,
+    31.8
+   ]
+  }
+ ],
+ "doors": [
+  {
+   "type": "front",
+   "x0": 13.6,
+   "x1": 15.6,
+   "y": 0.0,
+   "height": 2.5,
+   "z0": 0.1,
+   "colour": "#2b3236"
+  }
+ ],
+ "windows": [
+  {
+   "facing": "front",
+   "wall": 0.0,
+   "at": 2.2,
+   "width": 1.8,
+   "height": 2.0,
+   "sill": 0.6
+  },
+  {
+   "facing": "front",
+   "wall": 0.0,
+   "at": 4.6,
+   "width": 1.8,
+   "height": 2.0,
+   "sill": 0.6
+  },
+  {
+   "facing": "left",
+   "wall": 0.5,
+   "at": 3.0,
+   "width": 1.8,
+   "height": 2.0,
+   "sill": 0.6
+  },
+  {
+   "facing": "left",
+   "wall": 0.5,
+   "at": 3.0,
+   "width": 2.6,
+   "height": 2.0,
+   "sill": 3.9
+  },
+  {
+   "facing": "left",
+   "wall": 0.5,
+   "at": 7.0,
+   "width": 1.8,
+   "height": 2.0,
+   "sill": 0.6
+  },
+  {
+   "facing": "left",
+   "wall": 0.5,
+   "at": 7.0,
+   "width": 2.6,
+   "height": 2.0,
+   "sill": 3.9
+  },
+  {
+   "facing": "left",
+   "wall": 0.5,
+   "at": 11.0,
+   "width": 1.8,
+   "height": 2.0,
+   "sill": 0.6
+  },
+  {
+   "facing": "left",
+   "wall": 0.5,
+   "at": 11.0,
+   "width": 2.6,
+   "height": 2.0,
+   "sill": 3.9
+  },
+  {
+   "facing": "left",
+   "wall": 0.5,
+   "at": 15.0,
+   "width": 1.8,
+   "height": 2.0,
+   "sill": 0.6
+  },
+  {
+   "facing": "left",
+   "wall": 0.5,
+   "at": 15.0,
+   "width": 2.6,
+   "height": 2.0,
+   "sill": 3.9
+  },
+  {
+   "facing": "front",
+   "wall": 4.4,
+   "at": 19.5,
+   "width": 2.2,
+   "height": 1.9,
+   "sill": 0.6
+  },
+  {
+   "facing": "front",
+   "wall": 4.4,
+   "at": 23.5,
+   "width": 2.2,
+   "height": 1.9,
+   "sill": 0.6
+  },
+  {
+   "facing": "front",
+   "wall": 4.4,
+   "at": 27.5,
+   "width": 2.2,
+   "height": 1.9,
+   "sill": 0.6
+  }
+ ],
+ "paving": [
+  {
+   "x0": -12,
+   "y0": -5.0,
+   "x1": 34,
+   "y1": 0.0,
+   "colour": "#8a4c3c",
+   "kind": "brick"
+  },
+  {
+   "x0": -12,
+   "y0": 0.0,
+   "x1": 0.5,
+   "y1": 14.0,
+   "colour": "#b9a78e",
+   "kind": "concrete"
+  }
+ ],
+ "tables": [
+  {
+   "x": -5.0,
+   "y": 2.0,
+   "length": 1.6
+  }
+ ],
+ "signs": [
+  {
+   "x0": 2.0,
+   "x1": 12.0,
+   "y": -0.15,
+   "z0": 3.0,
+   "z1": 3.42,
+   "text": "VISITOR CENTRE",
+   "colour": "#2b3236",
+   "ink": "#f0ece2"
+  }
+ ],
+ "trees": [
+  {
+   "x": -6.0,
+   "y": 8.0,
+   "height": 8,
+   "spread": 6
+  },
+  {
+   "x": 24.0,
+   "y": -3.8,
+   "height": 11,
+   "spread": 8
+  },
+  {
+   "x": 6.0,
+   "y": -3.8,
+   "height": 9,
+   "spread": 6
+  }
+ ]
+}

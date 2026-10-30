@@ -1,0 +1,23 @@
+{
+ "note": "Landmarks built from their own spec (src/core/specHouse.ts), for the route that lists this file in \"looks\". \"at\" is the middle of each landmark's main blocks (outbuildings left out). \"facing\" is the compass bearing the front faces.",
+ "houses": [
+  {
+   "at": [
+    115.031295,
+    -33.645219
+   ],
+   "specFile": "routes/landmarks/caves_house.json",
+   "name": "Caves House Hotel",
+   "facing": 130
+  },
+  {
+   "at": [
+    115.032088,
+    -33.645535
+   ],
+   "specFile": "routes/landmarks/yallingup_store.json",
+   "name": "Yallingup General Store",
+   "facing": 210
+  }
+ ]
+}

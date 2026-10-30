@@ -1,0 +1,23 @@
+{
+ "note": "Landmarks built from their own spec (src/core/specHouse.ts), for the route that lists this file in \"looks\". \"at\" is the middle of each landmark's main blocks (outbuildings left out). \"facing\" is the compass bearing the front faces.",
+ "houses": [
+  {
+   "at": [
+    115.018705,
+    -33.537391
+   ],
+   "specFile": "routes/landmarks/cape_naturaliste_lighthouse.json",
+   "name": "Cape Naturaliste Lighthouse",
+   "facing": 165
+  },
+  {
+   "at": [
+    115.019367,
+    -33.539073
+   ],
+   "specFile": "routes/landmarks/cape_naturaliste_cottages.json",
+   "name": "Cape Naturaliste keepers' cottages",
+   "facing": 29
+  }
+ ]
+}

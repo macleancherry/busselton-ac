@@ -1,0 +1,354 @@
+{
+ "note": "Cape Leeuwin lighthouse keepers' cottages (1896, George Temple Poole), from the Landgate aerial (Oct 2026) and the inHerit record. Three single-storey stone cottages in a row down the east side of the cape, about 44 m apart, each under one broad pyramid roof of grey corrugated iron (about 17 m square over the verandahs), with a detached stone laundry behind and a round stone tank. The two southern cottages are limestone, the northern one local granite/gneiss. One is a museum. The verandah under the roof edge has no posts here (the spec's verandah is one skillion on the front). Metres: x left (north) to right (south) as seen from the access road on the west, y back (east).",
+ "wallHeight": 3.4,
+ "setback": 7.0,
+ "road": {
+  "width": 5.0,
+  "verge": 1.0
+ },
+ "lawn": "#8a8a55",
+ "sunFrom": [
+  0.55,
+  -0.75,
+  1.0
+ ],
+ "cameras": {
+  "street": {
+   "eye": [
+    -26,
+    -30,
+    1.6
+   ],
+   "look": [
+    4,
+    6,
+    2.5
+   ],
+   "lens": 24
+  },
+  "aerial": {
+   "eye": [
+    -60,
+    -70,
+    45
+   ],
+   "look": [
+    0,
+    8,
+    0
+   ],
+   "lens": 24
+  }
+ },
+ "walls": {
+  "kind": "render",
+  "colour": "#e8e1cf"
+ },
+ "finishes": {
+  "granite": {
+   "kind": "render",
+   "colour": "#a59a8c"
+  },
+  "laundry": {
+   "kind": "render",
+   "colour": "#e2dccb"
+  },
+  "verandah": {
+   "kind": "render",
+   "colour": "#d9d4c4"
+  }
+ },
+ "trim": "#e6e2d6",
+ "roof": {
+  "pitch": 28,
+  "colour": "#b9bcb8",
+  "eaves": 0.4
+ },
+ "blocks": [
+  {
+   "name": "cottage0",
+   "x0": -50.2,
+   "x1": -37.8,
+   "y0": -1.7000000000000002,
+   "y1": 10.7,
+   "roof": "hip",
+   "wallHeight": 3.4,
+   "eaves": 2.3,
+   "pitch": 26,
+   "walls": "granite"
+  },
+  {
+   "name": "chimney0a",
+   "x0": -46.6,
+   "x1": -45.8,
+   "y0": 3.0,
+   "y1": 3.8,
+   "roof": "none",
+   "wallHeight": 6.3,
+   "walls": "granite",
+   "outbuilding": true
+  },
+  {
+   "name": "chimney0b",
+   "x0": -42.2,
+   "x1": -41.4,
+   "y0": 5.4,
+   "y1": 6.199999999999999,
+   "roof": "none",
+   "wallHeight": 6.3,
+   "walls": "granite",
+   "outbuilding": true
+  },
+  {
+   "name": "laundry0",
+   "x0": -53.5,
+   "x1": -49.5,
+   "y0": 17.0,
+   "y1": 21.0,
+   "roof": "hip",
+   "wallHeight": 2.6,
+   "walls": "laundry",
+   "outbuilding": true
+  },
+  {
+   "name": "tank0",
+   "x0": -36.0,
+   "x1": -33.0,
+   "y0": 6.0,
+   "y1": 9.0,
+   "roof": "none",
+   "wallHeight": 1.6,
+   "walls": "laundry",
+   "outbuilding": true
+  },
+  {
+   "name": "cottage1",
+   "x0": -6.2,
+   "x1": 6.2,
+   "y0": 2.3,
+   "y1": 14.7,
+   "roof": "hip",
+   "wallHeight": 3.4,
+   "eaves": 2.3,
+   "pitch": 26,
+   "walls": "main"
+  },
+  {
+   "name": "chimney1a",
+   "x0": -2.6,
+   "x1": -1.8,
+   "y0": 7.0,
+   "y1": 7.8,
+   "roof": "none",
+   "wallHeight": 6.3,
+   "walls": "main",
+   "outbuilding": true
+  },
+  {
+   "name": "chimney1b",
+   "x0": 1.8,
+   "x1": 2.6,
+   "y0": 9.4,
+   "y1": 10.2,
+   "roof": "none",
+   "wallHeight": 6.3,
+   "walls": "main",
+   "outbuilding": true
+  },
+  {
+   "name": "laundry1",
+   "x0": -9.5,
+   "x1": -5.5,
+   "y0": 21.0,
+   "y1": 25.0,
+   "roof": "hip",
+   "wallHeight": 2.6,
+   "walls": "laundry",
+   "outbuilding": true
+  },
+  {
+   "name": "tank1",
+   "x0": 8.0,
+   "x1": 11.0,
+   "y0": 10.0,
+   "y1": 13.0,
+   "roof": "none",
+   "wallHeight": 1.6,
+   "walls": "laundry",
+   "outbuilding": true
+  },
+  {
+   "name": "cottage2",
+   "x0": 37.3,
+   "x1": 49.7,
+   "y0": 6.3,
+   "y1": 18.7,
+   "roof": "hip",
+   "wallHeight": 3.4,
+   "eaves": 2.3,
+   "pitch": 26,
+   "walls": "main"
+  },
+  {
+   "name": "chimney2a",
+   "x0": 40.9,
+   "x1": 41.7,
+   "y0": 11.0,
+   "y1": 11.8,
+   "roof": "none",
+   "wallHeight": 6.3,
+   "walls": "main",
+   "outbuilding": true
+  },
+  {
+   "name": "chimney2b",
+   "x0": 45.3,
+   "x1": 46.1,
+   "y0": 13.4,
+   "y1": 14.2,
+   "roof": "none",
+   "wallHeight": 6.3,
+   "walls": "main",
+   "outbuilding": true
+  },
+  {
+   "name": "laundry2",
+   "x0": 34.0,
+   "x1": 38.0,
+   "y0": 25.0,
+   "y1": 29.0,
+   "roof": "hip",
+   "wallHeight": 2.6,
+   "walls": "laundry",
+   "outbuilding": true
+  },
+  {
+   "name": "tank2",
+   "x0": 51.5,
+   "x1": 54.5,
+   "y0": 14.0,
+   "y1": 17.0,
+   "roof": "none",
+   "wallHeight": 1.6,
+   "walls": "laundry",
+   "outbuilding": true
+  }
+ ],
+ "doors": [
+  {
+   "type": "front",
+   "x0": -44.5,
+   "x1": -43.5,
+   "y": -1.7000000000000002,
+   "height": 2.3,
+   "z0": 0.2,
+   "colour": "#4b3c30"
+  },
+  {
+   "type": "front",
+   "x0": -0.5,
+   "x1": 0.5,
+   "y": 2.3,
+   "height": 2.3,
+   "z0": 0.2,
+   "colour": "#4b3c30"
+  },
+  {
+   "type": "front",
+   "x0": 43.0,
+   "x1": 44.0,
+   "y": 6.3,
+   "height": 2.3,
+   "z0": 0.2,
+   "colour": "#4b3c30"
+  }
+ ],
+ "windows": [
+  {
+   "facing": "front",
+   "wall": -1.7000000000000002,
+   "at": -47.6,
+   "width": 1.0,
+   "height": 1.7,
+   "sill": 0.8
+  },
+  {
+   "facing": "front",
+   "wall": -1.7000000000000002,
+   "at": -40.4,
+   "width": 1.0,
+   "height": 1.7,
+   "sill": 0.8
+  },
+  {
+   "facing": "front",
+   "wall": 2.3,
+   "at": -3.6,
+   "width": 1.0,
+   "height": 1.7,
+   "sill": 0.8
+  },
+  {
+   "facing": "front",
+   "wall": 2.3,
+   "at": 3.6,
+   "width": 1.0,
+   "height": 1.7,
+   "sill": 0.8
+  },
+  {
+   "facing": "front",
+   "wall": 6.3,
+   "at": 39.9,
+   "width": 1.0,
+   "height": 1.7,
+   "sill": 0.8
+  },
+  {
+   "facing": "front",
+   "wall": 6.3,
+   "at": 47.1,
+   "width": 1.0,
+   "height": 1.7,
+   "sill": 0.8
+  }
+ ],
+ "fences": [
+  {
+   "x0": -54,
+   "y0": -3,
+   "x1": 54,
+   "y1": -2.95,
+   "height": 1.0,
+   "colour": "#e6e2d6",
+   "open": true
+  }
+ ],
+ "paving": [
+  {
+   "x0": -52.5,
+   "y0": -4.0,
+   "x1": -35.5,
+   "y1": -1.7000000000000002,
+   "colour": "#9c8f7c",
+   "kind": "timber"
+  },
+  {
+   "x0": -8.5,
+   "y0": 0.0,
+   "x1": 8.5,
+   "y1": 2.3,
+   "colour": "#9c8f7c",
+   "kind": "timber"
+  },
+  {
+   "x0": 35.0,
+   "y0": 4.0,
+   "x1": 52.0,
+   "y1": 6.3,
+   "colour": "#9c8f7c",
+   "kind": "timber"
+  }
+ ],
+ "trees": []
+}

@@ -1,0 +1,764 @@
+{
+ "note": "Margaret River Hotel, 125 Bussell Hwy on the Willmott Ave corner (State Register 2008), from the Landgate aerial (Oct 2026), 2019 street photos and the inHerit record. The 1936 two-storey Inter-War Old English hotel (architect F G B Hawkins, built by C Arnott): taupe rendered brick, Marseille-pattern terracotta tiles, three street gables with white barges and white battens on brown, a long gabled main range with a north gable to Willmott Ave, a tall rendered chimney, the single-storey gabled entry porch on white posts with the hotel sign, and the 1985 single-storey wing behind the south end (outbuilding, so it doesn't move the centre). The rear yard (old motel units and beer garden) was a building site in the 2026 aerial (Heytesbury redevelopment), so only the 1936 building and its south wing are here. Name in plain lettering, no logo. Metres: x left to right as seen from Bussell Hwy (north to south), y back (east) from the front of the south wing.",
+ "wallHeight": 6.6,
+ "setback": 6,
+ "road": {
+  "width": 10,
+  "verge": 0.5
+ },
+ "lawn": "#7f8c4e",
+ "sunFrom": [
+  -0.5,
+  -0.7,
+  1.0
+ ],
+ "cameras": {
+  "street": {
+   "eye": [
+    8,
+    -22,
+    1.6
+   ],
+   "look": [
+    24,
+    6,
+    4.5
+   ],
+   "lens": 22
+  },
+  "aerial": {
+   "eye": [
+    -14,
+    -46,
+    30
+   ],
+   "look": [
+    24,
+    12,
+    2
+   ],
+   "lens": 30
+  },
+  "corner": {
+   "eye": [
+    -14,
+    -16,
+    1.7
+   ],
+   "look": [
+    10,
+    8,
+    5
+   ],
+   "lens": 24
+  }
+ },
+ "walls": {
+  "kind": "render",
+  "colour": "#8e8272"
+ },
+ "finishes": {
+  "white": {
+   "kind": "render",
+   "colour": "#f0eee6"
+  },
+  "brown": {
+   "kind": "render",
+   "colour": "#7a6c5c"
+  },
+  "chimney": {
+   "kind": "render",
+   "colour": "#958978"
+  }
+ },
+ "trim": "#f1efe8",
+ "roof": {
+  "pitch": 38,
+  "colour": "#9c4a3a",
+  "eaves": 0.45
+ },
+ "blocks": [
+  {
+   "name": "main",
+   "x0": 1.0,
+   "x1": 43.5,
+   "y0": 7.9,
+   "y1": 19.5,
+   "roof": "gable",
+   "pitch": 38
+  },
+  {
+   "name": "north_bay",
+   "x0": 4.8,
+   "x1": 11.0,
+   "y0": 4.6,
+   "y1": 12.0,
+   "roof": "gable",
+   "pitch": 45
+  },
+  {
+   "name": "entry_bay",
+   "x0": 19.6,
+   "x1": 29.0,
+   "y0": 2.2,
+   "y1": 13.0,
+   "roof": "gable",
+   "pitch": 42
+  },
+  {
+   "name": "south_wing",
+   "x0": 33.6,
+   "x1": 43.5,
+   "y0": 0.4,
+   "y1": 14.4,
+   "roof": "gable",
+   "pitch": 40
+  },
+  {
+   "name": "wing_1985",
+   "x0": 41.5,
+   "x1": 55.5,
+   "y0": 16.0,
+   "y1": 29.5,
+   "roof": "hip",
+   "wallHeight": 3.6,
+   "pitch": 30,
+   "outbuilding": true
+  },
+  {
+   "name": "chimney",
+   "x0": 8.4,
+   "x1": 9.6,
+   "y0": 13.2,
+   "y1": 14.4,
+   "roof": "none",
+   "wallHeight": 10.2,
+   "walls": "chimney",
+   "outbuilding": true
+  },
+  {
+   "name": "chimney2",
+   "x0": 31.0,
+   "x1": 32.0,
+   "y0": 15.0,
+   "y1": 16.0,
+   "roof": "none",
+   "wallHeight": 9.4,
+   "walls": "chimney",
+   "outbuilding": true
+  }
+ ],
+ "panels": [
+  {
+   "x0": 6.94,
+   "x1": 7.1,
+   "y0": 4.48,
+   "y1": 4.58,
+   "z0": 6.8,
+   "z1": 8.27,
+   "walls": "white"
+  },
+  {
+   "x0": 8.7,
+   "x1": 8.86,
+   "y0": 4.48,
+   "y1": 4.58,
+   "z0": 6.8,
+   "z1": 8.27,
+   "walls": "white"
+  },
+  {
+   "x0": 6.05,
+   "x1": 6.21,
+   "y0": 4.48,
+   "y1": 4.58,
+   "z0": 6.8,
+   "z1": 7.38,
+   "walls": "white"
+  },
+  {
+   "x0": 9.59,
+   "x1": 9.75,
+   "y0": 4.48,
+   "y1": 4.58,
+   "z0": 6.8,
+   "z1": 7.38,
+   "walls": "white"
+  },
+  {
+   "x0": 7.82,
+   "x1": 7.98,
+   "y0": 4.48,
+   "y1": 4.58,
+   "z0": 6.8,
+   "z1": 9.15,
+   "walls": "white"
+  },
+  {
+   "x0": 23.16,
+   "x1": 23.32,
+   "y0": 2.08,
+   "y1": 2.18,
+   "z0": 6.8,
+   "z1": 9.37,
+   "walls": "white"
+  },
+  {
+   "x0": 25.28,
+   "x1": 25.44,
+   "y0": 2.08,
+   "y1": 2.18,
+   "z0": 6.8,
+   "z1": 9.37,
+   "walls": "white"
+  },
+  {
+   "x0": 22.1,
+   "x1": 22.25,
+   "y0": 2.08,
+   "y1": 2.18,
+   "z0": 6.8,
+   "z1": 8.41,
+   "walls": "white"
+  },
+  {
+   "x0": 26.35,
+   "x1": 26.5,
+   "y0": 2.08,
+   "y1": 2.18,
+   "z0": 6.8,
+   "z1": 8.41,
+   "walls": "white"
+  },
+  {
+   "x0": 21.03,
+   "x1": 21.19,
+   "y0": 2.08,
+   "y1": 2.18,
+   "z0": 6.8,
+   "z1": 7.46,
+   "walls": "white"
+  },
+  {
+   "x0": 27.41,
+   "x1": 27.57,
+   "y0": 2.08,
+   "y1": 2.18,
+   "z0": 6.8,
+   "z1": 7.46,
+   "walls": "white"
+  },
+  {
+   "x0": 24.22,
+   "x1": 24.38,
+   "y0": 2.08,
+   "y1": 2.18,
+   "z0": 6.8,
+   "z1": 10.33,
+   "walls": "white"
+  },
+  {
+   "x0": 37.34,
+   "x1": 37.5,
+   "y0": 0.28,
+   "y1": 0.38,
+   "z0": 6.8,
+   "z1": 9.33,
+   "walls": "white"
+  },
+  {
+   "x0": 39.59,
+   "x1": 39.75,
+   "y0": 0.28,
+   "y1": 0.38,
+   "z0": 6.8,
+   "z1": 9.33,
+   "walls": "white"
+  },
+  {
+   "x0": 36.22,
+   "x1": 36.38,
+   "y0": 0.28,
+   "y1": 0.38,
+   "z0": 6.8,
+   "z1": 8.39,
+   "walls": "white"
+  },
+  {
+   "x0": 40.72,
+   "x1": 40.88,
+   "y0": 0.28,
+   "y1": 0.38,
+   "z0": 6.8,
+   "z1": 8.39,
+   "walls": "white"
+  },
+  {
+   "x0": 35.09,
+   "x1": 35.25,
+   "y0": 0.28,
+   "y1": 0.38,
+   "z0": 6.8,
+   "z1": 7.44,
+   "walls": "white"
+  },
+  {
+   "x0": 41.84,
+   "x1": 42.0,
+   "y0": 0.28,
+   "y1": 0.38,
+   "z0": 6.8,
+   "z1": 7.44,
+   "walls": "white"
+  },
+  {
+   "x0": 38.47,
+   "x1": 38.63,
+   "y0": 0.28,
+   "y1": 0.38,
+   "z0": 6.8,
+   "z1": 10.28,
+   "walls": "white"
+  },
+  {
+   "x0": 4.75,
+   "x1": 11.05,
+   "y0": 4.5,
+   "y1": 4.619999999999999,
+   "z0": 3.25,
+   "z1": 3.5,
+   "walls": "white"
+  },
+  {
+   "x0": 19.55,
+   "x1": 29.05,
+   "y0": 2.1,
+   "y1": 2.22,
+   "z0": 3.25,
+   "z1": 3.5,
+   "walls": "white"
+  },
+  {
+   "x0": 33.550000000000004,
+   "x1": 43.55,
+   "y0": 0.30000000000000004,
+   "y1": 0.42000000000000004,
+   "z0": 3.25,
+   "z1": 3.5,
+   "walls": "white"
+  }
+ ],
+ "pediments": [
+  {
+   "x0": 4.8,
+   "x1": 11.0,
+   "y": 4.56,
+   "z": 6.6,
+   "height": 3.1,
+   "walls": "white"
+  },
+  {
+   "x0": 5.25,
+   "x1": 10.55,
+   "y": 4.52,
+   "z": 6.8,
+   "height": 2.4,
+   "walls": "brown"
+  },
+  {
+   "x0": 19.6,
+   "x1": 29.0,
+   "y": 2.16,
+   "z": 6.6,
+   "height": 4.23,
+   "walls": "white"
+  },
+  {
+   "x0": 20.05,
+   "x1": 28.55,
+   "y": 2.12,
+   "z": 6.8,
+   "height": 3.58,
+   "walls": "brown"
+  },
+  {
+   "x0": 33.6,
+   "x1": 43.5,
+   "y": 0.36,
+   "z": 6.6,
+   "height": 4.15,
+   "walls": "white"
+  },
+  {
+   "x0": 34.050000000000004,
+   "x1": 43.05,
+   "y": 0.32,
+   "z": 6.8,
+   "height": 3.53,
+   "walls": "brown"
+  },
+  {
+   "x0": 20.6,
+   "x1": 28.0,
+   "y": -3.2,
+   "z": 3.0,
+   "height": 2.6,
+   "walls": "white"
+  },
+  {
+   "x0": 21.1,
+   "x1": 27.5,
+   "y": -3.25,
+   "z": 3.15,
+   "height": 2.05,
+   "walls": "brown"
+  }
+ ],
+ "verandahs": [
+  {
+   "x0": 20.6,
+   "x1": 28.0,
+   "y0": -3.2,
+   "y1": 2.2,
+   "wallHeight": 3.4,
+   "height": 3.0,
+   "deckHeight": 0.15,
+   "posts": [
+    20.8,
+    24.3,
+    27.8
+   ]
+  }
+ ],
+ "doors": [
+  {
+   "type": "front",
+   "x0": 23.7,
+   "x1": 24.9,
+   "y": 2.2,
+   "height": 2.4,
+   "z0": 0.15,
+   "colour": "#4a3326"
+  }
+ ],
+ "windows": [
+  {
+   "facing": "front",
+   "wall": 4.6,
+   "at": 6.4,
+   "width": 1.0,
+   "height": 1.6,
+   "sill": 0.9
+  },
+  {
+   "facing": "front",
+   "wall": 4.6,
+   "at": 6.4,
+   "width": 1.0,
+   "height": 1.5,
+   "sill": 4.3
+  },
+  {
+   "facing": "front",
+   "wall": 4.6,
+   "at": 9.4,
+   "width": 1.0,
+   "height": 1.6,
+   "sill": 0.9
+  },
+  {
+   "facing": "front",
+   "wall": 4.6,
+   "at": 9.4,
+   "width": 1.0,
+   "height": 1.5,
+   "sill": 4.3
+  },
+  {
+   "facing": "front",
+   "wall": 7.9,
+   "at": 2.8,
+   "width": 1.0,
+   "height": 1.6,
+   "sill": 0.9
+  },
+  {
+   "facing": "front",
+   "wall": 7.9,
+   "at": 2.8,
+   "width": 1.0,
+   "height": 1.5,
+   "sill": 4.3
+  },
+  {
+   "facing": "front",
+   "wall": 7.9,
+   "at": 13.2,
+   "width": 1.0,
+   "height": 1.6,
+   "sill": 0.9
+  },
+  {
+   "facing": "front",
+   "wall": 7.9,
+   "at": 13.2,
+   "width": 1.0,
+   "height": 1.5,
+   "sill": 4.3
+  },
+  {
+   "facing": "front",
+   "wall": 7.9,
+   "at": 15.6,
+   "width": 1.0,
+   "height": 1.6,
+   "sill": 0.9
+  },
+  {
+   "facing": "front",
+   "wall": 7.9,
+   "at": 15.6,
+   "width": 1.0,
+   "height": 1.5,
+   "sill": 4.3
+  },
+  {
+   "facing": "front",
+   "wall": 7.9,
+   "at": 17.8,
+   "width": 1.0,
+   "height": 1.6,
+   "sill": 0.9
+  },
+  {
+   "facing": "front",
+   "wall": 7.9,
+   "at": 17.8,
+   "width": 1.0,
+   "height": 1.5,
+   "sill": 4.3
+  },
+  {
+   "facing": "front",
+   "wall": 7.9,
+   "at": 30.6,
+   "width": 1.0,
+   "height": 1.6,
+   "sill": 0.9
+  },
+  {
+   "facing": "front",
+   "wall": 7.9,
+   "at": 30.6,
+   "width": 1.0,
+   "height": 1.5,
+   "sill": 4.3
+  },
+  {
+   "facing": "front",
+   "wall": 2.2,
+   "at": 21.6,
+   "width": 1.4,
+   "height": 1.6,
+   "sill": 0.9
+  },
+  {
+   "facing": "front",
+   "wall": 2.2,
+   "at": 27.0,
+   "width": 1.4,
+   "height": 1.6,
+   "sill": 0.9
+  },
+  {
+   "facing": "front",
+   "wall": 2.2,
+   "at": 21.8,
+   "width": 1.0,
+   "height": 1.5,
+   "sill": 4.3
+  },
+  {
+   "facing": "front",
+   "wall": 2.2,
+   "at": 24.3,
+   "width": 1.0,
+   "height": 1.5,
+   "sill": 4.3
+  },
+  {
+   "facing": "front",
+   "wall": 2.2,
+   "at": 26.8,
+   "width": 1.0,
+   "height": 1.5,
+   "sill": 4.3
+  },
+  {
+   "facing": "front",
+   "wall": 0.4,
+   "at": 35.6,
+   "width": 1.2,
+   "height": 1.6,
+   "sill": 0.9
+  },
+  {
+   "facing": "front",
+   "wall": 0.4,
+   "at": 35.6,
+   "width": 1.0,
+   "height": 1.5,
+   "sill": 4.3
+  },
+  {
+   "facing": "front",
+   "wall": 0.4,
+   "at": 38.55,
+   "width": 1.2,
+   "height": 1.6,
+   "sill": 0.9
+  },
+  {
+   "facing": "front",
+   "wall": 0.4,
+   "at": 38.55,
+   "width": 1.0,
+   "height": 1.5,
+   "sill": 4.3
+  },
+  {
+   "facing": "front",
+   "wall": 0.4,
+   "at": 41.5,
+   "width": 1.2,
+   "height": 1.6,
+   "sill": 0.9
+  },
+  {
+   "facing": "front",
+   "wall": 0.4,
+   "at": 41.5,
+   "width": 1.0,
+   "height": 1.5,
+   "sill": 4.3
+  },
+  {
+   "facing": "left",
+   "wall": 1.0,
+   "at": 10.0,
+   "width": 1.0,
+   "height": 1.6,
+   "sill": 0.9
+  },
+  {
+   "facing": "left",
+   "wall": 1.0,
+   "at": 10.0,
+   "width": 1.0,
+   "height": 1.5,
+   "sill": 4.3
+  },
+  {
+   "facing": "left",
+   "wall": 1.0,
+   "at": 13.5,
+   "width": 1.0,
+   "height": 1.6,
+   "sill": 0.9
+  },
+  {
+   "facing": "left",
+   "wall": 1.0,
+   "at": 13.5,
+   "width": 1.0,
+   "height": 1.5,
+   "sill": 4.3
+  },
+  {
+   "facing": "left",
+   "wall": 1.0,
+   "at": 17.0,
+   "width": 1.0,
+   "height": 1.6,
+   "sill": 0.9
+  },
+  {
+   "facing": "left",
+   "wall": 1.0,
+   "at": 17.0,
+   "width": 1.0,
+   "height": 1.5,
+   "sill": 4.3
+  }
+ ],
+ "fences": [
+  {
+   "x0": -1.5,
+   "y0": -1.2,
+   "x1": 19.5,
+   "y1": -1.1,
+   "height": 0.9,
+   "colour": "#8e8272",
+   "kind": "colorbond"
+  }
+ ],
+ "paving": [
+  {
+   "x0": -4,
+   "y0": -6.0,
+   "x1": 50,
+   "y1": -1.3,
+   "colour": "#8d4a3a",
+   "kind": "brick"
+  },
+  {
+   "x0": 19.6,
+   "y0": -1.3,
+   "x1": 29.0,
+   "y1": 2.2,
+   "colour": "#9a5a48",
+   "kind": "brick"
+  }
+ ],
+ "signs": [
+  {
+   "x0": 21.6,
+   "x1": 27.0,
+   "y": -3.35,
+   "z0": 2.45,
+   "z1": 2.95,
+   "text": "MARGARET RIVER HOTEL",
+   "colour": "#2c2620",
+   "ink": "#efe8d6"
+  }
+ ],
+ "trees": [
+  {
+   "x": 12.0,
+   "y": -4.6,
+   "height": 11,
+   "spread": 8
+  },
+  {
+   "x": 33.0,
+   "y": -4.6,
+   "height": 10,
+   "spread": 7
+  },
+  {
+   "x": -3.0,
+   "y": -4.6,
+   "height": 9,
+   "spread": 6
+  }
+ ],
+ "hedges": [
+  {
+   "x0": 0.0,
+   "x1": 19.0,
+   "y0": -0.9,
+   "depth": 0.8,
+   "height": 1.1
+  }
+ ]
+}

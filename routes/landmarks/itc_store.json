@@ -1,0 +1,204 @@
+{
+ "note": "International Trading Company Store (former), 83 Bussell Hwy, Margaret River's third store (1925), later the Margaret River Art Gallery and Jahroc, REDSEA Gallery since 2024 (local heritage list MR(T)-04). From the inHerit record and a 2019 street photo; footprint NOT measured (placement unconfirmed). A single-storey timber weatherboard shop, dark oiled timber, with a gabled Zincalume roof to the street, a modern bull-nosed verandah over the footpath, a splayed central entry between big timber-framed shop windows, the 2005 flat-roofed contemporary gallery (black, deep red fascia) beside it, and the old cottage behind (outbuilding). Name in plain lettering. Metres: x left to right as seen from Bussell Hwy (north to south), y back (east) from the shopfront.",
+ "wallHeight": 3.8,
+ "setback": 4,
+ "road": {
+  "width": 10,
+  "verge": 0.5
+ },
+ "lawn": "#7f8c4e",
+ "sunFrom": [
+  -0.5,
+  -0.7,
+  1.0
+ ],
+ "cameras": {
+  "street": {
+   "eye": [
+    -6,
+    -18,
+    1.6
+   ],
+   "look": [
+    4,
+    6,
+    3.0
+   ],
+   "lens": 24
+  },
+  "aerial": {
+   "eye": [
+    -20,
+    -30,
+    24
+   ],
+   "look": [
+    2,
+    12,
+    1
+   ],
+   "lens": 30
+  }
+ },
+ "walls": {
+  "kind": "weatherboard",
+  "colour": "#4f3d2e",
+  "lap": 0.18
+ },
+ "finishes": {
+  "black": {
+   "kind": "render",
+   "colour": "#26282a"
+  },
+  "red": {
+   "kind": "render",
+   "colour": "#a8324a"
+  }
+ },
+ "trim": "#ece6d8",
+ "roof": {
+  "pitch": 30,
+  "colour": "#b8bcbd",
+  "eaves": 0.3
+ },
+ "blocks": [
+  {
+   "name": "shop",
+   "x0": 0.0,
+   "x1": 8.0,
+   "y0": 0.0,
+   "y1": 14.0,
+   "roof": "gable"
+  },
+  {
+   "name": "gallery_2005",
+   "x0": -13.0,
+   "x1": -0.5,
+   "y0": 2.0,
+   "y1": 20.0,
+   "roof": "none",
+   "wallHeight": 5.4,
+   "walls": "black"
+  },
+  {
+   "name": "link",
+   "x0": 0.5,
+   "x1": 7.5,
+   "y0": 14.0,
+   "y1": 22.0,
+   "roof": "none",
+   "wallHeight": 4.0,
+   "walls": "black"
+  },
+  {
+   "name": "cottage",
+   "x0": 0.0,
+   "x1": 9.0,
+   "y0": 22.0,
+   "y1": 32.0,
+   "roof": "gable",
+   "wallHeight": 3.0,
+   "outbuilding": true
+  }
+ ],
+ "panels": [
+  {
+   "x0": -13.05,
+   "x1": -0.45,
+   "y0": 1.86,
+   "y1": 1.98,
+   "z0": 4.8,
+   "z1": 5.45,
+   "walls": "red"
+  }
+ ],
+ "verandahs": [
+  {
+   "x0": 0.0,
+   "x1": 8.0,
+   "y0": -2.6,
+   "y1": 0.0,
+   "wallHeight": 3.8,
+   "height": 2.9,
+   "deckHeight": 0.05,
+   "posts": [
+    0.2,
+    4.0,
+    7.8
+   ]
+  }
+ ],
+ "doors": [
+  {
+   "type": "front",
+   "x0": 3.3,
+   "x1": 4.7,
+   "y": 0.0,
+   "height": 2.3,
+   "z0": 0.15,
+   "colour": "#3a2a1e"
+  }
+ ],
+ "windows": [
+  {
+   "facing": "front",
+   "wall": 0.0,
+   "at": 1.65,
+   "width": 2.4,
+   "height": 1.9,
+   "sill": 0.5
+  },
+  {
+   "facing": "front",
+   "wall": 0.0,
+   "at": 6.35,
+   "width": 2.4,
+   "height": 1.9,
+   "sill": 0.5
+  },
+  {
+   "facing": "front",
+   "wall": 2.0,
+   "at": -9.0,
+   "width": 4.0,
+   "height": 2.2,
+   "sill": 0.4
+  }
+ ],
+ "paving": [
+  {
+   "x0": -15,
+   "y0": -5.0,
+   "x1": 12,
+   "y1": 0.0,
+   "colour": "#c3b9a6",
+   "kind": "concrete"
+  }
+ ],
+ "signs": [
+  {
+   "x0": 1.2,
+   "x1": 6.8,
+   "y": -2.75,
+   "z0": 2.5,
+   "z1": 2.85,
+   "text": "REDSEA GALLERY",
+   "colour": "#2a2622",
+   "ink": "#efe9dc"
+  }
+ ],
+ "trees": [
+  {
+   "x": -14.0,
+   "y": -2.0,
+   "height": 6,
+   "spread": 4
+  },
+  {
+   "x": 10.5,
+   "y": 2.0,
+   "height": 5,
+   "spread": 4
+  }
+ ]
+}

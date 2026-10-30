@@ -8,9 +8,10 @@
 //   - vine rows and post-and-wire paddock fences (farmland, src/core/farm.ts)
 //   - farm driveways, gates, mailboxes and cattle grids (farmRoadsides, src/core/farmRoadsides.ts)
 //   - landscape zones for the trees, ground and verges (zones, src/core/zones.ts)
+//   - the AI line in the left lane (aiKeepLeft, src/core/keepLeft.ts)
 // town: a flat South West town (Busselton). No banking, a fine terrain grid and the ground only
 //   just under the road, so kerbs and edges stay true (CLAUDE.md, "Busselton is flat"). Kerbside
-//   parking bays and bike lanes painted (kerbside, src/core/kerbside.ts).
+//   parking bays and bike lanes painted (kerbside, src/core/kerbside.ts); the AI line in the left lane.
 export const PRESETS = {
   country: {
     options: { imagery: "high", banking: true },
@@ -26,11 +27,12 @@ export const PRESETS = {
       farmland: true,
       farmRoadsides: true,
       zones: true,
+      aiKeepLeft: true,
     },
   },
   town: {
     options: { imagery: "high", banking: false },
-    build: { terrainStep: 1.5, terrainUnderRoad: 0.12, armco: false, farmRoadsides: false, kerbside: true },
+    build: { terrainStep: 1.5, terrainUnderRoad: 0.12, armco: false, farmRoadsides: false, kerbside: true, aiKeepLeft: true },
   },
 };
 

@@ -1,0 +1,13 @@
+{
+  "note": "hand-made detail layer: scripts/blender/landmarks/transition.py (scripts/blender/landmarks/build.sh transition)",
+  "replaces": [
+    {
+      "at": [
+        115.3428445,
+        -33.645035
+      ],
+      "radius": 4.5,
+      "trees": false
+    }
+  ]
+}

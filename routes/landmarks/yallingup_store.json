@@ -1,0 +1,201 @@
+{
+ "note": "Yallingup's general store and post office, by the Caves Road intersection opposite Caves House, from the Landgate aerial (Oct 2026), OpenStreetMap (Yallingup Post Office) and the inHerit precinct record (timber-framed buildings of about 1912). A single-storey weatherboard shop: a hipped front section with a verandah over the footpath, a long low-pitched roof behind and a narrow wing out the back, pale corrugated roofs. Metres: x left (north-west) to right (south-east) as seen from the car park (south-south-west), y back.",
+ "wallHeight": 3.4,
+ "setback": 6.0,
+ "road": {
+  "width": 7.0,
+  "verge": 1.0
+ },
+ "lawn": "#8a8a55",
+ "sunFrom": [
+  0.55,
+  -0.75,
+  1.0
+ ],
+ "cameras": {
+  "street": {
+   "eye": [
+    -3,
+    -16,
+    1.6
+   ],
+   "look": [
+    -1,
+    4,
+    2.4
+   ],
+   "lens": 26
+  },
+  "aerial": {
+   "eye": [
+    -24,
+    -24,
+    18
+   ],
+   "look": [
+    0,
+    7,
+    1
+   ],
+   "lens": 26
+  }
+ },
+ "walls": {
+  "kind": "weatherboard",
+  "colour": "#efe7d2",
+  "lap": 0.15
+ },
+ "finishes": {
+  "rear": {
+   "kind": "weatherboard",
+   "colour": "#e6decb"
+  }
+ },
+ "trim": "#2f4f3e",
+ "roof": {
+  "pitch": 24,
+  "colour": "#e2e1d6",
+  "eaves": 0.4
+ },
+ "blocks": [
+  {
+   "name": "front",
+   "x0": -6.5,
+   "x1": 6.5,
+   "y0": 0.0,
+   "y1": 8.5,
+   "roof": "hip",
+   "wallHeight": 3.6
+  },
+  {
+   "name": "main",
+   "x0": -6.2,
+   "x1": 6.7,
+   "y0": 8.5,
+   "y1": 17.0,
+   "roof": "hip",
+   "pitch": 9,
+   "wallHeight": 3.6
+  },
+  {
+   "name": "rear_wing",
+   "x0": -5.5,
+   "x1": -0.5,
+   "y0": 17.0,
+   "y1": 25.0,
+   "roof": "gable",
+   "pitch": 18,
+   "wallHeight": 3.0,
+   "walls": "rear",
+   "outbuilding": true
+  }
+ ],
+ "verandahs": [
+  {
+   "x0": -6.5,
+   "x1": 6.5,
+   "y0": -2.6,
+   "y1": 0.0,
+   "wallHeight": 3.6,
+   "height": 2.9,
+   "deckHeight": 0.15,
+   "posts": [
+    -6.35,
+    -3.2,
+    0.0,
+    3.2,
+    6.35
+   ]
+  }
+ ],
+ "doors": [
+  {
+   "type": "front",
+   "x0": -0.9,
+   "x1": 0.9,
+   "y": 0.0,
+   "height": 2.4,
+   "z0": 0.15,
+   "colour": "#2f4f3e"
+  }
+ ],
+ "windows": [
+  {
+   "facing": "front",
+   "wall": 0.0,
+   "at": -4.2,
+   "width": 2.6,
+   "height": 1.7,
+   "sill": 0.6
+  },
+  {
+   "facing": "front",
+   "wall": 0.0,
+   "at": 4.2,
+   "width": 2.6,
+   "height": 1.7,
+   "sill": 0.6
+  }
+ ],
+ "paving": [
+  {
+   "x0": -9,
+   "y0": -6,
+   "x1": 9,
+   "y1": -2.6,
+   "colour": "#b8b2a6",
+   "kind": "concrete"
+  }
+ ],
+ "tables": [
+  {
+   "x": -8.2,
+   "y": -1.2,
+   "length": 1.4,
+   "turned": true,
+   "colour": "#8a6a4a"
+  }
+ ],
+ "signs": [
+  {
+   "x0": -4.0,
+   "x1": 4.0,
+   "y": -2.75,
+   "z0": 2.95,
+   "z1": 3.45,
+   "text": "GENERAL STORE",
+   "colour": "#2f4f3e",
+   "ink": "#f2ecd8"
+  },
+  {
+   "x0": 4.6,
+   "x1": 6.2,
+   "y": -2.0,
+   "z0": 1.9,
+   "z1": 2.3,
+   "text": "POST OFFICE",
+   "colour": "#c8202a",
+   "ink": "#ffffff"
+  }
+ ],
+ "trees": [
+  {
+   "x": 10.5,
+   "y": 2.0,
+   "height": 12,
+   "spread": 10
+  },
+  {
+   "x": 13.0,
+   "y": 14.0,
+   "height": 14,
+   "spread": 11
+  },
+  {
+   "x": -10.0,
+   "y": 6.0,
+   "height": 8,
+   "spread": 6
+  }
+ ]
+}

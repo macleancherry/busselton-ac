@@ -1,0 +1,218 @@
+{
+ "note": "Cape Leeuwin Waterwheel (1895), built by the lighthouse contractors to pipe spring water to the works, from the Landgate aerial (Oct 2026), the inHerit record and Wikipedia. An overshot timber wheel about 4 m across, its shaft between two limestone walls, now crusted solid with lime so it looks like grey-white stone; a timber flume on limestone piers brings water to its top from the east. The round wheel is approximated by stacked boxes (a stepped twelve-sided disc); the paddles and the flume's slope want a Blender layer. Metres: x left (west) to right (east) as seen from the south, y back (north).",
+ "wallHeight": 2.4,
+ "setback": 6.0,
+ "road": {
+  "width": 5.0,
+  "verge": 1.0
+ },
+ "lawn": "#8a8a55",
+ "sunFrom": [
+  0.55,
+  -0.75,
+  1.0
+ ],
+ "cameras": {
+  "street": {
+   "eye": [
+    2,
+    -12,
+    1.6
+   ],
+   "look": [
+    1,
+    1.2,
+    1.8
+   ],
+   "lens": 28
+  },
+  "aerial": {
+   "eye": [
+    -10,
+    -16,
+    9
+   ],
+   "look": [
+    2,
+    1,
+    1
+   ],
+   "lens": 28
+  }
+ },
+ "walls": {
+  "kind": "render",
+  "colour": "#c9c1ae"
+ },
+ "finishes": {
+  "lime": {
+   "kind": "render",
+   "colour": "#d2cbbb"
+  },
+  "flume": {
+   "kind": "cladding",
+   "colour": "#7a6a55"
+  }
+ },
+ "trim": "#b8ae98",
+ "roof": {
+  "pitch": 20,
+  "colour": "#b1ada3",
+  "eaves": 0.1
+ },
+ "blocks": [
+  {
+   "name": "wall_s",
+   "x0": -2.4,
+   "x1": 2.4,
+   "y0": 0.0,
+   "y1": 0.7,
+   "roof": "none",
+   "wallHeight": 2.3
+  },
+  {
+   "name": "wall_n",
+   "x0": -2.4,
+   "x1": 2.4,
+   "y0": 1.7,
+   "y1": 2.4,
+   "roof": "none",
+   "wallHeight": 2.3
+  },
+  {
+   "name": "pier0",
+   "x0": 2.7,
+   "x1": 3.3,
+   "y0": 0.9,
+   "y1": 1.5,
+   "roof": "none",
+   "wallHeight": 4.25,
+   "outbuilding": true
+  },
+  {
+   "name": "pier1",
+   "x0": 5.7,
+   "x1": 6.3,
+   "y0": 0.9,
+   "y1": 1.5,
+   "roof": "none",
+   "wallHeight": 4.25,
+   "outbuilding": true
+  },
+  {
+   "name": "pier2",
+   "x0": 8.7,
+   "x1": 9.3,
+   "y0": 0.9,
+   "y1": 1.5,
+   "roof": "none",
+   "wallHeight": 4.25,
+   "outbuilding": true
+  },
+  {
+   "name": "pier3",
+   "x0": 11.7,
+   "x1": 12.3,
+   "y0": 0.9,
+   "y1": 1.5,
+   "roof": "none",
+   "wallHeight": 4.25,
+   "outbuilding": true
+  },
+  {
+   "name": "ram",
+   "x0": -0.9,
+   "x1": -0.3,
+   "y0": -1.1,
+   "y1": -0.5,
+   "roof": "hip",
+   "pitch": 45,
+   "eaves": 0.05,
+   "wallHeight": 1.0,
+   "walls": "lime",
+   "outbuilding": true
+  }
+ ],
+ "panels": [
+  {
+   "x0": -1.84,
+   "x1": 1.84,
+   "y0": 0.75,
+   "y1": 1.65,
+   "z0": 1.45,
+   "z1": 3.05,
+   "walls": "lime"
+  },
+  {
+   "x0": -0.8,
+   "x1": 0.8,
+   "y0": 0.75,
+   "y1": 1.65,
+   "z0": 0.41,
+   "z1": 4.09,
+   "walls": "lime"
+  },
+  {
+   "x0": -1.414,
+   "x1": 1.414,
+   "y0": 0.75,
+   "y1": 1.65,
+   "z0": 0.836,
+   "z1": 3.664,
+   "walls": "lime"
+  },
+  {
+   "x0": -0.18,
+   "x1": 0.18,
+   "y0": -0.1,
+   "y1": 2.5,
+   "z0": 2.07,
+   "z1": 2.43,
+   "walls": "lime"
+  },
+  {
+   "x0": 0.3,
+   "x1": 14.0,
+   "y0": 0.95,
+   "y1": 1.45,
+   "z0": 4.25,
+   "z1": 4.55,
+   "walls": "flume"
+  }
+ ],
+ "fences": [
+  {
+   "x0": -6,
+   "y0": -3.2,
+   "x1": 6,
+   "y1": -3.15,
+   "height": 1.0,
+   "colour": "#8a6e52",
+   "open": true
+  }
+ ],
+ "paving": [
+  {
+   "x0": -6,
+   "y0": -5,
+   "x1": 6,
+   "y1": -3.2,
+   "colour": "#8a6e52",
+   "kind": "timber"
+  }
+ ],
+ "signs": [
+  {
+   "x0": 3.5,
+   "x1": 5.5,
+   "y": -3.6,
+   "z0": 0.7,
+   "z1": 1.3,
+   "text": "WATER WHEEL 1895",
+   "colour": "#5a4632",
+   "ink": "#efe6d2",
+   "posts": true
+  }
+ ],
+ "trees": []
+}

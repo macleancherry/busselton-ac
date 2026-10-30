@@ -1,0 +1,441 @@
+{
+ "note": "Cape Naturaliste lighthouse keepers' quarters (1904), from the Landgate aerial (Oct 2026) and the inHerit record. Three painted limestone cottages in a row about 29 m apart, 170 m south of the tower, among peppermint and coastal scrub: hipped corrugated-metal roofs, rendered chimneys, verandahs enclosed with cement sheeting, each with a detached stone laundry. The eastern one is the tea rooms and shop, another the museum. Metres: x left (east-south-east) to right (west-north-west) as seen from the car park side (north-north-east), y back.",
+ "wallHeight": 3.3,
+ "setback": 6.0,
+ "road": {
+  "width": 4.0,
+  "verge": 1.0
+ },
+ "lawn": "#8a8a55",
+ "sunFrom": [
+  0.55,
+  -0.75,
+  1.0
+ ],
+ "cameras": {
+  "street": {
+   "eye": [
+    -22,
+    -26,
+    1.6
+   ],
+   "look": [
+    2,
+    7,
+    2.5
+   ],
+   "lens": 24
+  },
+  "aerial": {
+   "eye": [
+    -50,
+    -60,
+    40
+   ],
+   "look": [
+    0,
+    7,
+    0
+   ],
+   "lens": 24
+  }
+ },
+ "walls": {
+  "kind": "render",
+  "colour": "#efe9da"
+ },
+ "finishes": {
+  "enclosed": {
+   "kind": "fibro",
+   "colour": "#e9e4d4"
+  },
+  "laundry": {
+   "kind": "render",
+   "colour": "#e8e2d2"
+  }
+ },
+ "trim": "#3f5a4a",
+ "roof": {
+  "pitch": 27,
+  "colour": "#c4c7c4",
+  "eaves": 0.45
+ },
+ "blocks": [
+  {
+   "name": "cottage0",
+   "x0": -34.0,
+   "x1": -24.0,
+   "y0": 2.4,
+   "y1": 12.4,
+   "roof": "hip",
+   "wallHeight": 3.3
+  },
+  {
+   "name": "encl_front0",
+   "x0": -36.2,
+   "x1": -21.8,
+   "y0": 0.0,
+   "y1": 2.4,
+   "roof": "hip",
+   "pitch": 8,
+   "wallHeight": 2.7,
+   "walls": "enclosed",
+   "eaves": 0.3
+  },
+  {
+   "name": "encl_l0",
+   "x0": -36.2,
+   "x1": -34.0,
+   "y0": 2.4,
+   "y1": 12.4,
+   "roof": "hip",
+   "pitch": 8,
+   "wallHeight": 2.7,
+   "walls": "enclosed",
+   "eaves": 0.3
+  },
+  {
+   "name": "encl_r0",
+   "x0": -24.0,
+   "x1": -21.8,
+   "y0": 2.4,
+   "y1": 12.4,
+   "roof": "hip",
+   "pitch": 8,
+   "wallHeight": 2.7,
+   "walls": "enclosed",
+   "eaves": 0.3
+  },
+  {
+   "name": "chimney0",
+   "x0": -27.4,
+   "x1": -26.6,
+   "y0": 6.6,
+   "y1": 7.4,
+   "roof": "none",
+   "wallHeight": 6.0,
+   "outbuilding": true
+  },
+  {
+   "name": "laundry0",
+   "x0": -32.0,
+   "x1": -28.5,
+   "y0": 17.0,
+   "y1": 20.0,
+   "roof": "hip",
+   "wallHeight": 2.5,
+   "walls": "laundry",
+   "outbuilding": true
+  },
+  {
+   "name": "cottage1",
+   "x0": -5.0,
+   "x1": 5.0,
+   "y0": 2.4,
+   "y1": 12.4,
+   "roof": "hip",
+   "wallHeight": 3.3
+  },
+  {
+   "name": "encl_front1",
+   "x0": -7.2,
+   "x1": 7.2,
+   "y0": 0.0,
+   "y1": 2.4,
+   "roof": "hip",
+   "pitch": 8,
+   "wallHeight": 2.7,
+   "walls": "enclosed",
+   "eaves": 0.3
+  },
+  {
+   "name": "encl_l1",
+   "x0": -7.2,
+   "x1": -5.0,
+   "y0": 2.4,
+   "y1": 12.4,
+   "roof": "hip",
+   "pitch": 8,
+   "wallHeight": 2.7,
+   "walls": "enclosed",
+   "eaves": 0.3
+  },
+  {
+   "name": "encl_r1",
+   "x0": 5.0,
+   "x1": 7.2,
+   "y0": 2.4,
+   "y1": 12.4,
+   "roof": "hip",
+   "pitch": 8,
+   "wallHeight": 2.7,
+   "walls": "enclosed",
+   "eaves": 0.3
+  },
+  {
+   "name": "chimney1",
+   "x0": 1.6,
+   "x1": 2.4,
+   "y0": 6.6,
+   "y1": 7.4,
+   "roof": "none",
+   "wallHeight": 6.0,
+   "outbuilding": true
+  },
+  {
+   "name": "laundry1",
+   "x0": -3.0,
+   "x1": 0.5,
+   "y0": 17.0,
+   "y1": 20.0,
+   "roof": "hip",
+   "wallHeight": 2.5,
+   "walls": "laundry",
+   "outbuilding": true
+  },
+  {
+   "name": "cottage2",
+   "x0": 24.0,
+   "x1": 34.0,
+   "y0": 2.4,
+   "y1": 12.4,
+   "roof": "hip",
+   "wallHeight": 3.3
+  },
+  {
+   "name": "encl_front2",
+   "x0": 21.8,
+   "x1": 36.2,
+   "y0": 0.0,
+   "y1": 2.4,
+   "roof": "hip",
+   "pitch": 8,
+   "wallHeight": 2.7,
+   "walls": "enclosed",
+   "eaves": 0.3
+  },
+  {
+   "name": "encl_l2",
+   "x0": 21.8,
+   "x1": 24.0,
+   "y0": 2.4,
+   "y1": 12.4,
+   "roof": "hip",
+   "pitch": 8,
+   "wallHeight": 2.7,
+   "walls": "enclosed",
+   "eaves": 0.3
+  },
+  {
+   "name": "encl_r2",
+   "x0": 34.0,
+   "x1": 36.2,
+   "y0": 2.4,
+   "y1": 12.4,
+   "roof": "hip",
+   "pitch": 8,
+   "wallHeight": 2.7,
+   "walls": "enclosed",
+   "eaves": 0.3
+  },
+  {
+   "name": "chimney2",
+   "x0": 30.6,
+   "x1": 31.4,
+   "y0": 6.6,
+   "y1": 7.4,
+   "roof": "none",
+   "wallHeight": 6.0,
+   "outbuilding": true
+  },
+  {
+   "name": "laundry2",
+   "x0": 26.0,
+   "x1": 29.5,
+   "y0": 17.0,
+   "y1": 20.0,
+   "roof": "hip",
+   "wallHeight": 2.5,
+   "walls": "laundry",
+   "outbuilding": true
+  }
+ ],
+ "doors": [
+  {
+   "type": "front",
+   "x0": -29.45,
+   "x1": -28.55,
+   "y": 0.0,
+   "height": 2.1,
+   "z0": 0.15,
+   "colour": "#3f5a4a"
+  },
+  {
+   "type": "front",
+   "x0": -0.45,
+   "x1": 0.45,
+   "y": 0.0,
+   "height": 2.1,
+   "z0": 0.15,
+   "colour": "#3f5a4a"
+  },
+  {
+   "type": "front",
+   "x0": 28.55,
+   "x1": 29.45,
+   "y": 0.0,
+   "height": 2.1,
+   "z0": 0.15,
+   "colour": "#3f5a4a"
+  }
+ ],
+ "windows": [
+  {
+   "facing": "front",
+   "wall": 0.0,
+   "at": -33.2,
+   "width": 1.0,
+   "height": 0.9,
+   "sill": 1.0
+  },
+  {
+   "facing": "front",
+   "wall": 0.0,
+   "at": -31.2,
+   "width": 1.0,
+   "height": 0.9,
+   "sill": 1.0
+  },
+  {
+   "facing": "front",
+   "wall": 0.0,
+   "at": -26.8,
+   "width": 1.0,
+   "height": 0.9,
+   "sill": 1.0
+  },
+  {
+   "facing": "front",
+   "wall": 0.0,
+   "at": -24.8,
+   "width": 1.0,
+   "height": 0.9,
+   "sill": 1.0
+  },
+  {
+   "facing": "front",
+   "wall": 0.0,
+   "at": -4.2,
+   "width": 1.0,
+   "height": 0.9,
+   "sill": 1.0
+  },
+  {
+   "facing": "front",
+   "wall": 0.0,
+   "at": -2.2,
+   "width": 1.0,
+   "height": 0.9,
+   "sill": 1.0
+  },
+  {
+   "facing": "front",
+   "wall": 0.0,
+   "at": 2.2,
+   "width": 1.0,
+   "height": 0.9,
+   "sill": 1.0
+  },
+  {
+   "facing": "front",
+   "wall": 0.0,
+   "at": 4.2,
+   "width": 1.0,
+   "height": 0.9,
+   "sill": 1.0
+  },
+  {
+   "facing": "front",
+   "wall": 0.0,
+   "at": 24.8,
+   "width": 1.0,
+   "height": 0.9,
+   "sill": 1.0
+  },
+  {
+   "facing": "front",
+   "wall": 0.0,
+   "at": 26.8,
+   "width": 1.0,
+   "height": 0.9,
+   "sill": 1.0
+  },
+  {
+   "facing": "front",
+   "wall": 0.0,
+   "at": 31.2,
+   "width": 1.0,
+   "height": 0.9,
+   "sill": 1.0
+  },
+  {
+   "facing": "front",
+   "wall": 0.0,
+   "at": 33.2,
+   "width": 1.0,
+   "height": 0.9,
+   "sill": 1.0
+  }
+ ],
+ "signs": [
+  {
+   "x0": -32.0,
+   "x1": -26.0,
+   "y": -2.5,
+   "z0": 0.9,
+   "z1": 1.6,
+   "text": "LIGHTHOUSE TEA ROOMS",
+   "colour": "#2d4b3c",
+   "ink": "#f1ede0",
+   "posts": true
+  }
+ ],
+ "trees": [
+  {
+   "x": -14,
+   "y": 4,
+   "height": 7,
+   "spread": 6
+  },
+  {
+   "x": 14,
+   "y": 3,
+   "height": 7,
+   "spread": 6
+  },
+  {
+   "x": -40,
+   "y": 10,
+   "height": 7,
+   "spread": 6
+  },
+  {
+   "x": 40,
+   "y": 14,
+   "height": 7,
+   "spread": 6
+  },
+  {
+   "x": -15,
+   "y": 22,
+   "height": 7,
+   "spread": 6
+  },
+  {
+   "x": 15,
+   "y": 24,
+   "height": 7,
+   "spread": 6
+  }
+ ]
+}
