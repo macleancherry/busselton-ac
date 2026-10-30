@@ -36,7 +36,11 @@ On top of upstream's builder (roads, roundabouts, building types, ground detail,
 - **Whole-area builds.** A loop round an estate with a wide corridor builds every street inside it as drivable road.
 - **Australian roadsides.** White guideposts with red and white reflectors, kangaroo signs on country roads, bus stops with shelters.
 - **Paths, street lights, power poles and signs** from OpenStreetMap and Mapillary detections, with CSP night lighting.
-- **Checkpoint challenges.** Each build lists up to six checkpoints along the drive (`data/challenges.ini`); the Busselton Challenges Lua app (`apps/lua/BusseltonChallenges`, copied into AC by `install-track.ps1`) times you round them.
+- **Challenges.** The Busselton Challenges Lua app (`apps/lua/BusseltonChallenges`, copied into AC by `install-track.ps1`) has three modes, all from files each build writes:
+  - *Checkpoints* against the clock (`data/challenges.ini`): up to six picked along the drive, or your own from the route's `build.challenges` (a list of `[lng, lat]` or `{ "at": [lng, lat], "name": "..." }`, or several sets `[{ "name": "...", "points": [...] }]`; a layout takes its own `challenges`).
+  - *Time trial* on any point-to-point route or layout: AC's own A and B lines, with splits (`build.timeTrialSectors`, default 3).
+  - *Drift spots* in empty car parks (`extension/drift_zones.ini`; `build.driftZones: false` leaves them out): angle times speed, with a multiplier for keeping it going.
+  Best times are kept per driver name, top ten per challenge, and shared with the other cars in an online (LAN) session.
 - **Private routes.** Anything in `routes/private/` stays out of git.
 
 ## Sent upstream

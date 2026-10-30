@@ -1,0 +1,54 @@
+{
+ "name": "Margaret River",
+ "_note": "Margaret River's main street: Bussell Highway into town from the north-east, south through the shops past the visitor centre and the Wallcliffe Road roundabout, down to the river, ending before the Boodjidup Road roundabout. Point to point, about 2 km; the small area around it makes every street in the town centre drivable, like Busselton's one map. Town settings (no banking, fine terrain grid) with traffic. Not on 5 m LiDAR: the river valley is on the 30 m fallback, so check the main street's slope and the bridge.",
+ "loop": false,
+ "preset": "town",
+ "pins": [
+  [
+   115.07552,
+   -33.94125
+  ],
+  [
+   115.07444,
+   -33.94753
+  ],
+  [
+   115.07423,
+   -33.9559
+  ],
+  [
+   115.07555,
+   -33.9592
+  ]
+ ],
+ "build": {
+  "origin": [
+   115.0745,
+   -33.9505
+  ],
+  "traceGuard": false,
+  "traffic": true,
+  "corridor": 60,
+  "area": [
+   [
+    [
+     115.0695,
+     -33.9575
+    ],
+    [
+     115.0795,
+     -33.9575
+    ],
+    [
+     115.0795,
+     -33.9445
+    ],
+    [
+     115.0695,
+     -33.9445
+    ]
+   ]
+  ],
+  "_areaNote": "The town centre: Bussell Hwy from the Carters Rd corner to the river, a block or two either side (Tunbridge St, Willmott Ave). About 0.9 by 1.4 km, smaller than Busselton's."
+ }
+}

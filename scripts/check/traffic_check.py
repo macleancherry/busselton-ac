@@ -62,7 +62,7 @@ def main():
         name = next(n for n in z.namelist() if n.endswith("data/traffic.json"))
         data = json.loads(z.read(name))
     surf = json.load(open(spath))
-    drivable = lambda n: n[:2] == "1R" or n.startswith("1STREET")
+    drivable = lambda n: n[:2] == "1R" or n.startswith(("1STREET", "1UNSEALED", "1UNPAVED"))
     cells, x0, z0, H, W = covered([m for m in surf["meshes"] if drivable(m["name"])])
 
     def on_road(x, z, reach=1):

@@ -1,0 +1,50 @@
+{
+ "name": "Busselton to Dunsborough",
+ "_note": "Caves Road (Tourist Drive 250) west from where the Busselton dual carriageway ends, along the flat coastal strip behind Geographe Bay through peppermint, tuart and holiday estates, through the Dunsborough roundabouts to just past the Cape Naturaliste Road roundabout, where routes/caves-road.json starts. Point to point, about 14 km, all on 5 m LiDAR. Starts west of the dual carriageway on purpose: pins on a divided road snap to the far carriageway. Flat and mostly straight, so the country preset's gentle banking hardly comes in.",
+ "loop": false,
+ "preset": "country",
+ "pins": [
+  [
+   115.2408,
+   -33.65893
+  ],
+  [
+   115.22495,
+   -33.65673
+  ],
+  [
+   115.19864,
+   -33.65005
+  ],
+  [
+   115.17351,
+   -33.6417
+  ],
+  [
+   115.14714,
+   -33.63436
+  ],
+  [
+   115.13363,
+   -33.63097
+  ],
+  [
+   115.11775,
+   -33.62515
+  ],
+  [
+   115.11149,
+   -33.6201
+  ],
+  [
+   115.09845,
+   -33.61867
+  ]
+ ],
+ "build": {
+  "origin": [
+   115.17,
+   -33.641
+  ]
+ }
+}

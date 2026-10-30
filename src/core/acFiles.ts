@@ -2,6 +2,7 @@
 
 import type { LngLat } from "./geo";
 import { Raster } from "./textures";
+import { unsealedSurfaces } from "./unsealed";
 
 export function slugify(name: string): string {
   const s = name
@@ -24,8 +25,8 @@ export function slugify(name: string): string {
  * an online server's integrity check against the original files, but LAN
  * between machines with the same build is fine.
  */
-export function surfacesIni(traffic = false, streetsValid = false, at?: LngLat): string {
-  const surfaces = [
+export function surfacesIni(traffic = false, streetsValid = false, at?: LngLat, unsealed = false): string {
+  const surfaces: Record<string, string | number>[] = [
     { KEY: "ROAD", FRICTION: 0.99, DAMPING: 0, WAV: "", WAV_PITCH: 0, FF_EFFECT: "NULL", DIRT_ADDITIVE: 0, IS_VALID_TRACK: 1, BLACK_FLAG_TIME: 0, SIN_HEIGHT: 0, SIN_LENGTH: 0, IS_PITLANE: 0, VIBRATION_GAIN: 0, VIBRATION_LENGTH: 0 },
     // Streets that aren't the route: asphalt underfoot, but leaving the route for one invalidates the run.
     { KEY: "STREET", FRICTION: 0.99, DAMPING: 0, WAV: "", WAV_PITCH: 0, FF_EFFECT: "NULL", DIRT_ADDITIVE: 0, IS_VALID_TRACK: 0, BLACK_FLAG_TIME: 0, SIN_HEIGHT: 0, SIN_LENGTH: 0, IS_PITLANE: 0, VIBRATION_GAIN: 0, VIBRATION_LENGTH: 0 },
@@ -37,6 +38,8 @@ export function surfacesIni(traffic = false, streetsValid = false, at?: LngLat):
   if (traffic) (surfaces[0] as Record<string, unknown>).WAV_PITCH = "extended-0";
   // Busselton fork: in an area build or free roam every street is somewhere to drive.
   if (streetsValid) surfaces.find((x) => x.KEY === "STREET")!.IS_VALID_TRACK = 1;
+  // Busselton fork: gravel for unsealed roads (unsealed.ts), only when the track has some.
+  if (unsealed) surfaces.push(...unsealedSurfaces(streetsValid));
   return surfaces
     .map((s, i) => `[SURFACE_${i}]\n` + Object.entries(s).map(([k, v]) => `${k}=${v}`).join("\n"))
     .join("\n\n") + "\n" + (traffic ? "\n[_SCRIPTING_PHYSICS]\nALLOW_TOOLS=1\nALLOW_TRACK_SCRIPTS=1\n" : "")

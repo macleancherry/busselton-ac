@@ -23,6 +23,8 @@
 // tracks, and the templates in common/materials_track.ini.
 
 import type { Vec3 } from "./mesh";
+import type { Hollow } from "./rainHollows";
+import { soundConfig, type SoundEmitter } from "./trackSounds";
 
 const f = (v: number) => v.toFixed(2);
 
@@ -42,6 +44,34 @@ export interface CspOptions {
   sea?: boolean;
   /** Busselton fork: CSP instanced trees: the tree list's path under extension/ (e.g. trees/trees.txt). */
   trees?: string;
+  /** Busselton fork: there are vine rows (farm.ts, material vine_leaf): gold from autumn through winter. */
+  vines?: boolean;
+  /**
+   * Busselton fork: where rain pools on the road (rainHollows.ts). Set (even empty) to build CSP's
+   * puddle height map from the ground and roads only, and list the hollows for checking in game.
+   */
+  hollows?: Hollow[];
+  /** Busselton fork: track sound emitters (trackSounds.ts), played from a placeholder soundbank. */
+  sounds?: SoundEmitter[];
+}
+
+/** Busselton fork: what CSP's RainFX height map is built from: the ground and roads, not buildings or trees. */
+export const RELIEF_MATERIALS = "road_?, side_photo_?, concrete, paint?, path_?, terrain_?, strip_photo_?, sidestrips_photo, returns_photo, rbphoto_?, grass, verge";
+
+/**
+ * Busselton fork: lines added to [RAIN_FX] for the hollows. CSP places puddles itself, more of them
+ * in the local minima of a height map of the track (wiki, Tracks - RainFX); RELIEF_MATERIALS says
+ * what goes into that map, so houses and trees don't make false hollows beside them. The wiki calls
+ * the key broken, but CSP's own configs for ks_brands_hatch and nevadadrift set it to ground
+ * materials the same way. The hollows themselves are comments: x, y, z in AC space for the F7
+ * camera and the Objects Inspector.
+ */
+export function hollowLines(hollows: Hollow[]): string[] {
+  return [
+    `RELIEF_MATERIALS = ${RELIEF_MATERIALS}`,
+    `; Hollows where water should stand in the rain (rainHollows.ts): ${hollows.length}. Lowest point x, y, z; depth; area.`,
+    ...hollows.map((h, i) => `; hollow ${i + 1}: ${f(h.low[0])}, ${f(h.low[1])}, ${f(h.low[2])}  ${Math.round(h.depth * 100)} cm, ${Math.round(h.area)} m2, ${Math.round(h.radius * 2)} m across`),
+  ];
 }
 
 /** `lights` are lamp heads in local metres (x east, y north, z up). */
@@ -82,6 +112,7 @@ export function extConfig(lights: Vec3[], opts: CspOptions = {}): string {
     "ROUGH_MATERIALS = terrain_?, backdrop_?, strip_photo_?, sidestrips_photo, returns_photo, rbphoto_?, grass, verge, trees, barrier_hedge, hedge, mulch, shrubs, frontwall_?, jetty_?",
     "SMOOTH_MATERIALS = window, glass, signart, steel, lamp",
     "LINES_MATERIALS = paint, paint_yellow",
+    ...(opts.hollows ? hollowLines(opts.hollows) : []),
     "",
     // Thin two-sided geometry: fences, sign faces, tree sprites.
     "[SHADER_REPLACEMENT_0]",
@@ -226,6 +257,28 @@ export function extConfig(lights: Vec3[], opts: CspOptions = {}): string {
       "",
     );
   }
+  if (opts.vines) {
+    lines.push(
+      // South West vines: green from budburst (October) to March, gold in April and May, and left
+      // gold through the bare winter (a tint can't take the leaves off) until the new growth.
+      "[CONDITION_2]",
+      "NAME = VINE_AUTUMN",
+      "INPUT = YEAR_DAY",
+      "LUT = (|1=0|80=0|110=1|230=1|280=0|365=0|)",
+      "LAG = 0",
+      "",
+      "[MATERIAL_ADJUSTMENT_5]",
+      "ACTIVE = 1",
+      "DESCRIPTION = Vine leaves turn gold in autumn",
+      "MATERIALS = vine_leaf",
+      "CONDITION = VINE_AUTUMN",
+      "KEY_0 = seasonAutumn",
+      "VALUE_0 = 1",
+      "OFF_VALUE_0 = 0",
+      "",
+    );
+  }
+  if (opts.sounds?.length) lines.push(...soundConfig(opts.sounds));
   if (opts.autotest) lines.push("[SCRIPT_0]", "SCRIPT = autotest.lua", "");
   return lines.join("\r\n");
 }

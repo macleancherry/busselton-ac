@@ -8,11 +8,19 @@ One folder per track (ROADMAP.md, "generate, freeze, polish"). Each holds:
 
 The route stays in `routes/` and the landmarks in `routes/landmarks/`. Private tracks, such as the whole map with the estate, keep their folders in `routes/private/tracks/`.
 
-| Track | Tier | Route |
-| --- | --- | --- |
-| [Busselton](busselton/README.md) | Showcase | `routes/busselton.json` |
-| [Tuart Drive](tuart_drive/README.md) | Drive-anywhere | `routes/tuart-drive.json` |
-| [Caves Road, Dunsborough to Yallingup](caves_road_yallingup/README.md) | Drive-anywhere | `routes/caves-road.json` |
+| Track | Tier | Route | 5 m LiDAR |
+| --- | --- | --- | --- |
+| [Busselton](busselton/README.md) | Showcase | `routes/busselton.json` | Yes |
+| [Tuart Drive](tuart_drive/README.md) | Drive-anywhere | `routes/tuart-drive.json` | Yes |
+| [Caves Road, Dunsborough to Yallingup](caves_road_yallingup/README.md) | Drive-anywhere | `routes/caves-road.json` | Dunsborough end only |
+| [Busselton to Dunsborough](busselton_to_dunsborough/README.md) | Drive-anywhere | `routes/busselton-dunsborough.json` | Yes |
+| [Cape Naturaliste Road](cape_naturaliste_road/README.md) | Drive-anywhere (showcase later) | `routes/cape-naturaliste.json` | First 3 km only |
+| [Margaret River](margaret_river/README.md) | Drive-anywhere (showcase later) | `routes/margaret-river.json` | No |
+| [Caves Road, Boranup](caves_road_boranup/README.md) | Drive-anywhere (showcase later) | `routes/caves-road-boranup.json` | No |
+| [Cape Leeuwin](cape_leeuwin/README.md) | Drive-anywhere (showcase later) | `routes/cape-leeuwin.json` | No |
+| [Collie Motorplex](collie_motorplex/README.md) | Showcase (blocked: OSRM won't route the raceway) | `routes/collie-motorplex.json` | No |
+
+Where the 5 m LiDAR stops (`STATE_DEMS.wa.box` in `src/services/tiles.ts`, and GA's coverage stops short of that box west of Dunsborough), the build falls back to about 30 m global heights.
 
 ## Working on a track
 

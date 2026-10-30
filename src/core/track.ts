@@ -38,7 +38,9 @@ import { photoRoadTexture } from "./photoSurface";
 import { encodeDdsDxt1, encodeDdsDxt5 } from "./dds";
 import { decodeOwnPng, encodePng } from "./png";
 import { buildMarkings, type DiscreteMark } from "./markings";
+import { kerbsideForTrack, type KerbTags } from "./kerbside";
 import { buildTerrainChunk, makeTerrainFn, meshTop, planTerrainChunks, type TerrainChunk } from "./terrain";
+import { armcoNeeds, buildArmco } from "./armco";
 import { BARRIERS, barrierTexture, detailTexture, normalFromHeight, windowTexture, flatNormalTexture, GROUND_TILE, groundDetail, groundMask, type GroundKind, mapsTexture, paintTexture, sealTexture, type SealKind, garageTexture, grassTexture, concreteTexture, postTexture, railTexture, solidTexture, vergeTexture } from "./textures";
 import {
   buildGuardRails, buildGuidePosts, buildTrees, treeTrunks, filterTrees, railNeeds, rng, treeSpotsFromImagery, type TreeSpot,
@@ -48,16 +50,22 @@ import { dressBuilding, FACADES, facadeTexture, ROOF_COLOURS, roofTexture } from
 import { facadeForLook, facadeForStyle } from "./houseLooks";
 import { buildSpecHouse, type HouseSpec } from "./specHouse";
 import { surfaceTexture } from "./surfaceTextures";
+import { GRAVEL_MATERIAL, gravelTexture, isUnsealed, unsealedSamples } from "./unsealed";
 import { material, nmMaterial } from "./materials";
 export { material, nmMaterial };
 import { landmarkShots } from "./landmarkShots";
 import { camerasIni, placeCameras } from "./cameras";
 import { cullable } from "./cull";
 import { bakedShadowParams, extConfig } from "./cspConfig";
+import { trackHollows } from "./rainHollows";
+import { birdEmitters, soundReadme, surfEmitters } from "./trackSounds";
+import { TREE_SPECIES } from "./treeSprites";
 import { buildBarriers } from "./fences";
+import { buildFarmland, vineLeafTexture, type FarmPolygon } from "./farm";
+import { buildFarmRoadsides, farmTextures } from "./farmRoadsides";
 import { chunkPhotoSampler, frontageHouses } from "./frontage";
 import { ArtList, type ArtRenderer } from "./art";
-import { challengeCheckpoints, challengesIni } from "./challenges";
+import { challengeFiles } from "./challengeFiles";
 import { buildPieces, gateSigns, kangarooSigns, landmarks, mergeSightings, seenFeatures, streetSigns } from "./furniture";
 import { barrierConcreteTexture, catchFenceTexture, crowdTexture, raceDressing, tyreWallTexture } from "./raceDress";
 import { carParkLights, placeUtilities } from "./utilities";
@@ -130,6 +138,8 @@ export interface DataSources {
   /** Busselton fork: landmarks built as layers after the base (landmarkLayer.ts): the automatic test photographs them. */
   landmarks?: { name: string; at: LngLat }[];
   coast?: { ocean: { rings: LngLat[][]; edge: boolean[][] }[]; piers: { rings: LngLat[][]; edge: boolean[][] }[]; beaches?: { rings: LngLat[][]; edge: boolean[][] }[] };
+  /** Busselton fork: vineyards and paddocks beside the road (services/landcover.ts; farm.ts builds them). */
+  farmland?: FarmPolygon[];
   /** Busselton fork: what stands on the jetties (osm.ts fetchPierFeatures; jetty.ts builds it). */
   jetty?: { railways: LngLat[][]; platforms: { pts: LngLat[]; shelter: boolean }[]; buildings: { pts: LngLat[]; name: string }[] };
   /** Tiled ground detail textures for ksMultilayer terrain (lawn, rough, sand, litter); null to keep plain photo terrain. */
@@ -142,6 +152,8 @@ export interface OsmFeatures {
   /** Footprints (first point not repeated) with OSM / vector tile tags. */
   buildings: { ring: LngLat[]; tags: Record<string, string> }[];
   guardRails: LngLat[][];
+  /** Busselton fork: road bridges (bridge=yes) and waterways near the route, for Armco at crossings (armco.ts). */
+  crossings?: { bridges: LngLat[][]; waterways: { pts: LngLat[]; cls: string; brunnel?: string }[] };
   /** OSM junction=roundabout ways near the route, with their circulating lanes when tagged. */
   roundaboutRings?: { pts: LngLat[]; lanes?: number }[];
   /** Fences, walls and hedges near the route (OSM barrier=*). */
@@ -152,6 +164,12 @@ export interface OsmFeatures {
   powerLines?: LngLat[][];
   /** Rock groynes and breakwaters (OSM man_made=groyne|breakwater) near the route. */
   groynes?: LngLat[][];
+  /** Busselton fork: streets with kerbside parking or bike lanes tagged, sides relative to the way (kerbside.ts). */
+  kerbside?: ({ pts: LngLat[] } & KerbTags)[];
+  /** Busselton fork: cattle grids (OSM barrier=cattle_grid nodes) on or near the route. */
+  cattleGrids?: LngLat[];
+  /** Busselton fork: unsealed roads (OSM surface=unpaved, gravel...; the tiles' unpaved), for gravel on the route (unsealed.ts). */
+  unsealed?: LngLat[][];
 }
 
 export interface TrackResult {
@@ -213,6 +231,8 @@ export interface TrackResult {
     /** Parked cars painted out of the ground photo, and car park islands raised. */
     carsPainted?: number;
     parkedCars?: number;
+    /** Busselton fork: kerbside parking bays, bike lane metres and bicycle symbols painted (kerbside.ts). */
+    kerbside?: { bays: number; bikeLaneMetres: number; symbols: number };
     /** Houses whose walls were set from street photos. */
     housesLooked?: number;
     /** Shopfronts built, and how many have a verandah. */
@@ -895,6 +915,37 @@ export async function buildTrack(
     }
     return name;
   };
+  // Busselton fork: unsealed roads (unsealed.ts): gravel where OSM says so, or the whole route.
+  const gravelOn = opts.gravelRoads !== false;
+  const unsealedAt = gravelOn || opts.unsealed
+    ? unsealedSamples(plan, gravelOn ? (sources.osm?.unsealed ?? []).map((l) => l.map((p) => proj.toLocal(p))) : [], !!opts.unsealed)
+    : new Uint8Array(plan.samples.length);
+  let anyUnsealed = unsealedAt.includes(1);
+  const gravelMaterial = (ci: number, meanWidth: number): string => {
+    anyUnsealed = true;
+    const twoLane = meanWidth >= 5.5;
+    const name = `${GRAVEL_MATERIAL}_${twoLane ? 2 : 1}_${ci % 3}`;
+    if (!surfaceMaterials.has(name)) {
+      surfaceMaterials.add(name);
+      const tex = gravelTexture(twoLane, ci % 3);
+      previewTextures[`${name}.dds`] = { rgba: tex.rgba, width: tex.width, height: tex.height };
+      // Matte: dry limestone fines have next to no shine.
+      const light = { ambient: 0.42, diffuse: 0.45, specular: 0.02, exp: 10 };
+      if (opts.detailShaders) {
+        const rgba = new Uint8Array(tex.rgba);
+        for (let i = 3; i < rgba.length; i += 4) rgba[i] = 0;
+        textures.push({ name: `${name}.dds`, data: encodeDdsDxt5(rgba, tex.width, tex.height) });
+        textures.push({ name: `${name}_nm.dds`, data: encodeDdsDxt1(normalFromHeight(tex.rgba, tex.width, tex.height, 4), tex.width, tex.height) });
+        materials.push(multiMapMaterial(name, `${name}.dds`, light, {
+          normal: `${name}_nm.dds`, maps: "maps_ground.png", detail: "detail_chipseal.png", detailUV: 9, sunSpecular: 0.02,
+        }));
+      } else {
+        textures.push({ name: `${name}.dds`, data: tex.dds });
+        materials.push(material(name, `${name}.dds`, light));
+      }
+    }
+    return name;
+  };
   // Photo surface: chunks where the road was traced get their own stretch of the aerial photo.
   const chunkMaterial: RoadMaterialFn = (ci, w, mid, a, b) => {
     if (opts.roadSurface === "photo" && raster && trace && a >= 0) {
@@ -961,6 +1012,8 @@ export async function buildTrack(
       return false;
     };
     kerbs = planKerbs(plan, evidence, (i) => town[i], kerbBlocked);
+    // Busselton fork: no kerbs on gravel.
+    unsealedAt.forEach((u, i) => { if (u) kerbs[0][i] = kerbs[1][i] = 0; });
     // A roundabout is kerbed when the road is kerbed coming up to it.
     for (const rb of plan.roundabouts) {
       if (Number.isNaN(rb.sIn)) continue; // an area's ring off the route: kerbed in town
@@ -977,7 +1030,8 @@ export async function buildTrack(
   });
   const kerbAt = (i: number, side: 1 | -1) => kerbs[side === 1 ? 0 : 1][((i % nS) + nS) % nS] > 0;
   // The gravel verge gives way to the kerb's nature strip, which also covers the slopes where kerbs start and end.
-  const roadMeshes = buildRoadMeshes(plan, opts, chunkMaterial, (i, side) => mouth(side, plan.samples[i % nS].s) || kerbAt(i, side));
+  const roadMeshes = buildRoadMeshes(plan, opts, chunkMaterial, (i, side) => mouth(side, plan.samples[i % nS].s) || kerbAt(i, side),
+    anyUnsealed ? { at: (i) => unsealedAt[i % nS] === 1, material: gravelMaterial } : undefined);
   plan.roundabouts.forEach((rb, k) => {
     const open = [...roadMeshes.openings[k]];
     // Side streets that run into the ring get an opening in its verge and kerb too.
@@ -1086,6 +1140,7 @@ export async function buildTrack(
       materials.push(material(name, `${name}.dds`, { ambient: 0.42, diffuse: 0.45, specular: 0.06, exp: 20 }));
       return { material: name, perStreet: true };
     }
+    if (gravelOn && isUnsealed(st.surface, st.cls)) return gravelMaterial(i, st.width);
     const mid = st.pts[Math.floor(st.pts.length / 2)];
     return roadMaterial(i, st.width, { ...plan.samples[0], pos: mid });
   });
@@ -1124,7 +1179,8 @@ export async function buildTrack(
   const markings = opts.markings
     ? buildMarkings(plan, opts, (sd) => {
       const p = sampleNear(sd).pos;
-      return !!inRoundabout(plan, p[0], p[1], 1);
+      // Busselton fork: no paint on gravel.
+      return !!inRoundabout(plan, p[0], p[1], 1) || unsealedAt[Math.max(0, Math.min(nS - 1, Math.round(sd / opts.spacing)))] === 1;
     }, (side, sd) => mouth(side, sd) || kerbAt(Math.round(sd / opts.spacing), side), { lines: imageLines, covered }, [
       ...discreteMarks(),
       // The start and finish lines themselves, painted across the road.
@@ -1170,6 +1226,11 @@ export async function buildTrack(
     const paint = opts.markings ? buildRingMarkings(rb, k) : null;
     if (paint) markings.push(paint);
   });
+  // Busselton fork: kerbside parking bays and bike lanes (kerbside.ts).
+  const kerbside = opts.markings && opts.kerbside
+    ? kerbsideForTrack(plan, opts.sideStreets ? streetPlan.streets : [], index, opts, (x, y) => terrainAt(x, y).h, sources.osm?.kerbside ?? [], (p) => proj.toLocal(p), parkedSpots)
+    : null;
+  if (kerbside) markings.push(...kerbside.nodes);
   // Busselton fork: the ground stays 4 cm under every street, within a grid step of it: at a mouth
   // across the route's raised verge, and where the ground bulges, it came up through the street.
   const underStreets = streetCeiling(sideStreets, opts.terrainStep);
@@ -1233,6 +1294,15 @@ export async function buildTrack(
     (x, y) => streetIndex.clearance(x, y) > 1.5 && !inRoundabout(plan, x, y, opts.vergeWidth + 3),
     area ? cover : undefined,
   );
+  // Busselton fork: vine rows and post-and-wire farm fences (farm.ts).
+  const farm = opts.farmland ? buildFarmland(
+    (sources.farmland ?? []).map((f) => ({ ...f, rings: f.rings.map((r) => r.map((p) => proj.toLocal(p))) })),
+    (sources.osm?.barriers ?? []).map((b) => ({ ...b, pts: b.pts.map((p) => proj.toLocal(p)) })),
+    index, opts, ground,
+    (x, y) => streetIndex.clearance(x, y) > 1.5 && !inRoundabout(plan, x, y, opts.vergeWidth + 3) && !cleared(x, y),
+    cover,
+  ) : null;
+  if (farm?.vineMetres) addScenery("vine_leaf.png", vineLeafTexture(), material("vine_leaf", "vine_leaf.png", { ambient: 0.5, diffuse: 0.4, specular: 0, exp: 1 }));
   // A tree and a ring of shrubs on each island big enough for them.
   const islandTrees = plan.roundabouts.flatMap((rb) => {
     const ri = innerRadius(rb);
@@ -1291,7 +1361,16 @@ export async function buildTrack(
   const ringWalls = plan.roundabouts.map((rb, k) => buildRingWall(rb, k, opts, ground)).filter((w): w is Kn5Node & { kind: "mesh" } => !!w);
 
   const osmRails = opts.guardRails ? (sources.osm?.guardRails ?? []).map((l) => l.map((p) => proj.toLocal(p))) : [];
-  const needs = railNeeds(plan, opts, ground, osmRails, index);
+  let needs = railNeeds(plan, opts, ground, osmRails, index);
+  // Busselton fork: Armco on country bends, embankments and crossings (armco.ts).
+  const crossings = sources.osm?.crossings;
+  if (opts.armco && opts.guardRails) needs = armcoNeeds(plan, opts, needs, {
+    ground, index, speedAt,
+    crossings: crossings && {
+      bridges: crossings.bridges.map((l) => l.map((p) => proj.toLocal(p))),
+      waterways: crossings.waterways.map((w) => ({ ...w, pts: w.pts.map((p) => proj.toLocal(p)) })),
+    },
+  });
   if (!opts.guardRails) needs.forEach((side) => side.fill(false));
   // No rails or posts on or beside a roundabout.
   const nearRing = plan.samples.map((s) => !!inRoundabout(plan, s.pos[0], s.pos[1], 15));
@@ -1300,9 +1379,19 @@ export async function buildTrack(
   needs.forEach((side) => side.forEach((_, i) => { if (nearRing[i]) side[i] = false; }));
   // Kerbed streets have neither.
   needs.forEach((side, k) => side.forEach((_, i) => { if (kerbAt(i, k === 0 ? 1 : -1)) side[i] = false; }));
-  const rails = buildGuardRails(plan, opts, needs);
+  const rails = opts.armco ? buildArmco(plan, opts, needs) : buildGuardRails(plan, opts, needs);
   const postMask = needs.map((side, k) => side.map((v, i) => v || nearRing[i] || mouth(k === 0 ? 1 : -1, plan.samples[i].s) || kerbAt(i, k === 0 ? 1 : -1))) as [boolean[], boolean[]];
   const posts = opts.guidePosts ? buildGuidePosts(plan, opts, postMask) : [];
+  // Busselton fork: country roadsides: farm driveways, gates, mailboxes and cattle grids (farmRoadsides.ts).
+  const farmRoad = opts.farmRoadsides ? buildFarmRoadsides({
+    lines: (sources.streets?.lines ?? []).map((l) => ({ cls: l.cls, service: l.service, pts: l.pts.map((p) => proj.toLocal(p)) })),
+    cattleGrids: (sources.osm?.cattleGrids ?? []).map((p) => proj.toLocal(p)),
+    plan, index, opts, ground,
+    drawn: (x, y) => streetIndex.clearance(x, y) < 0.5,
+    blocked: (x, y) => !inCover(x, y, 3) || streetIndex.clearance(x, y) < 0.2 || kept.some((b) => pointInRing(x, y, b.ring)) || !!inRoundabout(plan, x, y, 3),
+    skip: (seg, side) => town[seg] >= 2 || kerbAt(seg, side),
+  }) : null;
+  if (farmRoad) for (const t of farmTextures()) addScenery(`${t.name}.png`, t.png, material(t.name, `${t.name}.png`, { ambient: 0.45, diffuse: 0.45, specular: t.name === "farm_gravel" ? 0 : 0.2, exp: 15 }));
   // Inside the corridor buildings stand on the detailed terrain; further out, on the horizon mesh.
   const buildingGround = (x: number, y: number) => {
     return inCover(x, y, 1) ? ground(x, y) : backdropHeight(farDem, index, opts, x, y, area ? cover : undefined) - 0.6;
@@ -1623,9 +1712,11 @@ export async function buildTrack(
         group("TREES", [...trees, ...(houseTrees.length && !opts.cspTrees ? buildTrees(houseTrees, ground, "HOUSETREES") : [])]),
         group("RAILS", [...railsClear.nodes, ...rails.posts]),
         group("GUIDEPOSTS", posts),
+        group("FARMROAD", farmRoad?.nodes ?? []),
         group("BUILDINGS", [...houses, ...specNodes]),
         group("SHOPS", shopMeshes),
         group("FENCES", keepOffRoute(barriers, onRoad).nodes),
+        group("FARM", farm ? keepOffRoute(farm.nodes, onRoad).nodes : []),
         group("PATHS", pathMeshes),
         group("LOTS", keepOffRoute(lots, onRoad).nodes),
         group("CARPARKS", islandNodes),
@@ -1748,20 +1839,30 @@ export async function buildTrack(
   const meanWidth = plan.samples.reduce((a, s) => a + s.width, 0) / plan.samples.length;
   const cameras = placeCameras(plan, opts, (x, y) => terrainAt(x, y).h, (x, y) => kept.some((b) => pointInRing(x, y, b.ring)));
   const trackMeta: TrackMeta = { name: opts.name, ...meta };
+  // Busselton fork: where rain pools on the road (rainHollows.ts), and track sounds placed from the map (trackSounds.ts).
+  const hollows = opts.rainHollows ? trackHollows(model.root) : undefined;
+  const sounds = opts.trackSounds ? (() => {
+    const so = { roads: [plan.samples.map((smp) => smp.pos), ...streetPlan.streets.map((st) => st.pts)], ground };
+    const bush = TREE_SPECIES.findIndex((sp) => sp.name === "tuart");
+    return [...surfEmitters(ocean, so), ...birdEmitters(treesKept.map((t) => ({ x: t.x, y: t.y, bush: t.variant === bush })), so)];
+  })() : undefined;
   const files: Record<string, Uint8Array> = {
+    ...(sounds?.length ? { [`${slug}/extension/sfx/README.txt`]: enc.encode(soundReadme(sounds)) } : {}),
     [`${slug}/${slug}.kn5`]: kn5,
     [`${slug}/ai/fast_lane.ai`]: ai,
     [`${slug}/data/ai_hints.ini`]: enc.encode(aiHintsIni(aiPoints, (d) => {
       const last = aiPoints[aiPoints.length - 1], total = last.distance + last.length;
       return speedAt(Math.min(nS - 1, Math.max(0, Math.round((d / total) * (nS - 1)))));
     }, !plan.closed)),
-    [`${slug}/data/surfaces.ini`]: enc.encode(surfacesIni(opts.traffic, opts.streetsValid ?? !!area, centre)),
+    [`${slug}/data/surfaces.ini`]: enc.encode(surfacesIni(opts.traffic, opts.streetsValid ?? !!area, centre, anyUnsealed)),
     ...(opts.traffic ? { [`${slug}/data/traffic.json`]: enc.encode(trafficText) } : {}),
     [`${slug}/data/map.ini`]: enc.encode(map.ini),
-    // Busselton fork: checkpoints for the Busselton Challenges app (apps/lua/BusseltonChallenges).
-    [`${slug}/data/challenges.ini`]: enc.encode(challengesIni(opts.name, challengeCheckpoints(plan,
-      (x, y, r) => index.nearest(x, y, r),
-      (sources.pois ?? []).map((p) => ({ ...p, at: proj.toLocal(p.at) })), streetPlan.routeNames, 6, streetPlan.junctions))),
+    // Busselton fork: checkpoints, time trial and drift spots for the Busselton Challenges app (challengeFiles.ts).
+    ...challengeFiles(slug, opts, {
+      plan, dummies: trackObjects(plan, opts), nearest: (x, y, r) => index.nearest(x, y, r), toLocal: (p) => proj.toLocal(p), ground,
+      pois: (sources.pois ?? []).map((p) => ({ ...p, at: proj.toLocal(p.at) })), routeNames: streetPlan.routeNames, junctions: streetPlan.junctions,
+      streets: streetPlan.streets, parked: parked.map((c) => c.at), buildings: shown.map((b) => b.ring),
+    }),
     [`${slug}/data/cameras_1.ini`]: enc.encode(camerasIni(cameras)),
     // The automatic test run (scripts/windows/run-test.ps1): a track script that only wakes up for a
     // driver named "Busselton Test". Track scripts need the scripting physics traffic turns on.
@@ -1780,6 +1881,9 @@ export async function buildTrack(
       drySummer: centre[0] > 112 && centre[0] < 119.5 && centre[1] < -30 && centre[1] > -36,
       sea: ocean.length > 0,
       trees: opts.cspTrees && Object.keys(cspTreeFiles).length ? "trees/trees.txt" : undefined,
+      vines: !!farm?.vineMetres,
+      hollows,
+      sounds,
       // A town's glow at night where most of the route is built up.
       builtUp: town.filter((t) => t >= 1).length > town.length / 2,
       radiusKm: Math.max(...outline2d.map((p) => Math.hypot(p[0] - outline2d[0][0], p[1] - outline2d[0][1]))) / 2000,
@@ -1846,6 +1950,7 @@ export async function buildTrack(
       poles: utilities.poles,
       carsPainted,
       parkedCars: parked.length,
+      ...(kerbside ? { kerbside: { bays: kerbside.bays, bikeLaneMetres: Math.round(kerbside.bikeLaneMetres), symbols: kerbside.symbols } } : {}),
       housesLooked,
       shops: shopStats(shopfronts).shops,
       verandahs: shopStats(shopfronts).verandahs,

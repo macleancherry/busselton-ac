@@ -100,7 +100,7 @@ Generated tracks across the region at a lighter detail level, rebuilt whenever t
   - ❓ Next: order the capes LiDAR from GA's ELVIS portal (free, links emailed), cut it into tiles.
 - 🔨 **Caves Road, Dunsborough to Yallingup:** route ready (`routes/caves-road.json`). Build once the heights are sorted.
 - 🔨 **A drive-anywhere preset:** ✅ `"preset": "country"` (`scripts/headless/presets.mjs`). Still to do: country settings (wider terrain grid, corridor and horizon sized to the budget, gentle banking) so a new road is one route file. Check 30+ km roads and draw distances.
-- ⬜ **Country roadsides:** gravel shoulders, guideposts (done), Armco on bends and drop-offs, farm driveways, mailboxes, cattle grids.
+- 🔨 **Country roadsides:** gravel shoulders, guideposts (done), Armco on bends, embankments, bridges and culverts (done: `build.armco`, on in the country preset, `src/core/armco.ts`), farm driveways, mailboxes, cattle grids.
 - ⬜ **Unsealed roads:** gravel surface physics, dust, a limestone gravel texture (Boranup, farm roads).
 - ⬜ **Landscape zones:** each with its own trees, ground and roadside.
   - coast: white sand, peppermint, granite
@@ -149,13 +149,14 @@ Each starts as a drive-anywhere base, then gets the Phase B treatment: Yallingup
   - AO bakes; everything goes to `\\media\busselton-share`
 - 🔨 Link this chat to Mac's laptop so builds go straight into the share and reports come straight back.
 - ⬜ A night run and a several-AI-cars run in the automatic test; a traffic-planner run.
-- ⬜ A one-click install link for the rig.
+- 🔨 One-click install on the rig: "Install Busselton.cmd" in the share installs every new build and polish, keeps AO bakes, installs the apps and shows what changed; optional check on log-in ([docs/rig-install.md](docs/rig-install.md)). To try on the rig.
 
 ## Phase G: Fun 🔨
 
-- 🔨 **Checkpoint challenges:** Busselton Challenges app, checkpoints against the clock. To check in game, then hand-picked checkpoints per track.
+- 🔨 **Checkpoint challenges:** Busselton Challenges app, checkpoints against the clock, hand-picked sets per track or layout (`challenges` in the route). To check in game.
 - ✅ The Sights layout: a cruise past the town landmarks.
-- ⬜ Point-to-point time trials between towns with LAN leaderboards, cruise mode, drift spots in empty car parks.
+- 🔨 **Time trials and drift spots** in the Challenges app: A to B with splits on any point-to-point route or layout, drift spots in empty car parks with an angle-and-speed score, best times per driver, shared over LAN through CSP online events (AC's own server, which CM's LAN races use). To check in game, then routes between towns.
+- ⬜ Cruise mode.
 
 ---
 

@@ -62,6 +62,7 @@ describe("buildTrack (synthetic terrain)", async () => {
       "test_hairpin/data/challenges.ini",
       "test_hairpin/data/map.ini",
       "test_hairpin/data/surfaces.ini",
+      "test_hairpin/extension/drift_zones.ini",
       "test_hairpin/extension/ext_config.ini",
       "test_hairpin/extension/street_map.ini",
       "test_hairpin/extension/street_map.png",
@@ -75,6 +76,11 @@ describe("buildTrack (synthetic terrain)", async () => {
     expect(ui.name).toBe("Test Hairpin");
     expect(Number(ui.length)).toBeGreaterThan(2000);
     expect(ui.geotags[0]).toMatch(/ S$/);
+    // Point to point: the challenges carry a time trial on AC's own A and B lines.
+    const ch = new TextDecoder().decode(result.files["test_hairpin/data/challenges.ini"]);
+    expect(result.plan.closed).toBe(false);
+    expect(ch).toMatch(/\[TT_START\]\nNAME = Start\nPOSITION = [-\d.]+, [-\d.]+, [-\d.]+\nDIRECTION = [-\d.]+, [-\d.]+\nWIDTH = \d/);
+    expect(ch).toContain("[TT_FINISH]");
   });
 
   it("writes a CSP config with Grass FX that keeps grass off the road", () => {
@@ -226,6 +232,21 @@ describe("start and finish on a long road drawn with jitter", async () => {
     const pinA = result.proj.toLocal(route[0]);
     const start = plan.samples[plan.timed!.start].pos;
     expect(Math.hypot(start[0] - pinA[0], start[1] - pinA[1])).toBeLessThan(5);
+  });
+});
+
+describe("buildTrack with rain hollows and track sounds on", async () => {
+  const lat0 = -27.92, lng0 = 153.19, mx = 111_320 * Math.cos((lat0 * Math.PI) / 180);
+  const route: LngLat[] = [0, 200, 400].map((x) => [lng0 + x / mx, lat0]);
+  const result = await buildTrack(route, { name: "Wet Road", imageryZoom: 0, corridor: 30, horizon: 0, trees: 0, buildings: false, rainHollows: true, trackSounds: true }, sources);
+
+  it("builds CSP's puddle map from the ground, and ships no sound bank notes with nothing to place", () => {
+    const ini = new TextDecoder().decode(result.files["wet_road/extension/ext_config.ini"]);
+    expect(ini).toMatch(/\[RAIN_FX\][\s\S]*RELIEF_MATERIALS = road_\?/);
+    expect(ini).toContain("; Hollows where water should stand");
+    // No sea or trees here: no emitters, so no soundbank and no placeholder notes.
+    expect(ini).not.toContain("SOUNDBANK");
+    expect(result.files["wet_road/extension/sfx/README.txt"]).toBeUndefined();
   });
 });
 

@@ -217,7 +217,8 @@ try {
   let buildOpts = allClears.length ? { ...(spec.build ?? {}), clears: [...(spec.build?.clears ?? []), ...allClears] } : spec.build;
   // Several layouts on one map (src/core/layouts.ts): the route's own drive is layout "layout.id"
   // (default "main"), and each entry of "layouts" ({ id, name, pins, loop? } or { id, name,
-  // spawns: [{ at: [lng, lat], heading }] }) another, on the same world.
+  // spawns: [{ at: [lng, lat], heading }] }) another, on the same world. A layout's "challenges"
+  // (hand-picked checkpoints, as build.challenges) go in its own challenges.ini.
   const mainLayout = spec.layouts?.length ? { id: spec.layout?.id ?? "main", name: spec.layout?.name ?? spec.name } : null;
   if (mainLayout) buildOpts = { ...(buildOpts ?? {}), layout: mainLayout.id };
   if (buildOpts) await page.evaluate((b) => { window.__buildOptions = b; }, buildOpts);
@@ -328,7 +329,7 @@ try {
       };
       for (const l of layouts) {
         const coords = l.pins ? (await route(l.loop ? [...l.pins, l.pins[0]] : l.pins)).coords : undefined;
-        const f = layoutFiles(world, { id: l.id, name: l.name, coords, spawns: l.spawns }, trackObjects);
+        const f = layoutFiles(world, { id: l.id, name: l.name, coords, spawns: l.spawns, challenges: l.challenges }, trackObjects);
         for (const [k, v] of Object.entries(f)) files[k] = b64(v);
         // The world's surfaces (and traffic) are every layout's.
         for (const d of ["surfaces.ini", "traffic.json"]) {

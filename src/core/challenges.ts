@@ -5,9 +5,13 @@
 // Checkpoints are named landmarks the route passes (attractions, parks, shops, the jetty), spread
 // out along the drive; where there aren't enough, the street at an evenly spaced spot fills in
 // ("Get to Queen St"). They run in the order you meet them driving the route.
+//
+// A route can hand-pick its own instead (build.challenges, handPickedSets): one set or several,
+// driven in the order given. The file also carries a point-to-point road's time trial (timeTrial.ts).
 
-import type { Vec2 } from "./geo";
+import type { LngLat, Vec2 } from "./geo";
 import type { RoadPlan } from "./road";
+import { timeTrialIni, type TimeTrial } from "./timeTrial";
 
 export interface ChallengePoi {
   at: Vec2;
@@ -86,11 +90,87 @@ export function challengeCheckpoints(
   return picked.sort((a, b) => a.s - b.s);
 }
 
-/** data/challenges.ini: [CHECKPOINT_n] NAME and POSITION (AC world x, y, z). */
-export function challengesIni(trackName: string, points: Checkpoint[]): string {
-  const lines = ["[CHALLENGE]", `NAME = ${trackName}`, `COUNT = ${points.length}`, "RADIUS = 14", ""];
-  points.forEach((c, k) => {
-    lines.push(`[CHECKPOINT_${k}]`, `NAME = ${c.name.replace(/[\r\n=;\[\]]/g, " ")}`, `POSITION = ${c.pos.join(", ")}`, "");
+/** A hand-picked checkpoint in a route file: [lng, lat], or { at: [lng, lat], name }. */
+export type ChallengePointOption = LngLat | { at: LngLat; name?: string };
+/**
+ * Route option `challenges`: one set of hand-picked checkpoints (a list of points), or several
+ * named sets ([{ name, points: [...] }]). Driven in the order given.
+ */
+export type ChallengesOption = ChallengePointOption[] | { name?: string; points: ChallengePointOption[] }[];
+
+export interface ChallengeSet {
+  name: string;
+  points: Checkpoint[];
+}
+
+const isLngLat = (v: unknown): v is LngLat =>
+  Array.isArray(v) && v.length >= 2 && Number.isFinite(v[0]) && Number.isFinite(v[1]);
+
+/**
+ * The hand-picked checkpoint sets of a route option, in AC world coordinates. A point without a
+ * name is named after the street it's on ("Get to Queen St"), else numbered. Bad points are skipped,
+ * and a set left with none is dropped.
+ */
+export function handPickedSets(
+  raw: ChallengesOption | undefined,
+  toLocal: (p: LngLat) => Vec2,
+  ground: (x: number, y: number) => number,
+  streetAt: (x: number, y: number) => string | undefined = () => undefined,
+): ChallengeSet[] {
+  if (!Array.isArray(raw) || !raw.length) return [];
+  const many = raw.every((e) => !!e && typeof e === "object" && !Array.isArray(e) && Array.isArray((e as { points?: unknown }).points));
+  const sets = many
+    ? (raw as { name?: string; points: ChallengePointOption[] }[])
+    : [{ name: undefined, points: raw as ChallengePointOption[] }];
+  const out: ChallengeSet[] = [];
+  sets.forEach((set, n) => {
+    const points: Checkpoint[] = [];
+    for (const p of set.points) {
+      const at = isLngLat(p) ? p : p && typeof p === "object" && isLngLat((p as { at?: unknown }).at) ? (p as { at: LngLat }).at : null;
+      if (!at) continue;
+      const [x, y] = toLocal(at);
+      const given = !isLngLat(p) && typeof p.name === "string" && p.name.trim() ? p.name.trim() : undefined;
+      const street = streetAt(x, y);
+      const name = given ?? (street && !points.some((c) => c.name === `Get to ${street}`) ? `Get to ${street}` : `Checkpoint ${points.length + 1}`);
+      points.push({ name, s: points.length, pos: [+x.toFixed(1), +ground(x, y).toFixed(2), +(-y).toFixed(1)] });
+    }
+    if (points.length) out.push({ name: set.name?.trim() || (sets.length > 1 ? `Challenge ${n + 1}` : "Hand-picked"), points });
   });
+  return out;
+}
+
+/** Hand-picked sets when the route has them, else the generated checkpoints, as challengesIni's arguments. */
+export function pickSets(handPicked: ChallengeSet[], generated: () => Checkpoint[]): { points: Checkpoint[]; setName: string; sets: ChallengeSet[] } {
+  if (handPicked.length) return { points: handPicked[0].points, setName: handPicked[0].name, sets: handPicked.slice(1) };
+  return { points: generated(), setName: "Checkpoints", sets: [] };
+}
+
+const iniText = (s: string) => s.replace(/[\r\n=;\[\]]/g, " ");
+
+/**
+ * data/challenges.ini: [CHALLENGE] NAME, COUNT, RADIUS, SET_NAME, SETS, then the first set's
+ * [CHECKPOINT_n] NAME and POSITION (AC world x, y, z); further sets as [SET_k] NAME, COUNT and
+ * [SET_k_CHECKPOINT_n]; and a point-to-point road's time trial ([TIME_TRIAL], timeTrial.ts).
+ * The first set keeps the original layout, so an older copy of the app still reads it.
+ */
+export function challengesIni(
+  trackName: string,
+  points: Checkpoint[],
+  more: { setName?: string; sets?: ChallengeSet[]; timeTrial?: TimeTrial | null } = {},
+): string {
+  const extra = more.sets ?? [];
+  const lines = ["[CHALLENGE]", `NAME = ${iniText(trackName)}`, `COUNT = ${points.length}`, "RADIUS = 14",
+    `SET_NAME = ${iniText(more.setName ?? "Checkpoints")}`, `SETS = ${1 + extra.length}`, ""];
+  points.forEach((c, k) => {
+    lines.push(`[CHECKPOINT_${k}]`, `NAME = ${iniText(c.name)}`, `POSITION = ${c.pos.join(", ")}`, "");
+  });
+  extra.forEach((set, n) => {
+    const k = n + 1;
+    lines.push(`[SET_${k}]`, `NAME = ${iniText(set.name)}`, `COUNT = ${set.points.length}`, "");
+    set.points.forEach((c, i) => {
+      lines.push(`[SET_${k}_CHECKPOINT_${i}]`, `NAME = ${iniText(c.name)}`, `POSITION = ${c.pos.join(", ")}`, "");
+    });
+  });
+  if (more.timeTrial) lines.push(timeTrialIni(more.timeTrial));
   return lines.join("\n");
 }

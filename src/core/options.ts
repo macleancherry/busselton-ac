@@ -77,6 +77,12 @@ export interface BuildOptions {
   guardRails: boolean;
   /** White guide posts along the verges. */
   guidePosts: boolean;
+  /**
+   * Busselton fork: W-beam (Armco) guard rail where Australian country roads have it (armco.ts): the
+   * outside of bends well under the speed limit, embankments, bridges and culverts, on top of guardRails'
+   * drop-offs and OSM rails; with posts, blockouts, buried ends and a separate collision wall. Needs guardRails.
+   */
+  armco?: boolean;
   /** Buildings from OSM footprints. */
   buildings: boolean;
   /** Placeholder buildings where the aerial imagery shows a roof. */
@@ -115,6 +121,11 @@ export interface BuildOptions {
   /** Low-poly cars where the photo had parked cars (needs carParks). */
   parkedCars: boolean;
   /**
+   * Busselton fork: kerbside parking bays and bike lanes painted on town streets, from OSM parking and
+   * cycleway tags, and bays where the photo shows cars parked along the kerb (kerbside.ts; needs markings).
+   */
+  kerbside?: boolean;
+  /**
    * The look of houses in this area, when it isn't the usual mix: weights per facade, by name
    * from buildingStyles.ts (e.g. a weatherboard estate: { wb_white: 3, wb_grey: 2, wb_blue: 1 }).
    * Street-photo and hand-set looks still win house by house.
@@ -140,6 +151,15 @@ export interface BuildOptions {
    * `trees` is false.
    */
   clears?: { at: [number, number]; radius: number; trees?: boolean }[];
+  /**
+   * Busselton fork: hand-picked checkpoints for the Busselton Challenges app, in place of the
+   * generated ones: a list of [lng, lat] or { at, name }, or several sets [{ name, points }] (challenges.ts).
+   */
+  challenges?: import("./challenges").ChallengesOption;
+  /** Busselton fork: sectors in a point-to-point road's time trial (default 3; timeTrial.ts). */
+  timeTrialSectors?: number;
+  /** Busselton fork: false leaves out the drift spots in empty car parks (driftZones.ts). */
+  driftZones?: boolean;
   /** Raise car parks' planted islands behind kerbs, read off the photo (experimental: tree canopy still fools it). */
   carParkIslands: boolean;
   /** No level-of-detail blocks within this distance of the road's centreline, metres. */
@@ -154,6 +174,24 @@ export interface BuildOptions {
    * place of the alpha-tested card trees in the kn5. Needs CSP; the browser preview shows no trees.
    */
   cspTrees?: boolean;
+  /**
+   * Busselton fork: CSP RainFX puddles in the road's real hollows (rainHollows.ts): the puddle height
+   * map from the ground and roads only, and the hollows listed in ext_config for checking in game.
+   */
+  rainHollows?: boolean;
+  /**
+   * Busselton fork: CSP track sounds (trackSounds.ts): waves along the shore, magpies and kookaburras
+   * in the trees. Needs the placeholder bank (extension/sfx/README.txt) filled on the workstation.
+   */
+  trackSounds?: boolean;
+  /**
+   * Busselton fork: roads OSM tags unsealed (surface=unpaved, gravel, compacted, dirt..., and
+   * untagged tracks) are built as limestone gravel with gravel physics, no markings and no kerbs
+   * (unsealed.ts). On unless false.
+   */
+  gravelRoads?: boolean;
+  /** Busselton fork: the whole route is unsealed gravel whatever OSM says (Boranup-style forest drives). */
+  unsealed?: boolean;
   /** Kerb and gutter where the photos (or a built-up area) show them, instead of a gravel verge. */
   kerbs: boolean;
   /**
@@ -169,6 +207,17 @@ export interface BuildOptions {
   raceDress: boolean;
   /** Sponsors on the banners and flags, comma-separated. */
   sponsors: string;
+  /**
+   * Busselton fork: vineyards and paddocks (farm.ts): vine rows on OSM vineyards and post-and-wire
+   * fences along paddock boundaries and OSM wire fences beside the road. On in the country preset.
+   */
+  farmland?: boolean;
+  /**
+   * Busselton fork: country roadsides (farmRoadsides.ts): gravel farm driveways with a gate and a
+   * mailbox where OSM tracks and driveways leave the route, and cattle grids where OSM maps them.
+   * On in the country preset, off otherwise.
+   */
+  farmRoadsides?: boolean;
 }
 
 export const DEFAULT_OPTIONS: BuildOptions = {

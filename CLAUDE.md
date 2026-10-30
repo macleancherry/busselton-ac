@@ -32,6 +32,7 @@ Code is written in one place only. Check which machine you're on before you chan
 - `tests\<date>_<time>-<slug>-<layout>\` (and `.zip`): automatic AI runs (`run-test.ps1`).
 - `bakes\`: AO bake logs with their times (`bake-vao.ps1`).
 - `reports\<date>-<topic>.md`: workstation reports, with their files in `reports\<date>-<topic>\`.
+- `rig\` and `Install Busselton.cmd`: the rig's one-click installer (`scripts/windows/rig-install.ps1 -PublishKit` refreshes it; docs/rig-install.md). Polish zips go in `builds\` as `<slug>_polish.zip`, and an optional `builds\<zip name>.txt` note is shown on the rig.
 - `snapshots\<slug>-<date>.zip`: each track's frozen inputs (`scripts/snapshot/snapshot.mjs`), what its base is rebuilt from. The cloud workspace is temporary, so the share holds the lasting copy.
 
 The scripts read and write there by default. **Laptop session:** when this chat is linked to Mac's laptop or the workstation (the remote-devices tools are present and a call succeeds; both reach the share), write each finished build straight into `builds\` and read `tests\`, `bakes\` and `reports\` yourself; when it isn't linked, send the files in chat and say the share is waiting for the link. **Workstation:** put everything for the laptop session in the share, never in Downloads or the repo.

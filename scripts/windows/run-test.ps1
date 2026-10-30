@@ -8,6 +8,8 @@
   .\scripts\windows\run-test.ps1 busselton -Layout town
   .\scripts\windows\run-test.ps1 busselton -Layout foreshore -Car ks_mazda_mx5_nd -AiLevel 90 -Minutes 10
   .\scripts\windows\run-test.ps1 C:\somewhere\busselton.zip
+  .\scripts\windows\run-test.ps1 busselton -Layout foreshore -Night
+  .\scripts\windows\run-test.ps1 busselton -Layout town -Cars 5
 
 .NOTES
   Runs code from the repo, never edits it (see CLAUDE.md). Needs the build to have traffic on (the
@@ -17,6 +19,11 @@
   The car is an everyday hatch (the Abarth 500 that comes with AC) driven at AI level 75, so the
   test drives a town street the way a person would, not flat out in a race car. -Car and -AiLevel
   change them (-Car "" keeps the car from the last session Content Manager started).
+  -Night drives at 22:00 (-Time sets another time, e.g. -Time 19:30 for dusk): race.ini's sun angle
+  as Content Manager writes it, with the unclamped angle CSP reads (AC alone stops at 18:00, so CSP's
+  weather FX must be on). -Weather sets race.ini's weather by name.
+  -Cars N puts N AI opponents on the grid in a race session (-Laps long, at most the layout's pit
+  boxes less one); the track script logs every car's contacts, off-road moments and stops.
   Close AC before running. The script restores race.ini afterwards.
 #>
 param(
@@ -34,9 +41,28 @@ param(
   # Where the Drive button is in AC's window, as a fraction of its width and height: the top icon
   # of the left-hand bar (AC scales its menus with the resolution; measured on the workstation's 4K screen).
   [double]$DriveX = 0.013,
-  [double]$DriveY = 0.080
+  [double]$DriveY = 0.080,
+  # Night run: 22:00 unless -Time gives another time (HH:mm, 24-hour).
+  [switch]$Night,
+  [string]$Time = "",
+  # race.ini's [WEATHER] NAME (a folder in content\weather), when given.
+  [string]$Weather = "",
+  # AI opponents: N other cars, a race session of -Laps laps instead of a solo practice.
+  [int]$Cars = 0,
+  [int]$Laps = 3
 )
 $ErrorActionPreference = "Stop"
+$inv = [Globalization.CultureInfo]::InvariantCulture
+if ($Night -and -not $Time) { $Time = "22:00" }
+$sunAngle = $null
+if ($Time) {
+  $tm = [regex]::Match($Time, '^(\d{1,2}):(\d{2})$')
+  if (-not $tm.Success -or [int]$tm.Groups[1].Value -gt 23 -or [int]$tm.Groups[2].Value -gt 59) { throw "-Time must be HH:mm (24-hour), e.g. 22:00." }
+  # Content Manager's sun angle: 16 degrees an hour from 13:00 (-80 is 08:00, 80 is 18:00).
+  $sunAngle = 16.0 * ([int]$tm.Groups[1].Value + [int]$tm.Groups[2].Value / 60.0 - 13.0)
+}
+if ($Cars -lt 0) { throw "-Cars must be 0 or more." }
+if ($Cars -gt 0 -and -not $PSBoundParameters.ContainsKey('Minutes')) { $Minutes += 2 }
 $repo = Resolve-Path (Join-Path $PSScriptRoot "..\..")
 . (Join-Path $PSScriptRoot "share.ps1")
 $Zip = Resolve-BusseltonZip $Zip
@@ -62,7 +88,28 @@ $layouts = @(Get-ChildItem (Join-Path $AcPath "content\tracks\$slug") -Filter "m
 if (-not $Layout -and $layouts.Count) { $Layout = $layouts[0] }
 if ($Layout -and $layouts -notcontains $Layout) { throw "No layout '$Layout' in $slug (it has: $($layouts -join ', '))." }
 
-# 2. A practice session for one car, the test driver at the wheel.
+$tracks = Join-Path $AcPath "content\tracks\$slug"
+if ($Cars -gt 0) {
+  # Room on the grid: the layout's pit boxes (ui_track.json), the test car included.
+  $ui = if ($Layout) { Join-Path $tracks "ui\$Layout\ui_track.json" } else { Join-Path $tracks "ui\ui_track.json" }
+  $boxes = 0
+  if (Test-Path $ui) { try { $boxes = [int]((Get-Content $ui -Raw | ConvertFrom-Json).pitboxes) } catch { $boxes = 0 } }
+  if ($boxes -gt 0 -and $Cars + 1 -gt $boxes) {
+    Write-Host "Only $boxes pit boxes on this layout: $($boxes - 1) AI cars instead of $Cars." -ForegroundColor Yellow
+    $Cars = $boxes - 1
+  }
+  if ($Cars -lt 1) { throw "No room for AI cars on this layout ($boxes pit boxes)." }
+}
+
+# 2. A practice session for one car (or a race with AI opponents), the test driver at the wheel.
+function Get-Ini([string[]]$lines, [string]$section, [string]$key) {
+  $in = $false
+  foreach ($l in $lines) {
+    if ($l -match '^\s*\[(.+)\]\s*$') { $in = ($Matches[1] -eq $section) }
+    elseif ($in -and $l -match "^\s*$([regex]::Escape($key))\s*=(.*)$") { return $Matches[1].Trim() }
+  }
+  return ""
+}
 function Set-Ini([string[]]$lines, [string]$section, [string]$key, [string]$value) {
   $out = New-Object System.Collections.Generic.List[string]
   $in = $false; $done = $false; $seen = $false
@@ -80,18 +127,50 @@ function Set-Ini([string[]]$lines, [string]$section, [string]$key, [string]$valu
 $backup = "$raceIni.before-test"
 Copy-Item $raceIni $backup -Force
 $ini = Get-Content $raceIni
-# Only the first session, as practice.
+# Only the first session, and only the first car (opponents are added below).
 $ini = @($ini | ForEach-Object -Begin { $skip = $false } -Process {
-  if ($_ -match '^\s*\[SESSION_[1-9]\d*\]') { $skip = $true } elseif ($_ -match '^\s*\[') { $skip = $false }
+  if ($_ -match '^\s*\[(SESSION|CAR)_[1-9]\d*\]') { $skip = $true } elseif ($_ -match '^\s*\[') { $skip = $false }
   if (-not $skip) { $_ }
 })
 foreach ($kv in @(
-  @("RACE", "TRACK", $slug), @("RACE", "CONFIG_TRACK", $Layout), @("RACE", "CARS", "1"), @("RACE", "AI_LEVEL", "$AiLevel"),
+  @("RACE", "TRACK", $slug), @("RACE", "CONFIG_TRACK", $Layout), @("RACE", "CARS", "$($Cars + 1)"), @("RACE", "AI_LEVEL", "$AiLevel"),
   @("CAR_0", "DRIVER_NAME", "Busselton Test"),
-  @("SESSION_0", "NAME", "Practice"), @("SESSION_0", "TYPE", "1"), @("SESSION_0", "DURATION_MINUTES", "30"), @("SESSION_0", "SPAWN_SET", "START"),
   @("REMOTE", "ACTIVE", "0"), @("REPLAY", "ACTIVE", "0"), @("AUTOSPAWN", "ACTIVE", "1")
 )) { $ini = Set-Ini $ini $kv[0] $kv[1] $kv[2] }
+if ($Cars -gt 0) {
+  # A race: AC's offline practice is for one car only.
+  foreach ($kv in @(
+    @("SESSION_0", "NAME", "Race"), @("SESSION_0", "TYPE", "3"), @("SESSION_0", "LAPS", "$Laps"), @("SESSION_0", "DURATION_MINUTES", "0"), @("SESSION_0", "SPAWN_SET", "START"),
+    @("RACE", "RACE_LAPS", "$Laps"), @("RACE", "PENALTIES", "0"), @("RACE", "JUMP_START_PENALTY", "0")
+  )) { $ini = Set-Ini $ini $kv[0] $kv[1] $kv[2] }
+} else {
+  foreach ($kv in @(
+    @("SESSION_0", "NAME", "Practice"), @("SESSION_0", "TYPE", "1"), @("SESSION_0", "DURATION_MINUTES", "30"), @("SESSION_0", "SPAWN_SET", "START")
+  )) { $ini = Set-Ini $ini $kv[0] $kv[1] $kv[2] }
+}
 if ($Car) { $ini = Set-Ini $ini "RACE" "MODEL" $Car; $ini = Set-Ini $ini "CAR_0" "MODEL" "-" }
+if ($Cars -gt 0) {
+  # The opponents drive the same car as the test car, each in another skin where there are several.
+  $model = if ($Car) { $Car } else { Get-Ini $ini "RACE" "MODEL" }
+  if (-not $model) { throw "No car to give the AI opponents: pass -Car." }
+  $skins = @(Get-ChildItem (Join-Path $AcPath "content\cars\$model\skins") -Directory -ErrorAction SilentlyContinue | ForEach-Object { $_.Name })
+  for ($i = 1; $i -le $Cars; $i++) {
+    $skin = if ($skins.Count) { $skins[$i % $skins.Count] } else { "" }
+    foreach ($kv in @(
+      @("MODEL", $model), @("SKIN", $skin), @("DRIVER_NAME", "Busselton AI $i"), @("NATIONALITY", ""), @("SETUP", ""),
+      @("MODEL_CONFIG", ""), @("AI_LEVEL", "$AiLevel"), @("AI_AGGRESSION", "0"), @("BALLAST", "0"), @("RESTRICTOR", "0")
+    )) { $ini = Set-Ini $ini "CAR_$i" $kv[0] $kv[1] }
+  }
+}
+if ($null -ne $sunAngle) {
+  # AC clamps SUN_ANGLE to 08:00..18:00; CSP reads the unclamped angle, as Content Manager writes it.
+  $clamped = [Math]::Max(-80.0, [Math]::Min(80.0, $sunAngle))
+  foreach ($kv in @(
+    @("LIGHTING", "SUN_ANGLE", $clamped.ToString("0.00", $inv)), @("LIGHTING", "__CM_UNCLAMPED_SUN_ANGLE", $sunAngle.ToString("0.00", $inv)),
+    @("LIGHTING", "TIME_MULT", "1")
+  )) { $ini = Set-Ini $ini $kv[0] $kv[1] $kv[2] }
+}
+if ($Weather) { $ini = Set-Ini $ini "WEATHER" "NAME" $Weather }
 Set-Content -Path $raceIni -Value $ini -Encoding ASCII
 # Run windowed: in exclusive full screen the simulated Drive click never reaches AC.
 $videoIni = Join-Path $docs "cfg\video.ini"
@@ -106,7 +185,10 @@ Copy-Item $raceIni $used -Force
 
 # 3. Drive: AC quits itself when the run ends; this waits a little longer, then closes it.
 $started = Get-Date
-Write-Host "Starting $slug with the AI driving (up to $Minutes min) ..." -ForegroundColor Cyan
+$what = @()
+if ($Time) { $what += "at $Time" }
+if ($Cars -gt 0) { $what += "with $Cars AI cars" }
+Write-Host "Starting $slug $($what -join ' ') with the AI driving (up to $Minutes min) ..." -ForegroundColor Cyan
 try {
   $proc = Start-Process -FilePath (Join-Path $AcPath "acs.exe") -WorkingDirectory $AcPath -PassThru
   # AC opens on its setup screen and waits for the Drive button (top of the left-hand bar). The
@@ -231,11 +313,22 @@ Start-Sleep -Seconds 3
 # 4. Collect.
 $stamp = $started.ToString("yyyy-MM-dd_HHmm")
 $base = if ($Share -and (Test-Path $Share)) { Join-Path $Share "tests" } else { Join-Path $repo "reports" }
-$dest = Join-Path $base ("$stamp-$slug" + $(if ($Layout) { "-$Layout" } else { "" }))
+$suffix = $(if ($Layout) { "-$Layout" } else { "" }) + $(if ($Night) { "-night" } elseif ($Time) { "-" + ($Time -replace ':', '') } else { "" }) + $(if ($Cars -gt 0) { "-cars$Cars" } else { "" })
+$dest = Join-Path $base ("$stamp-$slug" + $suffix)
 New-Item -ItemType Directory -Force -Path $dest | Out-Null
+# What this run was asked to do, for autotest_report.py.
+[ordered]@{
+  slug = $slug; layout = $Layout; car = $Car; aiLevel = $AiLevel; night = [bool]$Night; time = $Time
+  sunAngle = $sunAngle; cars = $Cars; laps = $(if ($Cars -gt 0) { $Laps } else { 0 }); weather = $Weather
+} | ConvertTo-Json | Set-Content (Join-Path $dest "run.json") -Encoding ASCII
 Copy-Item (Join-Path $docs "logs") (Join-Path $dest "logs") -Recurse -Force -ErrorAction SilentlyContinue
 $screens = Get-ChildItem (Join-Path $docs "screens") -File -ErrorAction SilentlyContinue | Where-Object { $_.LastWriteTime -ge $started }
-if ($screens) { New-Item -ItemType Directory -Force -Path (Join-Path $dest "screens") | Out-Null; $screens | Copy-Item -Destination (Join-Path $dest "screens") }
+if ($screens) {
+  New-Item -ItemType Directory -Force -Path (Join-Path $dest "screens") | Out-Null
+  $screens | Copy-Item -Destination (Join-Path $dest "screens")
+  # The order they were taken in (their names don't sort by time), to match them to the shot lines.
+  $screens | Sort-Object LastWriteTime | ForEach-Object { "$($_.Name),$($_.LastWriteTime.ToString('HH:mm:ss.fff'))" } | Set-Content (Join-Path $dest "screens.txt") -Encoding ASCII
+}
 $replay = Get-ChildItem (Join-Path $docs "replay\temp") -File -ErrorAction SilentlyContinue | Where-Object { $_.LastWriteTime -ge $started } | Sort-Object LastWriteTime -Descending | Select-Object -First 1
 if ($replay) { Copy-Item $replay.FullName $dest }
 Copy-Item (Join-Path $docs "out\race_out.json") $dest -ErrorAction SilentlyContinue
@@ -249,6 +342,10 @@ $lines | ForEach-Object { $_ -replace '^BTEST,', '' } | Add-Content (Join-Path $
 $finish = $lines | Where-Object { $_ -match '^BTEST,finish' } | Select-Object -Last 1
 $off = ($lines | Where-Object { $_ -match '^BTEST,offroad' }).Count
 $start = $lines | Where-Object { $_ -match '^BTEST,start' } | Select-Object -First 1
+$env0 = $lines | Where-Object { $_ -match '^BTEST,env,' } | Select-Object -First 1
+$contacts = ($lines | Where-Object { $_ -match '^BTEST,contact' }).Count
+$offOthers = ($lines | Where-Object { $_ -match '^BTEST,coffroad' }).Count
+$stuckAll = ($lines | Where-Object { $_ -match '^BTEST,cstuck' }).Count
 
 # One zip of the lot, for the laptop session.
 $zipOut = "$dest.zip"
@@ -260,5 +357,7 @@ Write-Host "Test run: $slug" -ForegroundColor Green
 Write-Host ("  started:   " + ($(if ($start) { $start } else { "no BTEST lines: the test script didn't run (check logs\custom_shaders_patch.log for autotest.lua)" })))
 Write-Host ("  finished:  " + ($(if ($finish) { $finish } else { "no finish line (timed out or crashed)" })))
 Write-Host "  off-road events: $off"
+if ($env0) { Write-Host ("  time of day: " + (($env0 -split ',', 11)[10])) }
+if ($Cars -gt 0) { Write-Host "  AI cars: $Cars; contacts logged: $contacts; their off-road events: $offOthers; stops of 10 s or more: $stuckAll" }
 Write-Host "  results:   $dest"
 Write-Host "  zip:       $zipOut"
