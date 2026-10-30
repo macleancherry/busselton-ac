@@ -199,6 +199,9 @@ export const ROOF_COLOURS: RoofFinish[] = [
   roof("tile_sand", [196, 170, 130], "ctile"),
   roof("membrane", [196, 196, 192], "membrane"),
   roof("gravel", [150, 146, 138], "gravel"),
+  // Busselton fork: Colorbond greens (park pavilions, clubs, old halls).
+  roof("paleeucalypt", [124, 132, 105], "metal"),
+  roof("cottagegreen", [44, 77, 60], "metal"),
 ];
 
 const roofIndex = (name: string) => ROOF_COLOURS.findIndex((r) => r.name === name);
