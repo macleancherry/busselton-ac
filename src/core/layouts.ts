@@ -13,6 +13,7 @@
 // points for free roam, laid on the world's own road surface (layoutFiles).
 import { aiHintsIni, buildAiLine } from "./aiLine";
 import { layoutChallengesIni } from "./challengeFiles";
+import { cruiseLayoutIni, cruiseSights, limitsByPercent } from "./cruise";
 import type { ChallengesOption } from "./challenges";
 import { landmarkShots, type Landmark } from "./landmarkShots";
 import { readFastLaneAi, writeFastLaneAi, type AiPoint } from "./aiSpline";
@@ -374,6 +375,8 @@ export function layoutFiles(world: World, layout: LayoutSpec, trackObjects: (pla
     files[`${slug}/layout_${layout.id}.kn5`] = dummiesKn5(layout.id, dummies);
     const challenges = layoutChallengesIni(layout.name, null, (p) => proj.toLocal(p), (x, y) => height(x, y) ?? spots[0].h ?? 0, layout.challenges);
     if (challenges) files[`${base}/data/challenges.ini`] = enc.encode(challenges);
+    // Busselton fork: cruise mode (cruise.ts): in free roam every landmark is a sight.
+    if (world.landmarks?.length) files[`${base}/data/cruise.ini`] = enc.encode(cruiseLayoutIni(layout.name, { closed, length, sights: cruiseSights([], world.landmarks) }));
     outline = spots.map((s) => [s.x, -s.y] as [number, number]);
     if (outline.length < 2) outline.push([outline[0][0] + 1, outline[0][1] + 1]);
   } else if (layout.coords && layout.coords.length >= 2) {
@@ -395,6 +398,11 @@ export function layoutFiles(world: World, layout: LayoutSpec, trackObjects: (pla
     // Busselton fork: the layout's hand-picked checkpoints and, point to point, its time trial.
     const challenges = layoutChallengesIni(layout.name, { plan, dummies }, (p) => proj.toLocal(p), ground, layout.challenges, opts.timeTrialSectors);
     if (challenges) files[`${base}/data/challenges.ini`] = enc.encode(challenges);
+    // Busselton fork: cruise mode's sights along this layout and its speed limits (cruise.ts).
+    files[`${base}/data/cruise.ini`] = enc.encode(cruiseLayoutIni(layout.name, {
+      closed: plan.closed, length: ai.length > 1 ? ai[ai.length - 1].distance + ai[ai.length - 1].length : plan.length,
+      sights: cruiseSights(ai, world.landmarks ?? []), limits: limitAt ? limitsByPercent(ai, limitAt) : undefined,
+    }));
     files[`${base}/data/cameras_1.ini`] = enc.encode(camerasIni(placeCameras(plan, opts, ground, () => false)));
     outline = simplify(plan.samples.map((s) => s.pos), 0.5).map(([x, y]) => [x, -y] as [number, number]);
     if (closed) outline.push(outline[0]);
