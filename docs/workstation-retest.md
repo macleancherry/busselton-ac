@@ -53,6 +53,16 @@ The geometry changed, so the old bakes don't fit. Installing a new build removes
 - The run's screenshots should show 3D trees along the foreshore (Norfolk pines) and in the streets. Say how they look: upright, the right size, leaves not black or inside-out.
 - Frame rate against the `busselton` foreshore run.
 
+## 3b. Landmarks in game
+
+The new **Sights** layout drives a short loop past Rocky Ridge, the Old Courthouse and the Esplanade Hotel. Every automatic run takes an extra screenshot just before each landmark, logged as `BTEST,shot` with `landmark_<name>`.
+
+```powershell
+.\scripts\windows\run-test.ps1 busselton -Layout sights -SkipInstall
+```
+
+Run it after the bake in step 2, so the shots have CSP lighting and AO. Put the landmark screenshots in the report folder, and say how Rocky Ridge looks: the roof, the beer garden, the umbrellas and the sign.
+
 ## 4. What still needs Mac in person
 
 These need someone at the wheel. Leave them for Mac and list them at the end of the report:
