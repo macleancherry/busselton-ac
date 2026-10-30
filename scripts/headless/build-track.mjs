@@ -10,6 +10,7 @@
 //     "pins": [[115.33054, -33.65499], [115.33056, -33.65034], ...],   // lng, lat
 //     "options": { "imagery": "high", "trees": "normal" },              // optional: ids of <select>s/<input>s in the UI
 //     "build": { "noTrace": [{ "at": [115.3445, -33.6500], "radius": 150 }] }  // optional: BuildOptions with no UI control
+//     "ways": [89374807, 733256017], "reverse": false   // optional: route along these OSM ways (through the pins) instead of OSRM
 //   }
 //
 // Writes out/<slug>.zip and out/<slug>.stats.json. Needs `npx playwright install chromium` once.
@@ -223,11 +224,15 @@ try {
   const mainLayout = spec.layouts?.length ? { id: spec.layout?.id ?? "main", name: spec.layout?.name ?? spec.name } : null;
   if (mainLayout) buildOpts = { ...(buildOpts ?? {}), layout: mainLayout.id };
   if (buildOpts) await page.evaluate((b) => { window.__buildOptions = b; }, buildOpts);
+  // "ways": [OSM way ids] takes the centreline from those ways instead of OSRM, through the pins in
+  // order ("reverse": true drives it the other way): circuits and tracks OSRM's car profile won't route.
+  if (spec.ways) await page.evaluate((w) => { window.__routeWays = w; }, { ids: spec.ways, reverse: !!spec.reverse });
   for (const p of spec.pins) await page.evaluate((pt) => window.__app.addPin(pt), p);
   await page.fill("#name", spec.name);
 
-  log("routing", spec.pins.length, "pins");
-  await page.waitForSelector("#build:not([disabled])", { timeout: 60_000 });
+  log("routing", spec.pins.length, "pins", spec.ways ? `along OSM ways ${spec.ways.join(", ")}` : "");
+  // Routed, or a routing error shown (Overpass retries for ways can take a few minutes).
+  await page.waitForSelector("#build:not([disabled]), #route-error:not([hidden])", { timeout: spec.ways ? 240_000 : 60_000 });
   const routeErr = await page.locator("#route-error").evaluate((e) => (e.hidden ? "" : e.textContent));
   if (routeErr) throw new Error(routeErr);
   log("route", await page.textContent("#route-length"), await page.textContent("#route-kind"));
@@ -311,7 +316,7 @@ try {
   if (mainLayout) {
     log("layouts:", [mainLayout.id, ...spec.layouts.map((l) => l.id)].join(", "));
     const extra = await page.evaluate(async ({ layouts, options, mainId, mainTraffic, name }) => {
-      const { route } = await import("/src/services/osm.ts");
+      const { route, routeWays } = await import("/src/services/osm.ts");
       const { layoutFiles } = await import("/src/core/layouts.ts");
       const { trackObjects } = await import("/src/core/track.ts");
       const { trafficForSetting } = await import("/src/core/trafficZones.ts");
@@ -330,7 +335,11 @@ try {
         landmarks: (window.__landmarks ?? []).map((h) => ({ name: h.name, at: r.proj.toLocal(h.at) })),
       };
       for (const l of layouts) {
-        const coords = l.pins ? (await route(l.loop ? [...l.pins, l.pins[0]] : l.pins)).coords : undefined;
+        // A layout's own "ways" (and "reverse") route it along OSM ways, as the main drive's do.
+        const through = l.pins && (l.loop ? [...l.pins, l.pins[0]] : l.pins);
+        const coords = !l.pins ? undefined
+          : l.ways ? (await routeWays(l.ways, through, { reverse: !!l.reverse, loop: !!l.loop })).coords
+          : (await route(through)).coords;
         const f = layoutFiles(world, { id: l.id, name: l.name, coords, spawns: l.spawns, challenges: l.challenges }, trackObjects);
         for (const [k, v] of Object.entries(f)) files[k] = b64(v);
         // The world's surfaces (and traffic) are every layout's.

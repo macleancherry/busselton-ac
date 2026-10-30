@@ -10,6 +10,7 @@ import { kerbsideFromTags } from "../core/kerbside";
 import { isUnsealed } from "../core/unsealed";
 import type { OsmFeatures } from "../core/track";
 import type { RoundaboutHint } from "../core/roundabout";
+import { routeAlongWays, type OsmWayGeom, type WayRouteOptions } from "../core/wayRoute";
 
 const OSRM = "https://router.project-osrm.org";
 const PHOTON = "https://photon.komoot.io/api/";
@@ -386,4 +387,61 @@ export async function fetchPierFeatures(box: [number, number, number, number]): 
   if (box[0] < e && box[2] > w && box[1] < n && box[3] > so) return JETTY_SNAPSHOT;
   warnMissing("jetty features (OSM: its railway, platforms, buildings)");
   return empty;
+}
+
+/**
+ * Busselton fork: the geometry of particular OSM ways, by id, for a route taken from the ways
+ * instead of OSRM (core/wayRoute.ts). Same Overpass mirrors and retries as the rest; the query is
+ * the same for the same ids, so the headless build caches and snapshots it like any other download.
+ */
+export async function fetchWayGeoms(ids: number[]): Promise<OsmWayGeom[]> {
+  const bad = ids.filter((id) => !Number.isInteger(id) || id <= 0);
+  if (!ids.length || bad.length) throw new Error(`"ways" must be OSM way ids (whole numbers)${bad.length ? `, not ${bad.join(", ")}` : ""}`);
+  const query = `[out:json][timeout:40];way(id:${ids.join(",")});out tags geom;`;
+  let elements: (OverpassWay & { id: number })[] | undefined;
+  let lastError = "";
+  for (let round = 0; round < 3 && !elements; round++) {
+    if (round) await new Promise((ok) => setTimeout(ok, 5000 * round));
+    const ctl = new AbortController();
+    const timer = setTimeout(() => ctl.abort(), 45000);
+    try {
+      elements = await Promise.any(OVERPASS.map(async (url) => {
+        const r = await fetch(url, { method: "POST", body: new URLSearchParams({ data: query }), signal: ctl.signal });
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        const body = await r.json();
+        if (body.remark && /timed out|runtime error/i.test(body.remark)) throw new Error(body.remark);
+        if (!Array.isArray(body.elements)) throw new Error("no elements");
+        return body.elements;
+      }));
+    } catch (e) {
+      lastError = e instanceof AggregateError ? e.errors.map((x) => (x as Error).message).join("; ") : (e as Error).message;
+    } finally {
+      clearTimeout(timer);
+      ctl.abort();
+    }
+  }
+  if (!elements) throw new Error(`couldn't fetch OSM ways ${ids.join(", ")} from Overpass (every mirror failed 3 times: ${lastError}); build again`);
+  const byId = new Map<number, LngLat[]>();
+  for (const e of elements) {
+    if (e.type === "way" && e.geometry?.length) byId.set(e.id, e.geometry.map((g) => [g.lon, g.lat] as LngLat));
+  }
+  const missing = ids.filter((id) => !byId.has(id));
+  if (missing.length) throw new Error(`OSM way${missing.length > 1 ? "s" : ""} ${missing.join(", ")} not found (deleted, or a wrong id)`);
+  return ids.map((id) => ({ id, pts: byId.get(id)! }));
+}
+
+const wayGeomCache = new Map<string, Promise<OsmWayGeom[]>>();
+
+/** Busselton fork: a Route along the given OSM ways through the pins, in place of OSRM's `route`. */
+export async function routeWays(ids: number[], through: LngLat[], opts: WayRouteOptions = {}): Promise<Route> {
+  // Fetched once per set of ids (the page re-routes on every pin added); a failure is tried again next time.
+  const k = ids.join(",");
+  let geoms = wayGeomCache.get(k);
+  if (!geoms) {
+    geoms = fetchWayGeoms(ids);
+    wayGeomCache.set(k, geoms);
+    geoms.catch(() => wayGeomCache.delete(k));
+  }
+  const r = routeAlongWays(await geoms, through, opts);
+  return { ...r, roundabouts: [], uturns: [], trimmed: [] };
 }

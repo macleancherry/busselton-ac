@@ -5,7 +5,7 @@ import { LocalProjection, type LngLat } from "../core/geo";
 import type { TrackResult } from "../core/track";
 import { zipTrack } from "../core/zip";
 import type { BuildOptions } from "../core/options";
-import { reverseGeocode, route, searchPlaces, type Place, type Route } from "../services/osm";
+import { reverseGeocode, route, routeWays, searchPlaces, type Place, type Route } from "../services/osm";
 import { DEM_LABEL, IMAGERY, tileUrl, type DemSource, type ImagerySource } from "../services/tiles";
 import { createPreview, type PreviewScene } from "./preview";
 import { savedToken, saveToken } from "../services/mapillary";
@@ -216,7 +216,9 @@ async function doRoute(): Promise<void> {
   const loop = $<HTMLInputElement>("loop").checked;
   const through = loop ? [...pins, pins[0]] : pins;
   try {
-    const r = await route(through);
+    // Busselton fork: a route file's "ways" (OSM way ids) route along those ways instead of OSRM (core/wayRoute.ts).
+    const ways = (window as unknown as { __routeWays?: { ids: number[]; reverse?: boolean } }).__routeWays;
+    const r = ways ? await routeWays(ways.ids, through, { reverse: ways.reverse, loop }) : await route(through);
     if (seq !== routeSeq) return;
     current = r;
     routeLine?.remove();
