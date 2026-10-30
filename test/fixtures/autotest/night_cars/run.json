@@ -1,0 +1,12 @@
+{
+  "slug": "test",
+  "layout": "",
+  "car": "abarth500",
+  "aiLevel": 75,
+  "night": true,
+  "time": "22:00",
+  "sunAngle": 144.0,
+  "cars": 3,
+  "laps": 3,
+  "weather": ""
+}
