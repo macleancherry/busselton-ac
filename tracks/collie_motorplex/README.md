@@ -6,7 +6,7 @@ The Collie Motorplex circuit east of Collie. OSM maps it as `highway=raceway`, "
 
 ## Status
 
-- **Blocked on routing.** The builder routes with OSRM's car profile, which doesn't drive on raceways: these pins detour out to Powerhouse Road. It needs the route taken from the OSM raceway way instead of OSRM (a small change in `src/services/osm.ts` or the headless script). Don't build it until then.
+- **Routing:** the centreline comes straight from the OSM raceway ways (`"ways"` in the route file), since OSRM won't drive raceways. Long layout (with the southern extension) is the main one; Short is a second layout. Races anticlockwise. The start/finish line still needs placing on the main straight.
 - Pins follow the OSM way's order; the racing direction isn't checked yet.
 - **Heights:** not on GA's 5 m LiDAR (well east of the tiled area); about 30 m global heights. A circuit wants better: GA's ELVIS portal may have LiDAR for Collie.
 

@@ -18,7 +18,7 @@ The route stays in `routes/` and the landmarks in `routes/landmarks/`. Private t
 | [Margaret River](margaret_river/README.md) | Drive-anywhere (showcase later) | `routes/margaret-river.json` | No |
 | [Caves Road, Boranup](caves_road_boranup/README.md) | Drive-anywhere (showcase later) | `routes/caves-road-boranup.json` | No |
 | [Cape Leeuwin](cape_leeuwin/README.md) | Drive-anywhere (showcase later) | `routes/cape-leeuwin.json` | No |
-| [Collie Motorplex](collie_motorplex/README.md) | Showcase (blocked: OSRM won't route the raceway) | `routes/collie-motorplex.json` | No |
+| [Collie Motorplex](collie_motorplex/README.md) | Showcase | `routes/collie-motorplex.json` | No |
 
 Where the 5 m LiDAR stops (`STATE_DEMS.wa.box` in `src/services/tiles.ts`, and GA's coverage stops short of that box west of Dunsborough), the build falls back to about 30 m global heights.
 
