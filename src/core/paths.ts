@@ -1,7 +1,7 @@
 // Footpaths and shared paths from OpenStreetMap (OpenMapTiles class "path"):
 // red asphalt with a dashed white centreline where bikes are allowed (the
 // foreshore's dual-use path), concrete elsewhere. Laid on the ground meshes
-// (pathGround.ts) a couple of centimetres up, with a thin edge down into the
+// (sceneGround.ts) a couple of centimetres up, with a thin edge down into the
 // ground so no gap shows, and cut where they would run under the road or a street.
 
 import { encodePng } from "./png";

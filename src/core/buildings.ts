@@ -25,6 +25,7 @@ import { ChunkedMesh, rng } from "./scenery";
 import type { TerrainChunk } from "./terrain";
 import { FACADES, LAYOUTS, PITCHED, ROOF_COLOURS, type Dress, type Layout } from "./buildingStyles";
 import { pad } from "./roadMesh";
+import { alongRing, SINK } from "./sceneGround";
 
 export interface Building extends Dress {
   /** Footprint, local metres, first point not repeated. */
@@ -454,7 +455,11 @@ interface Band {
  * and front doors, driveways, window glass. Gable and skillion roofs run
  * along the long side.
  */
-export function buildBuildings(buildings: Building[], ground: HeightFn): Kn5MeshNode[] {
+/**
+ * `ground` is what they stand on (sceneGround.ts): the walls start at the lowest ground along the
+ * footprint's edges, `sink` metres into it (more for buildings out on the coarse horizon mesh).
+ */
+export function buildBuildings(buildings: Building[], ground: HeightFn, sink: (b: Building) => number = () => SINK): Kn5MeshNode[] {
   const walls = new Map<number, ChunkedMesh>(), roofs = new Map<number, ChunkedMesh>();
   const of = (m: Map<number, ChunkedMesh>, k: number) => {
     let c = m.get(k);
@@ -466,8 +471,8 @@ export function buildBuildings(buildings: Building[], ground: HeightFn): Kn5Mesh
   for (const b of buildings) {
     const ring = ringArea(b.ring) < 0 ? b.ring.slice().reverse() : b.ring;
     const hs = ring.map(([x, y]) => ground(x, y));
-    const floor = Math.min(...hs);
-    const base = floor - 0.4;
+    const floor = Math.min(...alongRing(ring, 0.5).map(([x, y]) => ground(x, y)));
+    const base = floor - sink(b);
     const stumps = b.stumps ?? 0, floor0 = floor + stumps;
     const top = Math.max(...hs) + stumps + b.height;
     const pitched = b.roof !== "flat" && ring.length === 4;
@@ -599,7 +604,7 @@ export function buildBuildings(buildings: Building[], ground: HeightFn): Kn5Mesh
         const pm = posts.next(16 * 8);
         for (let m = 0.15; m <= len - 0.1; m += Math.max(2, (len - 0.3) / Math.max(1, Math.round((len - 0.3) / 2.6)))) {
           const [x, y] = pt(m, depth);
-          post(pm, x, y, ground(x, y) - 0.2, zo + 0.3 * Math.tan((10 * Math.PI) / 180));
+          post(pm, x, y, ground(x, y) - SINK, zo + 0.3 * Math.tan((10 * Math.PI) / 180));
         }
         if (stumps > 0.3) {
           const dk: Vec3[] = [[...pt(0, depth + 0.1), floor0], [...pt(len, depth + 0.1), floor0], [...pt(len, 0), floor0], [...pt(0, 0), floor0]];

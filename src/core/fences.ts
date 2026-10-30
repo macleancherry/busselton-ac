@@ -16,6 +16,7 @@ import type { BuildOptions } from "./options";
 import type { SegmentIndex } from "./road";
 import { pad } from "./roadMesh";
 import { BARRIERS } from "./textures";
+import { SINK } from "./sceneGround";
 
 export interface Barrier {
   pts: Vec2[];
@@ -122,8 +123,8 @@ function slab(mb: MeshBuilder, p: Vec2, q: Vec2, thick: number, height: number, 
   const R = (v: Vec2, z: number): Vec3 => [v[0] + nx, v[1] + ny, z];
   const L = (v: Vec2, z: number): Vec3 => [v[0] - nx, v[1] - ny, z];
   // Right face (outward to the right of p->q), then the left face, then the top.
-  quad([R(p, zp - 0.2), R(q, zq - 0.2), R(q, zq + height), R(p, zp + height)], [[u0, 1.1], [u1, 1.1], [u1, vTop], [u0, vTop]]);
-  quad([L(q, zq - 0.2), L(p, zp - 0.2), L(p, zp + height), L(q, zq + height)], [[u1, 1.1], [u0, 1.1], [u0, vTop], [u1, vTop]]);
+  quad([R(p, zp - SINK), R(q, zq - SINK), R(q, zq + height), R(p, zp + height)], [[u0, 1.1], [u1, 1.1], [u1, vTop], [u0, vTop]]);
+  quad([L(q, zq - SINK), L(p, zp - SINK), L(p, zp + height), L(q, zq + height)], [[u1, 1.1], [u0, 1.1], [u0, vTop], [u1, vTop]]);
   if (thick > 0.1) quad([R(p, zp + height), R(q, zq + height), L(q, zq + height), L(p, zp + height)], [[u0, 0], [u1, 0], [u1, 0.05], [u0, 0.05]]);
 }
 
@@ -194,8 +195,8 @@ export function buildWireFences(
   // Posts at both ends of each run: a post at every span's p, and at q where no span starts there.
   const starts = new Set(kept.map((s) => `${s.p[0].toFixed(1)},${s.p[1].toFixed(1)}`));
   for (const s of kept) {
-    box(next(posts, 16), s.p, W.post, -0.2, W.postHeight, ground);
-    if (!starts.has(`${s.q[0].toFixed(1)},${s.q[1].toFixed(1)}`)) box(next(posts, 16), s.q, W.post, -0.2, W.postHeight, ground);
+    box(next(posts, 16), s.p, W.post, -SINK, W.postHeight, ground);
+    if (!starts.has(`${s.q[0].toFixed(1)},${s.q[1].toFixed(1)}`)) box(next(posts, 16), s.q, W.post, -SINK, W.postHeight, ground);
     const zp = ground(s.p[0], s.p[1]), zq = ground(s.q[0], s.q[1]);
     for (const h of W.wires) ribbon(next(wires, 8), s.p, s.q, zp + h, zq + h, W.wire);
   }

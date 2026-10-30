@@ -19,6 +19,7 @@ import { MeshBuilder } from "./mesh";
 import type { RoadPlan, RoadSample } from "./road";
 import { chunkRanges, pad } from "./roadMesh";
 import type { RasterSampler } from "./trace";
+import { SINK } from "./sceneGround";
 
 const DU = 0.1;
 /** How far past the road edge the photo is read, metres. */
@@ -258,7 +259,7 @@ export function letterboxes(
     const t = (s.width / 2 + fromEdge) * d.side;
     const at: [number, number] = [s.pos[0] + s.left[0] * t, s.pos[1] + s.left[1] * t];
     const z = groundAt(at[0], at[1], fromEdge, s, d.side);
-    out.push({ kind: "box", at, along: s.tan, length: 0.09, depth: 0.09, z0: z - 0.3, z1: z + 0.95, material: "timber" });
+    out.push({ kind: "box", at, along: s.tan, length: 0.09, depth: 0.09, z0: z - SINK, z1: z + 0.95, material: "timber" });
     out.push({ kind: "box", at, along: s.tan, length: 0.3, depth: 0.42, z0: z + 0.95, z1: z + 1.22, material: "letterbox" });
   }
   return out;

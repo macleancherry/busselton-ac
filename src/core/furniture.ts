@@ -12,9 +12,11 @@ import type { Vec2 } from "./geo";
 import type { Kn5MeshNode } from "./kn5";
 import { MeshBuilder, type Vec3 } from "./mesh";
 import type { BuildOptions } from "./options";
-import { inRoundabout, surfaceHeight, type RoadPlan, type RoadSample, type SegmentIndex } from "./road";
+import { inRoundabout, type RoadPlan, type RoadSample, type SegmentIndex } from "./road";
 import { pad } from "./roadMesh";
 import { box, ChunkedMesh } from "./scenery";
+import { footprint, SINK } from "./sceneGround";
+import type { HeightFn } from "./elevation";
 import type { StreetPlan } from "./sideStreets";
 
 export type Piece =
@@ -28,13 +30,12 @@ export type Piece =
 /** Traffic keeps left: a sign on the left (t > 0) faces traffic coming forward. */
 const facingTraffic = (s: RoadSample, side: 1 | -1): Vec2 => [-s.tan[0] * side, -s.tan[1] * side];
 
-/** Height of the verge surface at lateral offset t (outside the asphalt). */
-export function vergeZ(s: RoadSample, t: number, opts: BuildOptions): number {
-  const side = t >= 0 ? 1 : -1;
-  const half = s.width / 2;
-  const f = Math.min(1, Math.max(0, (Math.abs(t) - half) / Math.max(0.1, opts.vergeWidth)));
-  return surfaceHeight(s, side * half, opts.crown) - 0.2 * f;
-}
+/**
+ * Busselton fork: every piece stands on the base's own meshes (sceneGround.ts): `ground` gives the
+ * height at a point, and a post's foot goes SINK into it. The lowest ground under a wide footprint.
+ */
+const lowest = (ground: HeightFn, at: Vec2, along: Vec2, length: number, depth: number): number =>
+  Math.min(...footprint(at, along, length, depth).map(([x, y]) => ground(x, y)));
 
 function sampleAt(plan: RoadPlan, s: number): number {
   const a = plan.samples;
@@ -56,7 +57,7 @@ export const off = (s: RoadSample, t: number): Vec2 => [s.pos[0] + s.left[0] * t
  * the verge just before the junction, a blade naming the side street
  * (parallel to it) and, above it, one naming the route.
  */
-export function streetSigns(sp: StreetPlan, plan: RoadPlan, opts: BuildOptions, art: ArtList): Piece[] {
+export function streetSigns(sp: StreetPlan, plan: RoadPlan, opts: BuildOptions, art: ArtList, ground: HeightFn): Piece[] {
   const out: Piece[] = [];
   for (const j of sp.junctions) {
     if (!j.name) continue;
@@ -65,8 +66,8 @@ export function streetSigns(sp: StreetPlan, plan: RoadPlan, opts: BuildOptions, 
     if (inRoundabout(plan, s.pos[0], s.pos[1], 6)) continue;
     const t = j.side * (s.width / 2 + opts.vergeWidth * 0.6);
     const at = off(s, t);
-    const z = vergeZ(s, t, opts);
-    out.push({ kind: "box", at, along: s.tan, length: 0.065, depth: 0.065, z0: z - 0.4, z1: z + 3.0, material: "steel" });
+    const z = ground(at[0], at[1]);
+    out.push({ kind: "box", at, along: s.tan, length: 0.065, depth: 0.065, z0: z - SINK, z1: z + 3.0, material: "steel" });
     out.push({ kind: "blade", at, dir: j.dir, z: z + 2.62, height: 0.2, art: art.add({ key: streetKey(j.name), kind: "street", text: j.name }) });
     const own = sp.routeNames[j.seg];
     if (own && own !== j.name) {
@@ -101,7 +102,7 @@ const SIGNED = new Set(Object.keys(POI_COLOURS).concat(["fuel"]));
  * bus stop post and shelter for each stop on it, and a canopy over each
  * service station. Signs keep 12 m apart along each side.
  */
-export function landmarks(pois: Poi[], plan: RoadPlan, index: SegmentIndex, opts: BuildOptions, art: ArtList, clear: (x: number, y: number) => number): Piece[] {
+export function landmarks(pois: Poi[], plan: RoadPlan, index: SegmentIndex, opts: BuildOptions, art: ArtList, clear: (x: number, y: number) => number, ground: HeightFn): Piece[] {
   const out: Piece[] = [];
   const used: { s: number; side: number }[] = [];
   const free = (s: number, side: number) => !used.some((u) => u.side === side && Math.abs(u.s - s) < 12);
@@ -119,20 +120,23 @@ export function landmarks(pois: Poi[], plan: RoadPlan, index: SegmentIndex, opts
     if (p.cls === "bus" && n.dist < 25 && free(s.s, side)) {
       used.push({ s: s.s, side });
       const t = side * (half + opts.vergeWidth * 0.7);
-      const at = off(s, t), z = vergeZ(s, t, opts);
-      out.push({ kind: "box", at, along: s.tan, length: 0.07, depth: 0.07, z0: z - 0.4, z1: z + 2.7, material: "steel" });
+      const at = off(s, t), z = ground(at[0], at[1]);
+      out.push({ kind: "box", at, along: s.tan, length: 0.07, depth: 0.07, z0: z - SINK, z1: z + 2.7, material: "steel" });
       out.push({ kind: "face", at, normal: facingTraffic(s, side), z0: z + 2.0, height: 0.6, art: art.add({ key: "bus", kind: "bus" }) });
       // Shelter set back behind the verge, open toward the road.
       const st = side * (half + opts.vergeWidth + 2.3);
-      const c = off(s, st), zc = vergeZ(s, side * (half + opts.vergeWidth), opts);
+      const c = off(s, st), zc = ground(c[0], c[1]);
       if (clear(c[0], c[1]) > 2.5) {
         const back: Vec2 = [c[0] + s.left[0] * side * 0.75, c[1] + s.left[1] * side * 0.75];
         out.push({ kind: "box", at: c, along: s.tan, length: 3.6, depth: 1.7, z0: zc + 2.35, z1: zc + 2.45, material: "steel" });
-        out.push({ kind: "box", at: back, along: s.tan, length: 3.6, depth: 0.06, z0: zc - 0.2, z1: zc + 2.35, material: "glass" });
+        out.push({ kind: "box", at: back, along: s.tan, length: 3.6, depth: 0.06, z0: lowest(ground, back, s.tan, 3.6, 0.06) - SINK, z1: zc + 2.35, material: "glass" });
         for (const e of [-1.75, 1.75]) {
-          out.push({ kind: "box", at: [back[0] + s.tan[0] * e, back[1] + s.tan[1] * e], along: s.tan, length: 0.08, depth: 0.08, z0: zc - 0.2, z1: zc + 2.4, material: "steel" });
+          const p: Vec2 = [back[0] + s.tan[0] * e, back[1] + s.tan[1] * e];
+          out.push({ kind: "box", at: p, along: s.tan, length: 0.08, depth: 0.08, z0: ground(p[0], p[1]) - SINK, z1: zc + 2.4, material: "steel" });
         }
-        out.push({ kind: "box", at: [c[0] + s.left[0] * side * 0.4, c[1] + s.left[1] * side * 0.4], along: s.tan, length: 2.2, depth: 0.4, z0: zc + 0.4, z1: zc + 0.48, material: "steel" });
+        // The bench: a solid seat block, standing on the ground.
+        const bench: Vec2 = [c[0] + s.left[0] * side * 0.4, c[1] + s.left[1] * side * 0.4];
+        out.push({ kind: "box", at: bench, along: s.tan, length: 2.2, depth: 0.4, z0: lowest(ground, bench, s.tan, 2.2, 0.4) - SINK, z1: zc + 0.48, material: "steel" });
       }
       continue;
     }
@@ -140,10 +144,11 @@ export function landmarks(pois: Poi[], plan: RoadPlan, index: SegmentIndex, opts
     if (p.cls === "fuel" && p.subclass === "fuel") {
       // Canopy over the POI, square to the road, if it doesn't sit on the road.
       if (n.dist > half + opts.vergeWidth + 6) {
-        const zc = vergeZ(s, side * (half + opts.vergeWidth), opts);
+        const zc = ground(p.at[0], p.at[1]);
         const right: Vec2 = [s.left[0] * -1, s.left[1] * -1];
         for (const [a, b] of [[-4, -2.5], [4, -2.5], [-4, 2.5], [4, 2.5]]) {
-          out.push({ kind: "box", at: [p.at[0] + s.tan[0] * a + right[0] * b, p.at[1] + s.tan[1] * a + right[1] * b], along: s.tan, length: 0.35, depth: 0.35, z0: zc - 0.5, z1: zc + 5, material: "steel" });
+          const leg: Vec2 = [p.at[0] + s.tan[0] * a + right[0] * b, p.at[1] + s.tan[1] * a + right[1] * b];
+          out.push({ kind: "box", at: leg, along: s.tan, length: 0.35, depth: 0.35, z0: lowest(ground, leg, s.tan, 0.35, 0.35) - SINK, z1: zc + 5, material: "steel" });
         }
         out.push({ kind: "box", at: p.at, along: s.tan, length: 13, depth: 8, z0: zc + 5, z1: zc + 5.8, material: "canopy" });
       }
@@ -157,7 +162,7 @@ export function landmarks(pois: Poi[], plan: RoadPlan, index: SegmentIndex, opts
     signs++;
     // Pylon at the property line, between the road and the place.
     const t = side * Math.min(n.dist, half + opts.vergeWidth + 2.5);
-    const at = off(s, t), z = vergeZ(s, side * (half + opts.vergeWidth), opts);
+    const at = off(s, t), z = ground(at[0], at[1]);
     // The whole panel (about 2.2 m across, at right angles to the road) must stand clear.
     const ends: Vec2[] = [-1.3, 0, 1.3].map((e) => [at[0] + s.left[0] * e, at[1] + s.left[1] * e]);
     if (ends.some(([x, y]) => clear(x, y) < 1)) continue;
@@ -169,7 +174,7 @@ export function landmarks(pois: Poi[], plan: RoadPlan, index: SegmentIndex, opts
     // Two legs either side of the panel, set back a touch behind it.
     for (const e of [-0.75, 0.75]) {
       const leg: Vec2 = [at[0] + s.left[0] * e - normal[0] * 0.1, at[1] + s.left[1] * e - normal[1] * 0.1];
-      out.push({ kind: "box", at: leg, along: s.tan, length: 0.12, depth: 0.12, z0: z - 0.5, z1: z + tall, material: "steel" });
+      out.push({ kind: "box", at: leg, along: s.tan, length: 0.12, depth: 0.12, z0: ground(leg[0], leg[1]) - SINK, z1: z + tall, material: "steel" });
     }
     out.push({ kind: "face", at, normal, z0: z + tall - h, height: h, art: key, twoSided: true });
   }
@@ -232,7 +237,7 @@ export function mergeSightings(features: SeenFeature[]): SeenFeature[] {
   }));
 }
 
-export function seenFeatures(features: SeenFeature[], plan: RoadPlan, index: SegmentIndex, opts: BuildOptions, art: ArtList): Piece[] {
+export function seenFeatures(features: SeenFeature[], plan: RoadPlan, index: SegmentIndex, opts: BuildOptions, art: ArtList, ground: HeightFn): Piece[] {
   const out: Piece[] = [];
   art.add({ key: "back", kind: "back" });
   for (const f of mergeSightings(features)) {
@@ -248,10 +253,10 @@ export function seenFeatures(features: SeenFeature[], plan: RoadPlan, index: Seg
     const onRoad = n.dist < half + opts.vergeWidth * 0.6;
     const t = onRoad ? side * (half + opts.vergeWidth * 0.7) : n.t;
     const at = onRoad ? off(s, t) : f.at;
-    const z = Math.abs(t) < half + opts.vergeWidth + 0.5 ? vergeZ(s, t, opts) : surfaceHeight(s, side * half, opts.crown) - 0.2;
+    const z = ground(at[0], at[1]);
 
     if (/^object--traffic-light/.test(f.value)) {
-      out.push({ kind: "box", at, along: s.tan, length: 0.14, depth: 0.14, z0: z - 0.4, z1: z + 3.5, material: "steel" });
+      out.push({ kind: "box", at, along: s.tan, length: 0.14, depth: 0.14, z0: z - SINK, z1: z + 3.5, material: "steel" });
       const head: Vec2 = [at[0] + facingTraffic(s, side)[0] * 0.2, at[1] + facingTraffic(s, side)[1] * 0.2];
       out.push({ kind: "box", at: head, along: s.tan, length: 0.36, depth: 0.3, z0: z + 2.4, z1: z + 3.4, material: "signal" });
       continue;
@@ -259,7 +264,7 @@ export function seenFeatures(features: SeenFeature[], plan: RoadPlan, index: Seg
     const key = signArt(f.value, art);
     if (!key || n.dist > 40) continue;
     const size = key.startsWith("speed") ? 0.6 : key.startsWith("chevron") ? 0.6 : 0.75;
-    out.push({ kind: "box", at, along: s.tan, length: 0.065, depth: 0.065, z0: z - 0.4, z1: z + 2.2 + size, material: "steel" });
+    out.push({ kind: "box", at, along: s.tan, length: 0.065, depth: 0.065, z0: z - SINK, z1: z + 2.2 + size, material: "steel" });
     out.push({ kind: "face", at: [at[0] + facingTraffic(s, side)[0] * 0.05, at[1] + facingTraffic(s, side)[1] * 0.05], normal: facingTraffic(s, side), z0: z + 2.1, height: size, art: key });
   }
   return out;
@@ -323,7 +328,7 @@ export function buildPieces(pieces: Piece[], atlas: ArtAtlas | null): Kn5MeshNod
  * START and FINISH signs at the timing gates: one each side of the road on
  * a pair of posts, readable from both ways.
  */
-export function gateSigns(plan: RoadPlan, opts: BuildOptions, art: ArtList): Piece[] {
+export function gateSigns(plan: RoadPlan, opts: BuildOptions, art: ArtList, ground: HeightFn): Piece[] {
   if (!plan.timed) return [];
   const out: Piece[] = [];
   for (const [i, text] of [[plan.timed.start, "START"], [plan.timed.finish, "FINISH"]] as const) {
@@ -334,10 +339,11 @@ export function gateSigns(plan: RoadPlan, opts: BuildOptions, art: ArtList): Pie
       // Beyond the verge or nature strip, clear of the road.
       const t = (s.width / 2 + opts.vergeWidth + 1.8) * side;
       const at: Vec2 = [s.pos[0] + s.left[0] * t, s.pos[1] + s.left[1] * t];
-      const z = vergeZ(s, t, opts);
+      const z = ground(at[0], at[1]);
       for (const d of [-0.75, 0.75]) {
         // Posts at the sign's ends (it spans across the road's direction).
-        out.push({ kind: "box", at: [at[0] + s.left[0] * d, at[1] + s.left[1] * d], along: s.tan, length: 0.08, depth: 0.08, z0: z - 0.4, z1: z + 2.9, material: "steel" });
+        const p: Vec2 = [at[0] + s.left[0] * d, at[1] + s.left[1] * d];
+        out.push({ kind: "box", at: p, along: s.tan, length: 0.08, depth: 0.08, z0: ground(p[0], p[1]) - SINK, z1: z + 2.9, material: "steel" });
       }
       out.push({ kind: "face", at, normal: [-s.tan[0], -s.tan[1]], z0: z + 2.2, height: 0.62, art: key, twoSided: true });
     }
@@ -350,7 +356,7 @@ export function gateSigns(plan: RoadPlan, opts: BuildOptions, art: ArtList): Pie
  * then every 4 km. `rural(i)` says whether sample i is out of town; `blocked(i, side)` keeps signs off
  * junction mouths. Stretches under 1 km get none.
  */
-export function kangarooSigns(plan: RoadPlan, opts: BuildOptions, art: ArtList, rural: (i: number) => boolean, blocked: (i: number, side: 1 | -1) => boolean): Piece[] {
+export function kangarooSigns(plan: RoadPlan, opts: BuildOptions, art: ArtList, rural: (i: number) => boolean, blocked: (i: number, side: 1 | -1) => boolean, ground: HeightFn): Piece[] {
   const out: Piece[] = [];
   const S = plan.samples, n = S.length;
   const sign = (i: number, side: 1 | -1) => {
@@ -361,10 +367,10 @@ export function kangarooSigns(plan: RoadPlan, opts: BuildOptions, art: ArtList, 
       const s = S[j];
       if (inRoundabout(plan, s.pos[0], s.pos[1], 15)) continue;
       const t = side * (s.width / 2 + opts.vergeWidth * 0.7);
-      const at = off(s, t), z = vergeZ(s, t, opts), normal = facingTraffic(s, side);
+      const at = off(s, t), z = ground(at[0], at[1]), normal = facingTraffic(s, side);
       const key = art.add({ key: "warning:kangaroo", kind: "warning", text: "kangaroo" });
       art.add({ key: "back", kind: "back" });
-      out.push({ kind: "box", at, along: s.tan, length: 0.065, depth: 0.065, z0: z - 0.4, z1: z + 2.9, material: "steel" });
+      out.push({ kind: "box", at, along: s.tan, length: 0.065, depth: 0.065, z0: z - SINK, z1: z + 2.9, material: "steel" });
       out.push({ kind: "face", at: [at[0] + normal[0] * 0.05, at[1] + normal[1] * 0.05], normal, z0: z + 2.0, height: 0.9, art: key });
       return;
     }

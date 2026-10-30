@@ -43,7 +43,8 @@ describe("timing gate signs", async () => {
       expect(sides).toEqual(new Set([1, -1]));
       for (const [x, y, z] of near) {
         expect(Math.abs((x - s.pos[0]) * s.left[0] + (y - s.pos[1]) * s.left[1])).toBeGreaterThan(s.width / 2 + 1);
-        expect(z - s.h).toBeGreaterThan(1.9);
+        // 2.2 m over the ground it stands on (sceneGround.ts), which out past the verge is a little under the road.
+        expect(z - s.h).toBeGreaterThan(1.8);
       }
     });
   }

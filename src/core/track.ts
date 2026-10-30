@@ -3,7 +3,6 @@
 // tiles) and in Node tests (synthetic terrain).
 
 import { buildPaths, footPathTexture, sharedPathTexture, type PathLine } from "./paths";
-import { groundMeshHeight } from "./pathGround";
 import { pickSpecies, TREE_SPECIES, treeSpeciesAtlas } from "./treeSprites";
 import { FENCE_COLOURS, fenceTexture, frontWallTexture, hedgeTexture, mulchTexture, shrubAtlas } from "./houseTextures";
 import { buildLots, shrub } from "./lots";
@@ -39,7 +38,7 @@ import { simplify } from "./polyline";
 import { applyElevation, inRoundabout, isLoop, planRoad, surfaceHeight, SegmentIndex, type RoadPlan, type RoadSample } from "./road";
 import { extendRoute, pathLength } from "./extend";
 import { keepOffRoute, onRoute } from "./clearance";
-import { buildRingMarkings, buildRingMeshes, buildRingWall, fitCircle, innerRadius, outerRadius, resolveRoundabouts, ringsOnRoute, ringHeight, vergeOuterRadius, type RoundaboutHint } from "./roundabout";
+import { buildRingMarkings, buildRingMeshes, buildRingWall, fitCircle, innerRadius, outerRadius, resolveRoundabouts, ringsOnRoute, vergeOuterRadius, type RoundaboutHint } from "./roundabout";
 import { buildRoadMeshes, buildWalls, type RoadMaterialFn } from "./roadMesh";
 import { buildKerbReturns, buildKerbs, KERB_BACK, KERB_H, kerbEvidence, planKerbs, STRIP_EXTRA, stripPhotoTexture, type StripMaterialFn } from "./kerbs";
 import { photoRoadTexture } from "./photoSurface";
@@ -48,6 +47,8 @@ import { decodeOwnPng, encodePng } from "./png";
 import { buildMarkings, type DiscreteMark } from "./markings";
 import { kerbsideForTrack, type KerbTags } from "./kerbside";
 import { buildTerrainChunk, makeTerrainFn, meshTop, planTerrainChunks, type TerrainChunk } from "./terrain";
+import { sceneGround, SINK, topSurface } from "./sceneGround";
+import { clearParked, ROUTE_ROAD } from "./parkedClear";
 import { armcoNeeds, buildArmco } from "./armco";
 import { BARRIERS, barrierTexture, detailTexture, normalFromHeight, windowTexture, flatNormalTexture, GROUND_TILE, groundDetail, groundMask, type GroundKind, mapsTexture, paintTexture, sealTexture, type SealKind, garageTexture, grassTexture, concreteTexture, postTexture, railTexture, solidTexture, vergeTexture } from "./textures";
 import {
@@ -245,6 +246,8 @@ export interface TrackResult {
     /** Parked cars painted out of the ground photo, and car park islands raised. */
     carsPainted?: number;
     parkedCars?: number;
+    /** Busselton fork: parked cars the last pass dropped (parkedClear.ts), by what they touched. */
+    parkedDropped?: { road: number; roundabout: number; lane: number };
     /** Busselton fork: kerbside parking bays, bike lane metres and bicycle symbols painted (kerbside.ts). */
     kerbside?: { bays: number; bikeLaneMetres: number; symbols: number };
     /** Busselton fork: signalled sites, posts and heads built, and sites the traffic planner can run (trafficLights.ts). */
@@ -1294,9 +1297,19 @@ export async function buildTrack(
     const mesh = buildBackdropChunk(chunk, farDem, index, opts, textured.has(chunk.key), area ? cover : undefined, (x, y) => terrainAt(x, y).h);
     if (mesh) backdropNodes.push(mesh);
   }
-  const ground = (x: number, y: number) => terrainAt(x, y).h;
-  const onMesh = meshTop(terrainAt, opts);
-  const walls = buildWalls(plan, opts, ground, index);
+  // The analytic terrain: for walls, rail needs, cameras and sounds, not for anything you can see stand on it.
+  const terrainH = (x: number, y: number) => terrainAt(x, y).h;
+  const walls = buildWalls(plan, opts, terrainH, index);
+  // Last check: no kerb, strip, gutter or rail triangle stands on the route's asphalt.
+  const onRoad = onRoute(plan, index);
+  const meshesOf = (nodes: Kn5Node[]) => nodes.filter((n): n is Kn5MeshNode => n.kind === "mesh");
+  const kerbsClear = keepOffRoute([...kerbMeshes.gutter, ...kerbMeshes.kerb, ...kerbMeshes.strip, ...kerbReturns, ...vergeConcrete], onRoad);
+  const ringsClear = keepOffRoute(meshesOf(ringNodes), onRoad);
+  // Busselton fork: one surface for every height (sceneGround.ts). Everything placed from here on
+  // stands on the topmost of the base's physics meshes as built: the route, its verge, kerbs, strips
+  // and returns, the side streets, the roundabouts and the terrain. Where none covers a point (the sea,
+  // past the corridor), the analytic terrain.
+  const ground = sceneGround([...roadMeshes.road, ...roadMeshes.verge, ...sideStreets, ...kerbsClear.nodes, ...ringsClear.nodes, ...terrainNodes], terrainH);
 
   await progress("Placing scenery");
   const offRings = (spots: TreeSpot[]) => spots.filter((t) => !inRoundabout(plan, t.x, t.y, opts.vergeWidth + 3));
@@ -1332,7 +1345,7 @@ export async function buildTrack(
   const planted = zones ? filterTrees(planted0, index, opts, opts.maxTrees, area ? cover : undefined) : planted0;
   const treesKept = offStreets(offRings(planted)).filter((t) => !cleared(t.x, t.y, true));
   // Busselton fork: with CSP trees on, the trees go in CSP's tree list instead of the kn5 (below).
-  const trees = opts.cspTrees ? [] : buildTrees(treesKept, ground);
+  const trees = opts.cspTrees ? [] : buildTrees(treesKept, ground, "TREES");
   const trunks = treeTrunks(treesKept, ground);
   // Tree lines on the horizon: canopy in the far photo, out to 1 km, as cheap unshadowed sprites.
   const far = farTreeSpots.filter((t) => !inCover(t.x, t.y, -5) && cover(t.x, t.y) < 1000 && !sea.has(t.x, t.y));
@@ -1343,6 +1356,8 @@ export async function buildTrack(
       .flatMap((t) => (zones ? zones.tree(t, TREE_SPECIES.map((s) => s.name), speciesRand()) ?? [] : [t])),
     (x, y) => farGround(x, y) - 0.6,
     "HORIZONTREES",
+    // Out on the coarse horizon mesh: sunk well in, as they always were.
+    0.3,
   ).map((m) => ({ ...m, castShadows: false }));
   // Fences, walls and hedges where OSM maps them, never near the road or across a street.
   const barriers = buildBarriers(
@@ -1372,11 +1387,8 @@ export async function buildTrack(
     }
     return shrubs;
   });
-  const islandGround = (x: number, y: number) => {
-    const rb = inRoundabout(plan, x, y)!;
-    return ringHeight(rb, innerRadius(rb)) + 0.55;
-  };
-  const shrubs = islandTrees.length ? buildTrees(islandTrees, islandGround, "ISLANDTREES") : [];
+  // On the island's own grass (the topmost mesh there).
+  const shrubs = islandTrees.length ? buildTrees(islandTrees, ground, "ISLANDTREES") : [];
 
   // Footpaths and the red shared path, clear of the road, the streets, car park aisles and the rings.
   const nearVergeConcrete = (x: number, y: number) => {
@@ -1390,14 +1402,11 @@ export async function buildTrack(
     .filter((l) => /^(service|parking_aisle)/.test(l.cls) && l.brunnel !== "bridge" && l.brunnel !== "tunnel")
     .map((l) => ({ pts: l.pts.map((p) => proj.toLocal(p)), width: 5 })));
   const pathLines = opts.paths && sources.paths?.length ? sources.paths.map((l) => ({ kind: l.kind, pts: l.pts.map((p) => proj.toLocal(p)) })) : [];
-  // Laid on the ground meshes as built (pathGround.ts), not the terrain function they were cut from.
-  const laidOn = pathLines.length
-    ? groundMeshHeight([...terrainNodes, ...ringNodes, ...roadMeshes.verge, ...kerbMeshes.strip, ...kerbReturns, ...sideStreets, ...vergeConcrete], pathLines.map((l) => l.pts))
-    : () => null;
+  // Laid on the base's ground as built (sceneGround.ts), with the path's own highest-around rule (paths.ts).
   const pathMeshes = pathLines.length
     ? buildPaths(
       pathLines,
-      (x, y) => laidOn(x, y) ?? Math.max(ground(x, y), onMesh(x, y)),
+      ground,
       (x, y, half, kind) => {
         // Not under a ring's verge and grass strip.
         if (plan.roundabouts.some((rb) => Math.hypot(x - rb.c[0], y - rb.c[1]) < vergeOuterRadius(rb, opts) + half + 0.3)) return false;
@@ -1420,14 +1429,14 @@ export async function buildTrack(
       material("path_foot", "path_foot.png", { ambient: 0.45, diffuse: 0.45, specular: 0.05, exp: 10 }),
     );
   }
-  const ringWalls = plan.roundabouts.map((rb, k) => buildRingWall(rb, k, opts, ground)).filter((w): w is Kn5Node & { kind: "mesh" } => !!w);
+  const ringWalls = plan.roundabouts.map((rb, k) => buildRingWall(rb, k, opts, terrainH)).filter((w): w is Kn5Node & { kind: "mesh" } => !!w);
 
   const osmRails = opts.guardRails ? (sources.osm?.guardRails ?? []).map((l) => l.map((p) => proj.toLocal(p))) : [];
-  let needs = railNeeds(plan, opts, ground, osmRails, index);
+  let needs = railNeeds(plan, opts, terrainH, osmRails, index);
   // Busselton fork: Armco on country bends, embankments and crossings (armco.ts).
   const crossings = sources.osm?.crossings;
   if (opts.armco && opts.guardRails) needs = armcoNeeds(plan, opts, needs, {
-    ground, index, speedAt,
+    ground: terrainH, index, speedAt,
     crossings: crossings && {
       bridges: crossings.bridges.map((l) => l.map((p) => proj.toLocal(p))),
       waterways: crossings.waterways.map((w) => ({ ...w, pts: w.pts.map((p) => proj.toLocal(p)) })),
@@ -1441,9 +1450,9 @@ export async function buildTrack(
   needs.forEach((side) => side.forEach((_, i) => { if (nearRing[i]) side[i] = false; }));
   // Kerbed streets have neither.
   needs.forEach((side, k) => side.forEach((_, i) => { if (kerbAt(i, k === 0 ? 1 : -1)) side[i] = false; }));
-  const rails = opts.armco ? buildArmco(plan, opts, needs) : buildGuardRails(plan, opts, needs);
+  const rails = opts.armco ? buildArmco(plan, opts, needs, ground) : buildGuardRails(plan, opts, needs, ground);
   const postMask = needs.map((side, k) => side.map((v, i) => v || nearRing[i] || mouth(k === 0 ? 1 : -1, plan.samples[i].s) || kerbAt(i, k === 0 ? 1 : -1))) as [boolean[], boolean[]];
-  const posts = opts.guidePosts ? buildGuidePosts(plan, opts, postMask) : [];
+  const posts = opts.guidePosts ? buildGuidePosts(plan, opts, postMask, ground) : [];
   // Busselton fork: country roadsides: farm driveways, gates, mailboxes and cattle grids (farmRoadsides.ts).
   const farmRoad = opts.farmRoadsides ? buildFarmRoadsides({
     lines: (sources.streets?.lines ?? []).map((l) => ({ cls: l.cls, service: l.service, pts: l.pts.map((p) => proj.toLocal(p)) })),
@@ -1466,11 +1475,9 @@ export async function buildTrack(
     : [];
   const signals = signalSites.length ? buildTrafficLights({
     sites: signalSites,
-    roadZ: (x, y) => {
-      const n = index.nearest(x, y, 30);
-      return n && Math.abs(n.t) < index.at(n).width / 2 + 0.2 ? surfaceHeight(plan.samples[n.seg], n.t, opts.crown) : ground(x, y) + 0.1;
-    },
-    groundZ: (x, y) => Math.max(ground(x, y), onMesh(x, y)),
+    // Stop lines on whichever road is there (the route, a side street, a ring); posts on the ground beside it.
+    roadZ: ground,
+    groundZ: ground,
     onRoad: (x, y) => {
       const n = index.nearest(x, y, 30);
       return (!!n && Math.abs(n.t) < index.at(n).width / 2 + 0.3) || streetIndex.clearance(x, y) < 0.3;
@@ -1478,10 +1485,13 @@ export async function buildTrack(
   }) : null;
   if (signals) for (const t of trafficLightMaterials()) addScenery(t.texture, t.png, t.material);
   if (farmRoad) for (const t of farmTextures()) addScenery(`${t.name}.png`, t.png, material(t.name, `${t.name}.png`, { ambient: 0.45, diffuse: 0.45, specular: t.name === "farm_gravel" ? 0 : 0.2, exp: 15 }));
-  // Inside the corridor buildings stand on the detailed terrain; further out, on the horizon mesh.
-  const buildingGround = (x: number, y: number) => {
-    return inCover(x, y, 1) ? ground(x, y) : farGround(x, y) - 0.6;
-  };
+  // Inside the corridor buildings stand on the base's meshes; further out, on the horizon mesh, sunk in.
+  const horizonGround = (x: number, y: number) => farGround(x, y) - 0.6;
+  // On the base wherever its meshes reach (a house at the corridor's edge stays on one ground), else on the horizon.
+  const onBase = (x: number, y: number) => inCover(x, y, 1) || ground.mesh(x, y) !== null;
+  const buildingGround = (x: number, y: number) => (onBase(x, y) ? ground(x, y) : horizonGround(x, y));
+  // The jetty, its lamps and precinct, and the sea wall keep their own rule (the analytic terrain) for now.
+  const shoreGround = (x: number, y: number) => (inCover(x, y, 1) ? terrainH(x, y) : horizonGround(x, y));
   // Power poles, wires and street lights: seen, mapped, or (lights, in town) at a typical spacing.
   const seenLocal = mergeSightings((sources.seen ?? []).map((f) => ({ ...f, at: proj.toLocal(f.at) })));
   const osmLocal = (pts?: LngLat[]) => (pts ?? []).map((p) => proj.toLocal(p));
@@ -1489,12 +1499,12 @@ export async function buildTrack(
     poles: [...seenLocal.filter((f) => /^object--support--utility-pole/.test(f.value)).map((f) => f.at), ...osmLocal(sources.osm?.poles)],
     lamps: [...seenLocal.filter((f) => /^object--street-light/.test(f.value)).map((f) => f.at), ...osmLocal(sources.osm?.lamps)],
     lines: (sources.osm?.powerLines ?? []).map(osmLocal),
-  }, plan, index, opts, (i) => town[i], (x, y) => streetIndex.clearance(x, y) < 1 || kept.some((b) => pointInRing(x, y, b.ring)));
+  }, plan, index, opts, ground, (i) => town[i], (x, y) => streetIndex.clearance(x, y) < 1 || kept.some((b) => pointInRing(x, y, b.ring)));
   // Busselton fork: car park lights along each car park aisle, beside the bays, clear of the road,
   // other aisles and streets, parked cars and buildings, inside the built corridor.
   const carPark = carParkLights(
     (sources.streets?.lines ?? []).filter((l) => l.service === "parking_aisle").map((l) => l.pts.map((p) => proj.toLocal(p))),
-    (x, y) => Math.max(ground(x, y), onMesh(x, y)),
+    ground,
     (x, y) => {
       const n = index.nearest(x, y, opts.corridor - 5);
       return !inCover(x, y, 5) || (!!n && n.dist < index.at(n).width / 2 + 2) || streetIndex.clearance(x, y) < 1.5 || !!inRoundabout(plan, x, y, 3)
@@ -1503,8 +1513,8 @@ export async function buildTrack(
     utilities.lights,
   );
   // Busselton fork: lamp posts along the jetty, lit at night.
-  const jettyLamps = piers.length ? jettyLights(piers, buildingGround, sea) : { nodes: [], lights: [] };
-  const jettyPrecinct = jettyFeatures ? buildJettyPrecinct(jettyFeatures, pierDeckZ(buildingGround, sea), onJetty, SEA_LEVEL) : { nodes: [], footprints: [] };
+  const jettyLamps = piers.length ? jettyLights(piers, shoreGround, sea) : { nodes: [], lights: [] };
+  const jettyPrecinct = jettyFeatures ? buildJettyPrecinct(jettyFeatures, pierDeckZ(shoreGround, sea), onJetty, SEA_LEVEL) : { nodes: [], footprints: [] };
   // Signs and street furniture; their artwork is drawn in one atlas.
   const art = new ArtList();
   // Race day: barriers, fences, banners, gantries, a grandstand and crowds where the road is the race.
@@ -1530,18 +1540,18 @@ export async function buildTrack(
   const raceFlags = race && opts.wavingFlags !== false ? takeRaceFlags(race.pieces) : null;
   if (raceFlags?.flags.length) addScenery("flag_race.png", raceFlagTexture(), flagMaterial(RACE_FLAG_MATERIAL, "flag_race.png"));
   const pieces = [
-    ...(opts.streetSigns ? streetSigns(streetPlan, plan, opts, art) : []),
+    ...(opts.streetSigns ? streetSigns(streetPlan, plan, opts, art, ground) : []),
     ...(opts.landmarks ? landmarks((sources.pois ?? []).map((p) => ({ ...p, at: proj.toLocal(p.at) })), plan, index, opts, art,
-      (x, y) => Math.min(streetIndex.clearance(x, y), ...kept.map((b) => (pointInside(x, y, b.ring) ? -1 : Infinity)))) : []),
-    ...seenFeatures((sources.seen ?? []).map((f) => ({ ...f, at: proj.toLocal(f.at) })), plan, index, opts, art),
+      (x, y) => Math.min(streetIndex.clearance(x, y), ...kept.map((b) => (pointInside(x, y, b.ring) ? -1 : Infinity))), ground) : []),
+    ...seenFeatures((sources.seen ?? []).map((f) => ({ ...f, at: proj.toLocal(f.at) })), plan, index, opts, art, ground),
     // The race gantries replace the plain START and FINISH signs.
-    ...(race ? raceFlags?.rest ?? race.pieces : gateSigns(plan, opts, art)),
+    ...(race ? raceFlags?.rest ?? race.pieces : gateSigns(plan, opts, art, ground)),
     // Busselton fork: kangaroo signs out of town (not on kerbed streets, limit 80 or more).
     ...(opts.streetSigns ? kangarooSigns(plan, opts, art, (i) => town[i] === 0 && speedAt(i) >= 80 && !kerbedNear[i],
-      (i, side) => mouth(side, plan.samples[i].s) || streetPlan.junctions.some((j) => j.side === side && Math.abs(j.s - plan.samples[i].s) < j.width / 2 + 6)) : []),
+      (i, side) => mouth(side, plan.samples[i].s) || streetPlan.junctions.some((j) => j.side === side && Math.abs(j.s - plan.samples[i].s) < j.width / 2 + 6), ground) : []),
     ...utilities.pieces,
     ...carPark.pieces,
-    ...(verge ? letterboxes(plan, verge, vergeGround) : []),
+    ...(verge ? letterboxes(plan, verge, (x, y) => ground(x, y)) : []),
   ];
   let atlas = null;
   if (sources.renderArt && art.list.length) {
@@ -1595,7 +1605,10 @@ export async function buildTrack(
       const toRoad: [number, number] = Number.isFinite(look.facing)
         ? [Math.sin((look.facing! * Math.PI) / 180), Math.cos((look.facing! * Math.PI) / 180)]
         : [-gx / gl, -gy / gl];
-      const sh = buildSpecHouse(look.spec, { centre: [x, y], toRoad, z: buildingGround(x, y) + 0.05 }, String(k));
+      // Its walls start at the lowest ground along its footprints (built once at 0 to find them).
+      const probe = buildSpecHouse(look.spec, { centre: [x, y], toRoad, z: 0 }, String(k));
+      const z = probe.footprints.length ? Math.min(...probe.footprints.map((f) => (f.every(([px, py]) => onBase(px, py)) ? ground.underRing(f) : buildingGround(...centroid(f))))) : buildingGround(x, y);
+      const sh = buildSpecHouse(look.spec, { centre: [x, y], toRoad, z }, String(k));
       const inside = (b: Building) => {
         const c = centroid(b.ring);
         return sh.footprints.some((f) => pointInRing(c[0], c[1], f)) || b.ring.some(([px, py]) => sh.footprints.some((f) => pointInRing(px, py, f)));
@@ -1707,10 +1720,11 @@ export async function buildTrack(
   }
   // Shops: verandahs over the footpath, a fascia sign and shop windows on the street side.
   const homeSet = new Set(homes);
+  // Not on a building a hand-made layer replaces (cleared below): its verandah was left in the air.
   const shopfronts = opts.buildings ? findShopfronts(
-    shown, (sources.pois ?? []).map((p) => ({ ...p, at: proj.toLocal(p.at) })), roadGap, buildingGround, (b) => homeSet.has(b),
+    shown.filter((b) => !clears.length || !cleared(...centroid(b.ring))), (sources.pois ?? []).map((p) => ({ ...p, at: proj.toLocal(p.at) })), roadGap, buildingGround, (b) => homeSet.has(b),
   ) : [];
-  const shopMeshes = buildShopfronts(shopfronts);
+  const shopMeshes = buildShopfronts(shopfronts, buildingGround);
   if (shopMeshes.length) {
     textures.push({ name: "shop_sign.png", data: shopSignTexture(shopfronts, sources.drawSigns) }, { name: "shop_window.png", data: shopWindowTexture() });
     materials.push(
@@ -1744,7 +1758,8 @@ export async function buildTrack(
     }
     for (let i = houseTrees.length - 1; i >= 0; i--) if (cleared(houseTrees[i].x, houseTrees[i].y, true)) houseTrees.splice(i, 1);
   }
-  const houses = buildBuildings(shown, buildingGround);
+  // In the corridor, 2 cm into the base's ground; out on the horizon mesh, sunk 40 cm as before.
+  const houses = buildBuildings(shown, buildingGround, (b) => (b.ring.every(([x, y]) => onBase(x, y)) ? SINK : 0.4));
   // Car park islands, clear of the road, the streets, buildings and the rings, with shrubs.
   const islandNodes: Kn5MeshNode[] = [];
   const islandShrubs = new MeshBuilder();
@@ -1778,11 +1793,6 @@ export async function buildTrack(
   const lots = opts.buildings ? buildLots(homes.filter((b) => b.ring.every(([x, y]) => inCover(x, y, 1))), buildingGround, { roadGap }) : [];
 
   const group = (name: string, children: Kn5Node[]): Kn5GroupNode => ({ kind: "node", name, transform: IDENTITY, children });
-  // Last check: no kerb, strip, gutter or rail triangle stands on the route's asphalt.
-  const onRoad = onRoute(plan, index);
-  const meshesOf = (nodes: Kn5Node[]) => nodes.filter((n): n is Kn5MeshNode => n.kind === "mesh");
-  const kerbsClear = keepOffRoute([...kerbMeshes.gutter, ...kerbMeshes.kerb, ...kerbMeshes.strip, ...kerbReturns, ...vergeConcrete], onRoad);
-  const ringsClear = keepOffRoute(meshesOf(ringNodes), onRoad);
   const railsClear = keepOffRoute(rails.rails, onRoad);
   const slug = slugify(opts.name);
   const model: Kn5Model = {
@@ -1812,10 +1822,10 @@ export async function buildTrack(
         group("PATHS", pathMeshes),
         group("LOTS", keepOffRoute(lots, onRoad).nodes),
         group("CARPARKS", islandNodes),
-        group("JETTY", piers.length ? [...buildPiers(piers, buildingGround, sea), ...jettyLamps.nodes, ...jettyPrecinct.nodes] : []),
+        group("JETTY", piers.length ? [...buildPiers(piers, shoreGround, sea), ...jettyLamps.nodes, ...jettyPrecinct.nodes] : []),
         group("SEAWALL", ocean.length ? [
-          ...buildSeawall(beaches, buildingGround, sea, (x, y) => !!index.nearest(x, y, 250), piers),
-          ...buildGroynes((sources.osm?.groynes ?? []).map((l) => l.map((p) => proj.toLocal(p))), buildingGround),
+          ...buildSeawall(beaches, shoreGround, sea, (x, y) => !!index.nearest(x, y, 250), piers),
+          ...buildGroynes((sources.osm?.groynes ?? []).map((l) => l.map((p) => proj.toLocal(p))), shoreGround),
         ] : []),
       ]),
       // Already in compact chunks (terrain, horizon), or never drawn (walls).
@@ -1897,17 +1907,34 @@ export async function buildTrack(
 
   // Busselton fork: the signalled junctions' lights run by the traffic planner (trafficLights.ts).
   const trafficText = opts.traffic ? addTrafficLights(trafficData(), signals ? signalSites : []) : "";
+  let lanePts: LineIndex | null = null;
   if (trafficText && parked.length) {
     // No parked car within 1.8 m of a traffic lane (AC space: x, z = -north).
-    const lanePts = new LineIndex((JSON.parse(trafficText).lanes as { points: [number, number, number][] }[])
+    lanePts = new LineIndex((JSON.parse(trafficText).lanes as { points: [number, number, number][] }[])
       .map((l) => ({ pts: l.points.map((p) => [p[0], -p[2]] as Vec2), width: 0 })));
-    parked = parked.filter(({ at: [x, y] }) => lanePts.clearance(x, y) > 1.8);
+    const lanes = lanePts;
+    parked = parked.filter(({ at: [x, y] }) => lanes.clearance(x, y) > 1.8);
+  }
+  // Busselton fork: the last pass, against the roads as built (parkedClear.ts): no part of a car on
+  // the route's or a street's road surface, on a roundabout, or within half a lane of a traffic lane.
+  let parkedDropped = { road: 0, roundabout: 0, lane: 0 };
+  if (parked.length) {
+    const lanes = lanePts;
+    const throughStreets = new LineIndex(streetPlan.streets.filter((st) => !/^(parking_aisle|driveway|drive-through)$/.test(st.service ?? "")));
+    const clear = clearParked(parked, {
+      road: topSurface([...roadMeshes.road, ...kerbsClear.nodes, ...ringsClear.nodes], ROUTE_ROAD),
+      street: (x, y) => throughStreets.clearance(x, y),
+      rings: plan.roundabouts.map((rb) => ({ c: rb.c, r: outerRadius(rb) })),
+      lane: lanes ? (x, y) => lanes.clearance(x, y) : undefined,
+    });
+    parked = clear.kept;
+    parkedDropped = clear.dropped;
   }
   // Added to the scene now the traffic lanes are known (none sits in a lane): the cars culled with
   // the other detail, their collision boxes with the walls.
   if (parked.length) {
-    // On the terrain as drawn (the higher of its two triangle readings), not the smooth height under it.
-    const parkedMeshes = buildParkedCars(parked, (x, y) => Math.max(ground(x, y), onMesh(x, y)));
+    // On the base's ground as built (sceneGround.ts).
+    const parkedMeshes = buildParkedCars(parked, ground);
     model.root.children.push(
       ...cullable([group("PARKED_CARS", parkedMeshes.filter((m) => !m.name.startsWith("1WALL")))]),
       group("PARKED_CAR_WALLS", parkedMeshes.filter((m) => m.name.startsWith("1WALL"))),
@@ -1949,7 +1976,7 @@ export async function buildTrack(
   const hollows = opts.rainHollows ? trackHollows(model.root) : undefined;
   const soundsBy = soundMode(opts.trackSounds);
   const sounds = soundsBy ? (() => {
-    const so = { roads: [plan.samples.map((smp) => smp.pos), ...streetPlan.streets.map((st) => st.pts)], ground };
+    const so = { roads: [plan.samples.map((smp) => smp.pos), ...streetPlan.streets.map((st) => st.pts)], ground: terrainH };
     const bush = TREE_SPECIES.findIndex((sp) => sp.name === "tuart");
     return [...surfEmitters(ocean, so), ...birdEmitters(treesKept.map((t) => ({ x: t.x, y: t.y, bush: t.variant === bush })), so)];
   })() : undefined;
@@ -1967,7 +1994,7 @@ export async function buildTrack(
     [`${slug}/data/map.ini`]: enc.encode(map.ini),
     // Busselton fork: checkpoints, time trial and drift spots for the Busselton Challenges app (challengeFiles.ts).
     ...challengeFiles(slug, opts, {
-      plan, dummies: trackObjects(plan, opts), nearest: (x, y, r) => index.nearest(x, y, r), toLocal: (p) => proj.toLocal(p), ground,
+      plan, dummies: trackObjects(plan, opts), nearest: (x, y, r) => index.nearest(x, y, r), toLocal: (p) => proj.toLocal(p), ground: terrainH,
       pois: (sources.pois ?? []).map((p) => ({ ...p, at: proj.toLocal(p.at) })), routeNames: streetPlan.routeNames, junctions: streetPlan.junctions,
       streets: streetPlan.streets, parked: parked.map((c) => c.at), buildings: shown.map((b) => b.ring),
     }),
@@ -2074,6 +2101,7 @@ export async function buildTrack(
       poles: utilities.poles,
       carsPainted,
       parkedCars: parked.length,
+      parkedDropped,
       ...(kerbside ? { kerbside: { bays: kerbside.bays, bikeLaneMetres: Math.round(kerbside.bikeLaneMetres), symbols: kerbside.symbols } } : {}),
       ...(signals ? { trafficLights: { sites: signalSites.length, poles: signals.poles, heads: signals.heads, working: signalSites.filter((st) => st.sidesOk).length } } : {}),
       housesLooked,

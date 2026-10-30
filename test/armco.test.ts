@@ -143,7 +143,7 @@ describe("W-beam mesh", () => {
   const n = plan.samples.length;
   const needs: Needs = [new Array(n).fill(false), new Array(n).fill(false)];
   for (let i = 20; i < 60; i++) needs[1][i] = true; // 80 m on the right
-  const { rails, posts } = buildArmco(plan, opts, needs);
+  const { rails, posts } = buildArmco(plan, opts, needs, () => -0.1); // the verge, 10 cm under the road edge
   const beam = rails.find((m) => m.name === "ARMCO_R_000")!;
   const wall = rails.find((m) => m.name === "1WALL_ARMCO_R_000")!;
 

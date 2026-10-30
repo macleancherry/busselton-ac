@@ -87,7 +87,8 @@ describe("cattle grids", () => {
 });
 
 describe("buildFarmRoadsides", () => {
-  const ground = () => -0.15;
+  // The scene ground (sceneGround.ts): the crowned road (2%) out to its edge, the ground beyond.
+  const ground = (_x: number, y: number) => (Math.abs(y) <= 3.51 ? -0.02 * Math.abs(y) : -0.15);
   const res = buildFarmRoadsides({ lines, cattleGrids: [[150, 0.5], [100, 3.5 + fenceE]], plan, index, opts, ground });
   const byName = (re: RegExp) => res.nodes.filter((n) => re.test(n.name));
 

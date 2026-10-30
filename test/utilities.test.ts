@@ -15,7 +15,7 @@ const boxes = (pieces: Piece[], material: string) => pieces.filter((p): p is Ext
 
 describe("power poles, wires and street lights", () => {
   it("lights a built-up street at a steady spacing, and not the country", () => {
-    const town = placeUtilities({ poles: [], lamps: [], lines: [] }, plan, index, opts, () => 2);
+    const town = placeUtilities({ poles: [], lamps: [], lines: [] }, plan, index, opts, () => 10, () => 2);
     expect(town.lights.length).toBeGreaterThanOrEqual(10);
     expect(town.poles).toBe(0); // power poles are never invented
     expect(town.wires).toHaveLength(0);
@@ -26,19 +26,19 @@ describe("power poles, wires and street lights", () => {
       expect(Math.abs(l[1])).toBeLessThan(4);
       expect(l[2]).toBeGreaterThan(17);
     }
-    const country = placeUtilities({ poles: [], lamps: [], lines: [] }, plan, index, opts, () => 0);
+    const country = placeUtilities({ poles: [], lamps: [], lines: [] }, plan, index, opts, () => 10, () => 0);
     expect(country.lights).toHaveLength(0);
   });
 
   it("keeps lights off side streets and other blocked spots", () => {
-    const u = placeUtilities({ poles: [], lamps: [], lines: [] }, plan, index, opts, () => 2, (x) => x > 200 && x < 400);
+    const u = placeUtilities({ poles: [], lamps: [], lines: [] }, plan, index, opts, () => 10, () => 2, (x) => x > 200 && x < 400);
     for (const l of u.lights) expect(l[0] < 195 || l[0] > 405).toBe(true);
   });
 
   it("puts poles seen on the road onto the nature strip, crossarm across the street, wires between them", () => {
     // A row of poles on the north side every 40 m; one sighting lands on the road.
     const poles: Vec2[] = [[50, 5.5], [90, 5.2], [130, 1.5], [170, 5.4]];
-    const u = placeUtilities({ poles, lamps: [], lines: [] }, plan, index, opts, () => 0);
+    const u = placeUtilities({ poles, lamps: [], lines: [] }, plan, index, opts, () => 10, () => 0);
     expect(u.poles).toBe(4);
     const posts = boxes(u.pieces, "timber").filter((b) => b.length < 0.5);
     for (const p of posts) expect(p.at[1]).toBeGreaterThan(4.5); // behind the kerb, not on the road
@@ -57,7 +57,7 @@ describe("power poles, wires and street lights", () => {
   });
 
   it("mounts a nearby street light on the power pole instead of a pole of its own", () => {
-    const u = placeUtilities({ poles: [[100, 5.5]], lamps: [[101, 5]], lines: [] }, plan, index, opts, () => 0);
+    const u = placeUtilities({ poles: [[100, 5.5]], lamps: [[101, 5]], lines: [] }, plan, index, opts, () => 10, () => 0);
     expect(u.lights).toHaveLength(1);
     expect(boxes(u.pieces, "steel").filter((b) => b.length < 0.5 && b.depth < 0.5 && b.z1 - b.z0 > 5)).toHaveLength(0);
     expect(boxes(u.pieces, "lamp")).toHaveLength(1);
@@ -65,7 +65,7 @@ describe("power poles, wires and street lights", () => {
 
   it("strings wires along a mapped power line through its poles", () => {
     const line: Vec2[] = [[300, -5.5], [340, -5.5], [380, -5.5]];
-    const u = placeUtilities({ poles: [], lamps: [], lines: [line] }, plan, index, opts, () => 0);
+    const u = placeUtilities({ poles: [], lamps: [], lines: [line] }, plan, index, opts, () => 10, () => 0);
     expect(u.poles).toBe(3);
     expect(u.wires.length).toBeGreaterThan(0);
   });
@@ -76,7 +76,7 @@ describe("car park lights", () => {
   const aisle: [number, number][] = [[0, 0], [60, 0], [120, 0]];
   it("puts a pole every 35 m beside the bays, alternating sides, with a light each way", () => {
     const { pieces, lights } = carParkLights([aisle], () => 2, () => false);
-    const poles = pieces.filter((p) => p.kind === "box" && p.material === "steel");
+    const poles = pieces.filter((p) => p.kind === "box" && p.material === "steel" && p.z0 < 3); // not the lantern arms
     expect(poles).toHaveLength(3); // at 17, 52 and 87 m (the next would be past the end)
     expect(lights).toHaveLength(poles.length * 2);
     for (const p of poles) if (p.kind === "box") expect(Math.abs(Math.abs(p.at[1]) - 9)).toBeLessThan(1e-6);

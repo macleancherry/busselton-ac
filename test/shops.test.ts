@@ -31,7 +31,7 @@ describe("shopfronts", () => {
 
   it("builds a verandah roof facing up and down, a sign and windows facing the street", () => {
     const fronts = findShopfronts([shop], [], gap, flat);
-    const meshes = buildShopfronts(fronts);
+    const meshes = buildShopfronts(fronts, flat);
     const by = (p: string) => meshes.find((m) => m.name.startsWith(p))!;
     for (const name of ["SHOP_VERANDAH", "SHOP_SIGN", "SHOP_POST", "SHOP_WINDOW"]) expect(by(name)).toBeTruthy();
     // AC space: y up, z south. The street is south of the shop: facing it means +z.
@@ -59,7 +59,7 @@ describe("shopfronts", () => {
     expect(fronts[1].name).toBeUndefined();
     expect(signRows(fronts)).toBe(SIGN_COUNT + 1);
     // The fascia's UVs land on the named row.
-    const sign = buildShopfronts(fronts).find((m) => m.name.startsWith("SHOP_SIGN"))!;
+    const sign = buildShopfronts(fronts, flat).find((m) => m.name.startsWith("SHOP_SIGN"))!;
     const vs = Array.from({ length: sign.uvs.length / 2 }, (_, i) => sign.uvs[i * 2 + 1]);
     expect(vs.some((v) => Math.abs(v - SIGN_COUNT / (SIGN_COUNT + 1)) < 1e-6)).toBe(true);
   });

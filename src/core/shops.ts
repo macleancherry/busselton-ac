@@ -20,6 +20,7 @@ import { MAX_MESH_VERTICES } from "./kn5";
 import { MeshBuilder } from "./mesh";
 import { fill, rng } from "./textures";
 import { centroid, ringArea, type Building } from "./buildings";
+import { SINK } from "./sceneGround";
 
 /** POI classes that mean a shop front (OpenMapTiles poi layer). */
 const SHOP_CLASSES = new Set([
@@ -157,7 +158,8 @@ class Chunks {
   }
 }
 
-export function buildShopfronts(fronts: Shopfront[]): Kn5MeshNode[] {
+/** `ground` (sceneGround.ts) is what the verandah posts stand on, out over the footpath. */
+export function buildShopfronts(fronts: Shopfront[], ground: HeightFn): Kn5MeshNode[] {
   const roof = new Chunks(), fascia = new Chunks(), posts = new Chunks(), glass = new Chunks();
   const rows = signRows(fronts);
   for (const f of fronts) {
@@ -228,8 +230,9 @@ export function buildShopfronts(fronts: Shopfront[]): Kn5MeshNode[] {
         const r = 0.05;
         const i = mb.vertexCount;
         const cs: Vec2[] = [[-r, -r], [r, -r], [r, r], [-r, r]];
+        const foot = ground(c[0], c[1]) - SINK;
         for (const [dx, dy] of cs) {
-          mb.vertex([c[0] + dx, c[1] + dy, f.ground - 0.1], 0, 1);
+          mb.vertex([c[0] + dx, c[1] + dy, foot], 0, 1);
           mb.vertex([c[0] + dx, c[1] + dy, zU], 0, 0);
         }
         for (let s = 0; s < 4; s++) {
