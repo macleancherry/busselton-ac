@@ -155,7 +155,7 @@ Each starts as a drive-anywhere base, then gets the Phase B treatment: Yallingup
 - 🔨 **Checkpoint challenges:** Busselton Challenges app, checkpoints against the clock, hand-picked sets per track or layout (`challenges` in the route). To check in game.
 - ✅ The Sights layout: a cruise past the town landmarks.
 - 🔨 **Time trials and drift spots** in the Challenges app: A to B with splits on any point-to-point route or layout, drift spots in empty car parks with an angle-and-speed score, best times per driver, shared over LAN through CSP online events (AC's own server, which CM's LAN races use). To check in game, then routes between towns.
-- ⬜ Cruise mode.
+- ✅ Cruise mode in the Challenges app: the street you're on, the limit, the next sight and a sights-seen list (`extension/cruise.ini`, `data/cruise.ini`). To check in game.
 
 ---
 
