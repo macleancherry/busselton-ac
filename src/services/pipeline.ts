@@ -28,6 +28,8 @@ export interface BuildJob {
   placeMeta: { country?: string; city?: string };
   /** Busselton fork: what particular houses look like (street photos, hand-set), see houseLooks.ts. */
   houseLooks?: NonNullable<Parameters<typeof buildTrack>[2]["houseLooks"]>;
+  /** Busselton fork: landmarks (built as layers after the base): the automatic test photographs them. */
+  landmarks?: { name: string; at: [number, number] }[];
 }
 
 export interface BuildOutcome {
@@ -130,6 +132,7 @@ export async function runBuild(job: BuildJob, report: Report, traceProgress: (te
         })
       : undefined,
     houseLooks: job.houseLooks,
+    landmarks: job.landmarks,
     drawSigns,
     imageryCredit: () => [...[...usedImagery].map((k) => IMAGERY[k].credit), ...[...usedDem].map((k) => DEM_CREDIT[k])].join("; "),
   }, job.placeMeta, report);

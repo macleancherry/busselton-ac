@@ -25,7 +25,7 @@
 // CACHE_DAYS (default 14), so a rebuild only fetches what's new. NO_CACHE=1 fetches everything fresh
 // (and refreshes the cache); BUILD_CACHE=<dir> puts it somewhere else.
 
-import { spawn } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
 import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
@@ -152,14 +152,21 @@ try {
   // Several files, comma-separated: later ones win (e.g. photo looks, then hand-set ones).
   // The route's own "looks" files (e.g. routes/landmarks/looks.json) come first, then HOUSE_LOOKS.
   const lookFiles = [...(spec.looks ?? []), ...(process.env.HOUSE_LOOKS ? process.env.HOUSE_LOOKS.split(",") : [])];
+  // Looks with a "specFile" are landmarks: they're no longer built into the base. The base clears
+  // their spots, and scripts/polish/landmarks.ts builds each as its own layer (lm_<slug>.kn5) and adds
+  // it to the zip at the end, the same as a polish-only update does (ROADMAP.md, generate-freeze-polish).
+  let landmarks = [];
   if (lookFiles.length) {
     const looks = lookFiles.flatMap((f) => {
       const l = JSON.parse(readFileSync(resolve(root, f.trim()), "utf8"));
-      // A look with "specFile" is built from that spec (scripts/blender/house.py's parts mode).
-      return (l.houses ?? l).map((h) => (h.specFile ? { ...h, spec: JSON.parse(readFileSync(resolve(root, h.specFile), "utf8")) } : h));
+      return l.houses ?? l;
     });
-    await page.evaluate((l) => { window.__houseLooks = l; }, looks);
+    landmarks = looks.filter((h) => h.specFile).map((h) => ({ name: h.name ?? basename(h.specFile, ".json"), at: h.at }));
+    await page.evaluate(([l, lm]) => { window.__houseLooks = l; window.__landmarks = lm; }, [looks.filter((h) => !h.specFile), landmarks]);
   }
+  const polish = (more) => execFileSync("npx", ["tsx", "scripts/polish/landmarks.ts", routeFile, ...more], { cwd: root, env: process.env, encoding: "utf8" });
+  const landmarkClears = landmarks.length ? JSON.parse(polish(["--clears"])) : [];
+  if (landmarks.length) log(`landmarks (built as layers): ${landmarks.map((l) => l.name).join(", ")}`);
   // Build options with no UI control (e.g. noTrace zones) go straight to the build.
   // Hand-made layers (the route's "layers" folders, and LAYERS=dir,dir): each <name>.kn5 goes into the
   // track over the generated one (models.ini), and its <name>.json sidecar ({ "replaces": [{ "at":
@@ -172,7 +179,8 @@ try {
   });
   if (layers.length) log(`layers: ${layers.map((f) => basename(f)).join(", ")}; ${clears.length} areas cleared for them`);
   if (layers.length && !spec.build?.origin) log("WARNING: layers on a route with no build.origin: the map moves with the route, so they may not line up");
-  let buildOpts = clears.length ? { ...(spec.build ?? {}), clears: [...(spec.build?.clears ?? []), ...clears] } : spec.build;
+  const allClears = [...clears, ...landmarkClears];
+  let buildOpts = allClears.length ? { ...(spec.build ?? {}), clears: [...(spec.build?.clears ?? []), ...allClears] } : spec.build;
   // Several layouts on one map (src/core/layouts.ts): the route's own drive is layout "layout.id"
   // (default "main"), and each entry of "layouts" ({ id, name, pins, loop? } or { id, name,
   // spawns: [{ at: [lng, lat], heading }] }) another, on the same world.
@@ -282,7 +290,7 @@ try {
         slug: r.slug, proj: r.proj, model: r.model, options, meta: { name }, mainAi: r.files[`${r.slug}/${mainId}/ai/fast_lane.ai`],
         lines: ti ? ti.roads.map((rd) => rd.pts) : undefined, speeds: ti ? ti.roads.map((rd) => rd.speed) : undefined, rings: ti ? ti.roundabouts.map((rb) => ({ c: rb.c, rOut: rb.rOut })) : undefined,
         // Landmarks (looks built from a spec): the automatic test photographs them.
-        landmarks: (window.__houseLooks ?? []).filter((h) => h.spec).map((h) => ({ name: h.name ?? "landmark", at: r.proj.toLocal(h.at) })),
+        landmarks: (window.__landmarks ?? []).map((h) => ({ name: h.name, at: r.proj.toLocal(h.at) })),
       };
       for (const l of layouts) {
         const coords = l.pins ? (await route(l.loop ? [...l.pins, l.pins[0]] : l.pins)).coords : undefined;
@@ -314,6 +322,7 @@ try {
     zipBytes = Buffer.from(zipSync(files, { level: 6 }));
   }
   writeFileSync(join(out, `${slug}.zip`), zipBytes);
+  if (landmarks.length) log(polish([`out/${slug}.zip`, "--into"]).trim());
   writeFileSync(join(out, `${slug}.stats.json`), JSON.stringify({ route: basename(routeFile), stats, table }, null, 2));
   if (process.env.SHOTS) {
     // Each shot is a lap fraction, or "lng:lat:lookLng:lookLat:height" for a fixed view.

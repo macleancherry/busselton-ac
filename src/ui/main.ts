@@ -504,6 +504,7 @@ $("build").onclick = async () => {
       placeMeta,
       // Busselton fork: what particular houses look like (set by the headless build).
       houseLooks: (window as unknown as { __houseLooks?: BuildJob["houseLooks"] }).__houseLooks,
+      landmarks: (window as unknown as { __landmarks?: BuildJob["landmarks"] }).__landmarks,
     };
     const { result, chunkImages, usedImagery, usedDem, widthFallback, seen, seenError, missing } = await build(job, report);
     lastMissing = missing;

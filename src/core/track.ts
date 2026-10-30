@@ -48,6 +48,8 @@ import { dressBuilding, FACADES, facadeTexture, ROOF_COLOURS, roofTexture } from
 import { facadeForLook, facadeForStyle } from "./houseLooks";
 import { buildSpecHouse, type HouseSpec } from "./specHouse";
 import { surfaceTexture } from "./surfaceTextures";
+import { material, nmMaterial } from "./materials";
+export { material, nmMaterial };
 import { landmarkShots } from "./landmarkShots";
 import { camerasIni, placeCameras } from "./cameras";
 import { cullable } from "./cull";
@@ -125,6 +127,8 @@ export interface DataSources {
   }[];
   /** Draws shop names for their signs (needs a canvas: the browser passes one in). */
   drawSigns?: SignDrawer;
+  /** Busselton fork: landmarks built as layers after the base (landmarkLayer.ts): the automatic test photographs them. */
+  landmarks?: { name: string; at: LngLat }[];
   coast?: { ocean: { rings: LngLat[][]; edge: boolean[][] }[]; piers: { rings: LngLat[][]; edge: boolean[][] }[]; beaches?: { rings: LngLat[][]; edge: boolean[][] }[] };
   /** Busselton fork: what stands on the jetties (osm.ts fetchPierFeatures; jetty.ts builds it). */
   jetty?: { railways: LngLat[][]; platforms: { pts: LngLat[]; shelter: boolean }[]; buildings: { pts: LngLat[]; name: string }[] };
@@ -318,40 +322,6 @@ export function trackObjects(plan: RoadPlan, opts: BuildOptions): Kn5GroupNode[]
     place("AC_AB_FINISH_R", finish, -finishHalf, 1);
   }
   return out;
-}
-
-function material(name: string, texture: string, light: { ambient: number; diffuse: number; specular: number; exp: number }): Kn5Material {
-  return {
-    name,
-    shader: "ksPerPixel",
-    properties: [
-      { name: "ksAmbient", a: light.ambient },
-      { name: "ksDiffuse", a: light.diffuse },
-      { name: "ksSpecular", a: light.specular },
-      { name: "ksSpecularEXP", a: light.exp },
-      { name: "ksEmissive", c: [0, 0, 0] },
-      { name: "ksAlphaRef", a: 0 },
-    ],
-    textures: { txDiffuse: texture },
-  };
-}
-
-/** A normal-mapped material (ksPerPixelNM): relief without reflections. Parameter names as the shader declares them. */
-function nmMaterial(name: string, diffuse: string, normal: string, light: { ambient: number; diffuse: number; specular: number; exp: number }): Kn5Material {
-  const base = material(name, diffuse, light);
-  return {
-    ...base,
-    shader: "ksPerPixelNM",
-    properties: [
-      ...base.properties,
-      { name: "fresnelC", a: 0 },
-      { name: "fresnelEXP", a: 5 },
-      { name: "fresnelMaxLevel", a: 0 },
-      { name: "nmObjectSpace", a: 0 },
-      { name: "isAdditive", a: 0 },
-    ],
-    textures: { txDiffuse: diffuse, txNormal: normal },
-  };
 }
 
 /**
@@ -1757,7 +1727,10 @@ export async function buildTrack(
   const kn5 = writeKn5(model);
   const aiPoints = buildAiLine(plan);
   // Busselton fork: the automatic test photographs each landmark it passes.
-  const landmarkList = (sources.houseLooks ?? []).filter((l) => l.spec).map((l) => ({ name: l.name ?? "landmark", at: proj.toLocal(l.at) as [number, number] }));
+  const landmarkList = [
+    ...(sources.landmarks ?? []),
+    ...(sources.houseLooks ?? []).filter((l) => l.spec).map((l) => ({ name: l.name ?? "landmark", at: l.at })),
+  ].map((l) => ({ name: l.name, at: proj.toLocal(l.at) as [number, number] }));
   const shotList = landmarkShots(aiPoints, landmarkList);
   const landmarkLine = shotList.length ? `SHOTS=${shotList.join(",")}\n` : "";
   const ai = writeFastLaneAi(aiPoints);

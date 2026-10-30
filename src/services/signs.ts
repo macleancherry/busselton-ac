@@ -5,7 +5,16 @@
 export function drawSigns(
   names: { text: string; bg: [number, number, number]; ink: [number, number, number]; squeeze: number }[], w: number, h: number,
 ): Uint8ClampedArray {
-  const canvas = new OffscreenCanvas(w, h * names.length);
+  return drawSignsOn((cw, ch) => new OffscreenCanvas(cw, ch), names, w, h);
+}
+
+/** The same, on any canvas with the 2D API (Node: @napi-rs/canvas's createCanvas). */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function drawSignsOn(
+  makeCanvas: (w: number, h: number) => { getContext(kind: "2d"): any },
+  names: { text: string; bg: [number, number, number]; ink: [number, number, number]; squeeze: number }[], w: number, h: number,
+): Uint8ClampedArray {
+  const canvas = makeCanvas(w, h * names.length);
   const ctx = canvas.getContext("2d")!;
   const rgb = (c: [number, number, number]) => `rgb(${c[0]},${c[1]},${c[2]})`;
   names.forEach((n, i) => {
@@ -36,6 +45,6 @@ export function drawSigns(
     ctx.fillText(n.text, 0, 2);
     ctx.restore();
   });
-  return ctx.getImageData(0, 0, w, canvas.height).data;
+  return ctx.getImageData(0, 0, w, h * names.length).data;
 }
 

@@ -27,7 +27,10 @@ param(
   [switch]$SkipBuild,
   [switch]$SkipCheck,
   # Install every track zip in the share's builds folder.
-  [switch]$All
+  [switch]$All,
+  # Unzip over the installed track without removing it first: for a polish zip (landmarks as layers,
+  # scripts/polish/landmarks.ts) on top of an installed base. The AO bake stays.
+  [switch]$Overlay
 )
 $ErrorActionPreference = "Stop"
 $repo = Resolve-Path (Join-Path $PSScriptRoot "..\..")
@@ -107,6 +110,13 @@ function Install-Into([string]$tracks) {
   $tmp = Join-Path $env:TEMP "busselton-$slug"
   if (Test-Path $tmp) { Remove-Item $tmp -Recurse -Force }
   Expand-Archive -Path $zip -DestinationPath $tmp
+  if ($Overlay) {
+    if (-not (Test-Path $dest)) { Remove-Item $tmp -Recurse -Force; throw "No $slug installed in $tracks to lay the polish over: install its base first." }
+    Copy-Item (Join-Path (Join-Path $tmp $slug) "*") $dest -Recurse -Force
+    Remove-Item $tmp -Recurse -Force
+    Write-Host "Polish laid over $dest (rebake AO to shade what's new)." -ForegroundColor Green
+    return
+  }
   # An AO bake (*.vao-patch, scripts/windows/bake-vao.ps1) matches the geometry it was baked on:
   # keep it when every kn5 is the same as before, so reinstalling the same build doesn't need a rebake.
   $keep = Join-Path $env:TEMP "busselton-vao-$slug"
