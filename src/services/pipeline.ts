@@ -70,7 +70,8 @@ export async function runBuild(job: BuildJob, report: Report, traceProgress: (te
     })
     : undefined;
   const [osm, tiles, seen, coast] = await Promise.all([
-    fetchOsm(coords, rings),
+    // Cattle grids only when asked for: the query is the cache key, so frozen snapshots keep replaying.
+    fetchOsm(coords, rings, { cattleGrids: !!opts.farmRoadsides }),
     fetchTileFeatures(paddedBounds(box, (opts.buildingRadius ?? 250) + 50)).catch(() => {
       warnMissing("all map tiles (buildings, streets, shops)");
       return null;

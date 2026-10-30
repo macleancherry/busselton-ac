@@ -165,7 +165,7 @@ const TILE_CLASS: Record<string, string> = {
  * answer wins; if all fail, the build falls back to widths by road class
  * from the vector tiles. Buildings come from the vector tiles too.
  */
-export async function fetchOsm(routeCoords: LngLat[], areas: LngLat[][] = []): Promise<OsmData> {
+export async function fetchOsm(routeCoords: LngLat[], areas: LngLat[][] = [], want: { cattleGrids?: boolean } = {}): Promise<OsmData> {
   const step = Math.max(1, Math.ceil(routeCoords.length / 180));
   const sampled = routeCoords.filter((_, i) => i % step === 0 || i === routeCoords.length - 1);
   const around = sampled.map((p) => `${p[1].toFixed(6)},${p[0].toFixed(6)}`).join(",");
@@ -178,8 +178,8 @@ export async function fetchOsm(routeCoords: LngLat[], areas: LngLat[][] = []): P
     node(${pl})[power=pole];
     node(${pl})[highway=street_lamp];
     way(${pl})[power~"^(line|minor_line)$"];
-    way(${pl})[barrier~"^(fence|wall|hedge|retaining_wall)$"];
-    node(${pl})[barrier=cattle_grid];`).join("");
+    way(${pl})[barrier~"^(fence|wall|hedge|retaining_wall)$"];${want.cattleGrids ? `
+    node(${pl})[barrier=cattle_grid];` : ""}`).join("");
   const query = `[out:json][timeout:${poly ? 90 : 40}];(
     way(around:12,${around})[highway];
     way(around:15,${around})[barrier=guard_rail];
@@ -188,8 +188,8 @@ export async function fetchOsm(routeCoords: LngLat[], areas: LngLat[][] = []): P
     node(around:40,${around})[highway=street_lamp];
     way(around:40,${around})[power~"^(line|minor_line)$"];
     way(around:45,${around})[barrier~"^(fence|wall|hedge|retaining_wall)$"];
-    node(around:30,${around})[barrier=cattle_grid];
-    way(around:300,${around})[man_made~"^(groyne|breakwater)$"];${inArea}
+${want.cattleGrids ? `    node(around:30,${around})[barrier=cattle_grid];
+` : ""}    way(around:300,${around})[man_made~"^(groyne|breakwater)$"];${inArea}
   );out tags geom;`;
   let elements: OverpassWay[] | undefined;
   // Every mirror at once; if they all fail (busy, timed out), wait and try again: without this data
