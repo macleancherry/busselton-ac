@@ -375,6 +375,7 @@ function readOptions(): Partial<BuildOptions> {
     trees: imagery === "off" ? 0 : num("trees"),
     guardRails: $<HTMLInputElement>("guardRails").checked,
     guidePosts: $<HTMLInputElement>("guidePosts").checked,
+    armco: $<HTMLInputElement>("armco").checked,
     buildings: $<HTMLSelectElement>("buildings").value !== "off",
     detectBuildings: $<HTMLSelectElement>("buildings").value === "all",
     roadSurface: $<HTMLSelectElement>("surface").value as BuildOptions["roadSurface"],

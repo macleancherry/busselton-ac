@@ -50,11 +50,20 @@ export interface TilePoi {
   rank?: number;
 }
 
+/** A waterway line (OpenMapTiles waterway layer: river, stream, canal, drain, ditch). */
+export interface TileWaterway {
+  pts: LngLat[];
+  cls: string;
+  /** "tunnel" where it runs through a culvert, "bridge" over an aqueduct. */
+  brunnel?: string;
+}
+
 export interface TileFeatures {
   buildings: TileBuilding[];
   roads: TileRoad[];
   names: TileName[];
   pois: TilePoi[];
+  waterways: TileWaterway[];
 }
 
 type P = { x: number; y: number };
@@ -103,6 +112,7 @@ export async function fetchTileFeatures(bbox: [number, number, number, number]):
   const roads: TileRoad[] = [];
   const names: TileName[] = [];
   const pois: TilePoi[] = [];
+  const waterways: TileWaterway[] = [];
   const jobs: Promise<void>[] = [];
   for (let ty = y0; ty <= y1; ty++) {
     for (let tx = x0; tx <= x1; tx++) {
@@ -131,6 +141,13 @@ export async function fetchTileFeatures(bbox: [number, number, number, number]):
           const surface = f.properties.surface !== undefined ? String(f.properties.surface) : undefined;
           const brunnel = f.properties.brunnel !== undefined ? String(f.properties.brunnel) : undefined;
           for (const line of f.loadGeometry()) roads.push({ pts: line.map((p) => toLngLat(p, tl.extent)), cls, surface, brunnel });
+        }
+        const wl = tile.layers.waterway;
+        for (let i = 0; wl && i < wl.length; i++) {
+          const f = wl.feature(i);
+          if (f.type !== 2) continue;
+          const brunnel = f.properties.brunnel !== undefined ? String(f.properties.brunnel) : undefined;
+          for (const line of f.loadGeometry()) waterways.push({ pts: line.map((p) => toLngLat(p, wl.extent)), cls: String(f.properties.class ?? ""), ...(brunnel ? { brunnel } : {}) });
         }
         const nl = tile.layers.transportation_name;
         for (let i = 0; nl && i < nl.length; i++) {
@@ -161,7 +178,7 @@ export async function fetchTileFeatures(bbox: [number, number, number, number]):
     }
   }
   await Promise.all(jobs);
-  return { buildings, roads, names, pois };
+  return { buildings, roads, names, pois, waterways };
 }
 
 /** Typical asphalt width by OpenMapTiles road class, metres. */

@@ -58,6 +58,13 @@ export async function runBuild(job: BuildJob, report: Report, traceProgress: (te
       : Promise.resolve([]),
   ]);
   if (tiles) osm.features.buildings = tiles.buildings;
+  // Road bridges and waterways, for Armco at crossings (armco.ts).
+  if (opts.armco && tiles) {
+    osm.features.crossings = {
+      bridges: tiles.roads.filter((r) => r.brunnel === "bridge" && /^(motorway|trunk|primary|secondary|tertiary|minor|service|track)/.test(r.cls)).map((r) => r.pts),
+      waterways: tiles.waterways,
+    };
+  }
   // Overpass widths when it answered; otherwise widths by road class from the tiles.
   const tileWidths = tiles ? classWidths(tiles.roads) : [];
   const widthAt = opts.widthOverride
