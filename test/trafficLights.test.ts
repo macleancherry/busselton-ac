@@ -171,6 +171,55 @@ describe("lights for the traffic planner", () => {
     expect(c.trafficLight.emissive.filter((e: { mode?: number }) => e.mode === 1)).toHaveLength(2);
   });
 
+  it("keeps every lane end that was in the junction's polygon inside its rectangle", () => {
+    // Lanes cut at a wide junction polygon (radius 16), as the graph makes them: the road's two
+    // approaches from the west and east and the street's from the north, ending and starting on
+    // the polygon, further out than the stop lines; and one lane leaving at a slant near a corner.
+    const wide = JSON.stringify({
+      lanes: [
+        { points: [[-100, 10, 2], [-60, 10, 2], [85, 10, 2]] },
+        { points: [[85, 10, -2], [-100, 10, -2]] },
+        { points: [[115, 10, 2], [300, 10, 2]] },
+        { points: [[98, 10, -114], [98, 10, -40], [98, 10, -14]] },
+        { points: [[109, 10, -6.5], [112, 10, -6.8], [130, 10, -12]] },
+      ],
+      intersections: [{ name: "Junction 1", id: 1, points: oct(100, 0, 16, 10) }],
+      areas: [],
+      rules: { laneRoles: [] },
+    });
+    const before = JSON.parse(wide);
+    const after = JSON.parse(addTrafficLights(wide, sites));
+    const j = after.intersections.find((i: { id: number }) => i.id === 1);
+    expect(j.trafficLight).toBeTruthy();
+    const inside = (poly: number[][], x: number, y: number) => {
+      let c = false;
+      for (let i = 0, k = poly.length - 1; i < poly.length; k = i++) {
+        const yi = -poly[i][2], yk = -poly[k][2];
+        if (yi > y !== yk > y && x < ((poly[k][0] - poly[i][0]) * (y - yi)) / (yk - yi) + poly[i][0]) c = !c;
+      }
+      return c;
+    };
+    let ends = 0;
+    before.lanes.forEach((l: { points: number[][] }, li: number) => {
+      for (const idx of [0, l.points.length - 1]) {
+        const e = l.points[idx];
+        if (!inside(before.intersections[0].points, e[0], -e[2])) continue;
+        ends++;
+        const now = after.lanes[li].points[idx];
+        expect(inside(j.points, now[0], -now[2])).toBe(true);
+      }
+    });
+    expect(ends).toBe(5);
+    // The road's stop lines stay where they were: the approaches were carried on along their lanes.
+    const site = sites.find((st) => st.kind === "junction")!;
+    for (const arm of site.arms) {
+      const a = j.points[arm.side], b = j.points[(arm.side + 1) % 4];
+      const mid: Vec2 = [(a[0] + b[0]) / 2, -(a[2] + b[2]) / 2];
+      const along = (mid[0] - site.c[0]) * arm.dir[0] + (mid[1] - site.c[1]) * arm.dir[1];
+      expect(along).toBeCloseTo(arm.stop, 1);
+    }
+  });
+
   it("leaves traffic alone with no sites", () => {
     expect(addTrafficLights(traffic, [])).toBe(traffic);
     expect(addTrafficLights("", sites)).toBe("");

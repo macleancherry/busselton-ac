@@ -1488,6 +1488,11 @@ export async function buildTrack(
   // On the base wherever its meshes reach (a house at the corridor's edge stays on one ground), else on the horizon.
   const onBase = (x: number, y: number) => inCover(x, y, 1) || ground.mesh(x, y) !== null;
   const buildingGround = (x: number, y: number) => (onBase(x, y) ? ground(x, y) : horizonGround(x, y));
+  // A building takes one ground for its whole footprint: the base's if any of it is on the base (the
+  // base's ground carries on past its meshes as the analytic terrain), else the horizon. Point by
+  // point, a house straddling the detailed terrain's edge took the horizon mesh, held 3 m under the
+  // terrain there (backdrop.ts), for its lowest corner and sank 4 to 5 m.
+  const onBaseRing = (ring: Vec2[]) => ring.some(([x, y]) => onBase(x, y)) || onBase(...centroid(ring));
   // The jetty, its lamps and precinct, and the sea wall keep their own rule (the analytic terrain) for now.
   const shoreGround = (x: number, y: number) => (inCover(x, y, 1) ? terrainH(x, y) : horizonGround(x, y));
   // Power poles, wires and street lights: seen, mapped, or (lights, in town) at a typical spacing.
@@ -1605,7 +1610,7 @@ export async function buildTrack(
         : [-gx / gl, -gy / gl];
       // Its walls start at the lowest ground along its footprints (built once at 0 to find them).
       const probe = buildSpecHouse(look.spec, { centre: [x, y], toRoad, z: 0 }, String(k));
-      const z = probe.footprints.length ? Math.min(...probe.footprints.map((f) => (f.every(([px, py]) => onBase(px, py)) ? ground.underRing(f) : buildingGround(...centroid(f))))) : buildingGround(x, y);
+      const z = probe.footprints.length ? Math.min(...probe.footprints.map((f) => (onBaseRing(f) ? ground.underRing(f) : horizonGround(...centroid(f))))) : buildingGround(x, y);
       const sh = buildSpecHouse(look.spec, { centre: [x, y], toRoad, z }, String(k));
       const inside = (b: Building) => {
         const c = centroid(b.ring);
@@ -1756,8 +1761,8 @@ export async function buildTrack(
     }
     for (let i = houseTrees.length - 1; i >= 0; i--) if (cleared(houseTrees[i].x, houseTrees[i].y, true)) houseTrees.splice(i, 1);
   }
-  // In the corridor, 2 cm into the base's ground; out on the horizon mesh, sunk 40 cm as before.
-  const houses = buildBuildings(shown, buildingGround, (b) => (b.ring.every(([x, y]) => onBase(x, y)) ? SINK : 0.4));
+  // One ground per building (onBaseRing): 2 cm into the base's ground, or out on the horizon mesh, sunk 40 cm as before.
+  const houses = buildBuildings(shown, buildingGround, (b) => (onBaseRing(b.ring) ? SINK : 0.4), (b) => (onBaseRing(b.ring) ? ground : horizonGround));
   // Car park islands, clear of the road, the streets, buildings and the rings, with shrubs.
   const islandNodes: Kn5MeshNode[] = [];
   const islandShrubs = new MeshBuilder();

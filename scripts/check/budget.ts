@@ -64,6 +64,20 @@ console.log(`textures ${model.textures.length}, about ${textureMB.toFixed(0)} MB
 console.log(`kn5 ${kn5MB.toFixed(0)} MB (limit ${LIMITS.kn5MB})`);
 const top = [...byGroup.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8);
 console.log("biggest groups: " + top.map(([g, t]) => `${g} ${fmt(t)}`).join(", "));
+// --groups: every group, and the mesh names (digits and part numbers dropped) inside it, to compare two builds.
+if (process.argv.includes("--groups")) {
+  const byName = new Map<string, number>();
+  const names = (n: Kn5Node, depth: number, group: string) => {
+    if (n.kind === "mesh") {
+      if (n.renderable === false) return;
+      const key = `${group || "-"} ${n.name.replace(/_T\d+$/, "").replace(/_\d+$/, "").replace(/\d+/g, "#")}`;
+      byName.set(key, (byName.get(key) ?? 0) + n.indices.length / 3);
+    } else n.children.forEach((c) => names(c, depth + 1, depth >= 2 ? group : c.kind === "mesh" ? group : c.name));
+  };
+  names(model.root, 0, "");
+  for (const [g, t] of [...byGroup.entries()].sort((a, b) => b[1] - a[1])) console.log(`group ${g} ${t}`);
+  for (const [k, t] of [...byName.entries()].sort((a, b) => b[1] - a[1])) if (t >= 500) console.log(`mesh ${k} ${t}`);
+}
 const over = [
   triangles > LIMITS.triangles && "triangles",
   meshes > LIMITS.meshes && "meshes",
