@@ -2,8 +2,14 @@
 
 Every build made with `"traffic": true` ships `data/traffic.json` (lanes, junctions, roundabouts)
 and the `surfaces.ini` changes CSP's traffic tool needs (`WAV_PITCH=extended-0` on SURFACE_0, and
-`[_SCRIPTING_PHYSICS] ALLOW_TOOLS=1 ALLOW_TRACK_SCRIPTS=1`). The tool is CSP's own
+`[_SCRIPTING_PHYSICS] ALLOW_TOOLS=1 ALLOW_TRACK_SCRIPTS=1 ALLOW_NEW_MODE_SCRIPTS=1`). The tool is CSP's own
 (x4fab's csp-traffic-tool, bundled with CSP); this test checks that our generated lanes work in it.
+
+The **Traffic mode** (Content Manager, new modes) lists only tracks whose `ui_track.json` has the tag
+`traffic-planner-ready` (its manifest: `ALLOWED_TRACKS=#traffic-planner-ready`), and runs its physics
+only with `ALLOW_NEW_MODE_SCRIPTS=1` (source: acc-lua-internal `included-new-modes/traffic`). Traffic
+builds write both, on every layout's `ui_track.json` too, so the track should show up in the mode's
+track list with no hand edits.
 
 Note: with those surfaces.ini changes the track won't pass an online server's integrity check. Ours
 is for offline and LAN anyway.

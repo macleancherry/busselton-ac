@@ -1,24 +1,64 @@
-// Busselton fork: track sounds through CSP's track audio (ext_config.ini), placed from the map:
-// waves along the shore, magpies in the parks and kookaburras in the bush.
+// Busselton fork: track sounds placed from the map: waves along the shore, magpies in the parks and
+// kookaburras in the bush. Two ways to play them in CSP:
 //
-// How CSP plays a track's own sounds (acc-extension-config wiki, Tracks - Audio): an FMOD soundbank
-// in the track's extension folder, [SOUNDBANK_n] BANK / GUIDS pointing at it, then one [EVENT_n]
-// per emitter with the event's path as GUIDs.txt lists it (FMOD Studio writes lines like
+// "lua" (the default): a track script, extension/sounds.lua, plays plain audio files from
+// extension/sfx/ (surf.ogg, magpie.ogg, kookaburra.ogg) through ac.AudioEvent.fromFile (CSP Lua SDK
+// lib_audio.lua and common/ac_audio.d.lua: a looping 3D emitter from a file with min/max distance;
+// track scripts get it through inc_scene.lua). No FMOD Studio: drop three CC0 recordings in.
+//
+// "fmod": CSP's track audio in ext_config.ini (acc-extension-config wiki, Tracks - Audio): an FMOD
+// soundbank in the track's extension folder, [SOUNDBANK_n] BANK / GUIDS pointing at it, then one
+// [EVENT_n] per emitter with the event's path as GUIDs.txt lists it (FMOD Studio writes lines like
 // "{guid} event:/busselton/surf"), POSITION in AC space, VOLUME and per-camera multipliers. Any
 // number can be a condition instead of a constant (Tracks - Conditions: SUN, RAIN, and expressions
 // over earlier conditions), which is how the birds go quiet at night and in the rain.
 //
-// CSP ships no ambient sounds a track can use (its only bank is the fireworks one), and we don't
-// ship anyone's recordings. So the bank is a placeholder with fixed names: extension/sfx/README.txt
-// in the build says what it must hold, the workstation builds it from CC0 or its own recordings,
-// and until then the build option stays off (a bank that isn't there just plays nothing; to be
-// confirmed in game).
+// Either way CSP ships no ambient sounds a track can use and we don't ship anyone's recordings, so
+// the build carries extension/sfx/README.txt saying what to add and where to get CC0 recordings.
+// A missing file plays nothing (the script logs it once).
 
 import type { CoastPolygon } from "./coast";
 import { SEA_LEVEL } from "./coast";
 import type { Vec2 } from "./geo";
+import soundsLuaTemplate from "./lua/sounds.lua?raw";
 
 export type SoundKind = "surf" | "magpie" | "kookaburra";
+export type SoundMode = "lua" | "fmod";
+
+/** The build option to a mode: true (or "lua") is the Lua script, "fmod" the soundbank, off is undefined. */
+export function soundMode(option: boolean | SoundMode | undefined): SoundMode | undefined {
+  if (option === "fmod") return "fmod";
+  return option ? "lua" : undefined;
+}
+
+/** The track script (under extension/) and the files it plays (under extension/; .ogg, .wav or .mp3). */
+export const SOUND_SCRIPT = "sounds.lua";
+export const SOUND_FILES: Record<SoundKind, string> = {
+  surf: "sfx/surf.ogg",
+  magpie: "sfx/magpie.ogg",
+  kookaburra: "sfx/kookaburra.ogg",
+};
+
+/** A Freesound search filtered to CC0 (Creative Commons 0). Links only: nothing is downloaded. */
+export function freesoundCc0(query: string): string {
+  return `https://freesound.org/search/?q=${encodeURIComponent(query).replace(/%20/g, "+")}&f=license:%22Creative+Commons+0%22`;
+}
+
+/** What each file should be, and where to look for CC0 recordings of it. */
+export const SOUND_SOURCES: Record<SoundKind, { what: string; links: string[] }> = {
+  surf: {
+    what: "gentle waves lapping on sand (Geographe Bay is sheltered: no big surf), seamless loop 30-60 s",
+    links: [freesoundCc0("waves lapping beach"), freesoundCc0("gentle surf"), freesoundCc0("surf")],
+  },
+  magpie: {
+    what: "Australian magpie calls and warbling with gaps between, loop 20-60 s",
+    links: [freesoundCc0("australian magpie"), freesoundCc0("magpie")],
+  },
+  kookaburra: {
+    what: "laughing kookaburra, sparse (mostly quiet, a laugh or two), loop 30-90 s",
+    links: [freesoundCc0("kookaburra"), freesoundCc0("laughing kookaburra")],
+  },
+};
 
 /** FMOD event paths the placeholder bank must provide. */
 export const SOUND_EVENTS: Record<SoundKind, string> = {
@@ -207,11 +247,63 @@ export function soundConfig(emitters: SoundEmitter[]): string[] {
   return lines;
 }
 
-/** extension/sfx/README.txt: what the workstation must put in the placeholder bank. */
-export function soundReadme(emitters: SoundEmitter[]): string {
+/** extension/sounds.lua: the track script with the emitters filled in (AC space: x east, y up, z south). */
+export function soundLua(emitters: SoundEmitter[]): string {
+  const rows = emitters.map((e) => `{ '${e.kind}', ${f(e.at[0])}, ${f(e.at[2])}, ${f(-e.at[1])} }`);
+  return soundsLuaTemplate.replace("__EMITTERS__", rows.length ? `\n  ${rows.join(",\n  ")},\n` : "");
+}
+
+/** The ext_config section that loads the track script. */
+export function soundScriptConfig(index: number): string[] {
+  return [
+    "; Track sounds (trackSounds.ts): plays extension/sfx/*.ogg, see extension/sfx/README.txt.",
+    `[SCRIPT_${index}]`,
+    `SCRIPT = ${SOUND_SCRIPT}`,
+    "",
+  ];
+}
+
+/** extension/sfx/README.txt: what to put in extension/sfx (the audio files, or the FMOD bank). */
+export function soundReadme(emitters: SoundEmitter[], mode: SoundMode = "lua"): string {
+  return mode === "fmod" ? fmodReadme(emitters) : luaReadme(emitters);
+}
+
+function luaReadme(emitters: SoundEmitter[]): string {
+  const count = (k: SoundKind) => emitters.filter((e) => e.kind === k).length;
+  const kinds: SoundKind[] = ["surf", "magpie", "kookaburra"];
+  return [
+    "Track sounds for Custom Shaders Patch",
+    "",
+    `extension/${SOUND_SCRIPT} (a CSP track script) plays these files as looping 3D sounds at places`,
+    "taken from the map. Put them in this folder (extension/sfx). Each can be .ogg (best), .wav or",
+    ".mp3 with the same name; a file that isn't here just stays quiet. No FMOD Studio needed.",
+    "",
+    ...kinds.flatMap((k) => [
+      `  ${SOUND_FILES[k].replace("sfx/", "")}: ${SOUND_SOURCES[k].what} (${count(k)} emitters)`,
+      ...SOUND_SOURCES[k].links.map((l) => `      ${l}`),
+    ]),
+    "",
+    "The links are Freesound searches filtered to CC0 (Creative Commons 0, public domain). Check that",
+    "each sound's own page says CC0 before using it. Only CC0 recordings or your own: no copyrighted",
+    "audio, nothing ripped from games or videos.",
+    "",
+    "Prepare them in Audacity: mono, 44.1 or 48 kHz, trimmed to a clean loop (crossfade the ends), no",
+    "traffic or voices in the background, normalised to about -3 dB, exported as Ogg Vorbis.",
+    "",
+    "In game the birds sing in daylight (kookaburras loudest at dawn and dusk) and go quiet in the",
+    "rain; the waves get louder with the weather. The CSP log says which file each kind loaded",
+    "(lines starting \"Busselton sounds:\").",
+    "",
+    "Alternative: \"trackSounds\": \"fmod\" in the route's options plays the same emitters from an FMOD",
+    "bank (extension/sfx/busselton.bank) instead; that build's README explains it.",
+  ].join("\r\n");
+}
+
+/** The FMOD path's README: what the workstation must put in the placeholder bank. */
+function fmodReadme(emitters: SoundEmitter[]): string {
   const count = (k: SoundKind) => emitters.filter((e) => e.kind === k).length;
   return [
-    "Track sounds for Custom Shaders Patch (placeholder)",
+    "Track sounds for Custom Shaders Patch (FMOD bank, placeholder)",
     "",
     "ext_config.ini plays these FMOD events at positions taken from the map. Put the bank here:",
     `  extension/${SOUND_BANK}`,
@@ -225,5 +317,8 @@ export function soundReadme(emitters: SoundEmitter[]): string {
     "",
     "Only CC0 recordings or your own. No copyrighted audio, nothing ripped from games or videos.",
     "Volumes follow the time of day and the rain (conditions in ext_config.ini).",
+    "",
+    "Simpler: \"trackSounds\": true plays plain .ogg files from this folder through a Lua track script",
+    "instead, no bank needed.",
   ].join("\r\n");
 }

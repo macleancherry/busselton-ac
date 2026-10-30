@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { birdEmitters, distanceTo, soundConfig, soundReadme, SOUND_EVENTS, surfEmitters, type SoundTree } from "../src/core/trackSounds";
+import {
+  birdEmitters, distanceTo, freesoundCc0, soundConfig, soundLua, soundMode, soundReadme, SOUND_EVENTS, SOUND_FILES, SOUND_SCRIPT,
+  surfEmitters, type SoundEmitter, type SoundTree,
+} from "../src/core/trackSounds";
 import { extConfig } from "../src/core/cspConfig";
 import { SEA_LEVEL, type CoastPolygon } from "../src/core/coast";
 
@@ -67,17 +70,80 @@ describe("track sounds", () => {
     expect(soundConfig([])).toEqual([]);
   });
 
-  it("adds the sounds to ext_config without clashing sections, and explains the placeholder bank", () => {
+  it("FMOD path: adds the sounds to ext_config without clashing sections, and explains the placeholder bank", () => {
     const emitters = [{ kind: "surf" as const, at: [0, 0, 0.75] as [number, number, number] }, { kind: "magpie" as const, at: [5, 5, 10] as [number, number, number] }];
-    const ini = extConfig([[0, 0, 8]], { drySummer: true, autotest: true, sounds: emitters });
+    const ini = extConfig([[0, 0, 8]], { drySummer: true, autotest: true, sounds: emitters, soundMode: "fmod" });
     expect(ini).toContain("[SOUNDBANK_0]");
     expect(ini).toContain("[EVENT_1]");
+    expect(ini).not.toContain(SOUND_SCRIPT);
     const heads = ini.match(/^\[[^\]]+\]/gm)!;
     expect(new Set(heads).size).toBe(heads.length);
     expect(extConfig([])).not.toContain("SOUNDBANK");
-    const readme = soundReadme(emitters);
+    const readme = soundReadme(emitters, "fmod");
     expect(readme).toContain("extension/sfx/busselton.bank");
     expect(readme).toContain("event:/busselton/surf");
     expect(readme).toContain("CC0");
+  });
+});
+
+describe("track sounds through a Lua track script", () => {
+  const emitters: SoundEmitter[] = [
+    { kind: "surf", at: [10, -20, 0.75] },
+    { kind: "magpie", at: [-5, 30, 10] },
+    { kind: "kookaburra", at: [1, 2, 3] },
+  ];
+
+  it("reads the option: true and 'lua' are the script, 'fmod' the bank, off is nothing", () => {
+    expect(soundMode(true)).toBe("lua");
+    expect(soundMode("lua")).toBe("lua");
+    expect(soundMode("fmod")).toBe("fmod");
+    expect(soundMode(false)).toBeUndefined();
+    expect(soundMode(undefined)).toBeUndefined();
+  });
+
+  it("fills the emitters into the script in AC space, and plays files with ac.AudioEvent.fromFile", () => {
+    const lua = soundLua(emitters);
+    expect(lua).not.toContain("__EMITTERS__");
+    expect(lua).toContain("{ 'surf', 10.00, 0.75, 20.00 }"); // x, up, south
+    expect(lua).toContain("{ 'magpie', -5.00, 10.00, -30.00 }");
+    expect(lua).toContain("{ 'kookaburra', 1.00, 3.00, -2.00 }");
+    expect(lua).toContain("ac.AudioEvent.fromFile");
+    expect(lua).toMatch(/loop = true/);
+    expect(lua).toContain("/extension/sfx/");
+    // Every kind the build places has a file in the script.
+    for (const k of Object.keys(SOUND_FILES)) expect(lua).toContain(`file = '${k}'`);
+    expect(lua).toContain("script.frameBegin");
+    // An empty list is still valid Lua.
+    expect(soundLua([])).toContain("local EMITTERS = {  }");
+  });
+
+  it("loads the script from ext_config after the autotest one, with no bank, and no clashing sections", () => {
+    const withTest = extConfig([], { autotest: true, sounds: emitters });
+    expect(withTest).toContain("[SCRIPT_0]\r\nSCRIPT = autotest.lua");
+    expect(withTest).toContain(`[SCRIPT_1]\r\nSCRIPT = ${SOUND_SCRIPT}`);
+    expect(withTest).not.toContain("SOUNDBANK");
+    expect(withTest).not.toContain("[EVENT_");
+    const heads = withTest.match(/^\[[^\]]+\]/gm)!;
+    expect(new Set(heads).size).toBe(heads.length);
+    const alone = extConfig([], { sounds: emitters, soundMode: "lua" });
+    expect(alone).toContain(`[SCRIPT_0]\r\nSCRIPT = ${SOUND_SCRIPT}`);
+    expect(alone).not.toContain("autotest.lua");
+    expect(extConfig([], { sounds: [] })).not.toContain(SOUND_SCRIPT);
+  });
+
+  it("README lists the files and CC0 Freesound searches for surf, magpie and kookaburra", () => {
+    const readme = soundReadme(emitters);
+    for (const f of ["surf.ogg", "magpie.ogg", "kookaburra.ogg"]) expect(readme).toContain(f);
+    expect(readme).not.toContain("busselton.bank\r\n  extension"); // no bank to build
+    expect(readme).toContain("CC0");
+    const links = readme.match(/https:\/\/\S+/g)!;
+    expect(links.length).toBeGreaterThanOrEqual(6);
+    for (const l of links) {
+      expect(l.startsWith("https://freesound.org/search/?q=")).toBe(true);
+      expect(l).toContain("f=license:%22Creative+Commons+0%22");
+    }
+    for (const q of ["surf", "magpie", "kookaburra"]) expect(links.some((l) => l.includes(q))).toBe(true);
+    expect(freesoundCc0("waves lapping beach")).toBe("https://freesound.org/search/?q=waves+lapping+beach&f=license:%22Creative+Commons+0%22");
+    expect(readme).toContain("(1 emitters)");
   });
 });
