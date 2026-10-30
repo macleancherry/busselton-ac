@@ -13,6 +13,7 @@ import type { Kn5MeshNode } from "./kn5";
 import type { Area } from "./area";
 import type { BuildOptions } from "./options";
 import { resample } from "./polyline";
+import { outerRadius, ringHeight } from "./roundabout";
 import { inRoundabout, isLoop, planRoad, surfaceHeight, type RoadPlan, type SegmentIndex } from "./road";
 import { applyTrace, traceRoad, type RasterSampler } from "./trace";
 import { pad } from "./roadMesh";
@@ -248,9 +249,15 @@ function norm(v: Vec2): Vec2 {
  * to sit 2 cm under the route's surface.
  */
 export function streetSurface(plan: RoadPlan, index: SegmentIndex, opts: BuildOptions, ground: HeightFn) {
-  const routeSurface = (x: number, y: number) => {
+  // The surface a join meets: the route's beside it, else a ring's edge (an area build's roundabout
+  // away from the route), else null (another street): then the street stays draped. Blending it to
+  // 2 cm under the ground there put the ground through the street.
+  const routeSurface = (x: number, y: number): number | null => {
     const near = index.nearest(x, y, 40);
-    if (!near) return ground(x, y);
+    if (!near) {
+      const rb = plan.roundabouts.find((r) => Math.hypot(x - r.c[0], y - r.c[1]) < outerRadius(r) + 12);
+      return rb ? ringHeight(rb, outerRadius(rb)) : null;
+    }
     const s = plan.samples[near.seg];
     return surfaceHeight(s, near.t, opts.crown);
   };
@@ -266,7 +273,9 @@ export function streetSurface(plan: RoadPlan, index: SegmentIndex, opts: BuildOp
     along = at[k];
     for (const j of st.joins) dJoin = Math.min(dJoin, Math.abs(along - at[j]));
     if (dJoin >= 10) return draped;
-    const r = routeSurface(x, y) - 0.02;
+    const route = routeSurface(x, y);
+    if (route === null) return draped;
+    const r = route - 0.02;
     const f = dJoin / 10;
     return r + (draped - r) * f * f * (3 - 2 * f);
   };
