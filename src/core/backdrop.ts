@@ -34,12 +34,23 @@ export function planBackdrop(plan: RoadPlan, index: SegmentIndex, opts: BuildOpt
   return out;
 }
 
-/** The horizon surface height at a point (before grid interpolation). */
-export function backdropHeight(dem: HeightFn, index: SegmentIndex, opts: BuildOptions, x: number, y: number, cover?: Cover): number {
+/** How far past the corridor the backdrop is held under the detailed terrain, metres. */
+const UNDER_REACH = 60;
+
+/**
+ * The horizon surface height at a point (before grid interpolation). `terrain`, the detailed
+ * ground's height, keeps it SINK under that ground wherever the two overlap: the coarse far DEM
+ * can read metres high (Busselton's foreshore: 3-4 m), and a fixed sink under the far DEM then
+ * left the blurry horizon photo showing through the detailed terrain. Past the corridor the
+ * limit rises 1 in 10, so the backdrop meets its own height smoothly.
+ */
+export function backdropHeight(dem: HeightFn, index: SegmentIndex, opts: BuildOptions, x: number, y: number, cover?: Cover, terrain?: HeightFn): number {
   const near = cover ? null : index.nearest(x, y, opts.corridor + 300);
   const d = cover ? cover(x, y) : near ? near.dist : Infinity;
   const t = Math.min(1, Math.max(0, (d - opts.corridor) / 300));
-  return dem(x, y) - SINK * (1 - t * t * (3 - 2 * t));
+  const h = dem(x, y) - SINK * (1 - t * t * (3 - 2 * t));
+  if (!terrain || d > opts.corridor + UNDER_REACH) return h;
+  return Math.min(h, terrain(x, y) - SINK + Math.max(0, d - opts.corridor) * 0.1);
 }
 
 export function buildBackdropChunk(
@@ -49,6 +60,7 @@ export function buildBackdropChunk(
   opts: BuildOptions,
   textured: boolean,
   cover?: Cover,
+  terrain?: HeightFn,
 ): Kn5MeshNode | null {
   const cells = Math.round((chunk.maxX - chunk.minX) / STEP);
   const N = cells + 1;
@@ -61,7 +73,7 @@ export function buildBackdropChunk(
       const x = chunk.minX + i * STEP, y = chunk.minY + j * STEP;
       const d = cover ? cover(x, y) : index.nearest(x, y, opts.corridor + 300)?.dist ?? Infinity;
       keep[j * N + i] = d > hole ? 1 : 0;
-      hs[j * N + i] = backdropHeight(dem, index, opts, x, y, cover);
+      hs[j * N + i] = backdropHeight(dem, index, opts, x, y, cover, terrain);
     }
   }
   const mb = new MeshBuilder();
