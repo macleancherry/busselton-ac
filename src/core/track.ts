@@ -1246,7 +1246,10 @@ export async function buildTrack(
   if (kerbside) markings.push(...kerbside.nodes);
   // Busselton fork: the ground stays 4 cm under every street, within a grid step of it: at a mouth
   // across the route's raised verge, and where the ground bulges, it came up through the street.
-  const underStreets = streetCeiling(sideStreets, opts.terrainStep);
+  // The return fills at street mouths are street too (1STREET_RETFILL): on a hillside the ground
+  // came up through them by a metre (Cape Leeuwin).
+  const isStreet = (n: Kn5Node): boolean => n.kind === "mesh" ? /^1(STREET|UNPAVED)/.test(n.name) : n.children.some(isStreet);
+  const underStreets = streetCeiling([...sideStreets, ...kerbReturns.filter(isStreet)], opts.terrainStep);
   const groundAt = (x: number, y: number) => {
     const t = terrainAt(x, y);
     const top = underStreets(x, y);
