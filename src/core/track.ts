@@ -3,6 +3,7 @@
 // tiles) and in Node tests (synthetic terrain).
 
 import { buildPaths, footPathTexture, sharedPathTexture, type PathLine } from "./paths";
+import { groundMeshHeight } from "./pathGround";
 import { pickSpecies, TREE_SPECIES, treeSpeciesAtlas } from "./treeSprites";
 import { FENCE_COLOURS, fenceTexture, frontWallTexture, hedgeTexture, mulchTexture, shrubAtlas } from "./houseTextures";
 import { buildLots, shrub } from "./lots";
@@ -1287,8 +1288,10 @@ export async function buildTrack(
     if (mesh) terrainNodes.push(mesh);
   }
   const backdropNodes: Kn5Node[] = [];
+  // The horizon is held under the detailed terrain where they overlap (backdrop.ts).
+  const farGround = (x: number, y: number) => backdropHeight(farDem, index, opts, x, y, area ? cover : undefined, (px, py) => terrainAt(px, py).h);
   for (const chunk of backdrop) {
-    const mesh = buildBackdropChunk(chunk, farDem, index, opts, textured.has(chunk.key), area ? cover : undefined);
+    const mesh = buildBackdropChunk(chunk, farDem, index, opts, textured.has(chunk.key), area ? cover : undefined, (x, y) => terrainAt(x, y).h);
     if (mesh) backdropNodes.push(mesh);
   }
   const ground = (x: number, y: number) => terrainAt(x, y).h;
@@ -1338,7 +1341,7 @@ export async function buildTrack(
     Array.from({ length: Math.floor(far.length / farStep) }, (_, i) => far[Math.floor(i * farStep)])
       .map((t) => ({ ...t, scale: t.scale * 1.15, variant: pickSpecies(speciesRand(), !!t.coastal, false) }))
       .flatMap((t) => (zones ? zones.tree(t, TREE_SPECIES.map((s) => s.name), speciesRand()) ?? [] : [t])),
-    (x, y) => backdropHeight(farDem, index, opts, x, y, area ? cover : undefined) - 0.6,
+    (x, y) => farGround(x, y) - 0.6,
     "HORIZONTREES",
   ).map((m) => ({ ...m, castShadows: false }));
   // Fences, walls and hedges where OSM maps them, never near the road or across a street.
@@ -1386,10 +1389,15 @@ export async function buildTrack(
   const serviceIndex = new LineIndex((sources.streets?.lines ?? [])
     .filter((l) => /^(service|parking_aisle)/.test(l.cls) && l.brunnel !== "bridge" && l.brunnel !== "tunnel")
     .map((l) => ({ pts: l.pts.map((p) => proj.toLocal(p)), width: 5 })));
-  const pathMeshes = opts.paths && sources.paths?.length
+  const pathLines = opts.paths && sources.paths?.length ? sources.paths.map((l) => ({ kind: l.kind, pts: l.pts.map((p) => proj.toLocal(p)) })) : [];
+  // Laid on the ground meshes as built (pathGround.ts), not the terrain function they were cut from.
+  const laidOn = pathLines.length
+    ? groundMeshHeight([...terrainNodes, ...ringNodes, ...roadMeshes.verge, ...kerbMeshes.strip, ...kerbReturns, ...sideStreets, ...vergeConcrete], pathLines.map((l) => l.pts))
+    : () => null;
+  const pathMeshes = pathLines.length
     ? buildPaths(
-      sources.paths.map((l) => ({ kind: l.kind, pts: l.pts.map((p) => proj.toLocal(p)) })),
-      (x, y) => Math.max(ground(x, y), onMesh(x, y)),
+      pathLines,
+      (x, y) => laidOn(x, y) ?? Math.max(ground(x, y), onMesh(x, y)),
       (x, y, half, kind) => {
         // Not under a ring's verge and grass strip.
         if (plan.roundabouts.some((rb) => Math.hypot(x - rb.c[0], y - rb.c[1]) < vergeOuterRadius(rb, opts) + half + 0.3)) return false;
@@ -1472,7 +1480,7 @@ export async function buildTrack(
   if (farmRoad) for (const t of farmTextures()) addScenery(`${t.name}.png`, t.png, material(t.name, `${t.name}.png`, { ambient: 0.45, diffuse: 0.45, specular: t.name === "farm_gravel" ? 0 : 0.2, exp: 15 }));
   // Inside the corridor buildings stand on the detailed terrain; further out, on the horizon mesh.
   const buildingGround = (x: number, y: number) => {
-    return inCover(x, y, 1) ? ground(x, y) : backdropHeight(farDem, index, opts, x, y, area ? cover : undefined) - 0.6;
+    return inCover(x, y, 1) ? ground(x, y) : farGround(x, y) - 0.6;
   };
   // Power poles, wires and street lights: seen, mapped, or (lights, in town) at a typical spacing.
   const seenLocal = mergeSightings((sources.seen ?? []).map((f) => ({ ...f, at: proj.toLocal(f.at) })));

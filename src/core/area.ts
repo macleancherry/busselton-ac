@@ -45,18 +45,6 @@ class Ring {
     }
     return c;
   }
-
-  edge(x: number, y: number): number {
-    let best = Infinity;
-    const r = this.pts;
-    for (let i = 0, j = r.length - 1; i < r.length; j = i++) {
-      const [ax, ay] = r[j], [bx, by] = r[i];
-      const dx = bx - ax, dy = by - ay;
-      const t = Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy) / (dx * dx + dy * dy || 1)));
-      best = Math.min(best, Math.hypot(x - ax - dx * t, y - ay - dy * t));
-    }
-    return best;
-  }
 }
 
 /** One or more polygons, local metres; a point is in the area when it's in any of them. */
@@ -68,6 +56,7 @@ export class Area {
   readonly minY: number;
   readonly maxX: number;
   readonly maxY: number;
+  private edges: number[][] | null = null;
 
   constructor(rings: Vec2[] | Vec2[][]) {
     const list = (Array.isArray(rings[0]?.[0]) ? rings : [rings]) as Vec2[][];
@@ -83,15 +72,72 @@ export class Area {
     return this.rings.some((r) => r.inside(x, y));
   }
 
-  /** Distance to the edge: negative inside (as deep as the deepest polygon it's in), positive outside. */
-  signed(x: number, y: number): number {
-    let out = Infinity, deep = 0;
-    for (const r of this.rings) {
-      const e = r.edge(x, y);
-      if (r.inside(x, y)) deep = Math.max(deep, e);
-      else out = Math.min(out, e);
+  /**
+   * The outline of the whole area: each polygon's edges, less the stretches inside another
+   * polygon (where two overlap or share an edge). [ax, ay, bx, by] per piece.
+   */
+  private outline(): number[][] {
+    if (this.edges) return this.edges;
+    const out: number[][] = [];
+    const E = 0.01;
+    for (const [k, r] of this.rings.entries()) {
+      const pts = r.pts;
+      for (let i = 0; i < pts.length; i++) {
+        const [ax, ay] = pts[i], [bx, by] = pts[(i + 1) % pts.length];
+        const dx = bx - ax, dy = by - ay, L = Math.hypot(dx, dy);
+        if (L < 1e-9) continue;
+        if (this.rings.length === 1) {
+          out.push([ax, ay, bx, by]);
+          continue;
+        }
+        // Split where the other polygons' edges cross this one.
+        const ts = [0, 1];
+        for (const [q, o] of this.rings.entries()) {
+          if (q === k) continue;
+          for (let j = 0; j < o.pts.length; j++) {
+            const [cx, cy] = o.pts[j], [ex, ey] = o.pts[(j + 1) % o.pts.length];
+            const fx = ex - cx, fy = ey - cy, den = dx * fy - dy * fx;
+            if (Math.abs(den) < 1e-12) {
+              // Parallel: on the same line, its ends split this edge.
+              if (Math.abs((cx - ax) * dy - (cy - ay) * dx) / L > 1e-6) continue;
+              for (const [px, py] of [[cx, cy], [ex, ey]]) {
+                const t = ((px - ax) * dx + (py - ay) * dy) / (L * L);
+                if (t > 0 && t < 1) ts.push(t);
+              }
+              continue;
+            }
+            const t = ((cx - ax) * fy - (cy - ay) * fx) / den, u = ((cx - ax) * dy - (cy - ay) * dx) / den;
+            if (t > 0 && t < 1 && u >= 0 && u <= 1) ts.push(t);
+          }
+        }
+        ts.sort((a, b) => a - b);
+        const nx = -dy / L * E, ny = dx / L * E;
+        for (let s = 1; s < ts.length; s++) {
+          if (ts[s] - ts[s - 1] < 1e-9) continue;
+          const tm = (ts[s] + ts[s - 1]) / 2, mx = ax + dx * tm, my = ay + dy * tm;
+          // Part of the outline when open ground is on one side of it.
+          if (this.inside(mx + nx, my + ny) && this.inside(mx - nx, my - ny)) continue;
+          out.push([ax + dx * ts[s - 1], ay + dy * ts[s - 1], ax + dx * ts[s], ay + dy * ts[s]]);
+        }
+      }
     }
-    return deep > 0 ? -deep : out;
+    this.edges = out;
+    return out;
+  }
+
+  /**
+   * Distance to the area's outline: negative inside, positive outside. Several polygons are one
+   * area: where two overlap, a point near the seam is as deep as it is in the union, not near an
+   * edge (the backdrop and the corridor checks treated the seam as the area's edge).
+   */
+  signed(x: number, y: number): number {
+    let best = Infinity;
+    for (const [ax, ay, bx, by] of this.outline()) {
+      const dx = bx - ax, dy = by - ay;
+      const t = Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy) / (dx * dx + dy * dy || 1)));
+      best = Math.min(best, Math.hypot(x - ax - dx * t, y - ay - dy * t));
+    }
+    return this.inside(x, y) ? -best : best;
   }
 }
 
