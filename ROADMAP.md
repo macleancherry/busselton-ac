@@ -149,7 +149,7 @@ Each starts as a drive-anywhere base, then gets the Phase B treatment: Yallingup
   - AO bakes; everything goes to `\\media\busselton-share`
 - 🔨 Link this chat to Mac's laptop so builds go straight into the share and reports come straight back.
 - ⬜ A night run and a several-AI-cars run in the automatic test; a traffic-planner run.
-- ⬜ A one-click install link for the rig.
+- 🔨 One-click install on the rig: "Install Busselton.cmd" in the share installs every new build and polish, keeps AO bakes, installs the apps and shows what changed; optional check on log-in ([docs/rig-install.md](docs/rig-install.md)). To try on the rig.
 
 ## Phase G: Fun 🔨
 

@@ -10,6 +10,8 @@
                e.g. reports\<date>-<topic>\tuart_cm.bin
     snapshots\ each track's frozen inputs, <slug>-<date>.zip (scripts/snapshot/snapshot.mjs): what its
                base is rebuilt from. Keep them; they're the only copy outside the cloud workspace.
+    rig\       the rig's installer kit (rig-install.ps1 -PublishKit), run by "Install Busselton.cmd" in
+               the top folder; docs/rig-install.md
 
   Where it is: BUSSELTON_SHARE, else the older BUSSELTON_TEST_SHARE, else D:\busselton-share on the
   machine that hosts it, else \\media\busselton-share (its network address) from any other machine.
@@ -21,22 +23,26 @@ function Get-BusseltonShare {
     $root = @("D:\busselton-share", "\\media\busselton-share") | Where-Object { Test-Path $_ } | Select-Object -First 1
   }
   if (-not $root -or -not (Test-Path $root)) { return $null }
-  foreach ($d in "builds", "tests", "bakes", "reports", "snapshots") {
-    $p = Join-Path $root $d
-    if (-not (Test-Path $p)) { New-Item -ItemType Directory -Path $p | Out-Null }
-  }
+  # Made on first use. A machine that can only read the share (the rig, say) just skips this.
+  try {
+    foreach ($d in "builds", "tests", "bakes", "reports", "snapshots") {
+      $p = Join-Path $root $d
+      if (-not (Test-Path $p)) { New-Item -ItemType Directory -Path $p -ErrorAction Stop | Out-Null }
+    }
+  } catch { }
   $readme = Join-Path $root "README.txt"
   if (-not (Test-Path $readme)) {
-    Set-Content $readme @"
+    try { Set-Content $readme -ErrorAction Stop @"
 Busselton share (made by scripts\windows\share.ps1; layout explained there).
 builds\   track zips from the laptop session: <slug>.zip
 tests\    automatic AI runs: <date>_<time>-<slug>-<layout> (folder and zip)
 bakes\    AO bake logs with their times
 reports\  reports for the laptop session, and files they point to
 snapshots\ each track's frozen inputs (keep them)
-"@
+rig\      the rig's one-click installer: double-click "Install Busselton.cmd" in the share's top folder
+"@ } catch { }
   }
-  return (Resolve-Path $root).Path
+  return (Resolve-Path $root).ProviderPath
 }
 
 # A track's zip in the share's builds folder, by slug (or a path, returned as is).
