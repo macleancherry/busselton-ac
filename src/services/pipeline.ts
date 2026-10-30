@@ -17,6 +17,7 @@ import { areaRings } from "../core/area";
 import { classWidths, fetchCoast, fetchTileFeatures, roadClassLookup } from "./vectorTiles";
 import { clearDataWarnings, dataWarnings, warnMissing } from "./dataWarnings";
 import { drawSigns } from "./signs";
+import { fetchFarmland } from "./landcover";
 
 export interface BuildJob {
   coords: LngLat[];
@@ -61,6 +62,13 @@ export async function runBuild(job: BuildJob, report: Report, traceProgress: (te
   await report("Fetching OpenStreetMap data");
   clearDataWarnings();
   let seenError = "";
+  // Busselton fork: vineyards and paddocks along the route (farm.ts), fetched alongside the rest.
+  const farmland = opts.farmland
+    ? fetchFarmland(box, (opts.corridor ?? 90) + 20).catch(() => {
+      warnMissing("farmland tiles (vineyards, paddock fences)");
+      return undefined;
+    })
+    : undefined;
   const [osm, tiles, seen, coast] = await Promise.all([
     fetchOsm(coords, rings),
     fetchTileFeatures(paddedBounds(box, (opts.buildingRadius ?? 250) + 50)).catch(() => {
@@ -124,6 +132,7 @@ export async function runBuild(job: BuildJob, report: Report, traceProgress: (te
     // Busselton fork: coast, paths, house looks and shop signs.
     coast,
     jetty,
+    farmland: await farmland,
     paths: tiles
       ? tiles.roads.filter((r) => r.cls === "path" && r.brunnel !== "bridge" && r.brunnel !== "tunnel")
         .flatMap((r) => {

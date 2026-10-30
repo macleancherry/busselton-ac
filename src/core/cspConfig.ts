@@ -42,6 +42,8 @@ export interface CspOptions {
   sea?: boolean;
   /** Busselton fork: CSP instanced trees: the tree list's path under extension/ (e.g. trees/trees.txt). */
   trees?: string;
+  /** Busselton fork: there are vine rows (farm.ts, material vine_leaf): gold from autumn through winter. */
+  vines?: boolean;
 }
 
 /** `lights` are lamp heads in local metres (x east, y north, z up). */
@@ -222,6 +224,27 @@ export function extConfig(lights: Vec3[], opts: CspOptions = {}): string {
       "CONDITION = DRY_SEASON",
       "KEY_0 = seasonAutumn",
       "VALUE_0 = 0.8",
+      "OFF_VALUE_0 = 0",
+      "",
+    );
+  }
+  if (opts.vines) {
+    lines.push(
+      // South West vines: green from budburst (October) to March, gold in April and May, and left
+      // gold through the bare winter (a tint can't take the leaves off) until the new growth.
+      "[CONDITION_2]",
+      "NAME = VINE_AUTUMN",
+      "INPUT = YEAR_DAY",
+      "LUT = (|1=0|80=0|110=1|230=1|280=0|365=0|)",
+      "LAG = 0",
+      "",
+      "[MATERIAL_ADJUSTMENT_5]",
+      "ACTIVE = 1",
+      "DESCRIPTION = Vine leaves turn gold in autumn",
+      "MATERIALS = vine_leaf",
+      "CONDITION = VINE_AUTUMN",
+      "KEY_0 = seasonAutumn",
+      "VALUE_0 = 1",
       "OFF_VALUE_0 = 0",
       "",
     );
