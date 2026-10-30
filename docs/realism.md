@@ -20,7 +20,7 @@ the shader declarations (`textures_ps.fx`):
 | `txDetailA` | 5 | multilayer |
 
 The kn5 file stores each texture's register next to its slot name, so the
-writer looks them up (`TEXTURE_REGISTER` in `kn5.ts`).
+writer looks them up (`SLOT_REGISTER` in `kn5.ts`; a slot missing from it is an error).
 
 - **`ksPerPixel`**: diffuse only. `ksAmbient`, `ksDiffuse`, `ksSpecular`,
   `ksSpecularEXP`, `ksEmissive`, `ksAlphaRef`. What most of our scenery uses.

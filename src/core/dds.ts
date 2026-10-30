@@ -1,215 +1,373 @@
-// DXT1 (BC1) and DXT5 (BC3, with an alpha channel) DDS encoders with a full mip chain. DDS is the texture format
-// Assetto Corsa itself ships, so aerial textures stay small on disk and in
-// VRAM: a 1024 px chunk is ~680 KB instead of several MB of PNG.
-//
-// Block compression uses the inset bounding-box method (J.M.P. van Waveren,
-// "Real-Time DXT Compression", 2006): fast, and plenty for aerial photos.
+// DDS textures: DXT1 (BC1) and DXT5 (BC3) encoding with a full mip chain, and decoding of level 0.
+// Written from docs/specs/dds.md, Microsoft's DDS and block compression documentation and the
+// EXT_texture_compression_s3tc rules. Endpoints use the inset bounding box method (van Waveren 2006).
 
-import { BinaryWriter } from "./binary";
+type Pixels = Uint8Array | Uint8ClampedArray;
 
-function to565(r: number, g: number, b: number): number {
-  return ((r >> 3) << 11) | ((g >> 2) << 5) | (b >> 3);
+const HEADER_BYTES = 128;
+const DDSD_FLAGS = 0x1 | 0x2 | 0x4 | 0x1000 | 0x20000 | 0x80000;
+const DDPF_FOURCC = 0x4;
+const CAPS = 0x8 | 0x1000 | 0x400000;
+
+interface Level {
+  w: number;
+  h: number;
+  px: Pixels;
 }
 
-function from565(c: number): [number, number, number] {
-  const r = (c >> 11) & 31, g = (c >> 5) & 63, b = c & 31;
-  return [(r << 3) | (r >> 2), (g << 2) | (g >> 4), (b << 3) | (b >> 2)];
+function checkInput(rgba: Pixels, width: number, height: number): void {
+  if (!(width > 0 && height > 0) || !Number.isInteger(width) || !Number.isInteger(height)) {
+    throw new Error(`DDS: invalid size ${width} x ${height}`);
+  }
+  if (rgba.length < width * height * 4) {
+    throw new Error(`DDS: pixel data too short (${rgba.length} bytes for ${width} x ${height})`);
+  }
 }
 
-function encodeBlock(px: Uint8Array | Uint8ClampedArray, w: number, h: number, bx: number, by: number, out: BinaryWriter): void {
-  const block = new Uint8Array(48);
-  const min = [255, 255, 255], max = [0, 0, 0];
-  for (let y = 0; y < 4; y++) {
-    for (let x = 0; x < 4; x++) {
-      const sx = Math.min(w - 1, bx + x), sy = Math.min(h - 1, by + y);
-      const s = (sy * w + sx) * 4, d = (y * 4 + x) * 3;
-      for (let k = 0; k < 3; k++) {
-        const v = px[s + k];
-        block[d + k] = v;
-        if (v < min[k]) min[k] = v;
-        if (v > max[k]) max[k] = v;
+/** Sizes of every mip level, from the full size down to 1 x 1. */
+function mipSizes(width: number, height: number): [number, number][] {
+  const out: [number, number][] = [[width, height]];
+  let w = width;
+  let h = height;
+  while (w > 1 || h > 1) {
+    w = Math.max(1, w >> 1);
+    h = Math.max(1, h >> 1);
+    out.push([w, h]);
+  }
+  return out;
+}
+
+function levelBytes(w: number, h: number, blockBytes: number): number {
+  return Math.ceil(w / 4) * Math.ceil(h / 4) * blockBytes;
+}
+
+/** Next mip level by a 2 x 2 box filter, clamping at the edges. */
+function halve(src: Level): Level {
+  const w = Math.max(1, src.w >> 1);
+  const h = Math.max(1, src.h >> 1);
+  const half = new Uint8Array(4 * w * h);
+  const sw = src.w;
+  const s = src.px;
+  for (let row = 0, o = 0; row < h; row++) {
+    const top = Math.min(2 * row, src.h - 1) * sw;
+    const bottom = Math.min(2 * row + 1, src.h - 1) * sw;
+    for (let col = 0; col < w; col++, o += 4) {
+      const left = Math.min(2 * col, sw - 1);
+      const right = Math.min(2 * col + 1, sw - 1);
+      const tl = 4 * (top + left), tr = 4 * (top + right), bl = 4 * (bottom + left), br = 4 * (bottom + right);
+      for (let ch = 0; ch < 4; ch++) half[o + ch] = (s[tl + ch] + s[tr + ch] + s[bl + ch] + s[br + ch] + 2) >> 2;
+    }
+  }
+  return { w, h, px: half };
+}
+
+/** Packs 8-bit RGB into 5:6:5 (red in the top bits), rounding each channel to the nearest step. */
+const pack565 = (red: number, green: number, blue: number): number =>
+  (Math.round((red * 31) / 255) << 11) | (Math.round((green * 63) / 255) << 5) | Math.round((blue * 31) / 255);
+
+function expand565(c: number, out: Int32Array, at: number): void {
+  const r = (c >> 11) & 31;
+  const g = (c >> 5) & 63;
+  const b = c & 31;
+  out[at] = (r << 3) | (r >> 2);
+  out[at + 1] = (g << 2) | (g >> 4);
+  out[at + 2] = (b << 3) | (b >> 2);
+}
+
+/** Four-colour palette (RGB) for two endpoints, into `pal` (12 numbers). */
+function palette4(c0: number, c1: number, pal: Int32Array): void {
+  expand565(c0, pal, 0);
+  expand565(c1, pal, 3);
+  for (let ch = 0; ch < 3; ch++) {
+    pal[6 + ch] = Math.round((2 * pal[ch] + pal[3 + ch]) / 3);
+    pal[9 + ch] = Math.round((pal[ch] + 2 * pal[3 + ch]) / 3);
+  }
+}
+
+// Scratch space for one 4 x 4 block (edge pixels repeated).
+const block = new Uint8Array(64);
+const pal = new Int32Array(12);
+
+function gatherBlock(lv: Level, bx: number, by: number): void {
+  for (let p = 0; p < 16; p++) {
+    const y = Math.min(4 * by + (p >> 2), lv.h - 1);
+    const x = Math.min(4 * bx + (p & 3), lv.w - 1);
+    const from = 4 * (y * lv.w + x);
+    block[4 * p] = lv.px[from];
+    block[4 * p + 1] = lv.px[from + 1];
+    block[4 * p + 2] = lv.px[from + 2];
+    block[4 * p + 3] = lv.px[from + 3];
+  }
+}
+
+const blockIdx = new Uint8Array(16);
+const trialIdx = new Uint8Array(16);
+
+/** Picks each pixel's nearest palette entry for endpoints c0 > c1; returns the squared error. */
+function assign(c0: number, c1: number, idx: Uint8Array): number {
+  palette4(c0, c1, pal);
+  let err = 0;
+  for (let p = 0; p < 16; p++) {
+    const r = block[p * 4], g = block[p * 4 + 1], b = block[p * 4 + 2];
+    let pick = 0;
+    let near = Infinity;
+    for (let entry = 0; entry < 4; entry++) {
+      const er = r - pal[entry * 3], eg = g - pal[entry * 3 + 1], eb = b - pal[entry * 3 + 2];
+      const e = er * er + eg * eg + eb * eb;
+      if (e < near) {
+        near = e;
+        pick = entry;
+      }
+    }
+    idx[p] = pick;
+    err += near;
+  }
+  return err;
+}
+
+/** Orders two 5:6:5 endpoints so the first is larger (four-colour mode). */
+function ordered(a: number, b: number): [number, number] {
+  return a >= b ? [a, b] : [b, a];
+}
+
+const clamp255 = (v: number) => (v < 0 ? 0 : v > 255 ? 255 : v);
+
+/**
+ * Writes the BC1 colour block for the gathered pixels at `at` (8 bytes, always four-colour mode).
+ * Endpoints: the inset bounding box, with the box diagonal chosen to follow the colours' spread,
+ * then one least-squares refit of the endpoints to the chosen indices, kept if it lowers the error.
+ */
+function writeColourBlock(out: Uint8Array, at: number): void {
+  let loR = 255, loG = 255, loB = 255, hiR = 0, hiG = 0, hiB = 0;
+  let sumR = 0, sumG = 0, sumB = 0;
+  for (let p = 0; p < 64; p += 4) {
+    const r = block[p], g = block[p + 1], b = block[p + 2];
+    sumR += r; sumG += g; sumB += b;
+    if (r < loR) loR = r;
+    if (r > hiR) hiR = r;
+    if (g < loG) loG = g;
+    if (g > hiG) hiG = g;
+    if (b < loB) loB = b;
+    if (b > hiB) hiB = b;
+  }
+  // Which diagonal of the box: flip green and blue ends when they run against red (or green).
+  const mR = sumR / 16, mG = sumG / 16, mB = sumB / 16;
+  let covRG = 0, covRB = 0, covGB = 0;
+  for (let p = 0; p < 64; p += 4) {
+    const dr = block[p] - mR, dg = block[p + 1] - mG, db = block[p + 2] - mB;
+    covRG += dr * dg; covRB += dr * db; covGB += dg * db;
+  }
+  const insetR = (hiR - loR) / 16, insetG = (hiG - loG) / 16, insetB = (hiB - loB) / 16;
+  let aR = hiR - insetR, bR = loR + insetR;
+  let aG = hiG - insetG, bG = loG + insetG;
+  let aB = hiB - insetB, bB = loB + insetB;
+  const redSpread = hiR - loR >= Math.max(hiG - loG, hiB - loB) / 2;
+  if (redSpread ? covRG < 0 : false) [aG, bG] = [bG, aG];
+  if (redSpread ? covRB < 0 : covGB < 0) [aB, bB] = [bB, aB];
+  let [c0, c1] = ordered(pack565(aR, aG, aB), pack565(bR, bG, bB));
+  if (c0 === c1) {
+    writeBlockBytes(out, at, c0, c1, null);
+    return;
+  }
+  let err = assign(c0, c1, blockIdx);
+
+  // Least-squares refit: pixel = w * end0 + (1 - w) * end1, w from each pixel's index.
+  let ww = 0, wv = 0, vv = 0;
+  let x0r = 0, x0g = 0, x0b = 0, x1r = 0, x1g = 0, x1b = 0;
+  for (let p = 0; p < 16; p++) {
+    const w = WEIGHT[blockIdx[p]];
+    const v = 1 - w;
+    ww += w * w; wv += w * v; vv += v * v;
+    const r = block[p * 4], g = block[p * 4 + 1], b = block[p * 4 + 2];
+    x0r += w * r; x0g += w * g; x0b += w * b;
+    x1r += v * r; x1g += v * g; x1b += v * b;
+  }
+  const det = ww * vv - wv * wv;
+  if (Math.abs(det) > 1e-9) {
+    const e0 = pack565(
+      clamp255((vv * x0r - wv * x1r) / det), clamp255((vv * x0g - wv * x1g) / det), clamp255((vv * x0b - wv * x1b) / det));
+    const e1 = pack565(
+      clamp255((ww * x1r - wv * x0r) / det), clamp255((ww * x1g - wv * x0g) / det), clamp255((ww * x1b - wv * x0b) / det));
+    const [r0, r1] = ordered(e0, e1);
+    if (r0 !== r1) {
+      const err2 = assign(r0, r1, trialIdx);
+      if (err2 < err) {
+        err = err2;
+        c0 = r0;
+        c1 = r1;
+        blockIdx.set(trialIdx);
       }
     }
   }
-  for (let k = 0; k < 3; k++) {
-    const inset = (max[k] - min[k]) >> 4;
-    min[k] = Math.min(255, min[k] + inset);
-    max[k] = Math.max(0, max[k] - inset);
+  writeBlockBytes(out, at, c0, c1, blockIdx);
+}
+
+/** Weight of endpoint 0 for each four-colour palette index. */
+const WEIGHT = [1, 0, 2 / 3, 1 / 3];
+
+function writeBlockBytes(out: Uint8Array, at: number, c0: number, c1: number, idx: Uint8Array | null): void {
+  let packed = 0;
+  if (idx) for (let p = 0; p < 16; p++) packed |= idx[p] << (2 * p);
+  out[at] = c0 & 0xff;
+  out[at + 1] = c0 >> 8;
+  out[at + 2] = c1 & 0xff;
+  out[at + 3] = c1 >> 8;
+  for (let k = 0; k < 4; k++) out[at + 4 + k] = (packed >>> (8 * k)) & 0xff;
+}
+
+const alphaPal = new Int32Array(8);
+
+function alphaPalette(a0: number, a1: number, out: Int32Array): void {
+  out[0] = a0;
+  out[1] = a1;
+  if (a0 > a1) {
+    for (let k = 1; k <= 6; k++) out[k + 1] = Math.round(((7 - k) * a0 + k * a1) / 7);
+  } else {
+    for (let k = 1; k <= 4; k++) out[k + 1] = Math.round(((5 - k) * a0 + k * a1) / 5);
+    out[6] = 0;
+    out[7] = 255;
   }
-  let c0 = to565(max[0], max[1], max[2]);
-  let c1 = to565(min[0], min[1], min[2]);
-  if (c0 < c1) [c0, c1] = [c1, c0];
-  let indices = 0;
-  if (c0 !== c1) {
-    const a = from565(c0), b = from565(c1);
-    const palette = [a, b, a.map((v, k) => (2 * v + b[k]) / 3), a.map((v, k) => (v + 2 * b[k]) / 3)];
-    for (let i = 15; i >= 0; i--) {
-      let best = 0, bestD = Infinity;
-      for (let p = 0; p < 4; p++) {
-        const dr = block[i * 3] - palette[p][0], dg = block[i * 3 + 1] - palette[p][1], db = block[i * 3 + 2] - palette[p][2];
-        const d = dr * dr + dg * dg + db * db;
-        if (d < bestD) {
-          bestD = d;
-          best = p;
-        }
+}
+
+/** Writes the BC3 alpha block for the gathered pixels at `at` (8 bytes). */
+function writeAlphaBlock(out: Uint8Array, at: number): void {
+  let aMin = 255, aMax = 0;
+  for (let p = 3; p < 64; p += 4) {
+    aMin = Math.min(aMin, block[p]);
+    aMax = Math.max(aMax, block[p]);
+  }
+  out[at] = aMax;
+  out[at + 1] = aMin;
+  let low = 0; // pixels 0 to 7, three bits each
+  let high = 0; // pixels 8 to 15
+  if (aMax > aMin) {
+    alphaPalette(aMax, aMin, alphaPal);
+    for (let p = 0; p < 16; p++) {
+      const a = block[p * 4 + 3];
+      let pick = 0;
+      for (let entry = 1; entry < 8; entry++) {
+        if (Math.abs(a - alphaPal[entry]) < Math.abs(a - alphaPal[pick])) pick = entry;
       }
-      indices = (indices << 2) | best;
+      if (p < 8) low |= pick << (3 * p);
+      else high |= pick << (3 * (p - 8));
     }
   }
-  out.u16(c0).u16(c1).u32(indices >>> 0);
-}
-
-function downsample(px: Uint8Array | Uint8ClampedArray, w: number, h: number): { px: Uint8Array; w: number; h: number } {
-  const nw = Math.max(1, w >> 1), nh = Math.max(1, h >> 1);
-  const out = new Uint8Array(nw * nh * 4);
-  for (let y = 0; y < nh; y++) {
-    for (let x = 0; x < nw; x++) {
-      for (let k = 0; k < 4; k++) {
-        let sum = 0, n = 0;
-        for (let dy = 0; dy < 2; dy++) {
-          for (let dx = 0; dx < 2; dx++) {
-            const sx = Math.min(w - 1, x * 2 + dx), sy = Math.min(h - 1, y * 2 + dy);
-            sum += px[(sy * w + sx) * 4 + k];
-            n++;
-          }
-        }
-        out[(y * nw + x) * 4 + k] = Math.round(sum / n);
-      }
-    }
-  }
-  return { px: out, w: nw, h: nh };
-}
-
-/** RGBA pixels (top row first) -> DXT1 .dds bytes with mipmaps. */
-export function encodeDdsDxt1(rgba: Uint8Array | Uint8ClampedArray, width: number, height: number): Uint8Array {
-  let levels = 1;
-  for (let s = Math.max(width, height); s > 1; s >>= 1) levels++;
-  const w = new BinaryWriter(Math.ceil((width * height) / 2) * 2 + 256);
-  w.magic("DDS ");
-  w.u32(124);
-  w.u32(0x1 | 0x2 | 0x4 | 0x1000 | 0x20000 | 0x80000); // caps|height|width|pixelformat|mipmapcount|linearsize
-  w.u32(height).u32(width);
-  w.u32(Math.max(1, (width + 3) >> 2) * Math.max(1, (height + 3) >> 2) * 8);
-  w.u32(0).u32(levels);
-  for (let i = 0; i < 11; i++) w.u32(0);
-  w.u32(32).u32(0x4).magic("DXT1").u32(0).u32(0).u32(0).u32(0).u32(0); // pixel format
-  w.u32(0x1000 | 0x400000 | 0x8).u32(0).u32(0).u32(0).u32(0); // caps: texture|mipmap|complex
-  let level = { px: rgba as Uint8Array, w: width, h: height };
-  for (let l = 0; l < levels; l++) {
-    for (let by = 0; by < level.h; by += 4) {
-      for (let bx = 0; bx < level.w; bx += 4) encodeBlock(level.px, level.w, level.h, bx, by, w);
-    }
-    if (l < levels - 1) level = downsample(level.px, level.w, level.h);
-  }
-  return w.finish();
-}
-
-/** An 8-byte BC3 alpha block: two endpoints and a 3-bit index per pixel (8-value mode). */
-function encodeAlphaBlock(px: Uint8Array | Uint8ClampedArray, w: number, h: number, bx: number, by: number, out: BinaryWriter): void {
-  const a = new Uint8Array(16);
-  let lo = 255, hi = 0;
-  for (let y = 0; y < 4; y++) {
-    for (let x = 0; x < 4; x++) {
-      const sx = Math.min(w - 1, bx + x), sy = Math.min(h - 1, by + y);
-      const v = px[(sy * w + sx) * 4 + 3];
-      a[y * 4 + x] = v;
-      lo = Math.min(lo, v);
-      hi = Math.max(hi, v);
-    }
-  }
-  out.u8(hi).u8(lo);
-  // Palette for a0 > a1: a0, a1, then six steps between.
-  const pal = [hi, lo, ...[1, 2, 3, 4, 5, 6].map((k) => ((7 - k) * hi + k * lo) / 7)];
-  // 16 three-bit indices, pixel 0 in the lowest bits: two 24-bit halves of 8 pixels each.
-  const idx = new Array<number>(16).fill(0);
-  if (hi !== lo) {
-    for (let i = 0; i < 16; i++) {
-      let best = 0, bd = Infinity;
-      for (let p = 0; p < 8; p++) {
-        const d = Math.abs(a[i] - pal[p]);
-        if (d < bd) [bd, best] = [d, p];
-      }
-      idx[i] = best;
-    }
-  }
-  for (const half of [0, 8]) {
-    let bits = 0;
-    for (let i = 7; i >= 0; i--) bits = bits * 8 + idx[half + i];
-    out.u8(bits & 255).u8((bits >> 8) & 255).u8((bits >> 16) & 255);
+  for (let i = 0; i < 3; i++) {
+    out[at + 2 + i] = (low >> (8 * i)) & 0xff;
+    out[at + 5 + i] = (high >> (8 * i)) & 0xff;
   }
 }
 
-/** RGBA pixels (top row first) -> DXT5 .dds bytes with mipmaps: colour like DXT1, plus a smooth alpha channel. */
-export function encodeDdsDxt5(rgba: Uint8Array | Uint8ClampedArray, width: number, height: number): Uint8Array {
-  let levels = 1;
-  for (let s = Math.max(width, height); s > 1; s >>= 1) levels++;
-  const w = new BinaryWriter(width * height * 2 + 256);
-  w.magic("DDS ");
-  w.u32(124);
-  w.u32(0x1 | 0x2 | 0x4 | 0x1000 | 0x20000 | 0x80000);
-  w.u32(height).u32(width);
-  w.u32(Math.max(1, (width + 3) >> 2) * Math.max(1, (height + 3) >> 2) * 16);
-  w.u32(0).u32(levels);
-  for (let i = 0; i < 11; i++) w.u32(0);
-  w.u32(32).u32(0x4).magic("DXT5").u32(0).u32(0).u32(0).u32(0).u32(0);
-  w.u32(0x1000 | 0x400000 | 0x8).u32(0).u32(0).u32(0).u32(0);
-  let level = { px: rgba as Uint8Array, w: width, h: height };
-  for (let l = 0; l < levels; l++) {
-    for (let by = 0; by < level.h; by += 4) {
-      for (let bx = 0; bx < level.w; bx += 4) {
-        encodeAlphaBlock(level.px, level.w, level.h, bx, by, w);
-        encodeBlock(level.px, level.w, level.h, bx, by, w);
+function encode(rgba: Pixels, width: number, height: number, dxt5: boolean): Uint8Array {
+  checkInput(rgba, width, height);
+  const blockBytes = dxt5 ? 16 : 8;
+  const sizes = mipSizes(width, height);
+  let total = HEADER_BYTES;
+  for (const [w, h] of sizes) total += levelBytes(w, h, blockBytes);
+  const out = new Uint8Array(total);
+  const v = new DataView(out.buffer);
+  out.set([0x44, 0x44, 0x53, 0x20], 0); // "DDS "
+  v.setUint32(4, 124, true);
+  v.setUint32(8, DDSD_FLAGS, true);
+  v.setUint32(12, height, true);
+  v.setUint32(16, width, true);
+  v.setUint32(20, levelBytes(width, height, blockBytes), true);
+  v.setUint32(24, 0, true);
+  v.setUint32(28, sizes.length, true);
+  v.setUint32(76, 32, true);
+  v.setUint32(80, DDPF_FOURCC, true);
+  const cc = dxt5 ? "DXT5" : "DXT1";
+  for (let i = 0; i < 4; i++) out[84 + i] = cc.charCodeAt(i);
+  v.setUint32(108, CAPS, true);
+
+  let at = HEADER_BYTES;
+  let lv: Level = { w: width, h: height, px: rgba };
+  for (let m = 0; m < sizes.length; m++) {
+    if (m > 0) lv = halve(lv);
+    const bw = Math.ceil(lv.w / 4);
+    const bh = Math.ceil(lv.h / 4);
+    for (let by = 0; by < bh; by++) {
+      for (let bx = 0; bx < bw; bx++) {
+        gatherBlock(lv, bx, by);
+        if (dxt5) {
+          writeAlphaBlock(out, at);
+          writeColourBlock(out, at + 8);
+        } else writeColourBlock(out, at);
+        at += blockBytes;
       }
     }
-    if (l < levels - 1) level = downsample(level.px, level.w, level.h);
   }
-  return w.finish();
+  return out;
 }
 
-/** Decodes the top mip of a DXT1 or DXT5 DDS to RGBA (for exporting a track's textures, e.g. to Blender). */
+/** DXT1 (no alpha) .dds file with every mip level down to 1 x 1. */
+export function encodeDdsDxt1(rgba: Pixels, width: number, height: number): Uint8Array {
+  return encode(rgba, width, height, false);
+}
+
+/** DXT5 (smooth alpha) .dds file with every mip level down to 1 x 1. */
+export function encodeDdsDxt5(rgba: Pixels, width: number, height: number): Uint8Array {
+  return encode(rgba, width, height, true);
+}
+
+/** Decodes mip level 0 of a DXT1 or DXT5 .dds file to RGBA, top row first. */
 export function decodeDds(data: Uint8Array): { rgba: Uint8Array; width: number; height: number } {
+  if (data.length < 4 || data[0] !== 0x44 || data[1] !== 0x44 || data[2] !== 0x53 || data[3] !== 0x20) {
+    throw new Error("not a DDS file");
+  }
+  if (data.length < HEADER_BYTES) throw new Error("DDS: truncated header");
   const v = new DataView(data.buffer, data.byteOffset, data.byteLength);
-  if (v.getUint32(0, true) !== 0x20534444) throw new Error("not a DDS file");
-  const height = v.getUint32(12, true), width = v.getUint32(16, true);
-  const four = String.fromCharCode(data[84], data[85], data[86], data[87]);
-  const dxt5 = four === "DXT5";
-  if (!dxt5 && four !== "DXT1") throw new Error(`DDS ${four} not supported`);
-  const rgba = new Uint8Array(width * height * 4);
-  let o = 128;
-  for (let by = 0; by < height; by += 4) {
-    for (let bx = 0; bx < width; bx += 4) {
-      const alpha = new Uint8Array(16).fill(255);
+  const height = v.getUint32(12, true);
+  const width = v.getUint32(16, true);
+  const cc = String.fromCharCode(data[84], data[85], data[86], data[87]);
+  if (cc !== "DXT1" && cc !== "DXT5") throw new Error(`DDS format not supported: ${JSON.stringify(cc)}`);
+  if (width === 0 || height === 0) throw new Error("DDS: zero size");
+  const dxt5 = cc === "DXT5";
+  const blockBytes = dxt5 ? 16 : 8;
+  const bw = Math.ceil(width / 4);
+  const bh = Math.ceil(height / 4);
+  if (data.length < HEADER_BYTES + bw * bh * blockBytes) throw new Error("DDS: truncated pixel data");
+
+  const out = new Uint8Array(4 * width * height);
+  const colours = new Int32Array(16); // 4 x RGBA
+  const alphas = new Int32Array(8);
+  let at = HEADER_BYTES;
+  for (let by = 0; by < bh; by++) {
+    for (let bx = 0; bx < bw; bx++) {
+      let alphaLow = 0;
+      let alphaHigh = 0;
       if (dxt5) {
-        const a0 = data[o], a1 = data[o + 1];
-        const pal = [a0, a1];
-        if (a0 > a1) for (let k = 1; k < 7; k++) pal.push(Math.round(((7 - k) * a0 + k * a1) / 7));
-        else { for (let k = 1; k < 5; k++) pal.push(Math.round(((5 - k) * a0 + k * a1) / 5)); pal.push(0, 255); }
-        // 16 three-bit indices in 6 bytes (two 24-bit halves).
-        for (let half = 0; half < 2; half++) {
-          const bits = data[o + 2 + half * 3] | (data[o + 3 + half * 3] << 8) | (data[o + 4 + half * 3] << 16);
-          for (let k = 0; k < 8; k++) alpha[half * 8 + k] = pal[(bits >> (3 * k)) & 7];
-        }
-        o += 8;
+        alphaPalette(data[at], data[at + 1], alphas);
+        alphaLow = data[at + 2] | (data[at + 3] << 8) | (data[at + 4] << 16);
+        alphaHigh = data[at + 5] | (data[at + 6] << 8) | (data[at + 7] << 16);
       }
-      const c0 = v.getUint16(o, true), c1 = v.getUint16(o + 2, true), bits = v.getUint32(o + 4, true);
-      o += 8;
-      const p0 = from565(c0), p1 = from565(c1);
-      const cols: [number, number, number, number][] = [[...p0, 255], [...p1, 255]];
-      if (c0 > c1 || dxt5) {
-        cols.push([0, 1, 2].map((k) => Math.round((2 * p0[k] + p1[k]) / 3)).concat(255) as [number, number, number, number]);
-        cols.push([0, 1, 2].map((k) => Math.round((p0[k] + 2 * p1[k]) / 3)).concat(255) as [number, number, number, number]);
-      } else {
-        cols.push([0, 1, 2].map((k) => Math.round((p0[k] + p1[k]) / 2)).concat(255) as [number, number, number, number]);
-        cols.push([0, 0, 0, 0]);
+      const c = at + (dxt5 ? 8 : 0);
+      const c0 = data[c] | (data[c + 1] << 8);
+      const c1 = data[c + 2] | (data[c + 3] << 8);
+      const idx = v.getUint32(c + 4, true);
+      expand565(c0, colours, 0);
+      expand565(c1, colours, 4);
+      colours[3] = colours[7] = colours[11] = colours[15] = 255;
+      const fourColour = dxt5 || c0 > c1;
+      for (let ch = 0; ch < 3; ch++) {
+        const e0 = colours[ch], e1 = colours[4 + ch];
+        colours[8 + ch] = fourColour ? Math.round((2 * e0 + e1) / 3) : Math.round((e0 + e1) / 2);
+        colours[12 + ch] = fourColour ? Math.round((e0 + 2 * e1) / 3) : 0;
       }
-      for (let k = 0; k < 16; k++) {
-        const x = bx + (k & 3), y = by + (k >> 2);
+      if (!fourColour) colours[15] = 0; // punch-through: index 3 is transparent black
+      for (let p = 0; p < 16; p++) {
+        const x = bx * 4 + (p & 3);
+        const y = by * 4 + (p >> 2);
         if (x >= width || y >= height) continue;
-        const c = cols[(bits >> (2 * k)) & 3], d = (y * width + x) * 4;
-        rgba[d] = c[0]; rgba[d + 1] = c[1]; rgba[d + 2] = c[2];
-        rgba[d + 3] = dxt5 ? alpha[k] : c[3];
+        const entry = 4 * ((idx >>> (2 * p)) & 3);
+        const o = 4 * (y * width + x);
+        out[o] = colours[entry];
+        out[o + 1] = colours[entry + 1];
+        out[o + 2] = colours[entry + 2];
+        out[o + 3] = dxt5 ? alphas[(p < 8 ? alphaLow >> (3 * p) : alphaHigh >> (3 * (p - 8))) & 7] : colours[entry + 3];
       }
+      at += blockBytes;
     }
   }
-  return { rgba, width, height };
+  return { rgba: out, width, height };
 }

@@ -1,185 +1,211 @@
-// Writer (and reader, for tests) for ai/fast_lane.ai, the AI racing line.
-//
-// Version 7 layout, as read by Content Manager (AcTools.AiFile.AiSpline) and
-// AssettoServer (FastLaneParser.FromFileV7):
-//
-//   i32 version = 7
-//   i32 pointCount, i32 lapTime, i32 sampleCount
-//   pointCount x { f32[3] position, f32 length (distance along), i32 id }
-//   i32 extraCount (= pointCount)
-//   extraCount x { f32 speed, f32 gas, f32 brake, f32 obsoleteLatG,
-//                  f32 radius, f32 sideLeft, f32 sideRight,
-//                  f32 camber, f32 direction, f32[3] normal, f32 length,
-//                  f32[3] forward, f32 tag, f32 grade }
-//   i32 hasGrid = 1, then the spatial lookup grid:
-//     f32[3] max, f32[3] min (the points' extremes, y zeroed), i32 neighbours (10),
-//     f32 cell size (10 m), i32 outer count (cells along x), and for each outer
-//     an i32 inner count (cells along z) and for each cell an i32 count and that
-//     many point indices: the nearest points to the cell's centre, nearest first.
-//   Laid out as in Kunos's own lines (ks_black_cat_county, magione, read on the
-//   workstation with scripts/check/ai_grid.py): 10 m cells, floor(extent / 10)
-//   of them each way, every cell filled with its 10 nearest points. Without it
-//   AC logs "NO POSITION DATA FOUND".
-//
-// Positions are AC world space (X east, Y up, Z south).
+// fast_lane.ai (AI line, version 7) writer and reader, with the spatial lookup grid AC needs.
+// Written from docs/specs/aiSpline.md and the public format notes it cites (AcTools AiSpline,
+// AssettoServer FastLaneParser).
 
-import { BinaryReader, BinaryWriter } from "./binary";
+import { ByteSink, ByteSource } from "./binary";
 
-export interface AiPoint {
-  position: [number, number, number];
-  /** Distance from the first point along the line, metres. */
-  distance: number;
-  /** Target speed, m/s. */
-  speed: number;
-  gas: number;
-  brake: number;
-  /** Turn radius, metres (large on straights). */
-  radius: number;
-  /** Distance from the line to the left / right edge of the road, metres. */
-  sideLeft: number;
-  sideRight: number;
-  /** Bank angle, radians, with its sign carried by `direction`. */
-  camber: number;
-  direction: 1 | -1;
-  normal: [number, number, number];
-  /** Length of the segment to the next point, metres. */
-  length: number;
-  forward: [number, number, number];
-  /** Slope along the line (rise / run). */
-  grade: number;
-}
+type Xyz = [number, number, number];
 
-export const AI_SPLINE_VERSION = 7;
+/**
+ * One point on the AI line (all fields required when writing).
+ * - position: AC world metres (X east, Y up, Z south); distance: metres along the line from the first point
+ * - speed: target m/s; gas, brake: pedal hints 0 to 1; radius: turn radius in metres
+ * - sideLeft, sideRight: metres from the line to each road edge
+ * - camber: bank angle magnitude in radians, with direction (1 or -1) giving its sign
+ * - normal: surface normal; length: metres to the next point; forward: unit travel direction; grade: rise over run
+ */
+export type AiPoint = {
+  position: Xyz; distance: number;
+  speed: number; gas: number; brake: number; radius: number;
+  sideLeft: number; sideRight: number;
+  camber: number; direction: 1 | -1;
+  normal: Xyz; length: number; forward: Xyz; grade: number;
+};
 
-export function writeFastLaneAi(points: AiPoint[]): Uint8Array {
-  const w = new BinaryWriter(points.length * 120 + 64);
-  w.i32(AI_SPLINE_VERSION).i32(points.length).i32(0).i32(0);
-  points.forEach((p, i) => {
-    w.f32s(p.position).f32(p.distance).i32(i);
-  });
-  w.i32(points.length);
-  for (const p of points) {
-    w.f32(p.speed).f32(p.gas).f32(p.brake).f32(0);
-    w.f32(p.radius).f32(p.sideLeft).f32(p.sideRight);
-    w.f32(p.camber).f32(p.direction);
-    w.f32s(p.normal).f32(p.length).f32s(p.forward);
-    w.f32(0).f32(p.grade);
+const VERSION = 7;
+const CELL = 10;
+const NEIGHBOURS = 10;
+
+const f32 = Math.fround;
+
+/** A 2-D k-d tree over point x/z positions, answering exact k-nearest queries (ties to the lower index). */
+class KdTree {
+  private readonly order: Int32Array;
+  private readonly axis: Uint8Array;
+  private readonly bestD = new Float64Array(NEIGHBOURS);
+  private readonly bestI = new Int32Array(NEIGHBOURS);
+  private found = 0;
+  private k = NEIGHBOURS;
+  private qx = 0;
+  private qz = 0;
+
+  constructor(private readonly xs: Float64Array, private readonly zs: Float64Array) {
+    const n = xs.length;
+    this.order = new Int32Array(n);
+    this.order.forEach((_, k, o) => (o[k] = k));
+    this.axis = new Uint8Array(n);
+    this.build(0, n);
   }
-  writeGrid(w, points);
-  return w.finish();
+
+  private build(lo: number, hi: number): void {
+    if (hi - lo <= 1) return;
+    let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
+    for (let i = lo; i < hi; i++) {
+      const p = this.order[i];
+      const x = this.xs[p], z = this.zs[p];
+      if (x < minX) minX = x;
+      if (x > maxX) maxX = x;
+      if (z < minZ) minZ = z;
+      if (z > maxZ) maxZ = z;
+    }
+    const ax = maxX - minX >= maxZ - minZ ? 0 : 1;
+    const key = ax === 0 ? this.xs : this.zs;
+    const slice = Array.from(this.order.subarray(lo, hi)).sort((a, b) => key[a] - key[b] || a - b);
+    this.order.set(slice, lo);
+    const split = lo + ((hi - lo) >> 1);
+    this.axis[split] = ax;
+    this.build(lo, split);
+    this.build(split + 1, hi);
+  }
+
+  private offer(p: number, d: number): void {
+    const { bestD, bestI } = this;
+    let n = this.found;
+    if (n === this.k) {
+      const lastD = bestD[n - 1];
+      if (d > lastD || (d === lastD && p > bestI[n - 1])) return;
+      n--;
+    }
+    let i = n;
+    while (i > 0 && (bestD[i - 1] > d || (bestD[i - 1] === d && bestI[i - 1] > p))) {
+      bestD[i] = bestD[i - 1];
+      bestI[i] = bestI[i - 1];
+      i--;
+    }
+    bestD[i] = d;
+    bestI[i] = p;
+    this.found = n + 1;
+  }
+
+  private search(lo: number, hi: number): void {
+    if (hi <= lo) return;
+    const split = lo + ((hi - lo) >> 1);
+    const p = this.order[split];
+    const dx = this.xs[p] - this.qx;
+    const dz = this.zs[p] - this.qz;
+    this.offer(p, dx * dx + dz * dz);
+    if (hi - lo === 1) return;
+    const diff = this.axis[split] === 0 ? this.qx - this.xs[p] : this.qz - this.zs[p];
+    const [nearLo, nearHi, farLo, farHi] = diff < 0 ? [lo, split, split + 1, hi] : [split + 1, hi, lo, split];
+    this.search(nearLo, nearHi);
+    // Equal distances still need visiting, for the lower-index tie rule.
+    if (this.found < this.k || diff * diff <= this.bestD[this.found - 1]) this.search(farLo, farHi);
+  }
+
+  nearest(x: number, z: number): number[] {
+    this.qx = x;
+    this.qz = z;
+    this.found = 0;
+    this.k = Math.min(NEIGHBOURS, this.xs.length);
+    this.search(0, this.xs.length);
+    return Array.from(this.bestI.subarray(0, this.found));
+  }
 }
 
-const GRID_CELL = 10;
-const GRID_NEIGHBOURS = 10;
-
-/** The lookup grid (see the layout above): for each 10 m cell, the indices of the nearest points. */
-export function aiGrid(points: { position: [number, number, number] }[]): { max: [number, number, number]; min: [number, number, number]; cells: number[][][] } {
-  const xs = points.map((p) => p.position[0]), zs = points.map((p) => p.position[2]);
-  const minX = Math.min(...xs), maxX = Math.max(...xs), minZ = Math.min(...zs), maxZ = Math.max(...zs);
-  const nx = Math.max(1, Math.floor((maxX - minX) / GRID_CELL)), nz = Math.max(1, Math.floor((maxZ - minZ) / GRID_CELL));
-  // A 2D k-d tree over the points (x, z), for the nearest points to each cell's centre.
-  const P = points.map((p) => [p.position[0], p.position[2]] as [number, number]);
-  type Node = { i: number; axis: 0 | 1; lo: Node | null; hi: Node | null };
-  const build = (idx: number[], depth: number): Node | null => {
-    if (!idx.length) return null;
-    const axis = (depth % 2) as 0 | 1;
-    idx.sort((u, v) => P[u][axis] - P[v][axis] || u - v);
-    const m = idx.length >> 1;
-    return { i: idx[m], axis, lo: build(idx.slice(0, m), depth + 1), hi: build(idx.slice(m + 1), depth + 1) };
-  };
-  const root = build(points.map((_, i) => i), 0);
-  const k = Math.min(GRID_NEIGHBOURS, points.length);
-  // Best k so far as [distance, index], kept sorted (nearest first, ties by index).
-  const nearest = (cx: number, cz: number): number[] => {
-    const best: [number, number][] = [];
-    const add = (d: number, i: number) => {
-      if (best.length === k && (d > best[k - 1][0] || (d === best[k - 1][0] && i > best[k - 1][1]))) return;
-      let j = best.length;
-      while (j > 0 && (best[j - 1][0] > d || (best[j - 1][0] === d && best[j - 1][1] > i))) j--;
-      best.splice(j, 0, [d, i]);
-      if (best.length > k) best.pop();
-    };
-    const q: [number, number] = [cx, cz];
-    const visit = (n: Node | null) => {
-      if (!n) return;
-      add(Math.hypot(P[n.i][0] - cx, P[n.i][1] - cz), n.i);
-      const diff = q[n.axis] - P[n.i][n.axis];
-      const [near, far] = diff < 0 ? [n.lo, n.hi] : [n.hi, n.lo];
-      visit(near);
-      if (best.length < k || Math.abs(diff) <= best[best.length - 1][0]) visit(far);
-    };
-    visit(root);
-    return best.map((b) => b[1]);
-  };
+/** The lookup grid: 10 m cells from the min extreme, each listing the 10 points nearest its centre. */
+export function aiGrid(points: { position: Xyz }[]): { max: Xyz; min: Xyz; cells: number[][][] } {
+  const n = points.length;
+  if (n === 0) throw new Error("AI grid: no points");
+  // Measure from the stored (f32) positions, so that read-then-write gives the same grid.
+  const xs = new Float64Array(n);
+  const zs = new Float64Array(n);
+  let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
+  for (let i = 0; i < n; i++) {
+    const [x, , z] = points[i].position;
+    if (!Number.isFinite(x) || !Number.isFinite(z) || !Number.isFinite(points[i].position[1])) {
+      throw new Error(`AI line: point ${i} has a non-finite position`);
+    }
+    xs[i] = f32(x);
+    zs[i] = f32(z);
+    if (xs[i] < minX) minX = xs[i];
+    if (xs[i] > maxX) maxX = xs[i];
+    if (zs[i] < minZ) minZ = zs[i];
+    if (zs[i] > maxZ) maxZ = zs[i];
+  }
+  const nx = Math.max(1, Math.floor((maxX - minX) / CELL));
+  const nz = Math.max(1, Math.floor((maxZ - minZ) / CELL));
+  const tree = new KdTree(xs, zs);
   const cells: number[][][] = [];
   for (let a = 0; a < nx; a++) {
     const row: number[][] = [];
-    for (let b = 0; b < nz; b++) row.push(nearest(minX + (a + 0.5) * GRID_CELL, minZ + (b + 0.5) * GRID_CELL));
+    const cx = minX + (a + 0.5) * CELL;
+    for (let b = 0; b < nz; b++) row.push(tree.nearest(cx, minZ + (b + 0.5) * CELL));
     cells.push(row);
   }
   return { max: [maxX, 0, maxZ], min: [minX, 0, minZ], cells };
 }
 
-function writeGrid(w: BinaryWriter, points: AiPoint[]): void {
-  if (!points.length) {
-    w.i32(0);
-    return;
-  }
-  const g = aiGrid(points);
-  w.i32(1).f32s(g.max).f32s(g.min).i32(GRID_NEIGHBOURS).f32(GRID_CELL).i32(g.cells.length);
-  for (const row of g.cells) {
-    w.i32(row.length);
-    for (const cell of row) {
-      w.i32(cell.length);
-      for (const i of cell) w.i32(i);
-    }
-  }
-}
+/** The 18 floats of a point's extra record, in file order (obsolete lateral g and tag written as 0). */
+const extraRecord = (p: AiPoint): number[] => [
+  p.speed, p.gas, p.brake, 0, p.radius, p.sideLeft, p.sideRight, p.camber, p.direction < 0 ? -1 : 1,
+  ...p.normal, p.length, ...p.forward, 0, p.grade,
+];
 
-export function readFastLaneAi(data: Uint8Array): AiPoint[] {
-  const r = new BinaryReader(data);
-  const version = r.i32();
-  if (version !== AI_SPLINE_VERSION) throw new Error(`Unsupported AI spline version ${version}`);
-  const count = r.i32();
-  r.i32();
-  r.i32();
-  const base = [];
-  for (let i = 0; i < count; i++) {
-    base.push({ position: r.f32s(3) as [number, number, number], distance: r.f32(), id: r.i32() });
-  }
-  const extraCount = r.i32();
-  if (extraCount !== count) throw new Error("AI spline extra count does not match point count");
-  const out: AiPoint[] = [];
-  for (let i = 0; i < count; i++) {
-    const speed = r.f32(), gas = r.f32(), brake = r.f32();
-    r.f32();
-    const radius = r.f32(), sideLeft = r.f32(), sideRight = r.f32();
-    const camber = r.f32(), direction = (r.f32() < 0 ? -1 : 1) as 1 | -1;
-    const normal = r.f32s(3) as [number, number, number];
-    const length = r.f32();
-    const forward = r.f32s(3) as [number, number, number];
-    r.f32();
-    const grade = r.f32();
-    out.push({
-      position: base[i].position, distance: base[i].distance, speed, gas, brake, radius,
-      sideLeft, sideRight, camber, direction, normal, length, forward, grade,
+/** The version 7 fast_lane.ai file for these points, with the lookup grid. */
+export function writeFastLaneAi(line: AiPoint[]): Uint8Array {
+  const count = line.length;
+  const grid = count ? aiGrid(line) : null;
+  const cellCount = grid ? grid.cells.length * grid.cells[0].length : 0;
+  const sink = new ByteSink(16 + 92 * count + 64 + 48 * cellCount);
+  sink.int32(VERSION).int32(count).int32(0).int32(0);
+  line.forEach((p, id) => sink.floats(p.position).float(p.distance).int32(id));
+  sink.int32(count);
+  line.forEach((p) => sink.floats(extraRecord(p)));
+  sink.int32(grid ? 1 : 0);
+  if (grid) {
+    sink.floats([grid.max[0], 0, grid.max[2], grid.min[0], 0, grid.min[2]]);
+    sink.int32(NEIGHBOURS).float(CELL).int32(grid.cells.length);
+    grid.cells.forEach((column) => {
+      sink.int32(column.length);
+      column.forEach((list) => {
+        sink.int32(list.length);
+        list.forEach((ix) => sink.int32(ix));
+      });
     });
   }
-  if (r.i32() !== 0) {
-    // The lookup grid: skipped (it's rebuilt from the points when written).
-    r.f32s(3);
-    r.f32s(3);
-    r.i32();
-    r.f32();
-    const outer = r.i32();
-    for (let a = 0; a < outer; a++) {
-      const inner = r.i32();
-      for (let b = 0; b < inner; b++) {
-        const n = r.i32();
-        for (let k = 0; k < n; k++) r.i32();
-      }
+  return sink.bytes();
+}
+
+/** Reads a version 7 fast_lane.ai back into points (the grid is checked for length and skipped). */
+export function readFastLaneAi(file: Uint8Array): AiPoint[] {
+  const src = new ByteSource(file);
+  const ver = src.int32();
+  if (ver !== VERSION) throw new Error(`fast_lane.ai: unsupported version ${ver}`);
+  const count = src.int32();
+  if (count < 0) throw new Error(`fast_lane.ai: bad point count ${count}`);
+  src.skip(8); // lap time, sample count
+  const heads = Array.from({ length: count }, () => {
+    const at = src.floats(4);
+    src.skip(4); // id
+    return at;
+  });
+  const extras = src.int32();
+  if (extras !== count) throw new Error(`fast_lane.ai: extra count ${extras} doesn't match point count ${count}`);
+  const line = heads.map((h): AiPoint => {
+    const e = src.floats(18);
+    return {
+      position: [h[0], h[1], h[2]], distance: h[3],
+      speed: e[0], gas: e[1], brake: e[2], radius: e[4], sideLeft: e[5], sideRight: e[6],
+      camber: e[7], direction: e[8] < 0 ? -1 : 1,
+      normal: [e[9], e[10], e[11]], length: e[12], forward: [e[13], e[14], e[15]], grade: e[17],
+    };
+  });
+  if (src.int32() !== 0) {
+    src.skip(32); // extremes, neighbours, density
+    for (let columns = src.int32(); columns > 0; columns--) {
+      for (let cellsLeft = src.int32(); cellsLeft > 0; cellsLeft--) src.skip(4 * src.int32());
     }
   }
-  if (r.remaining !== 0) throw new Error(`${r.remaining} trailing bytes`);
-  return out;
+  if (src.left) throw new Error(`fast_lane.ai: ${src.left} bytes left over`);
+  return line;
 }
