@@ -135,6 +135,42 @@
    "specFile": "routes/landmarks/fire_station.json",
    "name": "Busselton Volunteer Fire and Rescue",
    "facing": 346
+  },
+  {
+   "at": [
+    115.349885,
+    -33.648262
+   ],
+   "specFile": "routes/landmarks/busselton_bowling_club.json",
+   "name": "Busselton Bowling Club",
+   "facing": 166.5
+  },
+  {
+   "at": [
+    115.344886,
+    -33.652301
+   ],
+   "specFile": "routes/landmarks/victoria_square_memorial.json",
+   "name": "Busselton War Memorial, Victoria Square",
+   "facing": 0
+  },
+  {
+   "at": [
+    115.344206,
+    -33.6508
+   ],
+   "specFile": "routes/landmarks/mitchell_park.json",
+   "name": "Mitchell Park shelters",
+   "facing": 90
+  },
+  {
+   "at": [
+    115.347507,
+    -33.651197
+   ],
+   "specFile": "routes/landmarks/japanese_friendship_garden.json",
+   "name": "Japanese Friendship Garden gate",
+   "facing": 168
   }
  ]
 }

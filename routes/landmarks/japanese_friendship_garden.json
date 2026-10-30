@@ -1,0 +1,215 @@
+{
+ "note": "Busselton-Sugito Japanese Friendship Garden, beside the Busselton Library (built 1998 by gardeners from Sugito, redesigned 2013), from the Landgate aerial (Oct 2026) and the City's sister-city book. The garden itself is under maples and paperbarks; what a driver sees is the mon (gateway) at the south entry from the library forecourt: two dark timber posts and a cross beam under a small gabled tiled roof, drawn with its doors shut. Inside, two large stone lanterns (toro) given by Sugito in 1999 and a small timber viewing platform; their exact spots are a guess. Front = south-south-east, to the forecourt. Metres: x west to east as seen from the forecourt, y north into the garden.",
+ "wallHeight": 2.5,
+ "setback": 8,
+ "road": {
+  "width": 7.0,
+  "verge": 3.0
+ },
+ "lawn": "#86934f",
+ "sunFrom": [
+  -0.4,
+  0.6,
+  1.0
+ ],
+ "cameras": {
+  "street": {
+   "eye": [
+    2,
+    -11,
+    1.7
+   ],
+   "look": [
+    0,
+    1,
+    1.8
+   ],
+   "lens": 30
+  },
+  "aerial": {
+   "eye": [
+    -9,
+    -12,
+    9
+   ],
+   "look": [
+    0,
+    3,
+    0.5
+   ],
+   "lens": 28
+  },
+  "corner": {
+   "eye": [
+    7,
+    8,
+    1.7
+   ],
+   "look": [
+    0,
+    0.5,
+    1.8
+   ],
+   "lens": 28
+  }
+ },
+ "walls": {
+  "kind": "cladding",
+  "colour": "#5a3e2b"
+ },
+ "finishes": {
+  "timber": {
+   "kind": "cladding",
+   "colour": "#4a3424"
+  },
+  "stone": {
+   "kind": "render",
+   "colour": "#8f8b84"
+  }
+ },
+ "trim": "#3e2c20",
+ "roof": {
+  "pitch": 26,
+  "colour": "#76543e",
+  "eaves": 0.75
+ },
+ "blocks": [
+  {
+   "name": "gate",
+   "x0": -1.4,
+   "x1": 1.4,
+   "y0": -0.06,
+   "y1": 0.06,
+   "roof": "gable",
+   "wallHeight": 2.5,
+   "pitch": 26,
+   "eaves": 0.75
+  },
+  {
+   "name": "toro_-1.9",
+   "x0": -2.1799999999999997,
+   "x1": -1.6199999999999999,
+   "y0": 3.2,
+   "y1": 3.76,
+   "roof": "hip",
+   "wallHeight": 1.55,
+   "pitch": 30,
+   "eaves": 0.28,
+   "walls": "stone",
+   "roofColour": "#707276",
+   "outbuilding": true
+  },
+  {
+   "name": "toro_1.9",
+   "x0": 1.6199999999999999,
+   "x1": 2.1799999999999997,
+   "y0": 3.2,
+   "y1": 3.76,
+   "roof": "hip",
+   "wallHeight": 1.55,
+   "pitch": 30,
+   "eaves": 0.28,
+   "walls": "stone",
+   "roofColour": "#707276",
+   "outbuilding": true
+  }
+ ],
+ "panels": [
+  {
+   "x0": -1.55,
+   "x1": -1.3,
+   "y0": -0.13,
+   "y1": 0.13,
+   "z0": 0,
+   "z1": 2.55,
+   "walls": "timber"
+  },
+  {
+   "x0": 1.3,
+   "x1": 1.55,
+   "y0": -0.13,
+   "y1": 0.13,
+   "z0": 0,
+   "z1": 2.55,
+   "walls": "timber"
+  },
+  {
+   "x0": -1.9,
+   "x1": 1.9,
+   "y0": -0.1,
+   "y1": 0.1,
+   "z0": 2.05,
+   "z1": 2.25,
+   "walls": "timber"
+  },
+  {
+   "x0": -2.3,
+   "x1": -1.5,
+   "y0": 3.08,
+   "y1": 3.88,
+   "z0": 0,
+   "z1": 0.3,
+   "walls": "stone"
+  },
+  {
+   "x0": -2.3,
+   "x1": -1.5,
+   "y0": 3.08,
+   "y1": 3.88,
+   "z0": 0.95,
+   "z1": 1.1,
+   "walls": "stone"
+  },
+  {
+   "x0": 1.5,
+   "x1": 2.3,
+   "y0": 3.08,
+   "y1": 3.88,
+   "z0": 0,
+   "z1": 0.3,
+   "walls": "stone"
+  },
+  {
+   "x0": 1.5,
+   "x1": 2.3,
+   "y0": 3.08,
+   "y1": 3.88,
+   "z0": 0.95,
+   "z1": 1.1,
+   "walls": "stone"
+  }
+ ],
+ "windows": [],
+ "paving": [
+  {
+   "x0": -0.9,
+   "y0": -2.5,
+   "x1": 0.9,
+   "y1": 6.0,
+   "colour": "#cbbf9f",
+   "kind": "concrete"
+  },
+  {
+   "x0": -4.5,
+   "y0": 6.5,
+   "x1": -1.0,
+   "y1": 9.0,
+   "colour": "#8a6a4f",
+   "kind": "timber"
+  }
+ ],
+ "trees": [
+  {
+   "x": -5.0,
+   "y": 4.0,
+   "height": 6,
+   "spread": 3.0
+  },
+  {
+   "x": 4.5,
+   "y": 6.0,
+   "height": 7,
+   "spread": 3.5
+  }
+ ]
+}

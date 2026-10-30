@@ -1,0 +1,345 @@
+{
+ "note": "Busselton War Memorial, Victoria Square (1919-20), from the Landgate aerial (Oct 2026) and the State heritage record. A Donnybrook sandstone and limestone obelisk on a stepped base with a grey granite name tablet, in the middle of a raised square of pale paving with low hedged planters at its corners and a path in from the north. South of it a second smaller paved square between long planters, then a path on to the south. The RSL built a new memorial in Rotary Park in 2024; this one is still in the square on the aerial. Front = north, to the street. Metres: x east to west as seen from the street, y south from the obelisk.",
+ "wallHeight": 3.0,
+ "setback": 10,
+ "road": {
+  "width": 7.0,
+  "verge": 3.0
+ },
+ "lawn": "#86934f",
+ "sunFrom": [
+  -0.4,
+  0.6,
+  1.0
+ ],
+ "cameras": {
+  "street": {
+   "eye": [
+    2,
+    -24,
+    1.7
+   ],
+   "look": [
+    0,
+    0,
+    1.8
+   ],
+   "lens": 32
+  },
+  "aerial": {
+   "eye": [
+    -16,
+    -26,
+    18
+   ],
+   "look": [
+    0,
+    6,
+    0
+   ],
+   "lens": 28
+  },
+  "corner": {
+   "eye": [
+    -10,
+    10,
+    1.7
+   ],
+   "look": [
+    0,
+    0,
+    1.8
+   ],
+   "lens": 30
+  }
+ },
+ "walls": {
+  "kind": "render",
+  "colour": "#d9c7a0"
+ },
+ "finishes": {
+  "lime": {
+   "kind": "render",
+   "colour": "#e6dcc4"
+  },
+  "granite": {
+   "kind": "render",
+   "colour": "#8a8b8d"
+  },
+  "kerb": {
+   "kind": "render",
+   "colour": "#e2ded4"
+  }
+ },
+ "trim": "#e6dcc4",
+ "roof": {
+  "pitch": 62,
+  "colour": "#cbc2ad",
+  "eaves": 0.0
+ },
+ "blocks": [
+  {
+   "name": "obelisk",
+   "x0": -0.3,
+   "x1": 0.3,
+   "y0": -0.3,
+   "y1": 0.3,
+   "roof": "hip",
+   "wallHeight": 3.1,
+   "pitch": 62,
+   "eaves": 0.0
+  }
+ ],
+ "panels": [
+  {
+   "x0": -1.1,
+   "x1": 1.1,
+   "y0": -1.1,
+   "y1": 1.1,
+   "z0": 0.0,
+   "z1": 0.2,
+   "walls": "lime"
+  },
+  {
+   "x0": -0.8,
+   "x1": 0.8,
+   "y0": -0.8,
+   "y1": 0.8,
+   "z0": 0.2,
+   "z1": 0.4,
+   "walls": "lime"
+  },
+  {
+   "x0": -0.5,
+   "x1": 0.5,
+   "y0": -0.5,
+   "y1": 0.5,
+   "z0": 0.4,
+   "z1": 1.5,
+   "walls": "main"
+  },
+  {
+   "x0": -0.55,
+   "x1": 0.55,
+   "y0": -0.55,
+   "y1": 0.55,
+   "z0": 1.5,
+   "z1": 1.62,
+   "walls": "lime"
+  },
+  {
+   "x0": -0.36,
+   "x1": 0.36,
+   "y0": -0.52,
+   "y1": -0.5,
+   "z0": 0.6,
+   "z1": 1.35,
+   "walls": "granite"
+  },
+  {
+   "x0": -5.1,
+   "y0": -4.95,
+   "x1": 5.1,
+   "y1": -4.85,
+   "z0": 0,
+   "z1": 0.25,
+   "walls": "kerb"
+  },
+  {
+   "x0": -5.1,
+   "y0": 4.85,
+   "x1": 5.1,
+   "y1": 4.95,
+   "z0": 0,
+   "z1": 0.25,
+   "walls": "kerb"
+  }
+ ],
+ "windows": [],
+ "fences": [
+  {
+   "x0": 0.95,
+   "y0": 9.3,
+   "x1": 3.95,
+   "y1": 9.5,
+   "height": 0.45,
+   "colour": "#e2ded4",
+   "kind": "concrete"
+  },
+  {
+   "x0": 0.95,
+   "y0": 17.400000000000002,
+   "x1": 3.95,
+   "y1": 17.6,
+   "height": 0.45,
+   "colour": "#e2ded4",
+   "kind": "concrete"
+  },
+  {
+   "x0": 0.95,
+   "y0": 9.3,
+   "x1": 1.15,
+   "y1": 17.6,
+   "height": 0.45,
+   "colour": "#e2ded4",
+   "kind": "concrete"
+  },
+  {
+   "x0": 3.75,
+   "y0": 9.3,
+   "x1": 3.95,
+   "y1": 17.6,
+   "height": 0.45,
+   "colour": "#e2ded4",
+   "kind": "concrete"
+  },
+  {
+   "x0": -9.75,
+   "y0": 6.8,
+   "x1": -6.75,
+   "y1": 7.0,
+   "height": 0.45,
+   "colour": "#e2ded4",
+   "kind": "concrete"
+  },
+  {
+   "x0": -9.75,
+   "y0": 14.9,
+   "x1": -6.75,
+   "y1": 15.1,
+   "height": 0.45,
+   "colour": "#e2ded4",
+   "kind": "concrete"
+  },
+  {
+   "x0": -9.75,
+   "y0": 6.8,
+   "x1": -9.55,
+   "y1": 15.1,
+   "height": 0.45,
+   "colour": "#e2ded4",
+   "kind": "concrete"
+  },
+  {
+   "x0": -6.95,
+   "y0": 6.8,
+   "x1": -6.75,
+   "y1": 15.1,
+   "height": 0.45,
+   "colour": "#e2ded4",
+   "kind": "concrete"
+  }
+ ],
+ "paving": [
+  {
+   "x0": -5.1,
+   "y0": -4.9,
+   "x1": 5.1,
+   "y1": 4.9,
+   "colour": "#d8d4ca",
+   "kind": "concrete"
+  },
+  {
+   "x0": -6.4,
+   "y0": -0.9,
+   "x1": -5.1,
+   "y1": 1.8,
+   "colour": "#d8d4ca",
+   "kind": "concrete"
+  },
+  {
+   "x0": 5.1,
+   "y0": -0.9,
+   "x1": 6.4,
+   "y1": 1.8,
+   "colour": "#d8d4ca",
+   "kind": "concrete"
+  },
+  {
+   "x0": 0.75,
+   "y0": -9.3,
+   "x1": 3.65,
+   "y1": -4.9,
+   "colour": "#d8d4ca",
+   "kind": "concrete"
+  },
+  {
+   "x0": -2.65,
+   "y0": 4.9,
+   "x1": 0.95,
+   "y1": 9.8,
+   "colour": "#d8d4ca",
+   "kind": "concrete"
+  },
+  {
+   "x0": -6.35,
+   "y0": 9.8,
+   "x1": 0.95,
+   "y1": 16.1,
+   "colour": "#d8d4ca",
+   "kind": "concrete"
+  },
+  {
+   "x0": -4.35,
+   "y0": 16.1,
+   "x1": -1.45,
+   "y1": 23.4,
+   "colour": "#d8d4ca",
+   "kind": "concrete"
+  }
+ ],
+ "tables": [
+  {
+   "x": -8.8,
+   "y": 6.0,
+   "length": 1.8,
+   "turned": true,
+   "colour": "#5a6e8c"
+  }
+ ],
+ "trees": [],
+ "hedges": [
+  {
+   "x0": 4.8,
+   "x1": 6.9,
+   "y0": -4.2,
+   "depth": 3.0,
+   "height": 0.9
+  },
+  {
+   "x0": -6.0,
+   "x1": -3.8,
+   "y0": -5.6,
+   "depth": 3.6,
+   "height": 0.9
+  },
+  {
+   "x0": 3.4,
+   "x1": 5.6,
+   "y0": 2.7,
+   "depth": 4.4,
+   "height": 0.9
+  },
+  {
+   "x0": -6.4,
+   "x1": -2.2,
+   "y0": 3.2,
+   "depth": 2.2,
+   "height": 0.9
+  },
+  {
+   "x0": 1.25,
+   "x1": 3.6500000000000004,
+   "y0": 9.600000000000001,
+   "depth": 7.700000000000001,
+   "height": 0.6
+  },
+  {
+   "x0": -9.45,
+   "x1": -7.05,
+   "y0": 7.1,
+   "depth": 7.700000000000001,
+   "height": 0.6
+  }
+ ]
+}

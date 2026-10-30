@@ -1,0 +1,615 @@
+{
+ "note": "Barnard Park Sports Pavilion, Busselton (2017, between Barnard Park West and East ovals, by Geographe Bay Rd), from the Landgate aerial (Oct 2026) and the City's photos. One storey, coastal-cottage style: a long hipped Surfmist Colorbond roof that carries on down over a verandah all the way round on slim charcoal posts, a cross gable in the middle of each long side with pale blue weatherboard in the gable, pale blue weatherboard walls and a lot of glazing to the function room and both ovals. The real roof has small gablets at the north and south ends, drawn here as plain hips. Front = the west side, on the car park road (the east side, to the oval, is the same). Metres: x north to south along the building, y east from the west edge of the verandah.",
+ "wallHeight": 3.2,
+ "setback": 8,
+ "road": {
+  "width": 7.0,
+  "verge": 3.0
+ },
+ "lawn": "#86934f",
+ "sunFrom": [
+  -0.4,
+  0.6,
+  1.0
+ ],
+ "cameras": {
+  "street": {
+   "eye": [
+    10,
+    -22,
+    1.7
+   ],
+   "look": [
+    24,
+    8,
+    3.5
+   ],
+   "lens": 24
+  },
+  "aerial": {
+   "eye": [
+    -20,
+    -40,
+    30
+   ],
+   "look": [
+    24,
+    11,
+    1
+   ],
+   "lens": 28
+  },
+  "corner": {
+   "eye": [
+    60,
+    -10,
+    1.7
+   ],
+   "look": [
+    26,
+    10,
+    3.5
+   ],
+   "lens": 24
+  }
+ },
+ "walls": {
+  "kind": "weatherboard",
+  "colour": "#b3cadb",
+  "lap": 0.18
+ },
+ "finishes": {
+  "glass": {
+   "kind": "render",
+   "colour": "#26313a"
+  }
+ },
+ "trim": "#f2f2ee",
+ "roof": {
+  "pitch": 24,
+  "colour": "#e4e2d5",
+  "eaves": 0.45
+ },
+ "blocks": [
+  {
+   "name": "pavilion",
+   "x0": 3.0,
+   "x1": 44.6,
+   "y0": 3.2,
+   "y1": 19.4,
+   "roof": "hip",
+   "wallHeight": 3.2,
+   "pitch": 24,
+   "eaves": 2.7
+  },
+  {
+   "name": "gable_rooms",
+   "x0": 13.6,
+   "x1": 23.6,
+   "y0": 1.4,
+   "y1": 21.2,
+   "roof": "gable",
+   "wallHeight": 3.2,
+   "pitch": 28,
+   "eaves": 0.9
+  }
+ ],
+ "windows": [
+  {
+   "facing": "front",
+   "wall": 1.4,
+   "at": 15.2,
+   "width": 2.0,
+   "height": 2.4,
+   "sill": 0.3
+  },
+  {
+   "facing": "front",
+   "wall": 1.4,
+   "at": 17.5,
+   "width": 2.0,
+   "height": 2.4,
+   "sill": 0.3
+  },
+  {
+   "facing": "front",
+   "wall": 1.4,
+   "at": 19.7,
+   "width": 2.0,
+   "height": 2.4,
+   "sill": 0.3
+  },
+  {
+   "facing": "front",
+   "wall": 1.4,
+   "at": 22.0,
+   "width": 2.0,
+   "height": 2.4,
+   "sill": 0.3
+  },
+  {
+   "facing": "back",
+   "wall": 21.2,
+   "at": 15.2,
+   "width": 2.0,
+   "height": 2.4,
+   "sill": 0.3
+  },
+  {
+   "facing": "back",
+   "wall": 21.2,
+   "at": 17.5,
+   "width": 2.0,
+   "height": 2.4,
+   "sill": 0.3
+  },
+  {
+   "facing": "back",
+   "wall": 21.2,
+   "at": 19.7,
+   "width": 2.0,
+   "height": 2.4,
+   "sill": 0.3
+  },
+  {
+   "facing": "back",
+   "wall": 21.2,
+   "at": 22.0,
+   "width": 2.0,
+   "height": 2.4,
+   "sill": 0.3
+  },
+  {
+   "facing": "front",
+   "wall": 3.2,
+   "at": 6.0,
+   "width": 2.0,
+   "height": 1.6,
+   "sill": 0.9
+  },
+  {
+   "facing": "front",
+   "wall": 3.2,
+   "at": 9.5,
+   "width": 2.0,
+   "height": 1.6,
+   "sill": 0.9
+  },
+  {
+   "facing": "front",
+   "wall": 3.2,
+   "at": 27.5,
+   "width": 2.0,
+   "height": 1.6,
+   "sill": 0.9
+  },
+  {
+   "facing": "front",
+   "wall": 3.2,
+   "at": 31.0,
+   "width": 2.0,
+   "height": 1.6,
+   "sill": 0.9
+  },
+  {
+   "facing": "front",
+   "wall": 3.2,
+   "at": 34.5,
+   "width": 2.0,
+   "height": 1.6,
+   "sill": 0.9
+  },
+  {
+   "facing": "front",
+   "wall": 3.2,
+   "at": 38.0,
+   "width": 2.0,
+   "height": 1.6,
+   "sill": 0.9
+  },
+  {
+   "facing": "front",
+   "wall": 3.2,
+   "at": 41.5,
+   "width": 2.0,
+   "height": 1.6,
+   "sill": 0.9
+  },
+  {
+   "facing": "back",
+   "wall": 19.4,
+   "at": 6.0,
+   "width": 2.0,
+   "height": 2.3,
+   "sill": 0.3
+  },
+  {
+   "facing": "back",
+   "wall": 19.4,
+   "at": 9.5,
+   "width": 2.0,
+   "height": 2.3,
+   "sill": 0.3
+  },
+  {
+   "facing": "back",
+   "wall": 19.4,
+   "at": 27.5,
+   "width": 2.0,
+   "height": 2.3,
+   "sill": 0.3
+  },
+  {
+   "facing": "back",
+   "wall": 19.4,
+   "at": 31.0,
+   "width": 2.0,
+   "height": 2.3,
+   "sill": 0.3
+  },
+  {
+   "facing": "back",
+   "wall": 19.4,
+   "at": 34.5,
+   "width": 2.0,
+   "height": 2.3,
+   "sill": 0.3
+  },
+  {
+   "facing": "back",
+   "wall": 19.4,
+   "at": 38.0,
+   "width": 2.0,
+   "height": 2.3,
+   "sill": 0.3
+  },
+  {
+   "facing": "back",
+   "wall": 19.4,
+   "at": 41.5,
+   "width": 2.0,
+   "height": 2.3,
+   "sill": 0.3
+  },
+  {
+   "facing": "left",
+   "wall": 3.0,
+   "at": 7.0,
+   "width": 1.8,
+   "height": 1.5,
+   "sill": 0.9
+  },
+  {
+   "facing": "right",
+   "wall": 44.6,
+   "at": 7.0,
+   "width": 1.8,
+   "height": 1.5,
+   "sill": 0.9
+  },
+  {
+   "facing": "left",
+   "wall": 3.0,
+   "at": 11.3,
+   "width": 1.8,
+   "height": 1.5,
+   "sill": 0.9
+  },
+  {
+   "facing": "right",
+   "wall": 44.6,
+   "at": 11.3,
+   "width": 1.8,
+   "height": 1.5,
+   "sill": 0.9
+  },
+  {
+   "facing": "left",
+   "wall": 3.0,
+   "at": 15.6,
+   "width": 1.8,
+   "height": 1.5,
+   "sill": 0.9
+  },
+  {
+   "facing": "right",
+   "wall": 44.6,
+   "at": 15.6,
+   "width": 1.8,
+   "height": 1.5,
+   "sill": 0.9
+  }
+ ],
+ "doors": [
+  {
+   "type": "front",
+   "x0": 11.2,
+   "x1": 12.2,
+   "y": 3.2,
+   "height": 2.2,
+   "z0": 0.0,
+   "colour": "#3a3d40"
+  },
+  {
+   "type": "front",
+   "x0": 35.2,
+   "x1": 36.2,
+   "y": 3.2,
+   "height": 2.2,
+   "z0": 0.0,
+   "colour": "#3a3d40"
+  }
+ ],
+ "fences": [
+  {
+   "x0": 0.54,
+   "y0": 0.74,
+   "x1": 0.66,
+   "y1": 0.86,
+   "height": 2.95,
+   "colour": "#3a3d40",
+   "kind": "steel"
+  },
+  {
+   "x0": 0.54,
+   "y0": 21.74,
+   "x1": 0.66,
+   "y1": 21.86,
+   "height": 2.95,
+   "colour": "#3a3d40",
+   "kind": "steel"
+  },
+  {
+   "x0": 5.14,
+   "y0": 0.74,
+   "x1": 5.26,
+   "y1": 0.86,
+   "height": 2.95,
+   "colour": "#3a3d40",
+   "kind": "steel"
+  },
+  {
+   "x0": 5.14,
+   "y0": 21.74,
+   "x1": 5.26,
+   "y1": 21.86,
+   "height": 2.95,
+   "colour": "#3a3d40",
+   "kind": "steel"
+  },
+  {
+   "x0": 9.74,
+   "y0": 0.74,
+   "x1": 9.86,
+   "y1": 0.86,
+   "height": 2.95,
+   "colour": "#3a3d40",
+   "kind": "steel"
+  },
+  {
+   "x0": 9.74,
+   "y0": 21.74,
+   "x1": 9.86,
+   "y1": 21.86,
+   "height": 2.95,
+   "colour": "#3a3d40",
+   "kind": "steel"
+  },
+  {
+   "x0": 28.14,
+   "y0": 0.74,
+   "x1": 28.26,
+   "y1": 0.86,
+   "height": 2.95,
+   "colour": "#3a3d40",
+   "kind": "steel"
+  },
+  {
+   "x0": 28.14,
+   "y0": 21.74,
+   "x1": 28.26,
+   "y1": 21.86,
+   "height": 2.95,
+   "colour": "#3a3d40",
+   "kind": "steel"
+  },
+  {
+   "x0": 32.74,
+   "y0": 0.74,
+   "x1": 32.86,
+   "y1": 0.86,
+   "height": 2.95,
+   "colour": "#3a3d40",
+   "kind": "steel"
+  },
+  {
+   "x0": 32.74,
+   "y0": 21.74,
+   "x1": 32.86,
+   "y1": 21.86,
+   "height": 2.95,
+   "colour": "#3a3d40",
+   "kind": "steel"
+  },
+  {
+   "x0": 37.34,
+   "y0": 0.74,
+   "x1": 37.46,
+   "y1": 0.86,
+   "height": 2.95,
+   "colour": "#3a3d40",
+   "kind": "steel"
+  },
+  {
+   "x0": 37.34,
+   "y0": 21.74,
+   "x1": 37.46,
+   "y1": 21.86,
+   "height": 2.95,
+   "colour": "#3a3d40",
+   "kind": "steel"
+  },
+  {
+   "x0": 41.94,
+   "y0": 0.74,
+   "x1": 42.06,
+   "y1": 0.86,
+   "height": 2.95,
+   "colour": "#3a3d40",
+   "kind": "steel"
+  },
+  {
+   "x0": 41.94,
+   "y0": 21.74,
+   "x1": 42.06,
+   "y1": 21.86,
+   "height": 2.95,
+   "colour": "#3a3d40",
+   "kind": "steel"
+  },
+  {
+   "x0": 46.54,
+   "y0": 0.74,
+   "x1": 46.66,
+   "y1": 0.86,
+   "height": 2.95,
+   "colour": "#3a3d40",
+   "kind": "steel"
+  },
+  {
+   "x0": 46.54,
+   "y0": 21.74,
+   "x1": 46.66,
+   "y1": 21.86,
+   "height": 2.95,
+   "colour": "#3a3d40",
+   "kind": "steel"
+  },
+  {
+   "x0": 0.54,
+   "y0": 0.74,
+   "x1": 0.66,
+   "y1": 0.86,
+   "height": 2.95,
+   "colour": "#3a3d40",
+   "kind": "steel"
+  },
+  {
+   "x0": 46.84,
+   "y0": 0.74,
+   "x1": 46.96,
+   "y1": 0.86,
+   "height": 2.95,
+   "colour": "#3a3d40",
+   "kind": "steel"
+  },
+  {
+   "x0": 0.54,
+   "y0": 5.94,
+   "x1": 0.66,
+   "y1": 6.06,
+   "height": 2.95,
+   "colour": "#3a3d40",
+   "kind": "steel"
+  },
+  {
+   "x0": 46.84,
+   "y0": 5.94,
+   "x1": 46.96,
+   "y1": 6.06,
+   "height": 2.95,
+   "colour": "#3a3d40",
+   "kind": "steel"
+  },
+  {
+   "x0": 0.54,
+   "y0": 11.24,
+   "x1": 0.66,
+   "y1": 11.36,
+   "height": 2.95,
+   "colour": "#3a3d40",
+   "kind": "steel"
+  },
+  {
+   "x0": 46.84,
+   "y0": 11.24,
+   "x1": 46.96,
+   "y1": 11.36,
+   "height": 2.95,
+   "colour": "#3a3d40",
+   "kind": "steel"
+  },
+  {
+   "x0": 0.54,
+   "y0": 16.54,
+   "x1": 0.66,
+   "y1": 16.66,
+   "height": 2.95,
+   "colour": "#3a3d40",
+   "kind": "steel"
+  },
+  {
+   "x0": 46.84,
+   "y0": 16.54,
+   "x1": 46.96,
+   "y1": 16.66,
+   "height": 2.95,
+   "colour": "#3a3d40",
+   "kind": "steel"
+  },
+  {
+   "x0": 0.54,
+   "y0": 21.74,
+   "x1": 0.66,
+   "y1": 21.86,
+   "height": 2.95,
+   "colour": "#3a3d40",
+   "kind": "steel"
+  },
+  {
+   "x0": 46.84,
+   "y0": 21.74,
+   "x1": 46.96,
+   "y1": 21.86,
+   "height": 2.95,
+   "colour": "#3a3d40",
+   "kind": "steel"
+  }
+ ],
+ "paving": [
+  {
+   "x0": 0.3,
+   "y0": 0.5,
+   "x1": 47.2,
+   "y1": 22.1,
+   "colour": "#d4d0c6",
+   "kind": "concrete"
+  }
+ ],
+ "trees": [
+  {
+   "x": -2.0,
+   "y": -3.5,
+   "height": 14,
+   "spread": 3.5
+  },
+  {
+   "x": 12.0,
+   "y": -3.5,
+   "height": 15,
+   "spread": 3.5
+  },
+  {
+   "x": 30.0,
+   "y": -3.5,
+   "height": 14,
+   "spread": 3.5
+  },
+  {
+   "x": 46.0,
+   "y": -3.5,
+   "height": 15,
+   "spread": 3.5
+  }
+ ]
+}
