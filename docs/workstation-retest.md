@@ -63,6 +63,18 @@ The new **Sights** layout drives a short loop past Rocky Ridge, the Old Courthou
 
 Run it after the bake in step 2, so the shots have CSP lighting and AO. Put the landmark screenshots in the report folder, and say how Rocky Ridge looks: the roof, the beer garden, the umbrellas and the sign.
 
+## 3c. Night and AI-car runs
+
+The automatic test has two new switches (docs/workstation-test.md, "Night and AI-car runs"). Run them after the bake, so the night shots have CSP lighting:
+
+```powershell
+.\scripts\windows\run-test.ps1 busselton -Layout foreshore -Night -SkipInstall
+.\scripts\windows\run-test.ps1 busselton -Layout town -Cars 5 -SkipInstall
+```
+
+- Night: the console's "time of day" line should say 22:00. If it says 13:00 or 18:00, CSP's weather FX isn't on: say so and quote the CSP version. Street lights, shop signs and jetty lamps should be lit in the screenshots.
+- AI cars: say how many cars started, the contacts and stops the console prints, and whether the cars bunched up at a roundabout. A replay is in the run's folder.
+
 ## 4. What still needs Mac in person
 
 These need someone at the wheel. Leave them for Mac and list them at the end of the report:
