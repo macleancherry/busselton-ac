@@ -6,6 +6,7 @@ import { warnMissing } from "./dataWarnings";
 import { JETTY_SNAPSHOT, JETTY_SNAPSHOT_BOX } from "./jettySnapshot";
 import { haversine, type LngLat } from "../core/geo";
 import { trimSpurs } from "../core/spurs";
+import { isUnsealed } from "../core/unsealed";
 import type { OsmFeatures } from "../core/track";
 import type { RoundaboutHint } from "../core/roundabout";
 
@@ -148,7 +149,7 @@ export interface OsmData {
   widthAt?: (p: LngLat) => number | undefined;
   features: OsmFeatures;
   /** Busselton fork: the drivable roads as street lines, in the vector tiles' classes (exact OSM geometry, for area builds). */
-  roads?: { pts: LngLat[]; cls: string; brunnel?: string; oneway?: 1 | -1; service?: string }[];
+  roads?: { pts: LngLat[]; cls: string; brunnel?: string; oneway?: 1 | -1; service?: string; surface?: string }[];
 }
 
 /** OSM highway=* to the vector tiles' road classes (OpenMapTiles), for the ways a car can drive. */
@@ -211,7 +212,7 @@ export async function fetchOsm(routeCoords: LngLat[], areas: LngLat[][] = []): P
     }
   }
   if (!elements) warnMissing("OpenStreetMap (Overpass): roundabouts, road widths, poles, lights, fences");
-  const features: OsmFeatures = { buildings: [], guardRails: [], roundaboutRings: [], poles: [], lamps: [], powerLines: [], barriers: [], groynes: [] };
+  const features: OsmFeatures = { buildings: [], guardRails: [], roundaboutRings: [], poles: [], lamps: [], powerLines: [], barriers: [], groynes: [], unsealed: [] };
   if (!elements) return { features };
 
   const ways: Way[] = [];
@@ -242,11 +243,14 @@ export async function fetchOsm(routeCoords: LngLat[], areas: LngLat[][] = []): P
     } else if (tags.highway) {
       const width = wayWidth(tags);
       if (width !== undefined) ways.push({ width, pts });
+      // Busselton fork: unsealed roads get gravel (unsealed.ts).
+      const unsealed = isUnsealed(tags.surface, tags.highway, tags.tracktype);
+      if (unsealed && tags.area !== "yes") features.unsealed!.push(pts);
       const cls = TILE_CLASS[tags.highway];
       if (cls && tags.area !== "yes" && tags.access !== "no" && tags.access !== "private") {
         const oneway = tags.oneway === "yes" || tags.oneway === "1" ? 1 : tags.oneway === "-1" ? -1 : undefined;
         const brunnel = tags.bridge && tags.bridge !== "no" ? "bridge" : tags.tunnel && tags.tunnel !== "no" ? "tunnel" : undefined;
-        roads.push({ pts, cls, ...(brunnel ? { brunnel } : {}), ...(oneway ? { oneway } : {}), ...(tags.service ? { service: tags.service } : {}) });
+        roads.push({ pts, cls, ...(brunnel ? { brunnel } : {}), ...(oneway ? { oneway } : {}), ...(tags.service ? { service: tags.service } : {}), ...(unsealed ? { surface: "unpaved" } : {}) });
       }
     }
   }
@@ -279,7 +283,7 @@ export function widthLookup(ways: Way[], lat: number): (p: LngLat) => number | u
  * where only two ways of the same class meet, so a street is one line (the map tiles' lines are),
  * and the traffic lanes don't stop at a split with no junction there.
  */
-export function joinWays<T extends { pts: LngLat[]; cls: string; oneway?: 1 | -1; brunnel?: string; service?: string }>(ways: T[]): T[] {
+export function joinWays<T extends { pts: LngLat[]; cls: string; oneway?: 1 | -1; brunnel?: string; service?: string; surface?: string }>(ways: T[]): T[] {
   const key = (p: LngLat) => `${p[0].toFixed(7)},${p[1].toFixed(7)}`;
   const list = ways.map((w) => ({ ...w, pts: w.pts.slice() }));
   const alive = list.map(() => true);
@@ -291,7 +295,7 @@ export function joinWays<T extends { pts: LngLat[]; cls: string; oneway?: 1 | -1
     }
   };
   list.forEach((_, i) => add(i));
-  const same = (a: T, b: T) => a.cls === b.cls && a.brunnel === b.brunnel && a.service === b.service && !!a.oneway === !!b.oneway;
+  const same = (a: T, b: T) => a.cls === b.cls && a.brunnel === b.brunnel && a.service === b.service && !!a.oneway === !!b.oneway && a.surface === b.surface;
   let joined = true;
   while (joined) {
     joined = false;

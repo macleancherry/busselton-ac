@@ -154,6 +154,14 @@ export interface BuildOptions {
    * place of the alpha-tested card trees in the kn5. Needs CSP; the browser preview shows no trees.
    */
   cspTrees?: boolean;
+  /**
+   * Busselton fork: roads OSM tags unsealed (surface=unpaved, gravel, compacted, dirt..., and
+   * untagged tracks) are built as limestone gravel with gravel physics, no markings and no kerbs
+   * (unsealed.ts). On unless false.
+   */
+  gravelRoads?: boolean;
+  /** Busselton fork: the whole route is unsealed gravel whatever OSM says (Boranup-style forest drives). */
+  unsealed?: boolean;
   /** Kerb and gutter where the photos (or a built-up area) show them, instead of a gravel verge. */
   kerbs: boolean;
   /**

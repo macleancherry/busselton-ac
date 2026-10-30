@@ -53,7 +53,7 @@ export function asLayout(files: Record<string, Uint8Array>, slug: string, id: st
  * Height of the drivable surface (road, street or kerb meshes) at a point, local metres (x east,
  * y north), or null off them. Built once over the world's meshes.
  */
-export function surfaceHeight(model: Kn5Model, names = /^\d(ROAD|STREET|KERB)/): (x: number, y: number) => number | null {
+export function surfaceHeight(model: Kn5Model, names = /^\d(ROAD|STREET|KERB|UNSEALED|UNPAVED)/): (x: number, y: number) => number | null {
   const CELL = 4;
   const tris: number[] = []; // x0 z0 y0 x1 z1 y1 x2 z2 y2
   const grid = new Map<string, number[]>();

@@ -49,6 +49,11 @@ export function buildRoadMeshes(
   materialFor: RoadMaterialFn,
   /** Leave the verge out here (a side street's mouth). Side 1 = left. */
   vergeGap: (i: number, side: 1 | -1) => boolean = () => false,
+  /**
+   * Busselton fork: unsealed sections (unsealed.ts). Sections where `at(i)` holds go in their own
+   * mesh, 1UNSEALED_<chunk>, in `material(ci, meanWidth)`, so they get the gravel physics surface.
+   */
+  unsealed?: { at: (i: number) => boolean; material: (ci: number, meanWidth: number) => string },
 ): RoadMeshes {
   const samples = plan.samples;
   const n = samples.length;
@@ -67,7 +72,11 @@ export function buildRoadMeshes(
     let widthSum = 0;
     for (let i = a; i <= b; i++) widthSum += at(i).width;
     const meanWidth = widthSum / (b - a + 1);
-    const choice = materialFor(ci, meanWidth, at(Math.floor((a + b) / 2)), a, b);
+    const gravelRow = (r: number) => !!unsealed && unsealed.at((a + r) % n);
+    let gravelRows = 0;
+    for (let r = 0; r < b - a; r++) if (gravelRow(r)) gravelRows++;
+    // An all-gravel chunk doesn't need (or make) a sealed material.
+    const choice = gravelRows && gravelRows === b - a ? unsealed!.material(ci, meanWidth) : materialFor(ci, meanWidth, at(Math.floor((a + b) / 2)), a, b);
     const perChunk = typeof choice !== "string";
     const sa = sAt(a), sb = sAt(b);
     for (let i = a; i <= b; i++) {
@@ -79,15 +88,40 @@ export function buildRoadMeshes(
       });
     }
     const cols = lanes.length;
-    for (let r = 0; r < b - a; r++) {
-      for (let j = 0; j < cols - 1; j++) {
-        const p = r * cols + j;
-        if (onRing(a + r) || onRing(a + r + 1)) continue;
-        // back-left, back-right, front-right, front-left
-        rb.quad(p, p + 1, p + cols + 1, p + cols);
+    if (gravelRows === 0 || gravelRows === b - a) {
+      for (let r = 0; r < b - a; r++) {
+        for (let j = 0; j < cols - 1; j++) {
+          const p = r * cols + j;
+          if (onRing(a + r) || onRing(a + r + 1)) continue;
+          // back-left, back-right, front-right, front-left
+          rb.quad(p, p + 1, p + cols + 1, p + cols);
+        }
       }
+      if (gravelRows && rb.indices.length) road.push(rb.toKn5(`1UNSEALED_${pad(ci)}`, choice as string));
+      else if (!gravelRows) road.push(rb.toKn5(`1ROAD_${pad(ci)}`, typeof choice === "string" ? choice : choice.material));
+    } else {
+      // Sealed and unsealed in one chunk: each row into its own mesh, with only the vertices it uses.
+      const parts = [new MeshBuilder(), new MeshBuilder()];
+      const maps = [new Map<number, number>(), new Map<number, number>()];
+      const vert = (k: 0 | 1, p: number) => {
+        let q = maps[k].get(p);
+        if (q === undefined) {
+          q = parts[k].vertex([rb.positions[p * 3], rb.positions[p * 3 + 1], rb.positions[p * 3 + 2]], rb.uvs[p * 2], rb.uvs[p * 2 + 1]);
+          maps[k].set(p, q);
+        }
+        return q;
+      };
+      for (let r = 0; r < b - a; r++) {
+        if (onRing(a + r) || onRing(a + r + 1)) continue;
+        const k = gravelRow(r) ? 1 : 0;
+        for (let j = 0; j < cols - 1; j++) {
+          const p = r * cols + j;
+          parts[k].quad(vert(k, p), vert(k, p + 1), vert(k, p + cols + 1), vert(k, p + cols));
+        }
+      }
+      if (parts[0].indices.length) road.push(parts[0].toKn5(`1ROAD_${pad(ci)}`, typeof choice === "string" ? choice : choice.material));
+      if (parts[1].indices.length) road.push(parts[1].toKn5(`1UNSEALED_${pad(ci)}`, unsealed!.material(ci, meanWidth)));
     }
-    road.push(rb.toKn5(`1ROAD_${pad(ci)}`, typeof choice === "string" ? choice : choice.material));
 
     if (opts.vergeWidth > 0) {
       const vb = new MeshBuilder();
