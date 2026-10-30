@@ -24,6 +24,10 @@ export function slugify(name: string): string {
  * traffic cars (what CSP's traffic planner needs). The track then won't pass
  * an online server's integrity check against the original files, but LAN
  * between machines with the same build is fine.
+ *
+ * Busselton fork: ALLOW_NEW_MODE_SCRIPTS=1 as well, so CSP's Traffic mode (a new-mode script,
+ * acc-lua-internal included-new-modes/traffic) may run its physics on the track; the planner tool
+ * itself asks for it with ALLOW_TOOLS when it finds it missing (included-tools/traffic/tool.lua).
  */
 export function surfacesIni(traffic = false, streetsValid = false, at?: LngLat, unsealed = false): string {
   const surfaces: Record<string, string | number>[] = [
@@ -42,7 +46,7 @@ export function surfacesIni(traffic = false, streetsValid = false, at?: LngLat, 
   if (unsealed) surfaces.push(...unsealedSurfaces(streetsValid));
   return surfaces
     .map((s, i) => `[SURFACE_${i}]\n` + Object.entries(s).map(([k, v]) => `${k}=${v}`).join("\n"))
-    .join("\n\n") + "\n" + (traffic ? "\n[_SCRIPTING_PHYSICS]\nALLOW_TOOLS=1\nALLOW_TRACK_SCRIPTS=1\n" : "")
+    .join("\n\n") + "\n" + (traffic ? "\n[_SCRIPTING_PHYSICS]\nALLOW_TOOLS=1\nALLOW_TRACK_SCRIPTS=1\nALLOW_NEW_MODE_SCRIPTS=1\n" : "")
     // Busselton fork: where the track is, for CSP's sun path (and Pure's): it overrides everything else.
     + (at ? `\n[WEATHER_FX]\nLATITUDE=${at[1].toFixed(5)}\nLONGITUDE=${at[0].toFixed(5)}\n${timezoneOf(at) ? `TIMEZONE_ID=${timezoneOf(at)}\n` : ""}` : "");
 }
@@ -71,17 +75,25 @@ export interface TrackMeta {
   author?: string;
 }
 
+/** The ui_track.json tag CSP's Traffic mode looks for (acc-lua-internal included-new-modes/traffic/manifest.ini). */
+export const TRAFFIC_READY_TAG = "traffic-planner-ready";
+
 export function uiTrackJson(meta: TrackMeta, opts: {
   length: number;
   width: number;
   pitboxes: number;
   closed: boolean;
   centre: LngLat;
+  /**
+   * Busselton fork: the build has a traffic grid (data/traffic.json). Tags it "traffic-planner-ready",
+   * the tag CSP's Traffic mode lists tracks by (manifest ALLOWED_TRACKS=#traffic-planner-ready).
+   */
+  traffic?: boolean;
 }): string {
   const json = {
     name: meta.name,
     description: meta.description ?? `${meta.name}, built from the real road with OpenStreetMap and open elevation data.`,
-    tags: ["real road", opts.closed ? "circuit" : "point to point", "street", "osm"],
+    tags: ["real road", opts.closed ? "circuit" : "point to point", "street", "osm", ...(opts.traffic ? [TRAFFIC_READY_TAG] : [])],
     geotags: geotag(opts.centre),
     country: meta.country ?? "",
     city: meta.city ?? "",

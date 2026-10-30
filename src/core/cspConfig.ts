@@ -24,7 +24,7 @@
 
 import type { Vec3 } from "./mesh";
 import type { Hollow } from "./rainHollows";
-import { soundConfig, type SoundEmitter } from "./trackSounds";
+import { soundConfig, soundScriptConfig, type SoundEmitter, type SoundMode } from "./trackSounds";
 import { pureSections, type AtmosphereInput } from "./pureConfig";
 
 const f = (v: number) => v.toFixed(2);
@@ -52,8 +52,10 @@ export interface CspOptions {
    * puddle height map from the ground and roads only, and list the hollows for checking in game.
    */
   hollows?: Hollow[];
-  /** Busselton fork: track sound emitters (trackSounds.ts), played from a placeholder soundbank. */
+  /** Busselton fork: track sound emitters (trackSounds.ts). */
   sounds?: SoundEmitter[];
+  /** How they play: "fmod" from a soundbank ([SOUNDBANK]/[EVENT]), otherwise the sounds.lua track script. */
+  soundMode?: SoundMode;
   /** Busselton fork: Pure tuning from the build (pureConfig.ts); without it, CSP's generic [PURE] values. */
   pure?: AtmosphereInput;
 }
@@ -283,8 +285,9 @@ export function extConfig(lights: Vec3[], opts: CspOptions = {}): string {
       "",
     );
   }
-  if (opts.sounds?.length) lines.push(...soundConfig(opts.sounds));
+  if (opts.sounds?.length && opts.soundMode === "fmod") lines.push(...soundConfig(opts.sounds));
   if (opts.autotest) lines.push("[SCRIPT_0]", "SCRIPT = autotest.lua", "");
+  if (opts.sounds?.length && opts.soundMode !== "fmod") lines.push(...soundScriptConfig(opts.autotest ? 1 : 0));
   return lines.join("\r\n");
 }
 

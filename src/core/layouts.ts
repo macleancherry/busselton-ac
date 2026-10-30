@@ -405,7 +405,7 @@ export function layoutFiles(world: World, layout: LayoutSpec, trackObjects: (pla
   files[`${base}/map.png`] = map.png;
   files[`${base}/data/map.ini`] = enc.encode(map.ini);
   files[`${slug}/ui/${layout.id}/ui_track.json`] = enc.encode(uiTrackJson(meta, {
-    length, width: 7, pitboxes, closed, centre: proj.toLngLat([0, 0]),
+    length, width: 7, pitboxes, closed, centre: proj.toLngLat([0, 0]), traffic: opts.traffic,
   }));
   files[`${slug}/ui/${layout.id}/outline.png`] = outlinePng(outline);
   files[`${slug}/ui/${layout.id}/preview.png`] = previewPng(outline, closed);

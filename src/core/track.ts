@@ -61,7 +61,7 @@ import { camerasIni, placeCameras } from "./cameras";
 import { cullable } from "./cull";
 import { bakedShadowParams, extConfig } from "./cspConfig";
 import { trackHollows } from "./rainHollows";
-import { birdEmitters, soundReadme, surfEmitters } from "./trackSounds";
+import { birdEmitters, soundLua, soundMode, soundReadme, SOUND_SCRIPT, surfEmitters } from "./trackSounds";
 import { groundAlbedo } from "./pureConfig";
 import { buildBarriers } from "./fences";
 import { buildFarmland, vineLeafTexture, type FarmPolygon } from "./farm";
@@ -1872,13 +1872,15 @@ export async function buildTrack(
   const trackMeta: TrackMeta = { name: opts.name, ...meta };
   // Busselton fork: where rain pools on the road (rainHollows.ts), and track sounds placed from the map (trackSounds.ts).
   const hollows = opts.rainHollows ? trackHollows(model.root) : undefined;
-  const sounds = opts.trackSounds ? (() => {
+  const soundsBy = soundMode(opts.trackSounds);
+  const sounds = soundsBy ? (() => {
     const so = { roads: [plan.samples.map((smp) => smp.pos), ...streetPlan.streets.map((st) => st.pts)], ground };
     const bush = TREE_SPECIES.findIndex((sp) => sp.name === "tuart");
     return [...surfEmitters(ocean, so), ...birdEmitters(treesKept.map((t) => ({ x: t.x, y: t.y, bush: t.variant === bush })), so)];
   })() : undefined;
   const files: Record<string, Uint8Array> = {
-    ...(sounds?.length ? { [`${slug}/extension/sfx/README.txt`]: enc.encode(soundReadme(sounds)) } : {}),
+    ...(sounds?.length ? { [`${slug}/extension/sfx/README.txt`]: enc.encode(soundReadme(sounds, soundsBy)) } : {}),
+    ...(sounds?.length && soundsBy === "lua" ? { [`${slug}/extension/${SOUND_SCRIPT}`]: enc.encode(soundLua(sounds)) } : {}),
     [`${slug}/${slug}.kn5`]: kn5,
     [`${slug}/ai/fast_lane.ai`]: ai,
     [`${slug}/data/ai_hints.ini`]: enc.encode(aiHintsIni(aiPoints, (d) => {
@@ -1915,6 +1917,7 @@ export async function buildTrack(
       vines: !!farm?.vineMetres,
       hollows,
       sounds,
+      soundMode: soundsBy,
       // A town's glow at night where most of the route is built up.
       builtUp: town.filter((t) => t >= 1).length > town.length / 2,
       radiusKm: Math.max(...outline2d.map((p) => Math.hypot(p[0] - outline2d[0][0], p[1] - outline2d[0][1]))) / 2000,
@@ -1929,7 +1932,7 @@ export async function buildTrack(
       return { [`${slug}/extension/street_map.png`]: sm.png, [`${slug}/extension/street_map.ini`]: enc.encode(sm.ini) };
     })(),
     [`${slug}/ui/ui_track.json`]: enc.encode(uiTrackJson(trackMeta, {
-      length: timedLength(), width: meanWidth, pitboxes: opts.pitCount, closed: plan.closed, centre,
+      length: timedLength(), width: meanWidth, pitboxes: opts.pitCount, closed: plan.closed, centre, traffic: opts.traffic,
     })),
     [`${slug}/ui/outline.png`]: outlinePng(outline2d),
     [`${slug}/ui/preview.png`]: previewPng(outline2d, plan.closed),

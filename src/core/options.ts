@@ -188,9 +188,10 @@ export interface BuildOptions {
   rainHollows?: boolean;
   /**
    * Busselton fork: CSP track sounds (trackSounds.ts): waves along the shore, magpies and kookaburras
-   * in the trees. Needs the placeholder bank (extension/sfx/README.txt) filled on the workstation.
+   * in the trees. true (or "lua"): a CSP track script plays extension/sfx/surf.ogg, magpie.ogg and
+   * kookaburra.ogg (add them: extension/sfx/README.txt). "fmod": the same emitters from an FMOD bank.
    */
-  trackSounds?: boolean;
+  trackSounds?: boolean | "lua" | "fmod";
   /**
    * Busselton fork: roads OSM tags unsealed (surface=unpaved, gravel, compacted, dirt..., and
    * untagged tracks) are built as limestone gravel with gravel physics, no markings and no kerbs
