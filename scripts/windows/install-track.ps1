@@ -33,30 +33,15 @@ param(
   [switch]$Overlay
 )
 $ErrorActionPreference = "Stop"
-$repo = Resolve-Path (Join-Path $PSScriptRoot "..\..")
+$repo = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).ProviderPath   # plain path, also when run from the share (UNC)
 Set-Location $repo
 
-function Find-AssettoCorsa {
-  $steam = (Get-ItemProperty -Path "HKCU:\Software\Valve\Steam" -Name SteamPath -ErrorAction SilentlyContinue).SteamPath
-  $libs = @()
-  if ($steam) {
-    $libs += $steam
-    $vdf = Join-Path $steam "steamapps\libraryfolders.vdf"
-    if (Test-Path $vdf) {
-      $libs += (Select-String -Path $vdf -Pattern '"path"\s+"([^"]+)"' -AllMatches).Matches |
-        ForEach-Object { $_.Groups[1].Value -replace '\\\\', '\' }
-    }
-  }
-  foreach ($lib in ($libs | Select-Object -Unique)) {
-    $p = Join-Path $lib "steamapps\common\assettocorsa"
-    if (Test-Path (Join-Path $p "content\tracks")) { return $p }
-  }
-  return $null
-}
+# Find-AssettoCorsa (Steam libraries, then Content Manager settings) and Install-BusseltonApps.
+. (Join-Path $PSScriptRoot "ac.ps1")
 
 if (-not $AcPath) { $AcPath = Find-AssettoCorsa }
 if (-not $AcPath -or -not (Test-Path (Join-Path $AcPath "content\tracks"))) {
-  throw "Couldn't find Assetto Corsa. Pass -AcPath 'D:\SteamLibrary\steamapps\common\assettocorsa' or set BUSSELTON_AC_PATH."
+  throw "Couldn't find Assetto Corsa (looked in Steam's libraries and Content Manager's settings). Pass -AcPath 'D:\SteamLibrary\steamapps\common\assettocorsa' or set BUSSELTON_AC_PATH."
 }
 if (Get-Command py -ErrorAction SilentlyContinue) { $pyExe = "py"; $pyArgs = @("-3") } else { $pyExe = "python"; $pyArgs = @() }
 . (Join-Path $PSScriptRoot "share.ps1")
@@ -157,17 +142,10 @@ if ($RigTracks) {
 $acRoots = @($AcPath)
 if ($RigTracks -and (Test-Path $RigTracks)) { $acRoots += (Split-Path (Split-Path $RigTracks -Parent) -Parent) }
 foreach ($root in $acRoots) {
-  foreach ($name in @("BusseltonChallenges", "BusseltonMap")) {
-    $app = Join-Path $repo "apps\lua\$name"
-    if (-not (Test-Path $app)) { continue }
-    $appDest = Join-Path $root "apps\lua\$name"
-    try {
-      New-Item -ItemType Directory -Force -Path $appDest -ErrorAction Stop | Out-Null
-      Copy-Item (Join-Path $app "*") $appDest -Recurse -Force -ErrorAction Stop
-      Write-Host "Installed the $name app -> $appDest" -ForegroundColor Green
-    } catch {
-      Write-Warning "Couldn't install the $name app to $appDest ($($_.Exception.Message)). Copy apps\lua\$name there by hand."
-    }
+  foreach ($r in (Install-BusseltonApps $repo $root)) {
+    if ($r.Error) { Write-Warning "Couldn't install the $($r.Name) app to $($r.Dest) ($($r.Error)). Copy apps\lua\$($r.Name) there by hand." }
+    elseif ($r.Changed) { Write-Host "Installed the $($r.Name) app -> $($r.Dest)" -ForegroundColor Green }
+    else { Write-Host "The $($r.Name) app is up to date in $($r.Dest)" }
   }
 }
 Write-Host "Done. In Content Manager, refresh the track list (or restart it) to see $slug."
