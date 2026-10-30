@@ -8,6 +8,7 @@
 //                         landmarks                      each landmark from the street in front of it
 //                         aerial | aerial:lng,lat[@h]    from the south and above (default 120 m up)
 //                         [name=]lng,lat->lng,lat[@h]    eye -> target, eye h m above the ground (1.6)
+//                         [name=]lng,lat->lng,lat@h/th~lens  ... target th m above the ground, lens in mm
 //   --near <lng,lat>    only landmarks within --within metres (default 400) of this point; also
 //                       where a bare "aerial" looks
 //   --only <a,b>        only these view names
@@ -119,7 +120,7 @@ for (const s of specs) {
     const [ex, ey] = local(s.from), [tx, ty] = local(s.to);
     views.push({
       name: s.name ?? `view${views.filter((v) => v.kind === "custom").length + 1}`, kind: "custom",
-      eye: [ex, ey, groundAt(ex, ey) + s.height], target: [tx, ty, groundAt(tx, ty) + (s.height > 10 ? 0 : 2.5)], lens: 24,
+      eye: [ex, ey, groundAt(ex, ey) + s.height], target: [tx, ty, groundAt(tx, ty) + (s.targetHeight ?? (s.height > 10 ? 0 : 2.5))], lens: s.lens ?? 24,
     });
   }
 }

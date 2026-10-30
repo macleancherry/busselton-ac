@@ -1,0 +1,126 @@
+{
+  "_note": "Fixed benchmark views on the Busselton map (docs/benchmarks.md). Never move a view once a baseline exists: add a new one instead. 'view' is a scripts/blender/render_track.ts view spec without the name; 'focus' and 'radius' are where scripts/check/benchmark.ts measures the numbers for that view.",
+  "route": "routes/busselton.json",
+  "sites": [
+    {
+      "id": "roundabout",
+      "title": "Busy roundabout (Bussell Hwy, the town's biggest; no two-lane roundabout inside the map)",
+      "views": [
+        {
+          "name": "roundabout",
+          "view": "115.347965,-33.655269->115.34831,-33.65498@20",
+          "focus": [115.34831, -33.65498], "radius": 45,
+          "lookFor": "Where each arm meets the ring: seams, lips and steps between the arm and ring meshes. Kerb and verge lines broken at the arms. Island planting floating above the island. Parked cars on the verges. Baseline: patchwork and dark wedges where the arms join the ring, island planting about 20 cm up, cars standing on the grass verges beside two arms."
+        },
+        {
+          "name": "roundabout_arm",
+          "view": "115.348334,-33.654530->115.348334,-33.654728@1.6/0~35",
+          "focus": [115.348334, -33.654728], "radius": 10,
+          "lookFor": "Driver's eye on the north arm at the give-way line: the worst step on this roundabout (about 12 cm between two street meshes), and any line or colour seam across the lane."
+        },
+        {
+          "name": "roundabout_island",
+          "view": "115.348127,-33.654835->115.3483,-33.65496@1.4/0.4~35",
+          "focus": [115.3483, -33.65496], "radius": 10,
+          "lookFor": "The island's trees and shrubs: bases above the ground (about 20 cm) or sunk through the island kerb."
+        }
+      ]
+    },
+    {
+      "id": "t_junction",
+      "title": "T-junction (the steepest the flat town has: about 1.5 m of fall within 30 m)",
+      "views": [
+        {
+          "name": "t_junction",
+          "view": "115.339785,-33.654639->115.33944,-33.65435@18",
+          "focus": [115.33944, -33.65435], "radius": 30,
+          "lookFor": "The side street meeting the through road: a seam or patchwork where the two road meshes overlap, kerb returns that don't meet, and cars parked on the verge or in the bell mouth. Baseline: a tree growing in the road at the corner of the junction, and cars on the verge."
+        },
+        {
+          "name": "t_junction_seam",
+          "view": "115.339551,-33.654521->115.339432,-33.65435@1.6/0~35",
+          "focus": [115.339432, -33.65435], "radius": 8,
+          "lookFor": "Driver's eye into the junction: overlapping street meshes 5 to 13 cm apart (z-fighting, a lip across the lane)."
+        },
+        {
+          "name": "t_junction_car",
+          "view": "115.339008,-33.654463->115.338896,-33.654409@1/0.4~35",
+          "focus": [115.338896, -33.654409], "radius": 8,
+          "lookFor": "A parked car standing about 25 cm above the ground on the verge, pushed under a shop awning into the building; its neighbours floating or sunk by several cm."
+        }
+      ]
+    },
+    {
+      "id": "side_street",
+      "title": "Kerbed side street with a row of kerbside parking",
+      "views": [
+        {
+          "name": "side_street",
+          "view": "115.339504,-33.6498->115.339504,-33.649527@12",
+          "focus": [115.339504, -33.649527], "radius": 35,
+          "lookFor": "Kerb and gutter running unbroken along both sides, driveways crossing the kerb cleanly, and the parking row along the kerb rather than in the traffic lane. Baseline: a solid row of about 20 cars side by side, nose in, filling the street's edge, every one sunk about 9 cm."
+        },
+        {
+          "name": "side_street_drive",
+          "view": "115.339765,-33.649585->115.3393,-33.649535@1.6/0.8~35",
+          "focus": [115.33945, -33.64955], "radius": 15,
+          "lookFor": "Driver's eye along the street: the kerb height and gutter, steps at the kerb ends, and the parked row's wheels in the road surface."
+        },
+        {
+          "name": "side_street_wheels",
+          "view": "115.339341,-33.649576->115.339309,-33.649529@0.8/0.3~35",
+          "focus": [115.339309, -33.649529], "radius": 6,
+          "lookFor": "Close on a parked car's wheels: they should touch the road. In the baseline the whole row is sunk 8 to 9 cm into the street."
+        }
+      ]
+    },
+    {
+      "id": "car_park",
+      "title": "Town centre car park with parked cars",
+      "views": [
+        {
+          "name": "car_park",
+          "view": "115.343265,-33.649865->115.342998,-33.649641@18",
+          "focus": [115.342998, -33.649641], "radius": 35,
+          "lookFor": "Cars in bays rather than in aisles or across the entrance, all facing along the bays; the car park's surface; cars on the street outside. Baseline: cars in clumps at random angles, overlapping each other, most of them standing on grass physics (the photo ground) rather than asphalt, cars on the verge outside, and lamp heads with no arms."
+        },
+        {
+          "name": "car_park_aisle",
+          "view": "115.343232,-33.649529->115.342998,-33.649641@1.6/0.8~28",
+          "focus": [115.343115, -33.649585], "radius": 15,
+          "lookFor": "Driver's eye down an aisle: cars blocking it, overlapping each other, or standing at odd angles; the seam where the car park meets the street."
+        },
+        {
+          "name": "car_park_car",
+          "view": "115.343183,-33.649894->115.343122,-33.649945@0.9/0.3~35",
+          "focus": [115.343122, -33.649945], "radius": 6,
+          "lookFor": "Two parked cars driven into each other, one of them sunk about 9 cm into the surface."
+        }
+      ]
+    },
+    {
+      "id": "signals",
+      "title": "Signalised crossroads in the town centre: poles, street lights and traffic signals",
+      "views": [
+        {
+          "name": "signals",
+          "view": "115.344955,-33.652389->115.3453,-33.6521@16",
+          "focus": [115.3453, -33.6521], "radius": 40,
+          "lookFor": "Signal poles and light poles standing on the footpath or verge (not in the road), heads at the right height over the lanes, and the joins between the route's road and the side streets."
+        },
+        {
+          "name": "signals_approach",
+          "view": "115.344925,-33.652162->115.345154,-33.652111@1.6/1.5~28",
+          "focus": [115.345154, -33.652111], "radius": 10,
+          "lookFor": "Driver's eye at the stop line: the signal heads facing the driver, poles' bases on the ground, and the lip where the side street's mesh overlaps the crossroads (about 10 cm). Baseline: a raised slab edge and a dark gap across the lane, power poles standing in the road beside the island."
+        },
+        {
+          "name": "signals_lamp",
+          "view": "115.345943,-33.652155->115.345812,-33.652092@1.6/6~35",
+          "focus": [115.345812, -33.652092], "radius": 6,
+          "lookFor": "A street light from below: its heads on the ends of arms, not floating in the air beside the pole. Baseline: two heads floating either side of the pole, no arms."
+        }
+      ]
+    }
+  ]
+}

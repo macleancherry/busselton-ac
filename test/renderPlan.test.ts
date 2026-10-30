@@ -8,6 +8,8 @@ describe("render_track views", () => {
     expect(parseView("aerial:115.34,-33.64@200")).toMatchObject({ kind: "aerial", at: [115.34, -33.64], height: 200 });
     expect(parseView("jetty=115.34,-33.64->115.35,-33.63")).toEqual({ kind: "custom", name: "jetty", from: [115.34, -33.64], to: [115.35, -33.63], height: 1.6 });
     expect(parseView("115.34,-33.64->115.35,-33.63@40")).toMatchObject({ height: 40 });
+    expect(parseView("a=115.34,-33.64->115.35,-33.63@0.8/0.3~50")).toEqual({ kind: "custom", name: "a", from: [115.34, -33.64], to: [115.35, -33.63], height: 0.8, targetHeight: 0.3, lens: 50 });
+    expect(parseView("115.34,-33.64->115.35,-33.63@6~35")).toEqual({ kind: "custom", from: [115.34, -33.64], to: [115.35, -33.63], height: 6, lens: 35, name: undefined });
     expect(() => parseView("somewhere")).toThrow();
   });
 

@@ -18,13 +18,14 @@ export interface View {
 export type ViewSpec =
   | { kind: "landmarks" }
   | { kind: "aerial"; at?: LngLat; height?: number; name?: string }
-  | { kind: "custom"; from: LngLat; to: LngLat; height: number; name?: string };
+  | { kind: "custom"; from: LngLat; to: LngLat; height: number; name?: string; targetHeight?: number; lens?: number };
 
 /**
  * One view from the command line:
  *   landmarks                              every landmark, from the street in front of it
  *   aerial | aerial:lng,lat[@height]       from the south and above a point (default 120 m up)
  *   [name=]lng,lat->lng,lat[@height]       eye -> target, eye `height` m above the ground (default 1.6)
+ *   [name=]lng,lat->lng,lat@h/th~lens      the same, with the target `th` m above the ground and a lens in mm
  */
 export function parseView(s: string): ViewSpec {
   const t = s.trim();
@@ -47,8 +48,14 @@ export function parseView(s: string): ViewSpec {
     return { kind: "aerial", name, at: main === "aerial" ? undefined : point(main.slice(7)), height: h ? num(h) : undefined };
   }
   const parts = main.split("->");
-  if (parts.length !== 2) throw new Error(`unknown view "${s}" (landmarks, aerial[:lng,lat][@h] or lng,lat->lng,lat[@h])`);
-  return { kind: "custom", name, from: point(parts[0]), to: point(parts[1]), height: h ? num(h) : 1.6 };
+  if (parts.length !== 2) throw new Error(`unknown view "${s}" (landmarks, aerial[:lng,lat][@h] or lng,lat->lng,lat[@h[/th]][~lens])`);
+  // @h[/th][~lens]: eye height, target height (default 2.5 m, or the ground for an eye over 10 m), lens in mm.
+  const [hs, lens] = (h ?? "").split("~");
+  const [eh, th] = hs.split("/");
+  const view: ViewSpec = { kind: "custom", name, from: point(parts[0]), to: point(parts[1]), height: eh ? num(eh) : 1.6 };
+  if (th) view.targetHeight = num(th);
+  if (lens) view.lens = num(lens);
+  return view;
 }
 
 /** Unit direction (x east, y north) of a compass bearing in degrees. */
