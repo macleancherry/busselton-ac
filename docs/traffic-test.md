@@ -8,6 +8,30 @@ and the `surfaces.ini` changes CSP's traffic tool needs (`WAV_PITCH=extended-0` 
 Note: with those surfaces.ini changes the track won't pass an online server's integrity check. Ours
 is for offline and LAN anyway.
 
+## Zones and the kids' setting
+
+The traffic is zoned (`src/core/trafficZones.ts`, on by default, `build.trafficZones: false` turns it
+off): busy streets (OSM primary, secondary, tertiary), the town centre (retail and commercial landuse,
+or 8+ shops and cafes within 100 m), quiet streets (residential and the rest) and highways. How it
+reaches the planner, which has no density setting of its own (source: acc-lua-internal,
+`included-tools/traffic`):
+
+- **Speed and who gives way:** each zone and limit is a role in the planner's **Rules** tab (`Busy
+  street 60`, `Town centre 40`, `Quiet street 50`, ...). The planner takes a lane's limit from its role,
+  not the lane. Where part of a road is in another zone (the drive through the centre), an **Area**
+  gives that stretch its role and limit; they show in the **Areas** tab.
+- **Density:** cars appear evenly along every lane, then wander. Only 40% of the turns from a busy road
+  into a quiet street are allowed (the rest are forbidden turns in the junction, the same ones every
+  build), so through traffic stays on the main roads and quiet streets carry mostly their own cars.
+- **How many cars:** the track can't set this. It's the planner's **Cars** slider (or "Cars limit" in
+  the Traffic mode). Each `traffic.json` has a suggested figure: `"busselton": { "cars": ... }` at the
+  end of the file, and `traffic_check.py` prints it.
+
+**Kids' setting:** `build.trafficSetting: "kids"` for a whole route, or `"traffic": "kids"` on one
+layout (in `layouts`, or `layout` for the route's own). It caps limits at 30 on quiet streets and in
+the centre, 40 on busy roads, 60 on highways and 20 round roundabouts, and suggests about a third as
+many cars. Set the Cars slider to the suggestion when testing it.
+
 ## Once per machine
 
 1. CSP traffic tool car models aren't bundled with CSP. Download
@@ -35,6 +59,11 @@ is for offline and LAN anyway.
 | T6 | No cars driving through each other, floating, sinking, or stopping dead mid-road | |
 | T7 | Your own car interacts: traffic slows behind you, you can hit it | |
 | T8 | Frame rate with traffic on vs off (CSP's FPS counter or CM's) | |
+| T9 | With Cars at the suggested figure: main roads and the town centre clearly busier than the residential streets; quiet streets not empty | |
+| T10 | Rules tab lists the zone roles (`Busy street 60`, `Quiet street 50`, ...); Areas tab lists the zone areas without an error | |
+| T11 | Cars keep to about the zone limits: slower in the town centre than on the busy roads | |
+| T12 | No car stuck at a junction where its turn is forbidden (cars stopping dead at a junction mouth) | |
+| T13 | A kids' layout (if the build has one): noticeably slower traffic, and with Cars at its suggestion, sparse | |
 
 ## Reporting
 

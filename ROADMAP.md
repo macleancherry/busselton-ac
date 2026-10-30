@@ -120,12 +120,11 @@ Each starts as a drive-anywhere base, then gets the Phase B treatment: Yallingup
 
 - 🔨 **Traffic.**
   - ✅ CSP traffic-planner lanes (`data/traffic.json`) with one-way streets and limits, checked automatically.
+  - ✅ Density zones (busy main roads and the town centre, quiet streets and estates) and a kids' setting per route or layout (`src/core/trafficZones.ts`, `docs/traffic-test.md`). Not yet tried in game.
   - ⬜ Next:
     - an in-game test with the planner (`docs/traffic-test.md`)
     - AI Flood in Track Day on Free Roam
-    - density zones (busy Queen St, quiet estates)
     - an Aussie traffic car pack (Hilux, Ranger, Corolla, i30, utes with trailers, caravans)
-    - calmer settings for the kids
   - ❓ Does offline traffic work in Content Manager LAN?
 - 🔨 **Atmosphere (CSP and Pure).**
   - ✅ The sun's real position, dry-season grass, bounced light, the bay as CSP water, wind, the tiling fix, Pure settings.

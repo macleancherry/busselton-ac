@@ -76,6 +76,8 @@ export interface TileFeatures {
   names: TileName[];
   pois: TilePoi[];
   waterways: TileWaterway[];
+  /** Busselton fork: retail and commercial landuse polygons (exterior rings, clipped to their tile), for traffic zones. */
+  landuse: { ring: LngLat[]; cls: string }[];
 }
 
 export type P = { x: number; y: number };
@@ -125,18 +127,19 @@ export async function fetchTileFeatures(bbox: [number, number, number, number]):
   const names: TileName[] = [];
   const pois: TilePoi[] = [];
   const waterways: TileWaterway[] = [];
+  const landuse: TileFeatures["landuse"] = [];
   const jobs: Promise<void>[] = [];
   // Each tile's features in its own slot, joined in tile order at the end: pushing into the shared
   // lists as tiles arrived put them in a different order every build, and everything chosen at random
   // per house or tree after that (facades, species) came out different on each rebuild.
-  const slots: { buildings: TileBuilding[]; roads: TileRoad[]; names: TileName[]; pois: TilePoi[]; waterways: TileWaterway[] }[] = [];
+  const slots: { buildings: TileBuilding[]; roads: TileRoad[]; names: TileName[]; pois: TilePoi[]; waterways: TileWaterway[]; landuse: TileFeatures["landuse"] }[] = [];
   let missing = 0;
   for (let ty = y0; ty <= y1; ty++) {
     for (let tx = x0; tx <= x1; tx++) {
-      const slot = { buildings: [] as TileBuilding[], roads: [] as TileRoad[], names: [] as TileName[], pois: [] as TilePoi[], waterways: [] as TileWaterway[] };
+      const slot = { buildings: [] as TileBuilding[], roads: [] as TileRoad[], names: [] as TileName[], pois: [] as TilePoi[], waterways: [] as TileWaterway[], landuse: [] as TileFeatures["landuse"] };
       slots.push(slot);
       jobs.push((async () => {
-        const { buildings, roads, names, pois } = slot;
+        const { buildings, roads, names, pois, landuse } = slot;
         const r = await fetchRetry(url.replace("{z}", String(Z)).replace("{x}", String(tx)).replace("{y}", String(ty)));
         if (!r?.ok) {
           if (r?.status !== 404) missing++;
@@ -202,6 +205,18 @@ export async function fetchTileFeatures(bbox: [number, number, number, number]):
             rank: typeof pr.rank === "number" ? pr.rank : undefined,
           });
         }
+        // Busselton fork: shops and offices (landuse retail, commercial), for the town centre's traffic zone.
+        const ll = tile.layers.landuse;
+        for (let i = 0; ll && i < ll.length; i++) {
+          const f = ll.feature(i);
+          const cls = String(f.properties.class ?? "");
+          if (f.type !== 3 || !/^(retail|commercial)$/.test(cls)) continue;
+          for (const ring of f.loadGeometry()) {
+            if (signedArea(ring) <= 0) continue;
+            const clipped = clipToTile(ring.slice(0, -1), ll.extent);
+            if (clipped.length >= 3) landuse.push({ ring: clipped.map((p) => toLngLat(p, ll.extent)), cls });
+          }
+        }
       })().catch(() => undefined));
     }
   }
@@ -212,9 +227,10 @@ export async function fetchTileFeatures(bbox: [number, number, number, number]):
     names.push(...slot.names);
     pois.push(...slot.pois);
     waterways.push(...slot.waterways);
+    landuse.push(...slot.landuse);
   }
   if (missing) warnMissing(`${missing} map tiles (buildings, streets, shops)`);
-  return { buildings, roads, names, pois, waterways };
+  return { buildings, roads, names, pois, waterways, landuse };
 }
 
 /** Typical asphalt width by OpenMapTiles road class, metres. */

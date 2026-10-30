@@ -218,7 +218,8 @@ try {
   // Several layouts on one map (src/core/layouts.ts): the route's own drive is layout "layout.id"
   // (default "main"), and each entry of "layouts" ({ id, name, pins, loop? } or { id, name,
   // spawns: [{ at: [lng, lat], heading }] }) another, on the same world. A layout's "challenges"
-  // (hand-picked checkpoints, as build.challenges) go in its own challenges.ini.
+  // (hand-picked checkpoints, as build.challenges) go in its own challenges.ini. Any of them (and
+  // "layout") can add "traffic": "kids" for calmer traffic on that layout.
   const mainLayout = spec.layouts?.length ? { id: spec.layout?.id ?? "main", name: spec.layout?.name ?? spec.name } : null;
   if (mainLayout) buildOpts = { ...(buildOpts ?? {}), layout: mainLayout.id };
   if (buildOpts) await page.evaluate((b) => { window.__buildOptions = b; }, buildOpts);
@@ -309,10 +310,11 @@ try {
   mkdirSync(out, { recursive: true });
   if (mainLayout) {
     log("layouts:", [mainLayout.id, ...spec.layouts.map((l) => l.id)].join(", "));
-    const extra = await page.evaluate(async ({ layouts, options, mainId, name }) => {
+    const extra = await page.evaluate(async ({ layouts, options, mainId, mainTraffic, name }) => {
       const { route } = await import("/src/services/osm.ts");
       const { layoutFiles } = await import("/src/core/layouts.ts");
       const { trackObjects } = await import("/src/core/track.ts");
+      const { trafficForSetting } = await import("/src/core/trafficZones.ts");
       const r = window.__app.result();
       const files = {};
       const b64 = (u) => {
@@ -334,11 +336,18 @@ try {
         // The world's surfaces (and traffic) are every layout's.
         for (const d of ["surfaces.ini", "traffic.json"]) {
           const src = r.files[`${r.slug}/${mainId}/data/${d}`];
-          if (src) files[`${r.slug}/${l.id}/data/${d}`] = b64(src);
+          if (!src) continue;
+          // Busselton fork: a layout's own traffic setting ("traffic": "kids"; trafficZones.ts). It can
+          // only make traffic calmer than the route's build.trafficSetting.
+          files[`${r.slug}/${l.id}/data/${d}`] = d === "traffic.json" && l.traffic
+            ? b64(new TextEncoder().encode(trafficForSetting(new TextDecoder().decode(src), l.traffic)))
+            : b64(src);
         }
       }
+      const mainSrc = r.files[`${r.slug}/${mainId}/data/traffic.json`];
+      if (mainSrc && mainTraffic) files[`${r.slug}/${mainId}/data/traffic.json`] = b64(new TextEncoder().encode(trafficForSetting(new TextDecoder().decode(mainSrc), mainTraffic)));
       return files;
-    }, { layouts: spec.layouts, options: { ...(spec.build ?? {}) }, mainId: mainLayout.id, name: spec.name });
+    }, { layouts: spec.layouts, options: { ...(spec.build ?? {}) }, mainId: mainLayout.id, mainTraffic: spec.layout?.traffic, name: spec.name });
     const files = unzipSync(new Uint8Array(zipBytes));
     for (const [k, v] of Object.entries(extra)) files[k] = new Uint8Array(Buffer.from(v, "base64"));
     zipBytes = Buffer.from(zipSync(files, { level: 6 }));
