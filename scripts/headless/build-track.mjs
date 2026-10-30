@@ -281,6 +281,8 @@ try {
       const world = {
         slug: r.slug, proj: r.proj, model: r.model, options, meta: { name }, mainAi: r.files[`${r.slug}/${mainId}/ai/fast_lane.ai`],
         lines: ti ? ti.roads.map((rd) => rd.pts) : undefined, speeds: ti ? ti.roads.map((rd) => rd.speed) : undefined, rings: ti ? ti.roundabouts.map((rb) => ({ c: rb.c, rOut: rb.rOut })) : undefined,
+        // Landmarks (looks built from a spec): the automatic test photographs them.
+        landmarks: (window.__houseLooks ?? []).filter((h) => h.spec).map((h) => ({ name: h.name ?? "landmark", at: r.proj.toLocal(h.at) })),
       };
       for (const l of layouts) {
         const coords = l.pins ? (await route(l.loop ? [...l.pins, l.pins[0]] : l.pins)).coords : undefined;

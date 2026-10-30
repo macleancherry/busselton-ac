@@ -48,6 +48,7 @@ import { dressBuilding, FACADES, facadeTexture, ROOF_COLOURS, roofTexture } from
 import { facadeForLook, facadeForStyle } from "./houseLooks";
 import { buildSpecHouse, type HouseSpec } from "./specHouse";
 import { surfaceTexture } from "./surfaceTextures";
+import { landmarkShots } from "./landmarkShots";
 import { camerasIni, placeCameras } from "./cameras";
 import { cullable } from "./cull";
 import { bakedShadowParams, extConfig } from "./cspConfig";
@@ -117,6 +118,8 @@ export interface DataSources {
     place?: boolean;
     /** Build this house from a spec (scripts/blender/house.py's parts mode), centred on `at` and facing the nearest road, in place of the generated one. */
     spec?: HouseSpec;
+    /** Busselton fork: a landmark's name (the automatic test photographs it). */
+    name?: string;
   }[];
   /** Draws shop names for their signs (needs a canvas: the browser passes one in). */
   drawSigns?: SignDrawer;
@@ -1747,6 +1750,10 @@ export async function buildTrack(
   await progress("Writing track files");
   const kn5 = writeKn5(model);
   const aiPoints = buildAiLine(plan);
+  // Busselton fork: the automatic test photographs each landmark it passes.
+  const landmarkList = (sources.houseLooks ?? []).filter((l) => l.spec).map((l) => ({ name: l.name ?? "landmark", at: proj.toLocal(l.at) as [number, number] }));
+  const shotList = landmarkShots(aiPoints, landmarkList);
+  const landmarkLine = shotList.length ? `SHOTS=${shotList.join(",")}\n` : "";
   const ai = writeFastLaneAi(aiPoints);
   const outline2d = simplify(plan.samples.map((s) => s.pos), 0.5).map(([x, y]) => [x, -y] as [number, number]);
   if (plan.closed) outline2d.push(outline2d[0]);
@@ -1772,7 +1779,7 @@ export async function buildTrack(
     // The automatic test run (scripts/windows/run-test.ps1): a track script that only wakes up for a
     // driver named "Busselton Test". Track scripts need the scripting physics traffic turns on.
     // The same values as a data file, per layout (autotest.lua reads it when it's there).
-    ...(opts.traffic ? { [`${slug}/data/autotest.ini`]: enc.encode(`[AUTOTEST]\nCLOSED=${plan.closed}\nLIMITS=${Array.from({ length: 100 }, (_, k) => speedAt(Math.min(nS - 1, Math.round(((k + 0.5) / 100) * (nS - 1))))).join(",")}\n`) } : {}),
+    ...(opts.traffic ? { [`${slug}/data/autotest.ini`]: enc.encode(`[AUTOTEST]\nCLOSED=${plan.closed}\nLIMITS=${Array.from({ length: 100 }, (_, k) => speedAt(Math.min(nS - 1, Math.round(((k + 0.5) / 100) * (nS - 1))))).join(",")}\n${landmarkLine}`) } : {}),
     ...(opts.traffic ? { [`${slug}/extension/autotest.lua`]: enc.encode(autotestLua
       .replace("__CLOSED__", plan.closed ? "true" : "false")
       // The speed limit at each 1% of the lap, km/h, so the test drives at the limit.

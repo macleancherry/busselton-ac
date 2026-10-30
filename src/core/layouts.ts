@@ -12,6 +12,7 @@
 // (asLayout); every other layout is a route over roads the world already has, or a set of spawn
 // points for free roam, laid on the world's own road surface (layoutFiles).
 import { aiHintsIni, buildAiLine } from "./aiLine";
+import { landmarkShots, type Landmark } from "./landmarkShots";
 import { writeFastLaneAi } from "./aiSpline";
 import { camerasIni, placeCameras } from "./cameras";
 import { outlinePng, previewPng, trackMap, uiTrackJson, type TrackMeta } from "./acFiles";
@@ -122,6 +123,8 @@ export interface World {
   lines?: Vec2[][];
   /** Each line's speed limit, km/h, for the layouts' AI hints. */
   speeds?: number[];
+  /** Busselton fork: landmarks the automatic test photographs as it drives past (landmarkShots.ts). */
+  landmarks?: Landmark[];
   rings?: { c: Vec2; rOut: number }[];
 }
 
@@ -271,7 +274,8 @@ export function layoutFiles(world: World, layout: LayoutSpec, trackObjects: (pla
       const ap = ai[Math.min(ai.length - 1, Math.round(((k + 0.5) / 100) * (ai.length - 1)))];
       return Math.round((limitAt?.(ap?.distance ?? 0)) ?? 50);
     });
-    files[`${base}/data/autotest.ini`] = enc.encode(`[AUTOTEST]\nCLOSED=${plan.closed}\nLIMITS=${pct.join(",")}\n`);
+    const shots = landmarkShots(ai, world.landmarks ?? []);
+    files[`${base}/data/autotest.ini`] = enc.encode(`[AUTOTEST]\nCLOSED=${plan.closed}\nLIMITS=${pct.join(",")}\n${shots.length ? `SHOTS=${shots.join(",")}\n` : ""}`);
     files[`${slug}/layout_${layout.id}.kn5`] = dummiesKn5(layout.id, trackObjects(plan, opts));
     const ground = (x: number, y: number) => height(x, y) ?? hs[0];
     files[`${base}/data/cameras_1.ini`] = enc.encode(camerasIni(placeCameras(plan, opts, ground, () => false)));

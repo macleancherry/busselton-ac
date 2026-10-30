@@ -13,6 +13,7 @@ local CLOSED = __CLOSED__ -- filled in by the build: a circuit (true) or point t
 -- corners, so on a straight it floors it (128 km/h on estate streets); this holds it to the limit.
 local LIMITS = { __LIMITS__ }
 local capWarned = false
+local SHOTS = {}
 -- On a map with several layouts the track script is shared, so each layout's own data/autotest.ini
 -- (CLOSED=, LIMITS=comma list) wins over the values above, which are the main layout's.
 pcall(function ()
@@ -21,6 +22,11 @@ pcall(function ()
   if type(text) ~= 'string' then return end
   local closed = string.match(text, 'CLOSED%s*=%s*(%a+)')
   if closed then CLOSED = closed == 'true' or closed == '1' end
+  -- SHOTS=fraction:name,...: an extra screenshot as the car passes each landmark.
+  local shots = string.match(text, 'SHOTS%s*=%s*([^\r\n]+)')
+  if shots then
+    for f, n in string.gmatch(shots, '([%d%.]+):([%w_]+)') do SHOTS[#SHOTS + 1] = { at = tonumber(f), name = n, done = false } end
+  end
   local list = string.match(text, 'LIMITS%s*=%s*([%d%.,%s]+)')
   if list then
     local lim = {}
@@ -123,6 +129,14 @@ function script.update(dt)
   if not pastHalf and sp > 0.4 and sp < 0.6 then
     pastHalf = true
     laps0 = car.lapCount
+  end
+  -- Landmarks: once, as the car goes past each one's point (within a short window, so a lap's
+  -- start doesn't trigger every shot at once).
+  for _, s in ipairs(SHOTS) do
+    if not s.done and sp >= s.at and sp < s.at + 0.02 then
+      s.done = true
+      shot('landmark_' .. s.name)
+    end
   end
   local bucket = math.floor(car.splinePosition * 20)
   if bucket ~= lastShot then
