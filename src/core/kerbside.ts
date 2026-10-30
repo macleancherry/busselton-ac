@@ -61,8 +61,23 @@ export interface Carriageway {
   photoParking?: boolean;
 }
 
+/**
+ * One painted bay, where a parked car goes (parkedPlacement.ts): its middle, the way a car in it
+ * points (parallel bays: with its side's traffic; angle bays: nose to the kerb), the kind, which
+ * carriageway (0 is the route when kerbsideForTrack built them) and whether the photo or OSM said so.
+ */
+export interface KerbSlot {
+  at: Vec2;
+  dir: Vec2;
+  kind: ParkingKind;
+  street: number;
+  photo: boolean;
+}
+
 export interface KerbsideResult {
   nodes: Kn5MeshNode[];
+  /** Every bay painted, in painting order. */
+  slots: KerbSlot[];
   bays: number;
   bikeLaneMetres: number;
   symbols: number;
@@ -274,7 +289,7 @@ export function buildKerbside(
   blocked: (x: number, y: number) => boolean = () => false,
 ): KerbsideResult {
   const paint = new ChunkedMesh(0);
-  const result: KerbsideResult = { nodes: [], bays: 0, bikeLaneMetres: 0, symbols: 0 };
+  const result: KerbsideResult = { nodes: [], slots: [], bays: 0, bikeLaneMetres: 0, symbols: 0 };
   const cwGrid = new SegGrid(streets.map((c) => c.pts));
   const wayGrid = new SegGrid(ways.map((w) => w.pts));
   const frames = streets.map(frameOf);
@@ -286,8 +301,10 @@ export function buildKerbside(
     if (!hit) continue;
     const cw = streets[hit.id], fr = frames[hit.id];
     const half = (cw.widths[hit.seg] + (cw.widths[hit.seg + 1] - cw.widths[hit.seg]) * hit.f) / 2;
+    // On the carriageway along the kerb: a parallel-parked car's middle is about a metre in from the
+    // kerb. Not out on the verge or footpath (a footpath strip beside the kerb isn't parking).
     const off = Math.abs(hit.t);
-    if (off < half - 2.6 || off > half + 2.8) continue;
+    if (off < half - 2.6 || off > half + 0.6) continue;
     if (Math.abs(car.dir[0] * hit.dir[0] + car.dir[1] * hit.dir[1]) < 0.85) continue;
     const s = fr.cum[hit.seg] + (fr.cum[hit.seg + 1] - fr.cum[hit.seg]) * hit.f;
     carsAt[hit.id][hit.t >= 0 ? "left" : "right"].push(s);
@@ -319,10 +336,14 @@ export function buildKerbside(
       const same = hit.dir[0] * d[0] + hit.dir[1] * d[1] > 0;
       return same ? { left: { ...w.left }, right: { ...w.right } } : { left: { ...w.right }, right: { ...w.left } };
     });
+    const fromPhoto = cw.pts.map(() => ({ left: false, right: false }));
     for (const side of ["left", "right"] as const) {
       for (const [a, b] of carRuns(carsAt[id][side])) {
         cw.pts.forEach((_, k) => {
-          if (fr.cum[k] >= a && fr.cum[k] <= b && sides[k][side].parking === undefined) sides[k][side].parking = "parallel";
+          if (fr.cum[k] >= a && fr.cum[k] <= b && sides[k][side].parking === undefined) {
+            sides[k][side].parking = "parallel";
+            fromPhoto[k][side] = true;
+          }
         });
       }
     }
@@ -444,6 +465,16 @@ export function buildKerbside(
       for (const kind of ["parallel", "diagonal", "perpendicular"] as const) {
         for (const [a, b] of runs((k) => layout[k][side].park === kind && clear[k][side], kind === "parallel" ? PARALLEL_BAY : 5)) {
           const D = (s: number) => valueAt(depth, s);
+          const photo = fromPhoto[Math.min(n - 1, Math.round(fr.at((a + b) / 2).u))][side];
+          /** A bay's slot: its middle at (s, t), a car in it pointing along (ds, dt) in the street's frame. */
+          const slot = (s: number, t: number, ds: number, dt: number) => {
+            const f = fr.at(s), tg: Vec2 = [f.left[1], -f.left[0]], l = Math.hypot(ds, dt) || 1;
+            result.slots.push({
+              at: [f.pos[0] + f.left[0] * t, f.pos[1] + f.left[1] * t],
+              dir: [(tg[0] * ds + f.left[0] * dt) / l, (tg[1] * ds + f.left[1] * dt) / l],
+              kind, street: id, photo,
+            });
+          };
           if (kind === "parallel") {
             const bays = Math.floor((b - a) / PARALLEL_BAY);
             if (bays < 1) continue;
@@ -452,6 +483,8 @@ export function buildKerbside(
               const s = s0 + j * PARALLEL_BAY, h = half(s), tOut = sg * (h - D(s));
               stroke(s, sg * (h - KERB_IN), s, tOut);
               stroke(s - 0.5, tOut, s + 0.5, tOut);
+              // Traffic keeps left: a car on the left (+) side points along the line, on the right against it.
+              if (j < bays) { const sm = s + PARALLEL_BAY / 2, hm = half(sm); slot(sm, sg * (hm - KERB_IN - D(sm) / 2), sg, 0); }
             }
             result.bays += bays;
           } else {
@@ -465,6 +498,11 @@ export function buildKerbside(
             for (let j = 0; j <= lines; j++) {
               const s = s0 + j * spacing, h = half(s);
               stroke(s, sg * (h - KERB_IN), s - sg * lean(s), sg * (h - D(s)));
+              // The bay between this line and the next: nose in, along its lines towards the kerb.
+              if (j < lines) {
+                const sm = s + spacing / 2, hm = half(sm), Lm = lean(sm), Dm = D(sm);
+                slot(sm - (sg * Lm) / 2, sg * (hm - KERB_IN - (Dm - KERB_IN) / 2), sg * Lm, sg * (Dm - KERB_IN));
+              }
             }
             const sN = s0 + lines * spacing;
             const outA = s0 - sg * lean(s0), outB = sN - sg * lean(sN);

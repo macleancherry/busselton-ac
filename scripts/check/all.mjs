@@ -4,7 +4,7 @@
 //
 // Runs: check_build (spikes, heights), budget, layout_check (when it has layouts), dump_surface then
 // surface_check and street_ground, path_ground, ground_check (placed things on the ground, parked cars
-// off the roads), traffic_check (when it has traffic). Exits non-zero if any fails.
+// off the roads), parked_check (parked cars in bays, on asphalt, not overlapping), traffic_check (when it has traffic). Exits non-zero if any fails.
 // The headline numbers (triangles, AI off the road per layout, tilt, edge steps, ground through
 // streets, traffic loose ends) go in the JSON, so scripts/upgrade/base.mjs can compare two builds.
 
@@ -65,6 +65,11 @@ summary.offGround = num(r.text, /off the ground \(over \d+ cm\): (\d+)/);
 summary.parkedOnRoad = num(r.text, /parked cars on a road: (\d+)/);
 summary.looseLamps = num(r.text, /lamp heads not on a pole: (\d+)/);
 summary.polesOnRoad = num(r.text, /poles on the road: (\d+)/);
+r = run("parked", "npx", ["tsx", "scripts/check/parked_check.ts", `out/${slug}.zip`]);
+results.push(r);
+summary.parkedOverlapping = num(r.text, /overlapping cars: (\d+)/);
+summary.parkedOffAsphalt = num(r.text, /cars off asphalt: (\d+)/);
+summary.parkedOutsideBays = num(r.text, /cars outside bays: (\d+)/);
 
 if (names.some((n) => n.endsWith("traffic.json"))) {
   r = run("traffic", "python3", ["-I", "scripts/check/traffic_check.py", `out/${slug}.zip`, `out/${slug}.surface.json`]);

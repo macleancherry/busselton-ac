@@ -45,17 +45,21 @@ export interface RoadClearance {
   lane?: (x: number, y: number) => number;
 }
 
-/** Why a car can't stay, or null when it's clear. */
-export function parkedConflict(car: { at: Vec2; dir: Vec2 }, by: RoadClearance): "road" | "roundabout" | "lane" | null {
+/**
+ * Why a car can't stay, or null when it's clear. A car in a kerbside bay (`kerb`, parkedPlacement.ts)
+ * stands on its street by design: for it the through-street test is left out (the lane test still holds).
+ */
+export function parkedConflict(car: { at: Vec2; dir: Vec2; kerb?: boolean }, by: RoadClearance): "road" | "roundabout" | "lane" | null {
   const pts = carFootprint(car.at, car.dir);
   if (by.rings?.some((rb) => pts.some(([x, y]) => Math.hypot(x - rb.c[0], y - rb.c[1]) < rb.r))) return "roundabout";
-  if (pts.some(([x, y]) => by.road(x, y) !== null || (by.street !== undefined && by.street(x, y) < 0))) return "road";
+  const street = car.kerb ? undefined : by.street;
+  if (pts.some(([x, y]) => by.road(x, y) !== null || (street !== undefined && street(x, y) < 0))) return "road";
   if (by.lane && pts.some(([x, y]) => by.lane!(x, y) < LANE_HALF)) return "lane";
   return null;
 }
 
 /** The cars whose footprint is clear of every road, roundabout and lane, and a count of each kind dropped. */
-export function clearParked<T extends { at: Vec2; dir: Vec2 }>(cars: T[], by: RoadClearance): { kept: T[]; dropped: Record<"road" | "roundabout" | "lane", number> } {
+export function clearParked<T extends { at: Vec2; dir: Vec2; kerb?: boolean }>(cars: T[], by: RoadClearance): { kept: T[]; dropped: Record<"road" | "roundabout" | "lane", number> } {
   const dropped = { road: 0, roundabout: 0, lane: 0 };
   const kept = cars.filter((c) => {
     const why = parkedConflict(c, by);
