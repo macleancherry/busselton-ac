@@ -3,12 +3,17 @@
   - lanes run on asphalt: each lane point has the route or a street under it
   - no two intersection polygons overlap (the planner can't handle a lane in two at once)
   - every lane end sits inside an intersection (or the lane loops)
+  - zones (src/core/trafficZones.ts): areas well formed, forbidden turns name real lanes, no lane
+    left with no way on where it ends, and in the kids' setting every limit within the kids' caps;
+    prints lane length per zone and the suggested car count
 
     npx tsx scripts/check/dump_surface.ts out/<slug>.zip out/<slug>.surface.json
     python3 -I scripts/check/traffic_check.py out/<slug>.zip out/<slug>.surface.json
 
-Exits non-zero when polygons overlap, a lane end is loose or lanes leave the asphalt, and writes
-out/<slug>.traffic.png: lanes over the drivable surface, polygons shaded.
+Exits non-zero when polygons overlap, a lane end is loose, lanes leave the asphalt, or a zone check
+fails, and writes out/<slug>.traffic.png: lanes over the drivable surface coloured by zone (busy
+orange, town centre red, quiet green, highway purple, roundabouts blue), polygons shaded, areas
+outlined. Every layout's traffic.json is checked (they differ only by setting).
 """
 
 import json
@@ -56,11 +61,131 @@ def inside(poly, pt):
     return c
 
 
+# The kids' setting's caps per zone, km/h (trafficZones.ts ZONES), and the old roles' zones by name.
+KIDS_CAP = {"quiet": 30, "centre": 30, "busy": 40, "highway": 60, "roundabout": 20}
+LEGACY_ZONE = {"Local street": "quiet", "Town road": "busy", "Main road": "busy", "Highway": "highway", "Roundabout": "roundabout"}
+ZONE_RGB = {"quiet": (0, 140, 0), "centre": (210, 0, 0), "busy": (240, 130, 0), "highway": (130, 0, 170), "roundabout": (0, 90, 220)}
+
+
+def role_zone(role):
+    return role.get("zone") or LEGACY_ZONE.get(role.get("name"), "busy")
+
+
+def lanes_through(data):
+    """For each intersection, the lanes touching it: (lane index, enters, leaves), as trafficZones.ts sees them."""
+    rows = [(li, k, p[0], p[2]) for li, lane in enumerate(data["lanes"]) for k, p in enumerate(lane["points"])]
+    out = [[] for _ in data["intersections"]]
+    if not rows:
+        return out
+    R = np.array(rows, np.float64)
+    for ii, it in enumerate(data["intersections"]):
+        poly = [(p[0], p[2]) for p in it["points"]]
+        xs, zs = zip(*poly)
+        m = (R[:, 2] >= min(xs)) & (R[:, 2] <= max(xs)) & (R[:, 3] >= min(zs)) & (R[:, 3] <= max(zs))
+        hits = {}
+        for li, k, x, z in R[m]:
+            if inside(poly, (x, z)):
+                hits.setdefault(int(li), []).append(int(k))
+        for li, ks in hits.items():
+            lane = data["lanes"][li]
+            n = len(lane["points"])
+            first = min(ks) == 0 and not lane["loop"]
+            last = max(ks) == n - 1 and not lane["loop"]
+            out[ii].append((li, not first, not last))
+    return out
+
+
+def zone_problems(data):
+    """Zone checks: report lines and problems (each a reason the check fails)."""
+    lines, problems = [], []
+    roles = data.get("rules", {}).get("laneRoles", [])
+    meta = data.get("busselton", {})
+    setting = meta.get("setting", "normal")
+    ids = {lane["id"]: li for li, lane in enumerate(data["lanes"])}
+    # Lane length per role (the planner takes a lane's limit and priority from its role).
+    km = {}
+    differ = 0
+    for lane in data["lanes"]:
+        P = np.asarray(lane["points"], np.float64)
+        length = float(np.hypot(*np.diff(P[:, [0, 2]], axis=0).T).sum()) / 1000 if len(P) > 1 else 0
+        if not 1 <= lane["role"] <= len(roles):
+            problems.append(f"lane {lane['name']} has role {lane['role']}, not one of the {len(roles)} roles")
+            continue
+        r = roles[lane["role"] - 1]
+        km[r["name"]] = km.get(r["name"], 0) + length
+        if lane.get("speedLimit") != r["speedLimit"]:
+            differ += 1
+    lines.append(f"setting: {setting}; suggested cars: {meta.get('cars', '?')} (planner's Cars slider, or the Traffic mode's Cars limit)")
+    for r in roles:
+        lines.append(f"   role {r['name']:<20} priority {r['priority']:>3}  limit {r['speedLimit']:>3}  lanes {km.get(r['name'], 0):6.2f} km")
+    if meta.get("zones"):
+        lines.append("   lane km by zone: " + ", ".join(f"{z} {v:.1f}" for z, v in sorted(meta["zones"].items())))
+    if differ:
+        lines.append(f"   {differ} lanes carry a limit other than their role's (the planner uses the role's)")
+    # Areas.
+    for a in data.get("areas", []):
+        p = a.get("params", {})
+        if not a.get("shapes") or any(len(s) < 3 for s in a["shapes"]):
+            problems.append(f"area {a.get('name')} has a shape with under 3 points")
+        if p.get("role") and not 1 <= p["role"] <= len(roles):
+            problems.append(f"area {a.get('name')} names role {p['role']}")
+        if p.get("customSpeedLimit") and not p.get("speedLimit"):
+            problems.append(f"area {a.get('name')} has a custom limit but no figure")
+    if data.get("areas"):
+        lines.append(f"   areas: {len(data['areas'])} ({sum(len(a['shapes']) for a in data['areas'])} shapes)")
+    # Forbidden turns: real lanes, and every lane that ends in an intersection keeps a way on.
+    forbidden = 0
+    through = None
+    for ii, it in enumerate(data["intersections"]):
+        dis = it.get("disallowedTrajectories") or []
+        forbidden += len(dis)
+        for f, t in dis:
+            if f not in ids or t not in ids:
+                problems.append(f"{it['name']} forbids a turn from lane {f} to {t}, which aren't both lanes")
+        if dis:
+            through = through or lanes_through(data)
+            banned = {(f, t) for f, t in dis}
+            for li, enters, leaves in through[ii]:
+                if not enters or leaves:
+                    continue
+                exits = [data["lanes"][o]["id"] for o, _, lv in through[ii] if lv and o != li]
+                if exits and all((data["lanes"][li]["id"], e) in banned for e in exits):
+                    problems.append(f"{it['name']}: lane {data['lanes'][li]['name']} ends here with every way on forbidden")
+    if forbidden:
+        lines.append(f"   forbidden turns (busy road into a quiet street): {forbidden}; {100 * meta.get('quietEntry', 1):.0f}% of them left open")
+    # The kids' setting: every limit within its zone's cap.
+    if setting == "kids":
+        for r in roles:
+            cap = KIDS_CAP[role_zone(r)]
+            if r["speedLimit"] > cap:
+                problems.append(f"kids' setting: role {r['name']} at {r['speedLimit']} km/h, over {cap}")
+        for a in data.get("areas", []):
+            p = a.get("params", {})
+            if p.get("customSpeedLimit") and 1 <= p.get("role", 0) <= len(roles) and p["speedLimit"] > KIDS_CAP[role_zone(roles[p["role"] - 1])]:
+                problems.append(f"kids' setting: area {a['name']} at {p['speedLimit']} km/h")
+    return lines, problems
+
+
 def main():
     zpath, spath = sys.argv[1], sys.argv[2]
     with zipfile.ZipFile(zpath) as z:
-        name = next(n for n in z.namelist() if n.endswith("data/traffic.json"))
+        names = sorted(n for n in z.namelist() if n.endswith("data/traffic.json"))
+        name = names[0]
         data = json.loads(z.read(name))
+        others = {n: json.loads(z.read(n)) for n in names[1:]}
+    zone_lines, zone_bad = zone_problems(data)
+    print(f"{name}:")
+    for line in zone_lines:
+        print(line)
+    for n, d in others.items():
+        lines, bad = zone_problems(d)
+        print(f"{n}: {lines[0]}")
+        zone_bad += [f"{n}: {b}" for b in bad]
+        if [l["points"] for l in d["lanes"]] != [l["points"] for l in data["lanes"]]:
+            print(f"   note: {n} has other lanes than {name}")
+    print(f"zone problems: {len(zone_bad)}")
+    for b in zone_bad[:10]:
+        print(f"   {b}")
     surf = json.load(open(spath))
     drivable = lambda n: n[:2] == "1R" or n.startswith("1STREET")
     cells, x0, z0, H, W = covered([m for m in surf["meshes"] if drivable(m["name"])])
@@ -123,9 +248,15 @@ def main():
     for i, poly in enumerate(polys):
         bad = any(i in pair for pair in bad_pairs)
         d.polygon([f(*p) for p in poly], fill=(255, 0, 0, 90) if bad else (60, 160, 255, 70))
+    roles = data.get("rules", {}).get("laneRoles", [])
+    for a in data.get("areas", []):
+        r = roles[a["params"]["role"] - 1] if 1 <= a.get("params", {}).get("role", 0) <= len(roles) else {}
+        for s in a["shapes"]:
+            d.polygon([f(p[0], p[2]) for p in s], outline=ZONE_RGB.get(role_zone(r), (0, 0, 0)) + (255,))
     for lane in data["lanes"]:
         line = [f(p[0], p[2]) for p in lane["points"]]
-        d.line(line + ([line[0]] if lane["loop"] else []), fill=(0, 110, 0), width=1)
+        r = roles[lane["role"] - 1] if 1 <= lane["role"] <= len(roles) else {}
+        d.line(line + ([line[0]] if lane["loop"] else []), fill=ZONE_RGB.get(role_zone(r), (0, 110, 0)), width=1)
         for p in lane["points"]:
             if not on_road(p[0], p[2]):
                 x, z = f(p[0], p[2])
@@ -133,7 +264,7 @@ def main():
     out = os.path.splitext(spath)[0].replace(".surface", "") + ".traffic.png"
     img.save(out)
     print(f"map: {out}")
-    failed = bad_pairs or loose_ends or off > 0.03 * pts or blocked
+    failed = bad_pairs or loose_ends or off > 0.03 * pts or blocked or zone_bad
     sys.exit(1 if failed else 0)
 
 

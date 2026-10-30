@@ -85,7 +85,8 @@ describe("traffic graph", () => {
 
   it("writes JSON the planner reads: lanes, intersections, areas and rules", () => {
     const j = JSON.parse(trafficJson([main, side], []));
-    expect(Object.keys(j).sort()).toEqual(["areas", "intersections", "lanes", "rules"]);
+    // `busselton` (setting, suggested car count) is ours; the planner ignores it.
+    expect(Object.keys(j).sort()).toEqual(["areas", "busselton", "intersections", "lanes", "rules"]);
     expect(j.rules.laneRoles.length).toBeGreaterThan(0);
     const ids = j.lanes.map((l: { id: number }) => l.id);
     expect(new Set(ids).size).toBe(ids.length);

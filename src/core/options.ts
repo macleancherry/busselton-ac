@@ -110,6 +110,13 @@ export interface BuildOptions {
   terrainLod: boolean;
   /** Write data/traffic.json for CSP's traffic planner (turns on extended track physics, see surfacesIni). */
   traffic: boolean;
+  /**
+   * Busselton fork: traffic density zones (trafficZones.ts): busy main roads and the town centre
+   * against quiet residential streets, from OSM road class and landuse.
+   */
+  trafficZones: boolean;
+  /** Busselton fork: "kids" for calmer traffic (lower limits, fewer cars suggested). A layout can set its own ("traffic" in the route's layouts). */
+  trafficSetting: "normal" | "kids";
   /** Paint parked cars out of the ground photo (carpark.ts). */
   carParks: boolean;
   /** Low-poly cars where the photo had parked cars (needs carParks). */
@@ -216,6 +223,8 @@ export const DEFAULT_OPTIONS: BuildOptions = {
   traceGuard: true,
   terrainLod: true,
   traffic: false,
+  trafficZones: true,
+  trafficSetting: "normal",
   carParks: true,
   carParkIslands: false,
   parkedCars: true,

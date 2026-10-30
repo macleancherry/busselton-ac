@@ -117,6 +117,7 @@ export async function runBuild(job: BuildJob, report: Report, traceProgress: (te
     roundabouts: job.roundabouts,
     streets: tiles ? { lines: areaStreets(tiles.roads), names: tiles.names } : undefined,
     pois: tiles?.pois,
+    landuse: tiles?.landuse,
     seen,
     renderArt,
     raster: (proj, path, reach, maxZoom) => loadRouteRaster(proj, path, reach, chain, maxZoom ?? 20, (d, t) => traceProgress(`Tracing the road in the aerial photos (${Math.round((d / t) * 100)}%)`)),

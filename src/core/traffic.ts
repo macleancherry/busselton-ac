@@ -19,6 +19,7 @@
 //    lets cars turn round instead of driving off the end.
 
 import type { Vec2 } from "./geo";
+import { suggestedCars, trafficForSetting, zoneGraph, type TrafficSetting, type TrafficZone } from "./trafficZones";
 
 export interface TrafficRoad {
   /** Centreline, local metres (x east, y north). */
@@ -33,6 +34,10 @@ export interface TrafficRoad {
   closed?: boolean;
   /** One-way: 1 in the order of `pts`, -1 against it. */
   oneway?: 1 | -1;
+  /** Busselton fork: the traffic zone at each point (trafficZones.ts zoneRoads). */
+  zone?: TrafficZone[];
+  /** Busselton fork: the speed limit at each point, where it changes along the road. */
+  speeds?: number[];
 }
 
 export interface TrafficRoundabout {
@@ -70,6 +75,8 @@ const ROLES = [
   { name: "Highway", priority: 4, speedLimit: 100 },
   { name: "Roundabout", priority: 6, speedLimit: 30 },
 ];
+/** Busselton fork: a lane's zone and speed limit per point, for trafficZones.ts. */
+export interface LaneInfo { zone: TrafficZone[]; speed: number[] }
 const roleFor = (speed: number) => (speed <= 50 ? 1 : speed <= 60 ? 2 : speed <= 80 ? 3 : 4);
 
 const dist = (a: Vec2, b: Vec2) => Math.hypot(a[0] - b[0], a[1] - b[1]);
@@ -99,18 +106,20 @@ function crossing(a: Vec2, b: Vec2, c: Vec2, d: Vec2): Vec2 | null {
   return t > 0.02 && t < 0.98 && u > 0.02 && u < 0.98 ? [a[0] + r[0] * t, a[1] + r[1] * t] : null;
 }
 
-/** Points at least `step` metres apart (keeping the ends), with their heights. */
-function thin(pts: Vec2[], h: number[], step: number): { pts: Vec2[]; h: number[] } {
-  const op: Vec2[] = [pts[0]], oh = [h[0]];
+/** Points at least `step` metres apart (keeping the ends), with their heights, and which points they were. */
+function thin(pts: Vec2[], h: number[], step: number): { pts: Vec2[]; h: number[]; idx: number[] } {
+  const op: Vec2[] = [pts[0]], oh = [h[0]], idx = [0];
   for (let i = 1; i < pts.length - 1; i++) {
     if (dist(pts[i], op[op.length - 1]) >= step) {
       op.push(pts[i]);
       oh.push(h[i]);
+      idx.push(i);
     }
   }
   op.push(pts[pts.length - 1]);
   oh.push(h[h.length - 1]);
-  return { pts: op, h: oh };
+  idx.push(pts.length - 1);
+  return { pts: op, h: oh, idx };
 }
 
 /** The polyline moved sideways by `off` metres (positive = left of the direction of travel). */
@@ -130,7 +139,7 @@ function polygon(c: Vec2, r: number, h: number, sides = 8): [number, number, num
   });
 }
 
-export function trafficGraph(roadsIn: TrafficRoad[], roundabouts: TrafficRoundabout[]): { lanes: Lane[]; intersections: Intersection[] } {
+export function trafficGraph(roadsIn: TrafficRoad[], roundabouts: TrafficRoundabout[]): { lanes: Lane[]; intersections: Intersection[]; laneInfo: LaneInfo[] } {
   // 1. Cut every road where it runs through a roundabout: traffic goes round the ring instead.
   const inRing = (p: Vec2) => roundabouts.findIndex((rb) => dist(p, rb.c) < rb.rOut + 0.5);
   const roads: TrafficRoad[] = [];
@@ -155,7 +164,12 @@ export function trafficGraph(roadsIn: TrafficRoad[], roundabouts: TrafficRoundab
       const t = thin(run.map((i) => r.pts[i]), run.map((i) => r.h[i]), 2);
       let len = 0;
       for (let i = 1; i < t.pts.length; i++) len += dist(t.pts[i - 1], t.pts[i]);
-      if (len >= 8) roads.push({ ...r, pts: t.pts, h: t.h, closed });
+      const at = t.idx.map((k) => run[k]);
+      if (len >= 8) roads.push({
+        ...r, pts: t.pts, h: t.h, closed,
+        ...(r.zone ? { zone: at.map((i) => r.zone![i]) } : {}),
+        ...(r.speeds ? { speeds: at.map((i) => r.speeds![i]) } : {}),
+      });
     }
   }
 
@@ -232,6 +246,7 @@ export function trafficGraph(roadsIn: TrafficRoad[], roundabouts: TrafficRoundab
 
   // 3. Lanes, both ways, on the left.
   const lanes: Lane[] = [];
+  const laneInfo: LaneInfo[] = [];
   let laneId = 1;
   roads.forEach((r, ri) => {
     const one = r.oneway;
@@ -244,10 +259,14 @@ export function trafficGraph(roadsIn: TrafficRoad[], roundabouts: TrafficRoundab
       for (const dir of one ? [one] : [1, -1]) {
         const pts = offset(r.pts, one ? off : off * dir, !!r.closed);
         const h = r.h.slice();
+        const info: LaneInfo = { zone: r.zone ? r.zone.slice() : r.pts.map(() => "quiet"), speed: r.speeds ? r.speeds.slice() : r.pts.map(() => r.speed) };
         if (dir === -1) {
           pts.reverse();
           h.reverse();
+          info.zone.reverse();
+          info.speed.reverse();
         }
+        laneInfo.push(info);
         lanes.push({
           name: `Road ${ri + 1} ${one ? "one way" : dir === 1 ? "forward" : "back"}${perDir > 1 ? ` ${k + 1}` : ""}`,
           id: laneId++,
@@ -282,6 +301,7 @@ export function trafficGraph(roadsIn: TrafficRoad[], roundabouts: TrafficRoundab
       points: ring.map((a) => ac([rb.c[0] + Math.cos(a) * rr, rb.c[1] + Math.sin(a) * rr], rb.h)),
       params: { allowLaneChanges: false },
     });
+    laneInfo.push({ zone: ring.map(() => "roundabout"), speed: ring.map(() => ROLES[4].speedLimit) });
     // Each road end at the ring is an arm: an angular range from inside the
     // ring lane out past the end. Arms that overlap (a road and a side street
     // meeting the ring together) become one, so no two polygons overlap.
@@ -377,11 +397,22 @@ export function trafficGraph(roadsIn: TrafficRoad[], roundabouts: TrafficRoundab
 
   for (const j of merged) intersections.push({ name: `${j.turn ? "Turn" : "Junction"} ${interId}`, id: interId++, points: polygon(j.c, outer(j), j.h, j.turn ? 6 : 8) });
 
-  return { lanes, intersections };
+  return { lanes, intersections, laneInfo };
 }
 
-/** data/traffic.json for CSP's traffic planner. */
-export function trafficJson(roads: TrafficRoad[], roundabouts: TrafficRoundabout[]): string {
+/**
+ * data/traffic.json for CSP's traffic planner. Busselton fork: with zones on the roads (trafficZones.ts),
+ * roles, areas and turn limits per zone; `setting` "kids" for calmer traffic. `busselton` carries the
+ * setting and a suggested car count (the planner ignores it).
+ */
+export function trafficJson(roads: TrafficRoad[], roundabouts: TrafficRoundabout[], setting: TrafficSetting = "normal"): string {
   const g = trafficGraph(roads, roundabouts);
-  return JSON.stringify({ lanes: g.lanes, intersections: g.intersections, areas: [], rules: { laneRoles: ROLES } });
+  if (roads.some((r) => r.zone)) {
+    const z = zoneGraph(g.lanes, g.laneInfo, g.intersections);
+    return trafficForSetting(JSON.stringify({ lanes: g.lanes, intersections: g.intersections, areas: z.areas, rules: { laneRoles: z.roles }, busselton: z.meta }), setting);
+  }
+  let laneKm = 0;
+  for (const l of g.lanes) for (let i = 1; i < l.points.length; i++) laneKm += Math.hypot(l.points[i][0] - l.points[i - 1][0], l.points[i][2] - l.points[i - 1][2]) / 1000;
+  const meta = { setting: "normal", cars: suggestedCars(laneKm, "normal"), zones: {}, quietEntry: 1 };
+  return trafficForSetting(JSON.stringify({ lanes: g.lanes, intersections: g.intersections, areas: [], rules: { laneRoles: ROLES }, busselton: meta }), setting);
 }

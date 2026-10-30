@@ -10,6 +10,7 @@ import { buildParkedCars, carTexture, paintFor, type ParkedCar } from "./parkedC
 import { buildShopfronts, findShopfronts, shopSignTexture, shopStats, shopWindowTexture, type SignDrawer } from "./shops";
 import { buildIslands, findIslands, footprintMask, lineMask, paintOutCars } from "./carpark";
 import { trafficJson, type TrafficRoad } from "./traffic";
+import { townCentreFromMap, zoneRoads } from "./trafficZones";
 import autotestLua from "./lua/autotest.lua?raw";
 import { buildGroynes, buildPiers, pierDeckZ, SEA_LEVEL, buildSea, jettyLights, buildSeawall, deckTexture, rockTexture, SeaMask, seaTexture, withSeabed, type CoastPolygon } from "./coast";
 import type { GroundDetail, GroundLayer } from "./ground";
@@ -87,6 +88,8 @@ export interface DataSources {
   streets?: { lines: StreetLine[]; names: StreetName[] };
   /** Points of interest near the route (vector tiles). */
   pois?: { at: LngLat; cls: string; subclass: string; name?: string }[];
+  /** Busselton fork: landuse polygons (vector tiles: retail, commercial), for the town centre's traffic zone. */
+  landuse?: { ring: LngLat[]; cls: string }[];
   /** Objects located by street-level imagery (Mapillary map features). */
   seen?: { at: LngLat; value: string }[];
   /** Draws the sign artwork atlas; without one, signs are left out. */
@@ -1671,6 +1674,7 @@ export async function buildTrack(
         routeRoads.push({
           pts: run.map((i) => plan.samples[i].pos), h: run.map((i) => plan.samples[i].h),
           width: ws[ws.length >> 1], speed: speeds[speeds.length >> 1],
+          ...(opts.trafficZones ? { speeds: run.map(speedAt) } : {}),
         });
       }
     };
@@ -1686,18 +1690,25 @@ export async function buildTrack(
     else if (plan.closed && routeRoads.length > 1) {
       // The last run carries on into the first.
       const last = routeRoads.pop()!, first = routeRoads[0];
-      routeRoads[0] = { ...first, pts: [...last.pts, ...first.pts.slice(1)], h: [...last.h, ...first.h.slice(1)] };
+      routeRoads[0] = { ...first, pts: [...last.pts, ...first.pts.slice(1)], h: [...last.h, ...first.h.slice(1)],
+        ...(first.speeds && last.speeds ? { speeds: [...last.speeds, ...first.speeds.slice(1)] } : {}) };
     }
     // Busselton fork: no traffic up car park aisles and driveways (with OSM's own streets in an area
     // build there are dozens, and their junctions merged into one 170 m polygon at the foreshore).
-    const streetRoads: TrafficRoad[] = streetPlan.streets.filter((st) => !/^(parking_aisle|driveway|drive-through)$/.test(st.service ?? "")).map((st) => ({
+    const streetRoads: (TrafficRoad & { cls?: string })[] = streetPlan.streets.filter((st) => !/^(parking_aisle|driveway|drive-through)$/.test(st.service ?? "")).map((st) => ({
       pts: st.pts, h: st.pts.map(([x, y]) => terrainAt(x, y).h + 0.1), width: st.width, speed: 50,
       ...(st.oneway ? { oneway: st.oneway } : {}),
+      cls: st.cls,
     }));
     const rbs = plan.roundabouts.map((rb) => ({ c: rb.c, h: rb.hc, rIn: innerRadius(rb), rOut: outerRadius(rb) }));
+    // Busselton fork: density zones, from the road class (the route's per point) and the town centre (trafficZones.ts).
+    const roads: TrafficRoad[] = opts.trafficZones
+      ? zoneRoads([...routeRoads.map((r) => ({ ...r, cls: r.pts.map((p) => sources.roadClassAt?.(proj.toLngLat(p))) })), ...streetRoads],
+        townCentreFromMap((p) => proj.toLocal(p), sources.landuse, sources.pois))
+      : [...routeRoads, ...streetRoads.map(({ cls: _cls, ...r }) => r)];
     // Kept for checking the traffic graph offline (the headless build writes it out).
-    trafficInput = { roads: [...routeRoads, ...streetRoads], roundabouts: rbs };
-    return trafficJson([...routeRoads, ...streetRoads], rbs);
+    trafficInput = { roads, roundabouts: rbs };
+    return trafficJson(roads, rbs, opts.trafficSetting);
   };
 
   const trafficText = opts.traffic ? trafficData() : "";
