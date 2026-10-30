@@ -126,6 +126,10 @@ Each starts as a drive-anywhere base, then gets the Phase B treatment: Yallingup
   - ✅ Researched: no ready-made Aussie traffic car pack exists; single mods listed with their licence notes in `docs/traffic-cars.md`.
   - ✅ Answered: offline traffic doesn't work in CM LAN (it's an online session); AssettoServer's AI traffic would, but needs server software.
   - ⬜ Next: an in-game test with the planner, the flood and the kids' setting (`docs/workstation-retest-2.md`).
+- ⬜ **The beach and the water** (Mac, 31 Oct: what makes the South West special). The bay goes from turquoise over the sand to deep blue further out, with dark patches of seagrass and reef, and the beaches are some of the whitest sand anywhere. When the sea was the aerial photo it looked real; as CSP water it's a flat, odd blue.
+  - The sea's colour from the aerial: the photo's own shallows, sand bars and weed patches as the water's base colour under CSP's reflections and waves, fading to deep blue past the photo's edge.
+  - White sand: the beaches from the photo, brightened, with a fine sand detail texture; wet sand and a foam line at the water's edge.
+  - The same look in the Blender renders, so previews match the game.
 - 🔨 **Atmosphere (CSP and Pure).**
   - ✅ The sun's real position, dry-season grass, bounced light, the bay as CSP water, wind, the tiling fix, Pure settings.
   - ✅ Night lighting.
