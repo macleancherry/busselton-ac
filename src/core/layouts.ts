@@ -12,6 +12,8 @@
 // (asLayout); every other layout is a route over roads the world already has, or a set of spawn
 // points for free roam, laid on the world's own road surface (layoutFiles).
 import { aiHintsIni, buildAiLine } from "./aiLine";
+import { layoutChallengesIni } from "./challengeFiles";
+import type { ChallengesOption } from "./challenges";
 import { landmarkShots, type Landmark } from "./landmarkShots";
 import { writeFastLaneAi } from "./aiSpline";
 import { camerasIni, placeCameras } from "./cameras";
@@ -106,6 +108,8 @@ export interface LayoutSpec {
   coords?: LngLat[];
   /** Free roam: where cars start, [lng, lat] and heading in degrees clockwise from north. */
   spawns?: { at: LngLat; heading: number }[];
+  /** Busselton fork: hand-picked checkpoints for the Busselton Challenges app (challenges.ts). */
+  challenges?: ChallengesOption;
 }
 
 export interface World {
@@ -276,8 +280,12 @@ export function layoutFiles(world: World, layout: LayoutSpec, trackObjects: (pla
     });
     const shots = landmarkShots(ai, world.landmarks ?? []);
     files[`${base}/data/autotest.ini`] = enc.encode(`[AUTOTEST]\nCLOSED=${plan.closed}\nLIMITS=${pct.join(",")}\n${shots.length ? `SHOTS=${shots.join(",")}\n` : ""}`);
-    files[`${slug}/layout_${layout.id}.kn5`] = dummiesKn5(layout.id, trackObjects(plan, opts));
+    const dummies = trackObjects(plan, opts);
+    files[`${slug}/layout_${layout.id}.kn5`] = dummiesKn5(layout.id, dummies);
     const ground = (x: number, y: number) => height(x, y) ?? hs[0];
+    // Busselton fork: the layout's hand-picked checkpoints and, point to point, its time trial.
+    const challenges = layoutChallengesIni(layout.name, { plan, dummies }, (p) => proj.toLocal(p), ground, layout.challenges, opts.timeTrialSectors);
+    if (challenges) files[`${base}/data/challenges.ini`] = enc.encode(challenges);
     files[`${base}/data/cameras_1.ini`] = enc.encode(camerasIni(placeCameras(plan, opts, ground, () => false)));
     outline = simplify(plan.samples.map((s) => s.pos), 0.5).map(([x, y]) => [x, -y] as [number, number]);
     if (closed) outline.push(outline[0]);
@@ -305,6 +313,8 @@ export function layoutFiles(world: World, layout: LayoutSpec, trackObjects: (pla
     );
     files[`${slug}/layout_${layout.id}.kn5`] = dummiesKn5(layout.id, dummies);
     if (world.mainAi) files[`${base}/ai/fast_lane.ai`] = world.mainAi;
+    const challenges = layoutChallengesIni(layout.name, null, (p) => proj.toLocal(p), (x, y) => height(x, y) ?? spots[0].h ?? 0, layout.challenges);
+    if (challenges) files[`${base}/data/challenges.ini`] = enc.encode(challenges);
     outline = spots.map((s) => [s.x, -s.y] as [number, number]);
     if (outline.length < 2) outline.push([outline[0][0] + 1, outline[0][1] + 1]);
   } else {

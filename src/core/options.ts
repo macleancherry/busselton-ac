@@ -151,6 +151,15 @@ export interface BuildOptions {
    * `trees` is false.
    */
   clears?: { at: [number, number]; radius: number; trees?: boolean }[];
+  /**
+   * Busselton fork: hand-picked checkpoints for the Busselton Challenges app, in place of the
+   * generated ones: a list of [lng, lat] or { at, name }, or several sets [{ name, points }] (challenges.ts).
+   */
+  challenges?: import("./challenges").ChallengesOption;
+  /** Busselton fork: sectors in a point-to-point road's time trial (default 3; timeTrial.ts). */
+  timeTrialSectors?: number;
+  /** Busselton fork: false leaves out the drift spots in empty car parks (driftZones.ts). */
+  driftZones?: boolean;
   /** Raise car parks' planted islands behind kerbs, read off the photo (experimental: tree canopy still fools it). */
   carParkIslands: boolean;
   /** No level-of-detail blocks within this distance of the road's centreline, metres. */

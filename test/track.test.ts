@@ -62,6 +62,7 @@ describe("buildTrack (synthetic terrain)", async () => {
       "test_hairpin/data/challenges.ini",
       "test_hairpin/data/map.ini",
       "test_hairpin/data/surfaces.ini",
+      "test_hairpin/extension/drift_zones.ini",
       "test_hairpin/extension/ext_config.ini",
       "test_hairpin/extension/street_map.ini",
       "test_hairpin/extension/street_map.png",
@@ -75,6 +76,11 @@ describe("buildTrack (synthetic terrain)", async () => {
     expect(ui.name).toBe("Test Hairpin");
     expect(Number(ui.length)).toBeGreaterThan(2000);
     expect(ui.geotags[0]).toMatch(/ S$/);
+    // Point to point: the challenges carry a time trial on AC's own A and B lines.
+    const ch = new TextDecoder().decode(result.files["test_hairpin/data/challenges.ini"]);
+    expect(result.plan.closed).toBe(false);
+    expect(ch).toMatch(/\[TT_START\]\nNAME = Start\nPOSITION = [-\d.]+, [-\d.]+, [-\d.]+\nDIRECTION = [-\d.]+, [-\d.]+\nWIDTH = \d/);
+    expect(ch).toContain("[TT_FINISH]");
   });
 
   it("writes a CSP config with Grass FX that keeps grass off the road", () => {
