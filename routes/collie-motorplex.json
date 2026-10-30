@@ -1,6 +1,6 @@
 {
  "name": "Collie Motorplex",
- "_note": "The Collie Motorplex circuit east of Collie: OSM maps it as highway=raceway, 'Collie Race Track', asphalt, a 1.62 km closed loop (way 89374807), with a 1.3 km southern extension (way 733256017) for the longer layout. BLOCKED: routing is OSRM's car profile, which doesn't drive on raceways, so these pins detour out to Powerhouse Road. It needs the route taken from the OSM raceway way instead of OSRM before it can build. Pins follow the way's own order; racing direction unchecked. Circuit settings: no banking, no traffic. Not on 5 m LiDAR (well east of the tiled area).",
+ "_note": "The Collie Motorplex circuit east of Collie: OSM maps it as highway=raceway, 'Collie Race Track', asphalt, a 1.62 km closed loop (way 89374807), with a 1.3 km southern extension (way 733256017) for the longer layout. BLOCKED: routing is OSRM's car profile, which doesn't drive on raceways, so these pins detour out to Powerhouse Road. It needs the route taken from the OSM raceway way instead of OSRM before it can build. Pins follow the way's own order; racing direction unchecked. Circuit settings: no banking, no traffic, and none of the country preset's roadside Armco (picked by curve speed, which means nothing on a circuit) or farm gates and mailboxes (on the circuit's access roads). Not on 5 m LiDAR (well east of the tiled area).",
  "loop": true,
  "preset": "country",
  "pins": [
@@ -34,6 +34,8 @@
    -33.4318
   ],
   "traffic": false,
-  "corridor": 60
+  "corridor": 60,
+  "armco": false,
+  "farmRoadsides": false
  }
 }
