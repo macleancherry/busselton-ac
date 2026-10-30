@@ -109,6 +109,13 @@ export interface BuildOptions {
   raceDress: boolean;
   /** Sponsors on the banners and flags, comma-separated. */
   sponsors: string;
+  /**
+   * Roads OSM tags unsealed (surface=unpaved, gravel, compacted, dirt..., and untagged tracks) are
+   * built as gravel with gravel physics, no markings and no kerbs (unsealed.ts). On unless false.
+   */
+  gravelRoads?: boolean;
+  /** The whole route is unsealed gravel whatever OSM says (forest drives, back roads OSM doesn't tag). */
+  unsealed?: boolean;
 }
 
 export const DEFAULT_OPTIONS: BuildOptions = {

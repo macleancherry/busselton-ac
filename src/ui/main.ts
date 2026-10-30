@@ -377,7 +377,9 @@ function readOptions(): Partial<BuildOptions> {
     guidePosts: $<HTMLInputElement>("guidePosts").checked,
     buildings: $<HTMLSelectElement>("buildings").value !== "off",
     detectBuildings: $<HTMLSelectElement>("buildings").value === "all",
-    roadSurface: $<HTMLSelectElement>("surface").value as BuildOptions["roadSurface"],
+    // "Gravel" makes the whole route unsealed; roads OSM tags unsealed are gravel whatever is picked.
+    roadSurface: $<HTMLSelectElement>("surface").value === "gravel" ? "auto" : $<HTMLSelectElement>("surface").value as BuildOptions["roadSurface"],
+    unsealed: $<HTMLSelectElement>("surface").value === "gravel",
     markings: $<HTMLInputElement>("markings").checked,
     sideStreets: $<HTMLInputElement>("sideStreets").checked,
     streetSigns: $<HTMLInputElement>("streetSigns").checked,

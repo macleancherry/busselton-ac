@@ -17,11 +17,14 @@ import { applyTrace, traceRoad, type RasterSampler } from "./trace";
 import { pad } from "./roadMesh";
 import { ChunkedMesh } from "./scenery";
 import { SEAL_LENGTH } from "./textures";
+import { surfaceKeyFor } from "./unsealed";
 
 export interface StreetLine {
   pts: LngLat[];
   cls: string;
   brunnel?: string;
+  /** OSM surface=* (or the vector tiles' paved/unpaved), for unsealed roads (unsealed.ts). */
+  surface?: string;
 }
 
 export interface StreetName {
@@ -56,6 +59,8 @@ export interface SideStreet {
   /** The traced centreline as a road plan, and how far to trust each sample. */
   traced?: { plan: RoadPlan; conf: number[] };
   cls: string;
+  /** OSM surface=* (unsealed.ts). */
+  surface?: string;
   name?: string;
   /** Indices into `pts` that sit on the route's edge (junction mouths). */
   joins: number[];
@@ -184,7 +189,7 @@ export function planSideStreets(
       const length = pts.reduce((a, p, k) => (k ? a + Math.hypot(p[0] - pts[k - 1][0], p[1] - pts[k - 1][1]) : 0), 0);
       if (length >= 8) {
         const name = nearestName(pts[Math.floor(pts.length / 2)], localNames, 8);
-        streets.push({ pts, width, cls: line.cls, name, joins });
+        streets.push({ pts, width, cls: line.cls, name, joins, ...(line.surface ? { surface: line.surface } : {}) });
         for (let k = junctions.length - joins.length; k < junctions.length; k++) junctions[k].name = name;
       } else {
         junctions.splice(junctions.length - joins.length, joins.length);
@@ -289,7 +294,8 @@ export function buildSideStreets(
     for (const m of cm.all()) {
       m.normals = null; // from the faces
       // Drivable like the road, but not valid track: cutting through one is a shortcut.
-      out.push(m.toKn5(`1STREET_${pad(i++)}`, mat));
+      // Gravel streets have their own surface (unsealed.ts).
+      out.push(m.toKn5(`1${surfaceKeyFor(mat, false) ?? "STREET"}_${pad(i++)}`, mat));
     }
   }
   return out;

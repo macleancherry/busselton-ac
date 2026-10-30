@@ -5,7 +5,7 @@
 import { encodeDdsDxt1 } from "./dds";
 import { encodePng } from "./png";
 
-function rng(seed: number): () => number {
+export function rng(seed: number): () => number {
   let s = seed >>> 0;
   return () => {
     s = (s + 0x6d2b79f5) >>> 0;

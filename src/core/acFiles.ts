@@ -2,6 +2,7 @@
 
 import type { LngLat } from "./geo";
 import { Raster } from "./textures";
+import { unsealedSurfaces } from "./unsealed";
 
 export function slugify(name: string): string {
   const s = name
@@ -17,9 +18,10 @@ export function slugify(name: string): string {
 /**
  * Physics surfaces. Mesh names starting with a digit and one of these keys
  * (1ROAD_000, 1GRASS_t004, 1WALL_L_000) become drivable/collidable.
+ * `unsealed` adds the gravel surfaces (unsealed.ts), for a track that has some.
  */
-export function surfacesIni(): string {
-  const surfaces = [
+export function surfacesIni(unsealed = false): string {
+  const surfaces: Record<string, string | number>[] = [
     { KEY: "ROAD", FRICTION: 0.99, DAMPING: 0, WAV: "", WAV_PITCH: 0, FF_EFFECT: "NULL", DIRT_ADDITIVE: 0, IS_VALID_TRACK: 1, BLACK_FLAG_TIME: 0, SIN_HEIGHT: 0, SIN_LENGTH: 0, IS_PITLANE: 0, VIBRATION_GAIN: 0, VIBRATION_LENGTH: 0 },
     // Streets that aren't the route: asphalt underfoot, but leaving the route for one invalidates the run.
     { KEY: "STREET", FRICTION: 0.99, DAMPING: 0, WAV: "", WAV_PITCH: 0, FF_EFFECT: "NULL", DIRT_ADDITIVE: 0, IS_VALID_TRACK: 0, BLACK_FLAG_TIME: 0, SIN_HEIGHT: 0, SIN_LENGTH: 0, IS_PITLANE: 0, VIBRATION_GAIN: 0, VIBRATION_LENGTH: 0 },
@@ -28,6 +30,7 @@ export function surfacesIni(): string {
     { KEY: "KERB", FRICTION: 0.92, DAMPING: 0, WAV: "", WAV_PITCH: 0, FF_EFFECT: "NULL", DIRT_ADDITIVE: 0, IS_VALID_TRACK: 1, BLACK_FLAG_TIME: 0, SIN_HEIGHT: 0, SIN_LENGTH: 0, IS_PITLANE: 0, VIBRATION_GAIN: 0.3, VIBRATION_LENGTH: 0.2 },
     { KEY: "WALL", FRICTION: 0.3, DAMPING: 0, WAV: "", WAV_PITCH: 0, FF_EFFECT: "NULL", DIRT_ADDITIVE: 0, IS_VALID_TRACK: 0, BLACK_FLAG_TIME: 0, SIN_HEIGHT: 0, SIN_LENGTH: 0, IS_PITLANE: 0, VIBRATION_GAIN: 0, VIBRATION_LENGTH: 0 },
   ];
+  if (unsealed) surfaces.push(...unsealedSurfaces(false));
   return surfaces
     .map((s, i) => `[SURFACE_${i}]\n` + Object.entries(s).map(([k, v]) => `${k}=${v}`).join("\n"))
     .join("\n\n") + "\n";

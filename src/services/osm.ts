@@ -6,6 +6,7 @@ import { haversine, type LngLat } from "../core/geo";
 import { trimSpurs } from "../core/spurs";
 import type { OsmFeatures } from "../core/track";
 import type { RoundaboutHint } from "../core/roundabout";
+import { isUnsealed } from "../core/unsealed";
 
 const OSRM = "https://router.project-osrm.org";
 const PHOTON = "https://photon.komoot.io/api/";
@@ -182,7 +183,7 @@ export async function fetchOsm(routeCoords: LngLat[]): Promise<OsmData> {
     clearTimeout(timer);
     ctl.abort();
   }
-  const features: OsmFeatures = { buildings: [], guardRails: [], roundaboutRings: [], poles: [], lamps: [], powerLines: [], barriers: [] };
+  const features: OsmFeatures = { buildings: [], guardRails: [], roundaboutRings: [], poles: [], lamps: [], powerLines: [], barriers: [], unsealed: [] };
   if (!elements) return { features };
 
   const ways: Way[] = [];
@@ -210,6 +211,8 @@ export async function fetchOsm(routeCoords: LngLat[]): Promise<OsmData> {
     } else if (tags.highway) {
       const width = wayWidth(tags);
       if (width !== undefined) ways.push({ width, pts });
+      // Unsealed roads get gravel (unsealed.ts).
+      if (tags.area !== "yes" && isUnsealed(tags.surface, tags.highway, tags.tracktype)) features.unsealed!.push(pts);
     }
   }
   return { features, widthAt: ways.length ? widthLookup(ways, routeCoords[0][1]) : undefined };

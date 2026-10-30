@@ -10,6 +10,7 @@ import { buildTrack, type TrackResult } from "../core/track";
 import { renderArt } from "./art";
 import { fetchSeen } from "./mapillary";
 import { fetchOsm, widthLookup } from "./osm";
+import { isUnsealed } from "../core/unsealed";
 import { loadRouteRaster } from "./raster";
 import { DEM_CREDIT, IMAGERY, imageryChain, loadChunkImagery, loadDem, type DemSource, type ImagerySource } from "./tiles";
 import { classWidths, fetchTileFeatures, roadClassLookup } from "./vectorTiles";
@@ -58,6 +59,8 @@ export async function runBuild(job: BuildJob, report: Report, traceProgress: (te
       : Promise.resolve([]),
   ]);
   if (tiles) osm.features.buildings = tiles.buildings;
+  // The tiles' unpaved roads too, for gravel on the route (unsealed.ts).
+  if (tiles) osm.features.unsealed = [...(osm.features.unsealed ?? []), ...tiles.roads.filter((r) => r.cls !== "path" && isUnsealed(r.surface, r.cls)).map((r) => r.pts)];
   // Overpass widths when it answered; otherwise widths by road class from the tiles.
   const tileWidths = tiles ? classWidths(tiles.roads) : [];
   const widthAt = opts.widthOverride
