@@ -75,24 +75,6 @@
   },
   {
    "at": [
-    115.344074,
-    -33.644993
-   ],
-   "specFile": "routes/landmarks/sea_play.json",
-   "name": "Sea Play on the Bay",
-   "facing": 166
-  },
-  {
-   "at": [
-    115.3428445,
-    -33.645035
-   ],
-   "specFile": "routes/landmarks/transition.json",
-   "name": "Transition",
-   "facing": 255
-  },
-  {
-   "at": [
     115.329073,
     -33.650602
    ],

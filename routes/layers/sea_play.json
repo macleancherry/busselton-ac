@@ -1,0 +1,13 @@
+{
+  "note": "hand-made detail layer: scripts/blender/landmarks/sea_play.py (scripts/blender/landmarks/build.sh sea_play)",
+  "replaces": [
+    {
+      "at": [
+        115.344182,
+        -33.644975
+      ],
+      "radius": 16,
+      "trees": false
+    }
+  ]
+}

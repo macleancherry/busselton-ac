@@ -257,5 +257,8 @@
  ],
  "looks": [
   "routes/landmarks/looks.json"
+ ],
+ "layers": [
+  "routes/layers"
  ]
 }
