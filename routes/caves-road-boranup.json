@@ -1,0 +1,50 @@
+{
+ "name": "Caves Road Boranup",
+ "_note": "Caves Road (Tourist Drive 250) south of Margaret River through the Boranup karri forest: from near Mammoth and Lake caves, winding through the tall karri, to just south of where Boranup Drive rejoins near the Hamelin Bay end. Point to point, about 16 km, on the 30 m fallback heights. Sealed. Boranup Drive (the unsealed limestone scenic drive west of Caves Road, about 14 km, OSM 'Boranup Drive' between about -34.099 and -34.182) is left for the gravel agent: a later layout or route with the force-unsealed option. Pins stay away from its two junctions and Allan Road.",
+ "loop": false,
+ "preset": "country",
+ "pins": [
+  [
+   115.03508,
+   -34.06959
+  ],
+  [
+   115.03891,
+   -34.08528
+  ],
+  [
+   115.04599,
+   -34.09701
+  ],
+  [
+   115.0786,
+   -34.12054
+  ],
+  [
+   115.08399,
+   -34.13282
+  ],
+  [
+   115.08154,
+   -34.14526
+  ],
+  [
+   115.08276,
+   -34.15869
+  ],
+  [
+   115.08125,
+   -34.17184
+  ],
+  [
+   115.07902,
+   -34.18739
+  ]
+ ],
+ "build": {
+  "origin": [
+   115.065,
+   -34.128
+  ]
+ }
+}
