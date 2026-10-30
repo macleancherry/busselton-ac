@@ -6,7 +6,7 @@ import { buildPaths, footPathTexture, sharedPathTexture, type PathLine } from ".
 import { pickSpecies, TREE_SPECIES, treeSpeciesAtlas } from "./treeSprites";
 import { FENCE_COLOURS, fenceTexture, frontWallTexture, hedgeTexture, mulchTexture, shrubAtlas } from "./houseTextures";
 import { buildLots, shrub } from "./lots";
-import { buildParkedCars, carTexture, paintFor, type ParkedCar } from "./parkedCars";
+import { buildParkedCars, carTexture, paintFor } from "./parkedCars";
 import { buildShopfronts, findShopfronts, shopSignTexture, shopStats, shopWindowTexture, type SignDrawer } from "./shops";
 import { buildIslands, findIslands, footprintMask, lineMask, paintOutCars } from "./carpark";
 import { trafficJson, type TrafficRoad } from "./traffic";
@@ -49,6 +49,7 @@ import { kerbsideForTrack, type KerbTags } from "./kerbside";
 import { buildTerrainChunk, makeTerrainFn, meshTop, planTerrainChunks, type TerrainChunk } from "./terrain";
 import { sceneGround, SINK, topSurface } from "./sceneGround";
 import { clearParked, ROUTE_ROAD } from "./parkedClear";
+import { buildBayPads, placeParked, type BayQuad, type PhotoCar, type PlacedCar } from "./parkedPlacement";
 import { armcoNeeds, buildArmco } from "./armco";
 import { BARRIERS, barrierTexture, detailTexture, normalFromHeight, windowTexture, flatNormalTexture, GROUND_TILE, groundDetail, groundMask, type GroundKind, mapsTexture, paintTexture, sealTexture, type SealKind, garageTexture, grassTexture, concreteTexture, postTexture, railTexture, solidTexture, vergeTexture } from "./textures";
 import {
@@ -249,6 +250,8 @@ export interface TrackResult {
     parkedCars?: number;
     /** Busselton fork: parked cars the last pass dropped (parkedClear.ts), by what they touched. */
     parkedDropped?: { road: number; roundabout: number; lane: number };
+    /** Busselton fork: parked cars put in bays (parkedPlacement.ts): in car parks, in kerbside bays, and photo cars dropped, by why. */
+    parkedBays?: { carPark: number; kerb: number; dropped: { aisle: number; noBay: number; blocked: number; overlap: number } };
     /** Busselton fork: kerbside parking bays, bike lane metres and bicycle symbols painted (kerbside.ts). */
     kerbside?: { bays: number; bikeLaneMetres: number; symbols: number };
     /** Busselton fork: signalled sites, posts and heads built, and sites the traffic planner can run (trafficLights.ts). */
@@ -732,7 +735,7 @@ export async function buildTrack(
   const treeSpots: TreeSpot[] = [];
   const farTreeSpots: TreeSpot[] = [];
   let carsPainted = 0;
-  const parkedSpots: ParkedCar[] = [];
+  const parkedSpots: PhotoCar[] = [];
   const streetLines = opts.carParks
     ? [...(sources.streets?.lines ?? []).filter((l) => !/^(path|footway|cycleway|track|steps|pedestrian|bridleway)/.test(l.cls)).map((l) => l.pts.map((p) => proj.toLocal(p))), plan.samples.map((s) => s.pos)]
     : [];
@@ -782,6 +785,7 @@ export async function buildTrack(
               at: [job.chunk.minX + (c.px + 0.5) * m, job.chunk.maxY - (c.py + 0.5) * m],
               dir: [c.dir[0], -c.dir[1]],
               paint: paintFor(c.rgb),
+              ...(c.row ? { row: c.row } : {}),
             });
           }
         }
@@ -1738,7 +1742,29 @@ export async function buildTrack(
   // Parked cars back where the photo had them: off the route's road and the side streets it builds,
   // away from street centrelines (cars there were driving), not in a building.
   const streetCentres = new LineIndex(streetLines.map((pts) => ({ pts, width: 0 })));
-  let parked = parkedSpots.filter(({ at: [x, y] }) => {
+  // Busselton fork: only in real bays (parkedPlacement.ts): car park bays along the mapped aisles and
+  // the kerbside bays painted on the streets (not the route's own: its road is the race's).
+  let bayQuads: BayQuad[] = [];
+  const placedParked = opts.parkedBays !== false ? (() => {
+    const through = new LineIndex(streetPlan.streets.filter((st) => !/^(parking_aisle|driveway|drive-through)$/.test(st.service ?? "")));
+    const islandRings = islandsFound.flatMap((f) => f.rings);
+    return placeParked(parkedSpots, {
+      aisles: parkingLines.length
+        ? (sources.streets?.lines ?? []).filter((l) => l.service === "parking_aisle").map((l) => ({ pts: l.pts.map((p) => proj.toLocal(p)), width: 6 }))
+        : [],
+      slots: (kerbside?.slots ?? []).filter((sl) => sl.street !== 0),
+      blocked: (x, y, kerb) => {
+        if (!inCover(x, y, 5)) return true;
+        const n = index.nearest(x, y, 40);
+        if (n && n.dist < index.at(n).width / 2 + 0.3) return true;
+        if (plan.roundabouts.some((rb) => Math.hypot(x - rb.c[0], y - rb.c[1]) < outerRadius(rb) + 0.5)) return true;
+        if (!kerb && through.clearance(x, y) < 0.2) return true;
+        return shown.some((b) => pointInRing(x, y, b.ring)) || islandRings.some((r) => pointInRing(x, y, r));
+      },
+    });
+  })() : null;
+  if (placedParked) bayQuads = placedParked.bays;
+  let parked: PlacedCar[] = placedParked ? placedParked.cars : parkedSpots.filter(({ at: [x, y] }) => {
     // On the detailed ground only (the horizon mesh sits at another height).
     const n = index.nearest(x, y, opts.corridor - 5);
     if (!inCover(x, y, 5) || (n && n.dist < index.at(n).width / 2 + 0.5)) return false;
@@ -1934,8 +1960,15 @@ export async function buildTrack(
   // Added to the scene now the traffic lanes are known (none sits in a lane): the cars culled with
   // the other detail, their collision boxes with the walls.
   if (parked.length) {
-    // On the base's ground as built (sceneGround.ts).
-    const parkedMeshes = buildParkedCars(parked, ground);
+    // On the base's ground as built (sceneGround.ts), or the car park bays' pads over it (parkedPlacement.ts).
+    const pads = bayQuads.length ? buildBayPads(bayQuads, ground) : [];
+    if (pads.length) model.root.children.push(group("CARPARKS", pads));
+    const padTop = pads.length ? topSurface(pads) : null;
+    const carGround = (x: number, y: number) => {
+      const g = ground(x, y), p = padTop?.(x, y);
+      return p != null && p > g ? p : g;
+    };
+    const parkedMeshes = buildParkedCars(parked, carGround);
     model.root.children.push(
       ...cullable([group("PARKED_CARS", parkedMeshes.filter((m) => !m.name.startsWith("1WALL")))]),
       group("PARKED_CAR_WALLS", parkedMeshes.filter((m) => m.name.startsWith("1WALL"))),
@@ -2105,6 +2138,7 @@ export async function buildTrack(
       carsPainted,
       parkedCars: parked.length,
       parkedDropped,
+      ...(placedParked ? { parkedBays: { carPark: parked.filter((c) => !c.kerb).length, kerb: parked.filter((c) => c.kerb).length, dropped: placedParked.dropped } } : {}),
       ...(kerbside ? { kerbside: { bays: kerbside.bays, bikeLaneMetres: Math.round(kerbside.bikeLaneMetres), symbols: kerbside.symbols } } : {}),
       ...(signals ? { trafficLights: { sites: signalSites.length, poles: signals.poles, heads: signals.heads, working: signalSites.filter((st) => st.sidesOk).length } } : {}),
       housesLooked,

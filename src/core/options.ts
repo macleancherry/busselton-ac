@@ -128,6 +128,12 @@ export interface BuildOptions {
   /** Low-poly cars where the photo had parked cars (needs carParks). */
   parkedCars: boolean;
   /**
+   * Busselton fork: parked cars only in real bays (parkedPlacement.ts): car park bays along mapped
+   * aisles, on an asphalt pad, and kerbside bays kerbside.ts painted; never two overlapping. On unless
+   * false; false puts them back where the photo had them, as before.
+   */
+  parkedBays?: boolean;
+  /**
    * Busselton fork: kerbside parking bays and bike lanes painted on town streets, from OSM parking and
    * cycleway tags, and bays where the photo shows cars parked along the kerb (kerbside.ts; needs markings).
    */

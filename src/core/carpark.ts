@@ -86,21 +86,33 @@ function components(mask: Uint8Array, size: number, maxPixels: number): number[]
   return out;
 }
 
-/** A parked car found in the photo: centre in pixels, which way it points (unit, image axes: y down), and its colour (0-1). */
+/**
+ * A parked car found in the photo: centre in pixels, which way it points (unit, image axes: y down),
+ * and its colour (0-1). `row` says how its blob was split: "end" (one of several end to end along a
+ * kerb), "nose" (one of a row side by side), or left out for a blob of one car. The direction of a
+ * car split out of a row is a guess from the blob's shape; placement (parkedPlacement.ts) trusts the
+ * mapped aisle or street over it.
+ */
 export interface CarSpot {
   px: number;
   py: number;
   dir: [number, number];
   rgb: [number, number, number];
+  row?: "end" | "nose";
 }
 
-/**
- * The cars in one painted-out blob: a single car, a row parked end to end along a kerb, or a row
- * (or two back to back) parked nose-in across a car park. The blob's long axis says which: a blob
- * under 3 m wide is cars end to end, 3 to 6.5 m one row of bays, wider two.
- */
-export function carsInBlob(comp: number[], size: number, mpp: number, rgba: Uint8Array | Uint8ClampedArray): CarSpot[] {
-  if (comp.length < 4) return [];
+/** A blob's principal frame: centre, long axis `ax`, cross axis `bx`, extents (pixels) and size (metres). */
+export interface BlobFrame {
+  mx: number;
+  my: number;
+  ax: [number, number];
+  bx: [number, number];
+  u0: number; u1: number; v0: number; v1: number;
+  L: number;
+  W: number;
+}
+
+export function blobFrame(comp: number[], size: number, mpp: number): BlobFrame {
   let mx = 0, my = 0;
   for (const i of comp) { mx += i % size; my += (i / size) | 0; }
   mx /= comp.length; my /= comp.length;
@@ -122,11 +134,59 @@ export function carsInBlob(comp: number[], size: number, mpp: number, rgba: Uint
     return [a[Math.floor(a.length * 0.02)], a[Math.floor(a.length * 0.98)]];
   };
   const [u0, u1] = span(us), [v0, v1] = span(vs);
-  const L = (u1 - u0 + 1) * mpp, W = (v1 - v0 + 1) * mpp;
+  return { mx, my, ax, bx, u0, u1, v0, v1, L: (u1 - u0 + 1) * mpp, W: (v1 - v0 + 1) * mpp };
+}
+
+/** What tells a strip from a row of cars: length (m), pale fraction, narrow gaps along it, and how much its brightness varies along it. */
+export function stripStats(comp: number[], size: number, mpp: number, rgba: Uint8Array | Uint8ClampedArray, f: BlobFrame = blobFrame(comp, size, mpp)) {
+  let pale = 0;
+  // Brightness along the long axis, in 1 m bins: how much it changes from one car-length to the next.
+  const bin = Math.max(1, Math.round(1 / mpp));
+  const nb = Math.ceil((f.u1 - f.u0 + 1) / bin) + 1;
+  const sum = new Float64Array(nb), cnt = new Float64Array(nb);
+  for (const i of comp) {
+    const r = rgba[i * 4] / 255, g = rgba[i * 4 + 1] / 255, b = rgba[i * 4 + 2] / 255;
+    const l = (r + g + b) / 3, mx = Math.max(r, g, b), mn = Math.min(r, g, b);
+    if (l > 0.55 && (mx - mn) / (mx || 1) < 0.15) pale++;
+    const u = ((i % size) - f.mx) * f.ax[0] + (((i / size) | 0) - f.my) * f.ax[1];
+    const k = Math.max(0, Math.min(nb - 1, Math.floor((u - f.u0) / bin)));
+    sum[k] += l;
+    cnt[k]++;
+  }
+  const full: number[] = [], means: number[] = [];
+  for (let k = 0; k < nb; k++) if (cnt[k]) { full.push(cnt[k]); means.push(sum[k] / cnt[k]); }
+  const sorted = full.slice().sort((x, y) => x - y), med = sorted[sorted.length >> 1] ?? 0;
+  // (The end bins are part-filled by the blob's ragged ends: not gaps.)
+  const gaps = full.slice(1, -1).filter((c) => c < 0.45 * med).length;
+  const m = means.reduce((x, v) => x + v, 0) / (means.length || 1);
+  const sd = Math.sqrt(means.reduce((x, v) => x + (v - m) ** 2, 0) / (means.length || 1));
+  return { L: f.L, W: f.W, pale: pale / comp.length, gaps, sd };
+}
+
+/**
+ * A long strip that isn't cars: a footpath, kerb or fence line beside a street. Longer than two cars
+ * end to end (12 m), narrow (cars side by side make a row 4 m or more across), and even along its
+ * length: a row of parked cars changes brightness from car to car (white, silver, dark) and narrows
+ * at the gaps between them, where a footpath or a kerb shadow stays the same all along.
+ */
+export function isStrip(comp: number[], size: number, mpp: number, rgba: Uint8Array | Uint8ClampedArray, f: BlobFrame = blobFrame(comp, size, mpp)): boolean {
+  if (f.L < 12) return false;
+  const st = stripStats(comp, size, mpp, rgba, f);
+  return st.gaps === 0 && st.sd < (st.pale > 0.6 ? 0.08 : 0.05);
+}
+
+/**
+ * The cars in one painted-out blob: a single car, a row parked end to end along a kerb, or a row
+ * (or two back to back) parked nose-in across a car park. The blob's long axis says which: a blob
+ * under 3 m wide is cars end to end, 3 to 6.5 m one row of bays, wider two.
+ */
+export function carsInBlob(comp: number[], size: number, mpp: number, rgba: Uint8Array | Uint8ClampedArray): CarSpot[] {
+  if (comp.length < 4) return [];
+  const { mx, my, ax, bx, u0, u1, v0, v1, L, W } = blobFrame(comp, size, mpp);
   if (W < 1.2) return [];
   const inBlob = new Set(comp);
   const out: CarSpot[] = [];
-  const place = (u: number, v: number, dir: [number, number]) => {
+  const place = (u: number, v: number, dir: [number, number], row?: "end" | "nose") => {
     const px = mx + ax[0] * u + bx[0] * v, py = my + ax[1] * u + bx[1] * v;
     const c = Math.round(py) * size + Math.round(px);
     if (!inBlob.has(c)) return;
@@ -140,18 +200,18 @@ export function carsInBlob(comp: number[], size: number, mpp: number, rgba: Uint
         sr += rgba[j * 4]; sg += rgba[j * 4 + 1]; sb += rgba[j * 4 + 2]; k++;
       }
     }
-    out.push({ px, py, dir, rgb: [sr / k / 255, sg / k / 255, sb / k / 255] });
+    out.push({ px, py, dir, rgb: [sr / k / 255, sg / k / 255, sb / k / 255], ...(row ? { row } : {}) });
   };
   const um = (u0 + u1) / 2, vm = (v0 + v1) / 2;
   if (W <= 3) {
     // End to end along the long axis (or one car).
     const n = Math.max(1, Math.round(L / 5.6));
-    for (let k = 0; k < n; k++) place(um + ((k + 0.5) / n - 0.5) * (u1 - u0), vm, ax);
+    for (let k = 0; k < n; k++) place(um + ((k + 0.5) / n - 0.5) * (u1 - u0), vm, ax, n > 1 ? "end" : undefined);
   } else {
     // Nose-in bays across the long axis, one row or two back to back.
     const n = Math.max(1, Math.round(L / 2.6));
     const rows = W > 6.5 ? [vm - (v1 - v0) / 4, vm + (v1 - v0) / 4] : [vm];
-    for (const v of rows) for (let k = 0; k < n; k++) place(um + ((k + 0.5) / n - 0.5) * (u1 - u0), v, bx);
+    for (const v of rows) for (let k = 0; k < n; k++) place(um + ((k + 0.5) / n - 0.5) * (u1 - u0), v, bx, n > 1 || rows.length > 1 ? "nose" : undefined);
   }
   return out;
 }
@@ -283,6 +343,12 @@ export function paintOutCars(
       }
     }
     if (smooth < 0.4 * ringN) { no(`ring ${(smooth / ringN).toFixed(2)}`); continue; }
+    // A footpath or kerb line beside a street, not a row of cars (and not painted out of the photo):
+    // even all along, or longer than 25 m away from any car park (a row of ten cars side by side
+    // happens in a car park; along a street the gaps between parked cars break a row up).
+    const f0 = blobFrame(comp, size, mpp);
+    const middle = Math.round(f0.my) * size + Math.round(f0.mx);
+    if (isStrip(comp, size, mpp, rgba, f0) || (f0.L > 25 && carParks && !carParks[middle])) { no("strip"); continue; }
     cars++;
     spots.push(...carsInBlob(comp, size, mpp, rgba));
     // Paint out the blob and a pixel round it (shadow edges, antialiasing).
