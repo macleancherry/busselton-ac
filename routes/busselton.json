@@ -56,22 +56,43 @@
   "corridor": 60,
   "area": [
    [
-    115.33,
-    -33.6556
+    [
+     115.33,
+     -33.6556
+    ],
+    [
+     115.3505,
+     -33.6556
+    ],
+    [
+     115.3505,
+     -33.6458
+    ],
+    [
+     115.33,
+     -33.6458
+    ]
    ],
    [
-    115.3505,
-    -33.6556
-   ],
-   [
-    115.3505,
-    -33.6458
-   ],
-   [
-    115.33,
-    -33.6458
+    [
+     115.342,
+     -33.6459
+    ],
+    [
+     115.349,
+     -33.6459
+    ],
+    [
+     115.349,
+     -33.644
+    ],
+    [
+     115.342,
+     -33.644
+    ]
    ]
-  ]
+  ],
+  "_areaNote": "The town centre and, since 30 Oct, the jetty precinct (Foreshore Pde, Jetty Way, the Visitor Centre, The Goose, the Hilton) as a second polygon: it was only horizon scenery before."
  },
  "layout": {
   "id": "foreshore",

@@ -49,17 +49,17 @@ AC can't load the whole South West as one map, so it's a set of tracks, each ins
 
 ---
 
-## Phase A: Generate, freeze, polish (the tooling) 🔨
+## Phase A: Generate, freeze, polish (the tooling) ✅
 
 What makes polishing cheap. First, because every landmark after it is quicker.
 
-- ⬜ **A1. Base and polish split.**
+- ✅ **A1. Base and polish split.**
   - Landmarks (spec buildings) compile to their own layer `.kn5`s in seconds, outside the base build, clearing the generated buildings they stand on (the layer system already does this).
   - A polish-only build updates an installed track without regenerating it.
   - The automatic test and the checks work on base plus layers.
-- ⬜ **A2. Per-track input snapshots.** Pin a track's map data, imagery, heights and Mapillary detections into a snapshot (in the share, with a manifest in the repo), and build from it offline. The pieces exist: the download cache (14 days), `JETTY_SNAPSHOT`, fixed map origins.
-- ⬜ **A3. Base upgrades.** Rebuild from the snapshot, run every check and `render_diff`, and show what changed; then accept or roll back. Refresh a snapshot only on purpose (e.g. new OSM edits).
-- ⬜ **A4. One folder per track** (`tracks/<name>/`, private ones under `routes/private/`): route, snapshot manifest, landmarks, layers, notes, and a status page.
+- ✅ **A2. Per-track input snapshots.** Pin a track's map data, imagery, heights and Mapillary detections into a snapshot (in the share, with a manifest in the repo), and build from it offline. Two builds from the same snapshot are byte-identical.
+- ✅ **A3. Base upgrades.** Rebuild from the snapshot, run every check and `render_diff`, and show what changed; then accept or roll back. Refresh a snapshot only on purpose (e.g. new OSM edits).
+- ✅ **A4. One folder per track** (`tracks/<name>/`, private ones under `routes/private/`): route, snapshot manifest, landmarks, layers, notes, and a status page.
 - ✅ **Already in place:**
   - spec buildings with yards and lettered signs (`specHouse.ts`)
   - surface textures (brick, timber, canvas, steel)
@@ -72,8 +72,7 @@ What makes polishing cheap. First, because every landmark after it is quicker.
 ## Phase B: Busselton, polished (the template for every showcase area) 🔨
 
 - 🔨 **Landmarks** ([docs/landmarks.md](docs/landmarks.md)):
-  - ✅ built: the jetty precinct, Rocky Ridge
-  - 🔨 being specced: the Esplanade Hotel, The Goose, the Old Courthouse group, the Hilton Garden Inn, the Visitor Centre, the Busselton Museum
+  - ✅ built: the jetty precinct, Rocky Ridge, the Esplanade Hotel, The Goose, the Old Courthouse group, the Hilton Garden Inn, the Visitor Centre, the Busselton Museum (the jetty precinct's streets joined the built area for them)
   - ⬜ to do: the foreshore playground and sculptures, the foreshore cafes, the yacht club, the cinema, the pubs, the cemetery, the fire station, the parks
   - private landmarks: listed in `routes/private/landmarks/` (photos of their street faces still needed)
 - 🔨 **Houses from the photo walk:** spec houses from Mac's street photos (`scripts/houses/photo_walk.py`), street by street. Waiting on the first street of photos.
@@ -100,7 +99,7 @@ Generated tracks across the region at a lighter detail level, rebuilt whenever t
   - It stops just west of Dunsborough: Yallingup, the capes and most of Caves Road fall back to about 30 m global heights, which smooth the hills.
   - ❓ Next: order the capes LiDAR from GA's ELVIS portal (free, links emailed), cut it into tiles.
 - 🔨 **Caves Road, Dunsborough to Yallingup:** route ready (`routes/caves-road.json`). Build once the heights are sorted.
-- ⬜ **A drive-anywhere preset:** country settings (wider terrain grid, corridor and horizon sized to the budget, gentle banking) so a new road is one route file. Check 30+ km roads and draw distances.
+- 🔨 **A drive-anywhere preset:** ✅ `"preset": "country"` (`scripts/headless/presets.mjs`). Still to do: country settings (wider terrain grid, corridor and horizon sized to the budget, gentle banking) so a new road is one route file. Check 30+ km roads and draw distances.
 - ⬜ **Country roadsides:** gravel shoulders, guideposts (done), Armco on bends and drop-offs, farm driveways, mailboxes, cattle grids.
 - ⬜ **Unsealed roads:** gravel surface physics, dust, a limestone gravel texture (Boranup, farm roads).
 - ⬜ **Landscape zones:** each with its own trees, ground and roadside.

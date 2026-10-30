@@ -1,0 +1,43 @@
+{
+ "history": [
+  {
+   "accepted": "2026-10-30",
+   "commit": "bbe4326",
+   "snapshot": "busselton-2026-10-30",
+   "triangles": 1387335,
+   "aiOffRoad": {
+    "foreshore": 0,
+    "town": 0,
+    "sights": 0,
+    "free_roam": 0
+   },
+   "passed": true
+  },
+  {
+   "accepted": "2026-10-30",
+   "commit": "bbe4326",
+   "snapshot": "busselton-2026-10-30",
+   "triangles": 1330932,
+   "aiOffRoad": {
+    "foreshore": 0,
+    "town": 0,
+    "sights": 0,
+    "free_roam": 0
+   },
+   "passed": true
+  }
+ ],
+ "current": {
+  "accepted": "2026-10-30",
+  "commit": "bbe4326",
+  "snapshot": "busselton-2026-10-30",
+  "triangles": 1387335,
+  "aiOffRoad": {
+   "foreshore": 0,
+   "town": 0,
+   "sights": 0,
+   "free_roam": 0
+  },
+  "passed": true
+ }
+}
