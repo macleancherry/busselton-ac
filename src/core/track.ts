@@ -17,6 +17,9 @@ import type { GroundDetail, GroundLayer } from "./ground";
 import { aiHintsIni, buildAiLine } from "./aiLine";
 import { Area, areaRings, makeCover } from "./area";
 import { buildJettyPrecinct, JETTY_MATERIALS, type JettyFeatures } from "./jetty";
+import jettyTrainScript from "./lua/jetty_train.lua?raw";
+import { jettyTrainLua } from "./jettyTrain";
+import { buildRaceFlags, flagMaterial, RACE_FLAG_MATERIAL, raceFlagTexture, takeRaceFlags } from "./flags";
 import { treeList, writeTreeBin } from "./cspTrees";
 import { CARD_FOR, MODEL_FOR, pickWeighted, speciesWeightsAt } from "./treeZones";
 import { MODEL_NAMES, treeModel } from "./treeModels";
@@ -1462,13 +1465,16 @@ export async function buildTrack(
     cutout("race_crowd", crowdTexture(false));
     cutout("race_spectators", crowdTexture(true));
   }
+  // Busselton fork: the marshal flags as cloth that waves (flags.ts), not printed faces.
+  const raceFlags = race && opts.wavingFlags !== false ? takeRaceFlags(race.pieces) : null;
+  if (raceFlags?.flags.length) addScenery("flag_race.png", raceFlagTexture(), flagMaterial(RACE_FLAG_MATERIAL, "flag_race.png"));
   const pieces = [
     ...(opts.streetSigns ? streetSigns(streetPlan, plan, opts, art) : []),
     ...(opts.landmarks ? landmarks((sources.pois ?? []).map((p) => ({ ...p, at: proj.toLocal(p.at) })), plan, index, opts, art,
       (x, y) => Math.min(streetIndex.clearance(x, y), ...kept.map((b) => (pointInside(x, y, b.ring) ? -1 : Infinity)))) : []),
     ...seenFeatures((sources.seen ?? []).map((f) => ({ ...f, at: proj.toLocal(f.at) })), plan, index, opts, art),
     // The race gantries replace the plain START and FINISH signs.
-    ...(race ? race.pieces : gateSigns(plan, opts, art)),
+    ...(race ? raceFlags?.rest ?? race.pieces : gateSigns(plan, opts, art)),
     // Busselton fork: kangaroo signs out of town (not on kerbed streets, limit 80 or more).
     ...(opts.streetSigns ? kangarooSigns(plan, opts, art, (i) => town[i] === 0 && speedAt(i) >= 80 && !kerbedNear[i],
       (i, side) => mouth(side, plan.samples[i].s) || streetPlan.junctions.some((j) => j.side === side && Math.abs(j.s - plan.samples[i].s) < j.width / 2 + 6)) : []),
@@ -1542,8 +1548,10 @@ export async function buildTrack(
         buildingScenery(`roof_${c.name}`, roofTexture(c), { ambient: 0.45, diffuse: 0.45, specular: 0.25, exp: 25 }, 4);
       }
       for (const so of sh.solids) {
+        // Busselton fork: flag cloth gets the flag shader, so it waves (flags.ts).
+        if (so.flag) addScenery(`${so.name}.png`, solidTexture(so.rgb), opts.wavingFlags === false ? material(so.name, `${so.name}.png`, { ambient: 0.5, diffuse: 0.5, specular: 0.05, exp: 10 }) : flagMaterial(so.name, `${so.name}.png`));
         // Busselton fork: yards and fittings get a surface texture with relief (brick, timber, canvas...).
-        if (so.surface) buildingScenery(so.name, surfaceTexture(so.surface, so.rgb), { ambient: 0.45, diffuse: 0.45, specular: so.surface === "steel" || so.surface === "colorbond" ? 0.25 : 0.06, exp: 15 }, so.surface === "brick" ? 4 : 2);
+        else if (so.surface) buildingScenery(so.name, surfaceTexture(so.surface, so.rgb), { ambient: 0.45, diffuse: 0.45, specular: so.surface === "steel" || so.surface === "colorbond" ? 0.25 : 0.06, exp: 15 }, so.surface === "brick" ? 4 : 2);
         else addScenery(`${so.name}.png`, solidTexture(so.rgb), material(so.name, `${so.name}.png`, { ambient: 0.45, diffuse: 0.45, specular: 0.1, exp: 10 }));
       }
       // Lettered signs: the browser's fonts when the build has them, else a plain board.
@@ -1725,7 +1733,7 @@ export async function buildTrack(
         group("ROAD", roadMeshes.road),
         group("SIDESTREETS", sideStreets),
         group("FURNITURE", furniture),
-        group("RACE", race?.nodes ?? []),
+        group("RACE", [...(race?.nodes ?? []), ...buildRaceFlags(raceFlags?.flags ?? [])]),
         group("WIRES", utilities.wires),
         group("ROUNDABOUTS", [...ringsClear.nodes, ...shrubs, ...ringWalls]),
         group("MARKINGS", markings),
@@ -1906,10 +1914,15 @@ export async function buildTrack(
       // The speed limit at each 1% of the lap, km/h, so the test drives at the limit.
       .replace("__LIMITS__", Array.from({ length: 100 }, (_, k) => speedAt(Math.min(nS - 1, Math.round(((k + 0.5) / 100) * (nS - 1))))).join(", "))) } : {}),
     ...cspTreeFiles,
+    // Busselton fork: the jetty train's track script (jettyTrain.ts), which runs it along the jetty.
+    ...(jettyPrecinct.train && opts.jettyTrain !== false ? { [`${slug}/extension/jetty_train.lua`]: enc.encode(jettyTrainLua(jettyTrainScript, jettyPrecinct.train)) } : {}),
     // Busselton fork: the AO bakery's settings, next to the models_*.ini it bakes (bake-vao.ps1).
     [`${slug}/baked_shadow_params.ini`]: enc.encode(bakedShadowParams()),
     [`${slug}/extension/ext_config.ini`]: enc.encode(extConfig([...utilities.lights, ...carPark.lights, ...jettyLamps.lights], {
       autotest: opts.traffic,
+      // Busselton fork: flags in the wind (landmark layers laid over later need it too), the jetty train.
+      flags: opts.wavingFlags !== false,
+      jettyTrain: !!jettyPrecinct.train && opts.jettyTrain !== false,
       // Busselton fork: south-west WA's dry summer, and the bay.
       drySummer: centre[0] > 112 && centre[0] < 119.5 && centre[1] < -30 && centre[1] > -36,
       sea: ocean.length > 0,

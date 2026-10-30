@@ -39,6 +39,7 @@ Online sources almost never give engineering dimensions (deck height, pile spaci
 | Stations | Shore: **Roy Morris Platform** (115.34470, -33.64411, s ≈ 169 m, sheltered, beside the Interpretive Centre). End: **Bovell Platform** (115.33865, -33.63024, s ≈ 1,825 m, no shelter). **No mid stops** | [OSM] + [C] | OSM nodes 5554476818 and 5554478244, ways 580145705 and 580145711; official site lists no intermediate stops |
 | Timetable | **Hourly, on the hour.** Round trip about 45 min: **20 min out, 5 min at the end, 20 min back.** Jetty day-pass hours 7:30 am to 7:15 pm. The jetty itself is open 24/7 | [C] | [busseltonjetty.com.au](https://busseltonjetty.com.au/) |
 | Implied speed | 1.65 km in 20 min ≈ **5 km/h** (walking pace) | derived | Good for an animated train in AC. |
+| In the build | The train stands centred on the shore platform; with CSP, `extension/jetty_train.lua` runs it to the far platform on the hour from 9:00 to 17:00 (first and last departures [G]), waits 5 min and comes back pushed (no loop at the end, so it must reverse; whether it has a cab at each end is [G]). Red body, white waistband and canopy, dark solar panels and running gear | build | `src/core/jettyTrain.ts`, docs/csp.md "Animated objects" |
 | Level crossing | `railway=crossing` on land at 115.34497, -33.64451 (shared path crossing, no lights or barriers) | [OSM] | node 2669163013 |
 
 ## 3. Shore end: Interpretive Centre and foreshore

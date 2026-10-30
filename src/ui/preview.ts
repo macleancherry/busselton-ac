@@ -4,7 +4,7 @@
 
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
-import type { Kn5Model, Kn5Node, Kn5Texture } from "../core/kn5";
+import { IDENTITY, type Kn5Model, type Kn5Node, type Kn5Texture } from "../core/kn5";
 import type { RoadPlan } from "../core/road";
 import { toAc } from "../core/mesh";
 
@@ -83,9 +83,18 @@ export async function createPreview(
   }
 
   const meshes: THREE.Mesh[] = [];
-  const add = (n: Kn5Node) => {
+  const add = (n: Kn5Node, parent: THREE.Object3D = scene) => {
     if (n.kind === "node") {
-      n.children.forEach(add);
+      // Busselton fork: a node that isn't at the origin (the jetty train's cars) carries its own
+      // frame. kn5's row-major transform is three.js's column-major layout as it stands.
+      let into = parent;
+      if (n.transform.some((v, i) => v !== IDENTITY[i])) {
+        into = new THREE.Group();
+        into.matrixAutoUpdate = false;
+        into.matrix.fromArray(n.transform);
+        parent.add(into);
+      }
+      n.children.forEach((c) => add(c, into));
       return;
     }
     if (n.renderable === false) return;
@@ -96,7 +105,7 @@ export async function createPreview(
     g.setIndex(new THREE.BufferAttribute(n.indices, 1));
     const mesh = new THREE.Mesh(g, materials.get(n.material));
     meshes.push(mesh);
-    scene.add(mesh);
+    parent.add(mesh);
   };
   add(model.root);
 

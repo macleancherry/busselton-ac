@@ -5,14 +5,15 @@
 //   sleepers, on the deck;
 // - its platforms, raised a little off the deck, with a shelter roof where OSM says there is one;
 // - the train itself (red loco styled like a cartoon steam engine, four open carriages with roofs),
-//   standing at the shore platform;
+//   standing at the shore platform, each car a node the track script can move (jettyTrain.ts);
 // - buildings on the jetty: the Interpretive Centre's row of blue gabled "boatsheds" with white tin
 //   roofs, and the Underwater Observatory's round pavilion on its concrete drum at the far end.
 //
 // Visual only: the jetty isn't somewhere to drive. Measurements nobody publishes (sleeper spacing,
 // platform height, shed eaves) are typical values, marked in docs/jetty.md as guesses to check.
 
-import type { Kn5MeshNode } from "./kn5";
+import type { Kn5Node } from "./kn5";
+import { buildJettyTrain, trainLength, type JettyTrain } from "./jettyTrain";
 import { MeshBuilder, type Vec3 } from "./mesh";
 import { box, ChunkedMesh } from "./scenery";
 import { pad } from "./roadMesh";
@@ -167,7 +168,10 @@ function inside(p: Vec2, ring: Vec2[]): boolean {
 }
 
 export interface JettyPrecinct {
-  nodes: Kn5MeshNode[];
+  /** Meshes, and the train's cars as nodes of their own (so CSP can move them). */
+  nodes: Kn5Node[];
+  /** The train and its line, for the track script that runs it (jettyTrain.ts). */
+  train?: JettyTrain;
   /** Outlines of the buildings drawn here, so the generic building generator leaves them alone. */
   footprints: Vec2[][];
 }
@@ -177,7 +181,7 @@ export interface JettyPrecinct {
  * outline. `water`: the sea surface height.
  */
 export function buildJettyPrecinct(f: JettyFeatures, deckZ: (x: number, y: number) => number, onJetty: (x: number, y: number) => boolean, water: number): JettyPrecinct {
-  const nodes: Kn5MeshNode[] = [];
+  const nodes: Kn5Node[] = [];
   const footprints: Vec2[][] = [];
   const near = (p: Vec2, r: number) => onJetty(p[0], p[1]) || [0, 1, 2, 3].some((k) => onJetty(p[0] + Math.cos(k * Math.PI / 2) * r, p[1] + Math.sin(k * Math.PI / 2) * r));
 
@@ -274,54 +278,34 @@ export function buildJettyPrecinct(f: JettyFeatures, deckZ: (x: number, y: numbe
   if (pavilion.vertexCount) nodes.push(pavilion.toKn5("JETTY_OBSERVATORY", "jetty_trim"));
   if (pavilionRoof.vertexCount) nodes.push(pavilionRoof.toKn5("JETTY_OBSERVATORY_ROOF", "jetty_drum"));
 
-  // The train, standing at the platform nearest the shore end of the line.
+  // The train (jettyTrain.ts): its cars stand at the platform nearest the shore end of the line,
+  // and the track script runs them out to the platform nearest the far end and back.
+  let train: JettyTrain | undefined;
   const shoreLine = onDeckLines.sort((a, b) => b.length - a.length)[0];
   if (shoreLine && f.platforms.length) {
     const pc = f.platforms.map((p) => centroid(p.pts)).filter((q) => near(q, 6));
-    // The platform nearest the line's first (shore) end.
-    const start = shoreLine[0];
-    const target = pc.sort((a, b) => Math.hypot(a[0] - start[0], a[1] - start[1]) - Math.hypot(b[0] - start[0], b[1] - start[1]))[0];
-    if (target) {
-      // Index of the line point nearest the platform; the train runs back from there toward the shore.
+    const nearestIndex = (q: Vec2) => {
       let k = 0, bd = Infinity;
-      shoreLine.forEach((q, i) => { const d = Math.hypot(q[0] - target[0], q[1] - target[1]); if (d < bd) [bd, k] = [d, i]; });
-      const body = new MeshBuilder(), dark = new MeshBuilder();
-      body.normals = []; dark.normals = [];
-      const at = (i: number) => {
-        const j = Math.max(1, Math.min(shoreLine.length - 1, i));
-        const a = shoreLine[j - 1], b = shoreLine[j];
-        const l = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;
-        return { p: shoreLine[Math.max(0, Math.min(shoreLine.length - 1, i))], d: [(b[0] - a[0]) / l, (b[1] - a[1]) / l] as Vec2 };
-      };
-      // Loco (3.5 m) then four carriages (6.5 m each), 0.6 m apart, back along the line.
-      const units = [3.5, 6.5, 6.5, 6.5, 6.5];
-      let back = 0;
-      units.forEach((len, u) => {
-        const mid = at(Math.round(k - (back + len / 2) / SLEEPER_STEP));
-        const z = deckZ(mid.p[0], mid.p[1]) + 0.22;
-        if (u === 0) {
-          // Loco: a low boiler body, a cab, and a dark chimney.
-          box(body, mid.p, mid.d, len, 1.6, z + 0.35, z + 1.6);
-          const cab: Vec2 = [mid.p[0] - mid.d[0] * 1.0, mid.p[1] - mid.d[1] * 1.0];
-          box(body, cab, mid.d, 1.4, 1.8, z + 0.35, z + 2.4);
-          box(dark, cab, mid.d, 1.6, 2.0, z + 2.4, z + 2.55);
-          const chimney: Vec2 = [mid.p[0] + mid.d[0] * 1.2, mid.p[1] + mid.d[1] * 1.2];
-          drum(dark, chimney, 0.22, z + 1.6, z + 2.4, 10);
-        } else {
-          // Open carriage: a floor and low sides in red, posts, and a dark roof (the solar panels).
-          box(body, mid.p, mid.d, len, 2.0, z + 0.35, z + 0.95);
-          for (const s of [-1, 1]) for (const t of [-1, 1]) {
-            const c: Vec2 = [mid.p[0] + mid.d[0] * s * (len / 2 - 0.15) - mid.d[1] * t * 0.9, mid.p[1] + mid.d[1] * s * (len / 2 - 0.15) + mid.d[0] * t * 0.9];
-            box(body, c, mid.d, 0.1, 0.1, z + 0.95, z + 2.45);
-          }
-          box(dark, mid.p, mid.d, len + 0.1, 2.2, z + 2.45, z + 2.55);
-        }
-        back += len + 0.6;
-      });
-      nodes.push(body.toKn5("JETTY_TRAIN", "jetty_train"), dark.toKn5("JETTY_TRAIN_ROOFS", "jetty_train_dark"));
+      shoreLine.forEach((p, i) => { const d = Math.hypot(p[0] - q[0], p[1] - q[1]); if (d < bd) [bd, k] = [d, i]; });
+      return k;
+    };
+    const byDistance = (end: Vec2) => [...pc].sort((a, b) => Math.hypot(a[0] - end[0], a[1] - end[1]) - Math.hypot(b[0] - end[0], b[1] - end[1]));
+    const target = byDistance(shoreLine[0])[0];
+    if (target) {
+      const far = byDistance(shoreLine[shoreLine.length - 1])[0];
+      // The line's points are a metre apart (SLEEPER_STEP), so an index is (near enough) metres along it.
+      // The train stands centred on each platform (the loco's nose half a train past its middle).
+      const park = nearestIndex(target) * SLEEPER_STEP + trainLength() / 2;
+      const end = far && far !== target ? nearestIndex(far) * SLEEPER_STEP + trainLength() / 2 : (shoreLine.length - 2) * SLEEPER_STEP;
+      // Rail top: sleepers 0.1 m, rails 0.12 m on the deck.
+      const built = buildJettyTrain(shoreLine.map((q): [number, number, number] => [q[0], q[1], deckZ(q[0], q[1]) + 0.22]), park, end);
+      if (built) {
+        train = built;
+        nodes.push(...built.nodes);
+      }
     }
   }
-  return { nodes, footprints };
+  return { nodes, footprints, train };
 }
 
 /** Whether a point is inside any of the outlines. */

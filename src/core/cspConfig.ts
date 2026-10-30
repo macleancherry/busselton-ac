@@ -17,6 +17,8 @@
 //   that takes drops, and line paint marked for the physics (slippery wet).
 // - Shadows: thin two-sided things (fences, signs, tree sprites) cast them
 //   without acne.
+// - Busselton fork: flags wave in the wind (flags.ts) and the jetty train
+//   runs on its timetable (a track script, jettyTrain.ts).
 //
 // Syntax follows CSP's documentation (acc-extension-config wiki: Tracks -
 // Lights, Conditions, Grass FX, RainFX) and its shipped configs for Kunos
@@ -26,6 +28,8 @@ import type { Vec3 } from "./mesh";
 import type { Hollow } from "./rainHollows";
 import { soundConfig, soundScriptConfig, type SoundEmitter, type SoundMode } from "./trackSounds";
 import { pureSections, type AtmosphereInput } from "./pureConfig";
+import { flagCspLines } from "./flags";
+import { jettyTrainConfig } from "./jettyTrain";
 
 const f = (v: number) => v.toFixed(2);
 
@@ -58,6 +62,10 @@ export interface CspOptions {
   soundMode?: SoundMode;
   /** Busselton fork: Pure tuning from the build (pureConfig.ts); without it, CSP's generic [PURE] values. */
   pure?: AtmosphereInput;
+  /** Busselton fork: flags (ksFlags meshes) wave in CSP's wind (flags.ts). */
+  flags?: boolean;
+  /** Busselton fork: load extension/jetty_train.lua, which runs the jetty train (jettyTrain.ts). */
+  jettyTrain?: boolean;
 }
 
 /** Busselton fork: what CSP's RainFX height map is built from: the ground and roads, not buildings or trees. */
@@ -286,8 +294,10 @@ export function extConfig(lights: Vec3[], opts: CspOptions = {}): string {
     );
   }
   if (opts.sounds?.length && opts.soundMode === "fmod") lines.push(...soundConfig(opts.sounds));
+  if (opts.flags) lines.push(...flagCspLines());
   if (opts.autotest) lines.push("[SCRIPT_0]", "SCRIPT = autotest.lua", "");
   if (opts.sounds?.length && opts.soundMode !== "fmod") lines.push(...soundScriptConfig(opts.autotest ? 1 : 0));
+  if (opts.jettyTrain) lines.push(...jettyTrainConfig());
   return lines.join("\r\n");
 }
 

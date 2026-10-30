@@ -17,11 +17,12 @@ describe("jetty precinct", () => {
       ],
     }, deck, onJetty, 0.25);
     const names = p.nodes.map((n) => n.name);
-    expect(names).toEqual(expect.arrayContaining(["JETTY_RAIL_000", "JETTY_SLEEPERS_000", "JETTY_PLATFORMS", "JETTY_SHELTER_ROOF", "JETTY_SHEDS", "JETTY_SHED_ROOFS", "JETTY_OBSERVATORY", "JETTY_OBSERVATORY_DRUM", "JETTY_TRAIN"]));
+    expect(names).toEqual(expect.arrayContaining(["JETTY_RAIL_000", "JETTY_SLEEPERS_000", "JETTY_PLATFORMS", "JETTY_SHELTER_ROOF", "JETTY_SHEDS", "JETTY_SHED_ROOFS", "JETTY_OBSERVATORY", "JETTY_OBSERVATORY_DRUM", "JETTY_TRAIN_0", "JETTY_TRAIN_4"]));
     // Only the two on the jetty are taken over from the generic buildings.
     expect(p.footprints).toHaveLength(2);
     // Rails only on the deck (not the 50 m on land), at deck height.
     const rail = p.nodes.find((n) => n.name === "JETTY_RAIL_000")!;
+    if (rail.kind !== "mesh") throw new Error("rails are a mesh");
     let minZ = Infinity, maxSouth = -Infinity;
     for (let i = 0; i < rail.positions.length; i += 3) {
       minZ = Math.min(minZ, rail.positions[i + 1]);
@@ -31,6 +32,29 @@ describe("jetty precinct", () => {
     expect(maxSouth).toBeLessThan(1); // AC z = -north: nothing south of the jetty's start
     // Four or so sheds across a 26 m long outline.
     const roofs = p.nodes.find((n) => n.name === "JETTY_SHED_ROOFS")!;
+    if (roofs.kind !== "mesh") throw new Error("roofs are a mesh");
     expect(roofs.indices.length / 6).toBeGreaterThanOrEqual(6);
+  });
+
+  it("parks the train centred on the shore platform, ready to run to the far one", () => {
+    const p = buildJettyPrecinct({
+      railways: [[[1.5, -50], [1.5, 400]]],
+      platforms: [{ pts: [[-2.5, 30], [-2.5, 45]], shelter: true }, { pts: [[-2.5, 385], [-2.5, 398]], shelter: false }],
+      buildings: [],
+    }, deck, onJetty, 0.25);
+    const t = p.train!;
+    expect(t).toBeDefined();
+    // The line starts on the deck at y = 0; the shore platform's middle is at y = 37.5, the far one's at 391.5.
+    const loco = p.nodes.find((n) => n.name === "JETTY_TRAIN_0")!;
+    if (loco.kind !== "node") throw new Error("cars are nodes");
+    const tail = p.nodes.find((n) => n.name === "JETTY_TRAIN_4")!;
+    if (tail.kind !== "node") throw new Error("cars are nodes");
+    const mid = (-loco.transform[14] - tail.transform[14]) / 2;
+    expect(mid).toBeGreaterThan(33);
+    expect(mid).toBeLessThan(42);
+    expect(loco.transform[13]).toBeCloseTo(3.85 + 0.22);
+    // It runs out about 354 m (platform to platform), its nose stopping at most at the line's end.
+    expect(t.end - t.park).toBeGreaterThan(330);
+    expect(t.end).toBeLessThanOrEqual(t.path.s[t.path.s.length - 1]);
   });
 });
