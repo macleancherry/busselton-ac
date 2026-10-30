@@ -1,6 +1,14 @@
 {
-  "note": "Landmarks built from their own spec (src/core/specHouse.ts), loaded by any route that lists this file in \"looks\". \"at\" is the middle of each building's blocks (outbuildings left out).",
-  "houses": [
-    { "at": [115.342594, -33.647256], "specFile": "routes/landmarks/rocky_ridge.json", "name": "Rocky Ridge Brewing Co" }
-  ]
+ "note": "Landmarks built from their own spec (src/core/specHouse.ts), loaded by any route that lists this file in \"looks\". \"at\" is the middle of each building's blocks (outbuildings left out). \"facing\" is the compass bearing the front faces (else it faces the nearest road).",
+ "houses": [
+  {
+   "at": [
+    115.342594,
+    -33.647256
+   ],
+   "specFile": "routes/landmarks/rocky_ridge.json",
+   "name": "Rocky Ridge Brewing Co",
+   "facing": 345
+  }
+ ]
 }
