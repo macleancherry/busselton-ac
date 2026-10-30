@@ -47,7 +47,8 @@ import { decodeOwnPng, encodePng } from "./png";
 import { buildMarkings, type DiscreteMark } from "./markings";
 import { kerbsideForTrack, type KerbTags } from "./kerbside";
 import { buildTerrainChunk, makeTerrainFn, meshTop, planTerrainChunks, type TerrainChunk } from "./terrain";
-import { sceneGround, SINK, topSurface } from "./sceneGround";
+import { ROAD_SURFACE, sceneGround, SINK, topSurface } from "./sceneGround";
+import { onRoadFrom } from "./poleSpot";
 import { clearParked, ROUTE_ROAD } from "./parkedClear";
 import { armcoNeeds, buildArmco } from "./armco";
 import { BARRIERS, barrierTexture, detailTexture, normalFromHeight, windowTexture, flatNormalTexture, GROUND_TILE, groundDetail, groundMask, type GroundKind, mapsTexture, paintTexture, sealTexture, type SealKind, garageTexture, grassTexture, concreteTexture, postTexture, railTexture, solidTexture, vergeTexture } from "./textures";
@@ -1315,6 +1316,8 @@ export async function buildTrack(
   // and returns, the side streets, the roundabouts and the terrain. Where none covers a point (the sea,
   // past the corridor), the analytic terrain.
   const ground = sceneGround([...roadMeshes.road, ...roadMeshes.verge, ...sideStreets, ...kerbsClear.nodes, ...ringsClear.nodes, ...terrainNodes], terrainH);
+  // Busselton fork: the drivable surface as built; no pole or post stands on it (poleSpot.ts).
+  const poleOnRoad = opts.poleClear !== false ? onRoadFrom(topSurface([...roadMeshes.road, ...sideStreets, ...kerbsClear.nodes, ...ringsClear.nodes], ROAD_SURFACE)) : undefined;
 
   await progress("Placing scenery");
   const offRings = (spots: TreeSpot[]) => spots.filter((t) => !inRoundabout(plan, t.x, t.y, opts.vergeWidth + 3));
@@ -1485,7 +1488,7 @@ export async function buildTrack(
     groundZ: ground,
     onRoad: (x, y) => {
       const n = index.nearest(x, y, 30);
-      return (!!n && Math.abs(n.t) < index.at(n).width / 2 + 0.3) || streetIndex.clearance(x, y) < 0.3;
+      return (!!n && Math.abs(n.t) < index.at(n).width / 2 + 0.3) || streetIndex.clearance(x, y) < 0.3 || !!poleOnRoad?.(x, y);
     },
   }) : null;
   if (signals) for (const t of trafficLightMaterials()) addScenery(t.texture, t.png, t.material);
@@ -1504,7 +1507,7 @@ export async function buildTrack(
     poles: [...seenLocal.filter((f) => /^object--support--utility-pole/.test(f.value)).map((f) => f.at), ...osmLocal(sources.osm?.poles)],
     lamps: [...seenLocal.filter((f) => /^object--street-light/.test(f.value)).map((f) => f.at), ...osmLocal(sources.osm?.lamps)],
     lines: (sources.osm?.powerLines ?? []).map(osmLocal),
-  }, plan, index, opts, ground, (i) => town[i], (x, y) => streetIndex.clearance(x, y) < 1 || kept.some((b) => pointInRing(x, y, b.ring)));
+  }, plan, index, opts, ground, (i) => town[i], (x, y) => streetIndex.clearance(x, y) < 1 || kept.some((b) => pointInRing(x, y, b.ring)), poleOnRoad);
   // Busselton fork: car park lights along each car park aisle, beside the bays, clear of the road,
   // other aisles and streets, parked cars and buildings, inside the built corridor.
   const carPark = carParkLights(
@@ -1545,10 +1548,14 @@ export async function buildTrack(
   const raceFlags = race && opts.wavingFlags !== false ? takeRaceFlags(race.pieces) : null;
   if (raceFlags?.flags.length) addScenery("flag_race.png", raceFlagTexture(), flagMaterial(RACE_FLAG_MATERIAL, "flag_race.png"));
   const pieces = [
-    ...(opts.streetSigns ? streetSigns(streetPlan, plan, opts, art, ground) : []),
+    ...(opts.streetSigns ? streetSigns(streetPlan, plan, opts, art, ground, poleOnRoad) : []),
     ...(opts.landmarks ? landmarks((sources.pois ?? []).map((p) => ({ ...p, at: proj.toLocal(p.at) })), plan, index, opts, art,
       (x, y) => Math.min(streetIndex.clearance(x, y), ...kept.map((b) => (pointInside(x, y, b.ring) ? -1 : Infinity))), ground) : []),
-    ...seenFeatures((sources.seen ?? []).map((f) => ({ ...f, at: proj.toLocal(f.at) })), plan, index, opts, art, ground),
+    // Busselton fork: signals seen at a junction trafficLights.ts already signals are left to it (they
+    // were a second, cruder set of posts, several of them out in the side streets).
+    ...seenFeatures((sources.seen ?? []).map((f) => ({ ...f, at: proj.toLocal(f.at) }))
+      .filter((f) => !(signals && /^object--traffic-light/.test(f.value) && signalSites.some((st) => Math.hypot(st.c[0] - f.at[0], st.c[1] - f.at[1]) < 35))),
+    plan, index, opts, art, ground, poleOnRoad),
     // The race gantries replace the plain START and FINISH signs.
     ...(race ? raceFlags?.rest ?? race.pieces : gateSigns(plan, opts, art, ground)),
     // Busselton fork: kangaroo signs out of town (not on kerbed streets, limit 80 or more).

@@ -63,6 +63,8 @@ r = run("ground", "npx", ["tsx", "scripts/check/ground_check.ts", `out/${slug}.z
 results.push(r);
 summary.offGround = num(r.text, /off the ground \(over \d+ cm\): (\d+)/);
 summary.parkedOnRoad = num(r.text, /parked cars on a road: (\d+)/);
+summary.looseLamps = num(r.text, /lamp heads not on a pole: (\d+)/);
+summary.polesOnRoad = num(r.text, /poles on the road: (\d+)/);
 
 if (names.some((n) => n.endsWith("traffic.json"))) {
   r = run("traffic", "python3", ["-I", "scripts/check/traffic_check.py", `out/${slug}.zip`, `out/${slug}.surface.json`]);

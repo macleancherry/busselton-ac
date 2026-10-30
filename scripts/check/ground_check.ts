@@ -4,10 +4,13 @@
 // Reads the track's main kn5 from the zip. Fails when any placed piece (furniture, traffic lights,
 // trees, buildings, shops, fences, farm, paths, lots, posts, parked cars) has its whole base more than
 // the tolerance (5 cm) over or under the base's ground meshes, or a parked car is over the route's road.
+// Also fails on street lights whose lamp head isn't joined to a pole standing on the ground, and on
+// poles and posts standing on a drivable mesh (src/core/poleCheck.ts).
 import { readFileSync, writeFileSync } from "node:fs";
 import { unzipSync } from "fflate";
 import { readKn5 } from "../../src/core/kn5";
 import { checkGround } from "../../src/core/groundCheck";
+import { checkPoles } from "../../src/core/poleCheck";
 
 const args = process.argv.slice(2);
 const zipPath = args.find((a) => !a.startsWith("--") && a.endsWith(".zip"));
@@ -21,6 +24,7 @@ const name = Object.keys(files).find(isMain);
 if (!name) throw new Error(`no <slug>/<slug>.kn5 in ${zipPath}`);
 const model = readKn5(files[name]);
 const r = checkGround(model.root, { tolerance });
+const pc = checkPoles(model.root, { tolerance });
 
 const total = Object.values(r.checked).reduce((a, b) => a + b, 0);
 console.log(`pieces over the ground: ${total} (${Object.entries(r.checked).map(([g, n]) => `${g} ${n}`).join(", ")})`);
@@ -37,6 +41,11 @@ for (const o of worst) console.log(`  ${o.kind.padEnd(8)} ${(o.off * 100).toFixe
 for (const c of r.parkedOnRoad.slice(0, 20)) console.log(`  parked car on a road at x ${c.x.toFixed(1)}, z ${c.z.toFixed(1)}`);
 console.log(`off the ground (over ${(tolerance * 100).toFixed(0)} cm): ${r.off.length}`);
 console.log(`parked cars on a road: ${r.parkedOnRoad.length}`);
+for (const l of pc.looseLamps.slice(0, 20)) console.log(`  loose lamp head ${l.mesh} at x ${l.x.toFixed(1)}, z ${l.z.toFixed(1)}, ${l.up.toFixed(1)} m up`);
+for (const p of pc.polesOnRoad.slice(0, 20)) console.log(`  pole on the road ${p.mesh} at x ${p.x.toFixed(1)}, z ${p.z.toFixed(1)} (on ${p.road})`);
+console.log(`street lights: ${pc.lights}, poles and posts: ${pc.poles}`);
+console.log(`lamp heads not on a pole: ${pc.looseLamps.length}`);
+console.log(`poles on the road: ${pc.polesOnRoad.length}`);
 const json = opt("--json");
-if (json) writeFileSync(json, JSON.stringify({ tolerance, checked: r.checked, off: r.off, parkedOnRoad: r.parkedOnRoad }, null, 1));
-process.exit(r.off.length || r.parkedOnRoad.length ? 1 : 0);
+if (json) writeFileSync(json, JSON.stringify({ tolerance, checked: r.checked, off: r.off, parkedOnRoad: r.parkedOnRoad, looseLamps: pc.looseLamps, polesOnRoad: pc.polesOnRoad }, null, 1));
+process.exit(r.off.length || r.parkedOnRoad.length || pc.looseLamps.length || pc.polesOnRoad.length ? 1 : 0);

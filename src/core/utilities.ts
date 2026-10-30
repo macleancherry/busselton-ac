@@ -9,6 +9,11 @@
 // neighbouring poles on the same side of the street. A lamp beside a pole
 // is mounted on it, on an outreach arm over the road.
 //
+// Busselton fork: every lantern hangs under the end of its arm, and the arm starts inside its pole,
+// so the three are one piece (poleCheck.ts checks it). A seen lantern keeps its place: the pole goes
+// on the verge and the arm reaches to it. A pole in a median gets two arms. No pole stands on a built
+// drivable mesh (poleSpot.ts).
+//
 // Built-up streets with no lights known get them anyway, at a typical
 // spacing, on poles of their own (or on a known power pole nearby). Power
 // poles are never invented: newer estates have their power underground.
@@ -23,6 +28,7 @@ import { pad } from "./roadMesh";
 import { ChunkedMesh } from "./scenery";
 import { off, type Piece } from "./furniture";
 import { SINK } from "./sceneGround";
+import { clearSpot, type OnRoad } from "./poleSpot";
 
 /** Behind the kerb, on the nature strip or verge, metres from the road edge. */
 const SET_BACK = 1.0;
@@ -30,6 +36,11 @@ const POLE_H = 11;
 const ARM_H = 10.3; // crossarm, carrying the high-voltage conductors
 const LV_H = 8.4; // the low-voltage bundle, below
 const LAMP_H = 8.2;
+/** An outreach arm: at least this far, and at most this far, from its pole, metres. */
+const REACH_MIN = 1.5;
+const REACH_MAX = 4.5;
+/** How far past the road edge the lantern hangs, metres. */
+const OVER_ROAD = 1.2;
 /** Default street light spacing in town, metres. */
 const LIGHT_SPACING = 50;
 
@@ -51,6 +62,8 @@ interface Spot {
   z: number;
   /** Unit vector across the road, away from it. */
   out: Vec2;
+  /** Where a sighting put the lantern itself (over the road): the arm reaches to it. */
+  head?: Vec2;
 }
 
 export interface Utilities {
@@ -72,8 +85,31 @@ export function placeUtilities(
   town: (i: number) => number,
   /** No pole here (a side street, a driveway, a building). */
   blocked: (x: number, y: number) => boolean = () => false,
+  /**
+   * Busselton fork: true on a built drivable surface (poleSpot.ts). A pole whose foot lands on one
+   * (a side street, a junction's mouth) moves to the nearest clear spot, or is dropped.
+   */
+  onRoad?: OnRoad,
 ): Utilities {
-  const snap = (p: Vec2): Spot | null => {
+  // Off the asphalt, straight out first; null when there's nowhere clear close by.
+  const clear = (sp: Spot | null): Spot | null => {
+    if (!sp || !onRoad) return sp;
+    const at = clearSpot(sp.at, onRoad, { radius: 0.35, away: sp.out });
+    if (!at) return null;
+    return at === sp.at ? sp : { ...sp, at, z: ground(at[0], at[1]) };
+  };
+  const snap = (p: Vec2): Spot | null => clear(snapRaw(p));
+  // A street light sighting: Mapillary sees the lantern, which hangs over the road; the pole goes
+  // on the verge beside it and the arm reaches out to where it was seen.
+  const snapLamp = (p: Vec2): Spot | null => {
+    const sp = snap(p);
+    if (!sp) return null;
+    const n = index.nearest(p[0], p[1], opts.corridor - 2);
+    const d = Math.hypot(sp.at[0] - p[0], sp.at[1] - p[1]);
+    if (n && n.dist < plan.samples[n.seg].width / 2 && d >= REACH_MIN && d <= REACH_MAX) sp.head = p;
+    return sp;
+  };
+  const snapRaw = (p: Vec2): Spot | null => {
     const n = index.nearest(p[0], p[1], opts.corridor - 2);
     if (!n || inRoundabout(plan, p[0], p[1], 2)) return null;
     const s = plan.samples[n.seg];
@@ -95,7 +131,7 @@ export function placeUtilities(
   // Poles: sightings and mapped poles, then any line vertex not already one.
   const lineVerts = input.lines.flat();
   const poles = dedupe([...input.poles, ...lineVerts].map(snap).filter((p): p is Spot => !!p), 4);
-  const lamps = dedupe(input.lamps.map(snap).filter((p): p is Spot => !!p), 4);
+  const lamps = dedupe(input.lamps.map(snapLamp).filter((p): p is Spot => !!p), 4);
 
   // Default lights along the route in town, where nothing is known nearby.
   const known = [...lamps];
@@ -112,7 +148,8 @@ export function placeUtilities(
     if (near(known, at, LIGHT_SPACING * 0.6) || blocked(at[0], at[1]) || inRoundabout(plan, at[0], at[1], 3)) continue;
     // On a power pole if there's one close by.
     const pole = near(poles, at, 18);
-    const spot: Spot = pole ?? { at, i, side, z: ground(at[0], at[1]), out: [s.left[0] * side, s.left[1] * side] };
+    const spot = pole ?? clear({ at, i, side, z: ground(at[0], at[1]), out: [s.left[0] * side, s.left[1] * side] });
+    if (!spot) continue;
     known.push(spot);
     lamps.push(spot);
   }
@@ -129,18 +166,88 @@ export function placeUtilities(
     const s = plan.samples[l.i];
     const onPole = poles.find((p) => Math.hypot(p.at[0] - l.at[0], p.at[1] - l.at[1]) < 3);
     const base = onPole ?? l;
-    const toRoad: Vec2 = [-base.out[0], -base.out[1]];
+    // A steel pole of its own, unless it's on a power pole.
     if (!onPole) pieces.push({ kind: "box", at: base.at, along: s.tan, length: 0.16, depth: 0.16, z0: base.z - SINK, z1: base.z + LAMP_H + 0.3, material: "steel" });
-    // Outreach arm over the road, the lantern on its end.
-    const reach = 2.2;
-    const mid: Vec2 = [base.at[0] + toRoad[0] * reach / 2, base.at[1] + toRoad[1] * reach / 2];
-    const tip: Vec2 = [base.at[0] + toRoad[0] * reach, base.at[1] + toRoad[1] * reach];
-    pieces.push({ kind: "box", at: mid, along: toRoad, length: reach, depth: 0.07, z0: base.z + LAMP_H + 0.15, z1: base.z + LAMP_H + 0.24, material: "steel" });
-    pieces.push({ kind: "box", at: tip, along: toRoad, length: 0.7, depth: 0.32, z0: base.z + LAMP_H, z1: base.z + LAMP_H + 0.16, material: "lamp" });
-    lights.push([tip[0], tip[1], base.z + LAMP_H - 0.02]);
+    // Outreach arms over the road, a lantern under each one's end.
+    for (const arm of lampArms(base, l.head, plan, index, onRoad)) {
+      const built = outreach(base.at, base.z, arm.dir, arm.reach);
+      pieces.push(...built.pieces);
+      lights.push(built.light);
+    }
   }
 
   return { pieces, wires: buildWires(spans(poles, input.lines, plan)), lights, poles: poles.length };
+}
+
+/**
+ * The arms a street light has: one toward the lantern a sighting saw, else one over the road it
+ * stands beside, reaching past the road edge; two, back to back, on a pole in a median or on an
+ * island with road on both sides (the WA double outreach).
+ */
+export function lampArms(
+  base: { at: Vec2; out: Vec2 },
+  head: Vec2 | undefined,
+  plan: RoadPlan,
+  index: SegmentIndex,
+  onRoad?: OnRoad,
+): { dir: Vec2; reach: number }[] {
+  const clamp = (r: number) => Math.min(REACH_MAX, Math.max(REACH_MIN, r));
+  if (head) {
+    const d = Math.hypot(head[0] - base.at[0], head[1] - base.at[1]);
+    // The lantern's middle is 0.3 m back from the arm's end (outreach), so that's where it was seen.
+    if (d > 0.5) return [{ dir: [(head[0] - base.at[0]) / d, (head[1] - base.at[1]) / d], reach: clamp(d + 0.3) }];
+  }
+  let dir: Vec2 = [-base.out[0], -base.out[1]];
+  // Past the edge of the road it's beside (a pole moved further back gets a longer arm).
+  const n = index.nearest(base.at[0], base.at[1], 40);
+  let gap = n ? Math.max(0, n.dist - plan.samples[n.seg].width / 2) : 1;
+  // Over whichever built road is nearest, when that's clearly nearer than the route (a pole moved
+  // beside a side street reaches over the side street).
+  const hit = onRoad ? nearestRoad(base.at, onRoad, Math.min(gap, 3.5)) : null;
+  if (hit && hit.d < gap - 0.5) ({ dir, d: gap } = hit);
+  const arms = [{ dir, reach: clamp(gap + OVER_ROAD) }];
+  if (onRoad) {
+    // Road again a few metres behind it, running the same way (road 8 m either side along it, so not
+    // a side street's mouth): a median, so a second arm back over the other carriageway.
+    const back: Vec2 = [-dir[0], -dir[1]], tan: Vec2 = [-dir[1], dir[0]];
+    for (let d = 0.5; d <= 6; d += 0.5) {
+      const p: Vec2 = [base.at[0] + back[0] * d, base.at[1] + back[1] * d];
+      if (!onRoad(p[0], p[1])) continue;
+      const q = [p[0] + back[0] * 1.5, p[1] + back[1] * 1.5];
+      if ([8, -8].every((e) => onRoad(q[0] + tan[0] * e, q[1] + tan[1] * e))) arms.push({ dir: back, reach: clamp(d + OVER_ROAD) });
+      break;
+    }
+  }
+  return arms;
+}
+
+/** The nearest drivable point within `max` metres, by 16 directions: its direction and distance. */
+function nearestRoad(at: Vec2, onRoad: OnRoad, max: number): { dir: Vec2; d: number } | null {
+  for (let d = 0.25; d <= max + 1e-9; d += 0.25) {
+    for (let k = 0; k < 16; k++) {
+      const a = (k * Math.PI) / 8, dir: Vec2 = [Math.cos(a), Math.sin(a)];
+      if (onRoad(at[0] + dir[0] * d, at[1] + dir[1] * d)) return { dir, d };
+    }
+  }
+  return null;
+}
+
+/**
+ * One outreach arm from the pole at `at` (ground `z`), `reach` metres along `dir`, with the lantern
+ * hung under its end. The arm starts inside the pole and the lantern overlaps the arm, so pole, arm
+ * and lantern are one piece. The boxes, and the light's position.
+ */
+export function outreach(at: Vec2, z: number, dir: Vec2, reach: number): { pieces: Piece[]; light: Vec3 } {
+  const mid: Vec2 = [at[0] + dir[0] * reach / 2, at[1] + dir[1] * reach / 2];
+  // The lantern's middle a little back from the arm's end, so all of it is under the arm.
+  const lantern: Vec2 = [at[0] + dir[0] * (reach - 0.3), at[1] + dir[1] * (reach - 0.3)];
+  return {
+    pieces: [
+      { kind: "box", at: mid, along: dir, length: reach, depth: 0.08, z0: z + LAMP_H + 0.12, z1: z + LAMP_H + 0.22, material: "steel" },
+      { kind: "box", at: lantern, along: dir, length: 0.6, depth: 0.3, z0: z + LAMP_H, z1: z + LAMP_H + 0.16, material: "lamp" },
+    ],
+    light: [lantern[0], lantern[1], z + LAMP_H - 0.02],
+  };
 }
 
 function sampleAt(plan: RoadPlan, s: number): number {
@@ -282,10 +389,11 @@ export function carParkLights(
         const z = ground(at[0], at[1]);
         pieces.push({ kind: "box", at, along: tan, length: 0.18, depth: 0.18, z0: z - SINK, z1: z + H + 0.2, material: "steel" });
         // A lantern each way across the aisle, each on a short arm from the pole (they used to hang in the air).
-        pieces.push({ kind: "box", at, along: left, length: 1.6, depth: 0.06, z0: z + H - 0.02, z1: z + H + 0.04, material: "steel" });
+        // The lanterns lie wholly under the arm's ends, so pole, arm and lanterns are one piece.
+        pieces.push({ kind: "box", at, along: left, length: 3.0, depth: 0.08, z0: z + H - 0.02, z1: z + H + 0.06, material: "steel" });
         for (const s of [1, -1]) {
-          const tip: Vec2 = [at[0] + left[0] * s * 1.1, at[1] + left[1] * s * 1.1];
-          pieces.push({ kind: "box", at: tip, along: left, length: 0.8, depth: 0.35, z0: z + H - 0.1, z1: z + H + 0.06, material: "lamp" });
+          const tip: Vec2 = [at[0] + left[0] * s * 1.15, at[1] + left[1] * s * 1.15];
+          pieces.push({ kind: "box", at: tip, along: left, length: 0.6, depth: 0.32, z0: z + H - 0.1, z1: z + H + 0.02, material: "lamp" });
           lights.push([tip[0], tip[1], z + H - 0.12]);
         }
       }

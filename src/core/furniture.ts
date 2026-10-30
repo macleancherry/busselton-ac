@@ -16,6 +16,7 @@ import { inRoundabout, type RoadPlan, type RoadSample, type SegmentIndex } from 
 import { pad } from "./roadMesh";
 import { box, ChunkedMesh } from "./scenery";
 import { footprint, SINK } from "./sceneGround";
+import { clearSpot, type OnRoad } from "./poleSpot";
 import type { HeightFn } from "./elevation";
 import type { StreetPlan } from "./sideStreets";
 
@@ -57,7 +58,11 @@ export const off = (s: RoadSample, t: number): Vec2 => [s.pos[0] + s.left[0] * t
  * the verge just before the junction, a blade naming the side street
  * (parallel to it) and, above it, one naming the route.
  */
-export function streetSigns(sp: StreetPlan, plan: RoadPlan, opts: BuildOptions, art: ArtList, ground: HeightFn): Piece[] {
+export function streetSigns(
+  sp: StreetPlan, plan: RoadPlan, opts: BuildOptions, art: ArtList, ground: HeightFn,
+  /** Busselton fork: true on a built drivable surface (the side street's mouth); the post moves off it (poleSpot.ts). */
+  onRoad?: OnRoad,
+): Piece[] {
   const out: Piece[] = [];
   for (const j of sp.junctions) {
     if (!j.name) continue;
@@ -65,7 +70,8 @@ export function streetSigns(sp: StreetPlan, plan: RoadPlan, opts: BuildOptions, 
     const s = plan.samples[i];
     if (inRoundabout(plan, s.pos[0], s.pos[1], 6)) continue;
     const t = j.side * (s.width / 2 + opts.vergeWidth * 0.6);
-    const at = off(s, t);
+    const at = clearSpot(off(s, t), onRoad, { radius: 0.15, reach: 4 });
+    if (!at) continue;
     const z = ground(at[0], at[1]);
     out.push({ kind: "box", at, along: s.tan, length: 0.065, depth: 0.065, z0: z - SINK, z1: z + 3.0, material: "steel" });
     out.push({ kind: "blade", at, dir: j.dir, z: z + 2.62, height: 0.2, art: art.add({ key: streetKey(j.name), kind: "street", text: j.name }) });
@@ -237,7 +243,11 @@ export function mergeSightings(features: SeenFeature[]): SeenFeature[] {
   }));
 }
 
-export function seenFeatures(features: SeenFeature[], plan: RoadPlan, index: SegmentIndex, opts: BuildOptions, art: ArtList, ground: HeightFn): Piece[] {
+export function seenFeatures(
+  features: SeenFeature[], plan: RoadPlan, index: SegmentIndex, opts: BuildOptions, art: ArtList, ground: HeightFn,
+  /** Busselton fork: true on a built drivable surface; posts there move off it, or are dropped (poleSpot.ts). */
+  onRoadAt?: OnRoad,
+): Piece[] {
   const out: Piece[] = [];
   art.add({ key: "back", kind: "back" });
   for (const f of mergeSightings(features)) {
@@ -252,7 +262,9 @@ export function seenFeatures(features: SeenFeature[], plan: RoadPlan, index: Seg
     if (inRoundabout(plan, f.at[0], f.at[1], 2)) continue;
     const onRoad = n.dist < half + opts.vergeWidth * 0.6;
     const t = onRoad ? side * (half + opts.vergeWidth * 0.7) : n.t;
-    const at = onRoad ? off(s, t) : f.at;
+    // Off any other road too (a side street, the far side of a junction): the route alone doesn't know them.
+    const at = clearSpot(onRoad ? off(s, t) : f.at, onRoadAt, { radius: 0.25, away: [s.left[0] * side, s.left[1] * side] });
+    if (!at) continue;
     const z = ground(at[0], at[1]);
 
     if (/^object--traffic-light/.test(f.value)) {
