@@ -266,6 +266,12 @@ export interface BuildOptions {
    */
   trafficLights?: boolean;
   /**
+   * Busselton fork: keep power poles, light poles, signal posts and seen signs off the built
+   * drivable meshes (side streets, junction mouths, rings), moving them to the nearest clear spot
+   * or dropping them (poleSpot.ts). On unless false.
+   */
+  poleClear?: boolean;
+  /**
    * Busselton fork: run the network-first road core prototype (src/core/network,
    * docs/specs/road-network.md) over the build's streets and write network/network.json into the
    * zip for inspection. It doesn't change the track. Off unless true.
