@@ -12,6 +12,7 @@ import type { Kn5MeshNode } from "./kn5";
 import { MeshBuilder, type Vec3 } from "./mesh";
 import { ROOF_COLOURS, type Facade, type WallKind } from "./buildingStyles";
 import type { TreeSpot } from "./scenery";
+import type { SurfaceKind } from "./surfaceTextures";
 
 export interface SpecBlock {
   name: string;
@@ -36,11 +37,11 @@ export interface HouseSpec {
   verandahs?: { x0: number; x1: number; y0: number; y1: number; height?: number; deckHeight?: number; posts?: number[]; wallHeight?: number }[];
   doors?: { type: "front" | "garage" | "roller"; x0: number; x1: number; y: number; height?: number; z0?: number; colour?: string }[];
   windows?: { facing: "front" | "back" | "left" | "right"; wall: number; at: number; width?: number; height?: number; sill?: number }[];
-  fences?: { x0: number; y0: number; x1: number; y1: number; height?: number; colour?: string; open?: boolean }[];
+  fences?: { x0: number; y0: number; x1: number; y1: number; height?: number; colour?: string; open?: boolean; kind?: SurfaceKind }[];
   hedges?: { x0: number; x1: number; y0: number; depth?: number; height?: number }[];
   trees?: { x: number; y: number; height: number; spread?: number }[];
   /** Flat paving (brick, concrete) laid on the ground. */
-  paving?: { x0: number; y0: number; x1: number; y1: number; colour?: string }[];
+  paving?: { x0: number; y0: number; x1: number; y1: number; colour?: string; kind?: "brick" | "concrete" | "timber" }[];
   /** Outdoor tables with bench seats (picnic style), `along` x unless `turned`. */
   tables?: { x: number; y: number; length?: number; turned?: boolean; colour?: string }[];
   /** Market umbrellas: a pole and an eight-sided canopy. */
@@ -76,8 +77,8 @@ export interface SpecHouse {
   facades: Facade[];
   /** Roof finish (index into ROOF_COLOURS) it wears. */
   roof: number;
-  /** Plain colours it needs: material name and colour. */
-  solids: { name: string; rgb: RGB }[];
+  /** Colours it needs: material name and colour, and a surface texture (surfaceTextures.ts) for some. */
+  solids: { name: string; rgb: RGB; surface?: SurfaceKind }[];
   trees: TreeSpot[];
   /** Each block's footprint on the map, counter-clockwise (to clear generated houses away). */
   footprints: Vec2[][];
@@ -126,10 +127,10 @@ export function buildSpecHouse(spec: HouseSpec, place: SpecPlacement, tag: strin
   };
   const roof = nearestRoof(hex(spec.roof?.colour, [228, 226, 213]));
   const roofMat = `roof_${ROOF_COLOURS[roof].name}`;
-  const solids: { name: string; rgb: RGB }[] = [];
-  const solid = (name: string, rgb: RGB) => {
+  const solids: { name: string; rgb: RGB; surface?: SurfaceKind }[] = [];
+  const solid = (name: string, rgb: RGB, surface?: SurfaceKind) => {
     const n = `spec_${tag}_${name}`;
-    if (!solids.some((s) => s.name === n)) solids.push({ name: n, rgb });
+    if (!solids.some((s) => s.name === n)) solids.push({ name: n, rgb, surface });
     return n;
   };
   const trim = solid("trim", trimRgb);
@@ -245,7 +246,7 @@ export function buildSpecHouse(spec: HouseSpec, place: SpecPlacement, tag: strin
   }
   for (const p of spec.panels ?? []) box(finish(p.walls), p.x0, p.y0, p.z0 ?? 0, p.x1, p.y1, p.z1 ?? H0, true);
 
-  const deck = solid("deck", [138, 106, 79]);
+  const deck = solid("deck", [138, 106, 79], "timber");
   for (const v of spec.verandahs ?? []) {
     const H = v.wallHeight ?? H0, lo = v.height ?? H - 0.25;
     box(deck, v.x0, v.y0, -0.2, v.x1, v.y1, v.deckHeight ?? 0.25);
@@ -272,7 +273,7 @@ export function buildSpecHouse(spec: HouseSpec, place: SpecPlacement, tag: strin
     box("window", g0, g1, sill, g2, g3, sill + wh);
   }
   spec.fences?.forEach((f, k) => {
-    const m = solid(`fence${k}`, hex(f.colour, [236, 235, 230])), H = f.height ?? 1.8;
+    const m = solid(`fence${k}`, hex(f.colour, [236, 235, 230]), f.kind ?? (f.open ? "timber" : "colorbond")), H = f.height ?? 1.8;
     if (!f.open) return box(m, f.x0, f.y0, -0.2, f.x1, f.y1, H, false, true);
     // An open rail: posts every 1.8 m and a top rail (what the car hits is still the whole run).
     const along = Math.abs(f.x1 - f.x0) >= Math.abs(f.y1 - f.y0), L = along ? f.x1 - f.x0 : f.y1 - f.y0;
@@ -284,7 +285,7 @@ export function buildSpecHouse(spec: HouseSpec, place: SpecPlacement, tag: strin
       else box(m, mx - 0.05, q - 0.05, -0.2, mx + 0.05, q + 0.05, H - 0.12);
     }
     box(m, f.x0, f.y0 - (along ? 0.06 : 0), H - 0.15, f.x1, f.y1 + (along ? 0.06 : 0), H);
-    const wire = solid("wire", [150, 150, 150]);
+    const wire = solid("wire", [150, 150, 150], "steel");
     for (const z of [0.35, 0.6, 0.85]) if (z < H - 0.2) box(wire, f.x0, f.y0 + (along ? 0.0 : 0), z, f.x1, f.y1, z + 0.008);
     const c: [number, number][] = [[f.x0, f.y0], [f.x1, f.y0], [f.x1, f.y1], [f.x0, f.y1]];
     for (let j = 0; j < 4; j++) {
@@ -305,10 +306,10 @@ export function buildSpecHouse(spec: HouseSpec, place: SpecPlacement, tag: strin
     poly(mesh(mat), [...pts].reverse(), planar);
   };
   for (const [k, pv] of (spec.paving ?? []).entries()) {
-    poly(mesh(solid(`paving${k}`, hex(pv.colour, [156, 84, 64]))), [W(pv.x0, pv.y0, 0.03), W(pv.x1, pv.y0, 0.03), W(pv.x1, pv.y1, 0.03), W(pv.x0, pv.y1, 0.03)], planar);
+    poly(mesh(solid(`paving${k}`, hex(pv.colour, [156, 84, 64]), pv.kind ?? "brick")), [W(pv.x0, pv.y0, 0.03), W(pv.x1, pv.y0, 0.03), W(pv.x1, pv.y1, 0.03), W(pv.x0, pv.y1, 0.03)], planar);
   }
   for (const tb of spec.tables ?? []) {
-    const m = solid(`table_${(tb.colour ?? "#5a3d2b").slice(1)}`, hex(tb.colour, [90, 61, 43]));
+    const m = solid(`table_${(tb.colour ?? "#5a3d2b").slice(1)}`, hex(tb.colour, [90, 61, 43]), "timber");
     const L = (tb.length ?? 1.8) / 2;
     const at = (a: number, c: number): [number, number] => (tb.turned ? [tb.x + c, tb.y + a] : [tb.x + a, tb.y + c]);
     const slab = (a0: number, c0: number, a1: number, c1: number, z0: number, z1: number) => {
@@ -320,8 +321,8 @@ export function buildSpecHouse(spec: HouseSpec, place: SpecPlacement, tag: strin
     for (const a of [-L + 0.2, L - 0.2]) slab(a - 0.04, -0.75, a + 0.04, 0.75, 0, 0.72);
   }
   for (const u of spec.umbrellas ?? []) {
-    const r = u.radius ?? 1.4, h = u.height ?? 2.6, m = solid(`umbrella_${(u.colour ?? "#f2f0ea").slice(1)}`, hex(u.colour, [242, 240, 234]));
-    box(solid("pole", [70, 70, 72]), u.x - 0.025, u.y - 0.025, 0, u.x + 0.025, u.y + 0.025, h + 0.1);
+    const r = u.radius ?? 1.4, h = u.height ?? 2.6, m = solid(`umbrella_${(u.colour ?? "#f2f0ea").slice(1)}`, hex(u.colour, [242, 240, 234]), "canvas");
+    box(solid("pole", [70, 70, 72], "steel"), u.x - 0.025, u.y - 0.025, 0, u.x + 0.025, u.y + 0.025, h + 0.1);
     const apex = W(u.x, u.y, h + 0.1);
     for (let k = 0; k < 8; k++) {
       const a0 = (k / 8) * 2 * Math.PI, a1 = ((k + 1) / 8) * 2 * Math.PI;
@@ -329,13 +330,13 @@ export function buildSpecHouse(spec: HouseSpec, place: SpecPlacement, tag: strin
     }
   }
   for (const sl of spec.sails ?? []) {
-    const m = solid(`sail_${(sl.colour ?? "#8c9196").slice(1)}`, hex(sl.colour, [140, 145, 150]));
+    const m = solid(`sail_${(sl.colour ?? "#8c9196").slice(1)}`, hex(sl.colour, [140, 145, 150]), "canvas");
     twoSided(m, sl.pts.map(([x, y, z]) => W(x, y, z)));
-    for (const [x, y, z] of sl.pts) if (z > 1) box(solid("pole", [70, 70, 72]), x - 0.05, y - 0.05, 0, x + 0.05, y + 0.05, z, false, true);
+    for (const [x, y, z] of sl.pts) if (z > 1) box(solid("pole", [70, 70, 72], "steel"), x - 0.05, y - 0.05, 0, x + 0.05, y + 0.05, z, false, true);
   }
   for (const f of spec.flags ?? []) {
-    const h = f.height ?? 4, m = solid(`flag_${(f.colour ?? "#f4f4f2").slice(1)}`, hex(f.colour, [244, 244, 242]));
-    box(solid("pole", [70, 70, 72]), f.x - 0.02, f.y - 0.02, 0, f.x + 0.02, f.y + 0.02, h);
+    const h = f.height ?? 4, m = solid(`flag_${(f.colour ?? "#f4f4f2").slice(1)}`, hex(f.colour, [244, 244, 242]), "canvas");
+    box(solid("pole", [70, 70, 72], "steel"), f.x - 0.02, f.y - 0.02, 0, f.x + 0.02, f.y + 0.02, h);
     // A feather: straight along the pole, the outer edge bowing out and rounding over the top.
     const w = 0.75, z0 = 0.9;
     const edge: [number, number][] = [];
@@ -351,8 +352,8 @@ export function buildSpecHouse(spec: HouseSpec, place: SpecPlacement, tag: strin
   const signs: SpecHouse["signs"] = [];
   for (const [k, sg] of (spec.signs ?? []).entries()) {
     const bg = hex(sg.colour, [28, 28, 30]), ink = hex(sg.ink, [245, 245, 242]);
-    box(solid(`signboard${k}`, bg), sg.x0, sg.y, sg.z0, sg.x1, sg.y + 0.08, sg.z1);
-    if (sg.posts) for (const x of [sg.x0 + 0.05, sg.x1 - 0.05]) box(solid(`signboard${k}`, bg), x - 0.06, sg.y + 0.01, 0, x + 0.06, sg.y + 0.07, sg.z1 + 0.05, false, true);
+    box(solid(`signboard${k}`, bg, "steel"), sg.x0, sg.y, sg.z0, sg.x1, sg.y + 0.08, sg.z1);
+    if (sg.posts) for (const x of [sg.x0 + 0.05, sg.x1 - 0.05]) box(solid(`signboard${k}`, bg, "steel"), x - 0.06, sg.y + 0.01, 0, x + 0.06, sg.y + 0.07, sg.z1 + 0.05, false, true);
     if (sg.text) {
       const name = `spec_${tag}_sign${k}`;
       signs.push({ name, text: sg.text, bg, ink, width: sg.x1 - sg.x0, height: sg.z1 - sg.z0 });

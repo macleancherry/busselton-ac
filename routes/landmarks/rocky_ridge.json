@@ -22,8 +22,8 @@
     { "facing": "front", "wall": 0, "at": 11.2, "width": 1.5, "height": 2.0, "sill": 0.35 }
   ],
   "paving": [
-    { "x0": -3.4, "y0": -10.8, "x1": 15.8, "y1": 0, "colour": "#9a5845" },
-    { "x0": 13.4, "y0": 0, "x1": 15.8, "y1": 16, "colour": "#bcb7ad" }
+    { "x0": -3.4, "y0": -10.8, "x1": 15.8, "y1": 0, "colour": "#9a5845", "kind": "brick" },
+    { "x0": 13.4, "y0": 0, "x1": 15.8, "y1": 16, "colour": "#bcb7ad", "kind": "concrete" }
   ],
   "fences": [
     { "x0": -0.4, "y0": -6.66, "x1": 13.2, "y1": -6.54, "height": 1.1, "colour": "#6b4a32", "open": true },

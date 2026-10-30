@@ -47,6 +47,7 @@ import { buildBuildings, centroid, detectBuildings, filterBuildings, fromOsm, ho
 import { dressBuilding, FACADES, facadeTexture, ROOF_COLOURS, roofTexture } from "./buildingStyles";
 import { facadeForLook, facadeForStyle } from "./houseLooks";
 import { buildSpecHouse, type HouseSpec } from "./specHouse";
+import { surfaceTexture } from "./surfaceTextures";
 import { camerasIni, placeCameras } from "./cameras";
 import { cullable } from "./cull";
 import { bakedShadowParams, extConfig } from "./cspConfig";
@@ -1442,7 +1443,11 @@ export async function buildTrack(
         const c = ROOF_COLOURS[sh.roof];
         buildingScenery(`roof_${c.name}`, roofTexture(c), { ambient: 0.45, diffuse: 0.45, specular: 0.25, exp: 25 }, 4);
       }
-      for (const so of sh.solids) addScenery(`${so.name}.png`, solidTexture(so.rgb), material(so.name, `${so.name}.png`, { ambient: 0.45, diffuse: 0.45, specular: 0.1, exp: 10 }));
+      for (const so of sh.solids) {
+        // Busselton fork: yards and fittings get a surface texture with relief (brick, timber, canvas...).
+        if (so.surface) buildingScenery(so.name, surfaceTexture(so.surface, so.rgb), { ambient: 0.45, diffuse: 0.45, specular: so.surface === "steel" || so.surface === "colorbond" ? 0.25 : 0.06, exp: 15 }, so.surface === "brick" ? 4 : 2);
+        else addScenery(`${so.name}.png`, solidTexture(so.rgb), material(so.name, `${so.name}.png`, { ambient: 0.45, diffuse: 0.45, specular: 0.1, exp: 10 }));
+      }
       // Lettered signs: the browser's fonts when the build has them, else a plain board.
       for (const sg of sh.signs) {
         const w = 1024, h = Math.max(64, Math.min(512, Math.round((w * sg.height) / Math.max(0.1, sg.width) / 32) * 32));
