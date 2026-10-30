@@ -3,11 +3,13 @@
 //
 // country: a drive-anywhere road (ROADMAP.md phase C). A 70 m corridor and a 2.5 m terrain grid
 //   keep 10-30 km inside the RTX 4060 budget; a 1 km photo horizon; gentle banking (up to 4%) on
-//   bends; traffic on; no trace guard (country roads aren't traced from the aerial); W-beam Armco on
-//   tight bends, embankments, bridges and culverts (src/core/armco.ts); vine rows and post-and-wire
-//   paddock fences (farmland, src/core/farm.ts).
+//   bends; traffic on; no trace guard (country roads aren't traced from the aerial). Roadsides:
+//   - W-beam Armco on tight bends, embankments, bridges and culverts (armco, src/core/armco.ts)
+//   - vine rows and post-and-wire paddock fences (farmland, src/core/farm.ts)
+//   - farm driveways, gates, mailboxes and cattle grids (farmRoadsides, src/core/farmRoadsides.ts)
 // town: a flat South West town (Busselton). No banking, a fine terrain grid and the ground only
-//   just under the road, so kerbs and edges stay true (CLAUDE.md, "Busselton is flat").
+//   just under the road, so kerbs and edges stay true (CLAUDE.md, "Busselton is flat"). Kerbside
+//   parking bays and bike lanes painted (kerbside, src/core/kerbside.ts).
 export const PRESETS = {
   country: {
     options: { imagery: "high", banking: true },
@@ -21,11 +23,12 @@ export const PRESETS = {
       maxBank: 0.04,
       armco: true,
       farmland: true,
+      farmRoadsides: true,
     },
   },
   town: {
     options: { imagery: "high", banking: false },
-    build: { terrainStep: 1.5, terrainUnderRoad: 0.12, armco: false },
+    build: { terrainStep: 1.5, terrainUnderRoad: 0.12, armco: false, farmRoadsides: false, kerbside: true },
   },
 };
 

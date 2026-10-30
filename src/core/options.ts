@@ -121,6 +121,11 @@ export interface BuildOptions {
   /** Low-poly cars where the photo had parked cars (needs carParks). */
   parkedCars: boolean;
   /**
+   * Busselton fork: kerbside parking bays and bike lanes painted on town streets, from OSM parking and
+   * cycleway tags, and bays where the photo shows cars parked along the kerb (kerbside.ts; needs markings).
+   */
+  kerbside?: boolean;
+  /**
    * The look of houses in this area, when it isn't the usual mix: weights per facade, by name
    * from buildingStyles.ts (e.g. a weatherboard estate: { wb_white: 3, wb_grey: 2, wb_blue: 1 }).
    * Street-photo and hand-set looks still win house by house.

@@ -38,6 +38,7 @@ import { photoRoadTexture } from "./photoSurface";
 import { encodeDdsDxt1, encodeDdsDxt5 } from "./dds";
 import { decodeOwnPng, encodePng } from "./png";
 import { buildMarkings, type DiscreteMark } from "./markings";
+import { kerbsideForTrack, type KerbTags } from "./kerbside";
 import { buildTerrainChunk, makeTerrainFn, meshTop, planTerrainChunks, type TerrainChunk } from "./terrain";
 import { armcoNeeds, buildArmco } from "./armco";
 import { BARRIERS, barrierTexture, detailTexture, normalFromHeight, windowTexture, flatNormalTexture, GROUND_TILE, groundDetail, groundMask, type GroundKind, mapsTexture, paintTexture, sealTexture, type SealKind, garageTexture, grassTexture, concreteTexture, postTexture, railTexture, solidTexture, vergeTexture } from "./textures";
@@ -158,6 +159,8 @@ export interface OsmFeatures {
   powerLines?: LngLat[][];
   /** Rock groynes and breakwaters (OSM man_made=groyne|breakwater) near the route. */
   groynes?: LngLat[][];
+  /** Busselton fork: streets with kerbside parking or bike lanes tagged, sides relative to the way (kerbside.ts). */
+  kerbside?: ({ pts: LngLat[] } & KerbTags)[];
 }
 
 export interface TrackResult {
@@ -219,6 +222,8 @@ export interface TrackResult {
     /** Parked cars painted out of the ground photo, and car park islands raised. */
     carsPainted?: number;
     parkedCars?: number;
+    /** Busselton fork: kerbside parking bays, bike lane metres and bicycle symbols painted (kerbside.ts). */
+    kerbside?: { bays: number; bikeLaneMetres: number; symbols: number };
     /** Houses whose walls were set from street photos. */
     housesLooked?: number;
     /** Shopfronts built, and how many have a verandah. */
@@ -1176,6 +1181,11 @@ export async function buildTrack(
     const paint = opts.markings ? buildRingMarkings(rb, k) : null;
     if (paint) markings.push(paint);
   });
+  // Busselton fork: kerbside parking bays and bike lanes (kerbside.ts).
+  const kerbside = opts.markings && opts.kerbside
+    ? kerbsideForTrack(plan, opts.sideStreets ? streetPlan.streets : [], index, opts, (x, y) => terrainAt(x, y).h, sources.osm?.kerbside ?? [], (p) => proj.toLocal(p), parkedSpots)
+    : null;
+  if (kerbside) markings.push(...kerbside.nodes);
   // Busselton fork: the ground stays 4 cm under every street, within a grid step of it: at a mouth
   // across the route's raised verge, and where the ground bulges, it came up through the street.
   const underStreets = streetCeiling(sideStreets, opts.terrainStep);
@@ -1872,6 +1882,7 @@ export async function buildTrack(
       poles: utilities.poles,
       carsPainted,
       parkedCars: parked.length,
+      ...(kerbside ? { kerbside: { bays: kerbside.bays, bikeLaneMetres: Math.round(kerbside.bikeLaneMetres), symbols: kerbside.symbols } } : {}),
       housesLooked,
       shops: shopStats(shopfronts).shops,
       verandahs: shopStats(shopfronts).verandahs,
