@@ -34,17 +34,17 @@ AC can't load the whole South West as one map, so it's a set of tracks, each ins
 
 | Track | Tier | Status |
 | --- | --- | --- |
-| **Busselton** (Foreshore and town centre; layouts Foreshore, Town, Sights, Free Roam) | Showcase | 🔨 base built, 2 of 18 landmarks done, 6 more described |
+| **Busselton** (Foreshore and town centre; layouts Foreshore, Town, Sights, Free Roam) | Showcase | 🔨 base accepted (jetty precinct in); 22 landmarks in as layers; all the new features merged but not yet in an accepted base or tried in game |
 | **The whole map** (private: adds the estate and the Home Run) | Showcase | 🔨 base built; private landmarks described |
 | **Tuart Drive, Ludlow** (16 km) | Drive-anywhere | ✅ built, waiting on a drive |
-| **Caves Road, Dunsborough to Yallingup** (11 km) | Drive-anywhere, Yallingup a showcase later | 🔨 route ready; needs sharper heights west of Dunsborough (see below) |
-| **Bussell Highway, Busselton to Dunsborough** | Drive-anywhere | ⬜ |
-| **Margaret River town** | Showcase | ⬜ |
+| **Caves Road, Dunsborough to Yallingup** (11 km) | Drive-anywhere, Yallingup a showcase later | 🔨 built once on the fallback heights (before the country roadsides); Caves House and the Yallingup store specced |
+| **Busselton to Dunsborough** (Caves Rd, 14 km) | Drive-anywhere | 🔨 route ready (`routes/busselton-dunsborough.json`), on 5 m LiDAR |
+| **Margaret River town** | Showcase | 🔨 route ready (`routes/margaret-river.json`); 4 landmarks specced (`margaret_river_looks.json`) |
 | **Caves Road, Yallingup to Margaret River** | Drive-anywhere | ⬜ |
-| **Boranup Drive and the karri** | Showcase | ⬜ (needs gravel, 3D karri) |
-| **Cape Naturaliste Road and the lighthouse** | Showcase | ⬜ |
-| **Cape Leeuwin, Augusta** | Showcase | ⬜ |
-| **Collie Motorplex** (a real 1.6 km circuit) | Showcase | ⬜ |
+| **Boranup Drive and the karri** | Showcase | 🔨 routes ready: Caves Rd through Boranup and gravel Boranup Drive (`routes/boranup-drive.json`); gravel and 3D karri built |
+| **Cape Naturaliste Road and the lighthouse** | Showcase | 🔨 route ready; lighthouse and cottages specced (the route stops about 900 m short of them) |
+| **Cape Leeuwin, Augusta** | Showcase | 🔨 route ready; lighthouse, cottages and waterwheel specced |
+| **Collie Motorplex** (a real circuit: 1.6 km short, 2.57 km long) | Showcase | 🔨 route ready, taken from the OSM raceway (anticlockwise); start/finish line to place |
 | ❓ **Forest Rally stage, backroads** (Wildwood Rd, Tom Cullity Dr, Rosa Brook Rd) | Drive-anywhere | ⬜ drive them first, then pick |
 
 ---
@@ -72,13 +72,14 @@ What makes polishing cheap. First, because every landmark after it is quicker.
 ## Phase B: Busselton, polished (the template for every showcase area) 🔨
 
 - 🔨 **Landmarks** ([docs/landmarks.md](docs/landmarks.md)):
-  - ✅ built: the jetty precinct, Rocky Ridge, the Esplanade Hotel, The Goose, the Old Courthouse group, the Hilton Garden Inn, the Visitor Centre, the Busselton Museum (the jetty precinct's streets joined the built area for them)
-  - ⬜ to do: the foreshore playground and sculptures, the foreshore cafes, the yacht club, the cinema, the pubs, the cemetery, the fire station, the parks
+  - ✅ built as layers (22): the jetty precinct, Rocky Ridge, the Esplanade Hotel, The Goose, the Old Courthouse group, the Hilton Garden Inn, the Visitor Centre, the Busselton Museum, Kyst and Sandbox, Sea Play on the Bay, Transition, the yacht club, Orana Cinemas, The Tav, the Ship Inn, the Banksia Tavern, St Mary's, the Pioneer Cemetery, the fire station, the bowling club, Victoria Square, Mitchell Park, the Japanese garden gate
+  - specced but outside the built area: Churchill Park, Barnard Park
+  - ⬜ to do: the Kookaburra Caravan Park; the Barrel sculpture (not found on the ground)
   - private landmarks: listed in `routes/private/landmarks/` (photos of their street faces still needed)
 - 🔨 **Houses from the photo walk:** spec houses from Mac's street photos (`scripts/houses/photo_walk.py`), street by street. Waiting on the first street of photos.
-- 🔨 **Detail layers in Blender** for what a spec can't say: Rocky Ridge's vine pergola and festoon lights, the farm cottage's stonework. Judge from in-game screenshots first.
+- 🔨 **Detail layers in Blender** for what a spec can't say. ✅ Transition (`routes/layers/transition.kn5`, scripted in `scripts/blender/landmarks/`). 🔨 Sea Play's ship: modelled and scripted, kn5 not exported yet. Next: wire `routes/layers` into the route and drop the two spec looks; Rocky Ridge's pergola and festoon lights; lighthouses.
 - 🔨 **In game:** the workstation retest (`docs/workstation-retest.md`) covers the AI on every layout, the AO bake, the 3D trees and the landmark screenshots. Mac's own checks: time of day and seasons, water, rain, night, the jetty, the map app, free roam.
-- ⬜ **Town details:** kerbside parking bays, bike lanes, traffic lights (Busselton has few), car parks beyond the detailed ground.
+- 🔨 **Town details:** ✅ kerbside parking bays and bike lanes (`kerbside`, on in the town preset; not yet on for Busselton), ✅ the AI line in the left lane (`aiKeepLeft`). ⬜ Traffic lights (Busselton has few), car parks beyond the detailed ground.
 - ✅ **Base work done:**
   - one map with layouts: Foreshore, Town, Sights and Free Roam on one world, and the private whole map with the estate and Home Run
   - every street drivable, traced from the aerial
@@ -98,11 +99,11 @@ Generated tracks across the region at a lighter detail level, rebuilt whenever t
   - ✅ Geoscience Australia's 5 m LiDAR covers Busselton to Ludlow and west to Dunsborough.
   - It stops just west of Dunsborough: Yallingup, the capes and most of Caves Road fall back to about 30 m global heights, which smooth the hills.
   - ❓ Next: order the capes LiDAR from GA's ELVIS portal (free, links emailed), cut it into tiles.
-- 🔨 **Caves Road, Dunsborough to Yallingup:** route ready (`routes/caves-road.json`). Build once the heights are sorted.
-- 🔨 **A drive-anywhere preset:** ✅ `"preset": "country"` (`scripts/headless/presets.mjs`). Still to do: country settings (wider terrain grid, corridor and horizon sized to the budget, gentle banking) so a new road is one route file. Check 30+ km roads and draw distances.
-- 🔨 **Country roadsides:** gravel shoulders, guideposts (done), Armco on bends, embankments, bridges and culverts (done: `build.armco`, on in the country preset, `src/core/armco.ts`), farm driveways, mailboxes, cattle grids.
-- ⬜ **Unsealed roads:** gravel surface physics, dust, a limestone gravel texture (Boranup, farm roads).
-- 🔨 **Landscape zones:** each with its own trees, ground and roadside. ✅ The zone system (`src/core/zones.ts`, on in the country preset): tree species and density, ground detail mix and verge colour per zone, from landcover, distance to the sea and a coarse region map. Still to do: granite boulders on the coast, sedge, vine rows and fences, karri/marri/jarrah/paperbark/banksia models (they borrow the nearest model until then).
+- 🔨 **Caves Road, Dunsborough to Yallingup:** built once on the fallback heights; rebuild with the country roadsides, then again when the LiDAR arrives. Five more South West routes are ready (see The tracks).
+- ✅ **A drive-anywhere preset:** `"preset": "country"` (`scripts/headless/presets.mjs`): terrain, corridor, horizon, banking, traffic, Armco, farmland, farm roadsides, zones, keep-left. Routes can also follow OSM ways (`"ways"`) where OSRM won't drive (raceways, tracks). Still to check: 30+ km roads and draw distances.
+- ✅ **Country roadsides:** guideposts, Armco on bends, embankments, bridges and culverts (`armco.ts`), farm driveways with gates, mailboxes and cattle grids (`farmRoadsides.ts`), vine rows and post-and-wire fences (`farm.ts`). All on in the country preset; none tried in game yet.
+- ✅ **Unsealed roads:** OSM gravel roads get gravel physics, CSP dust and a limestone gravel texture, with no markings or kerbs; `"unsealed": true` makes a whole route gravel (Boranup Drive). Grip and dust are first guesses until driven.
+- 🔨 **Landscape zones:** each with its own trees, ground and roadside. ✅ The zone system (`src/core/zones.ts`, on in the country preset): tree species and density, ground detail mix and verge colour per zone, from landcover, distance to the sea and a coarse region map. Still to do: granite boulders on the coast, sedge, jarrah/paperbark/banksia models (they borrow the nearest model until then).
   - coast: white sand, peppermint, granite
   - capes heath
   - tuart woodland
@@ -112,7 +113,7 @@ Generated tracks across the region at a lighter detail level, rebuilt whenever t
   - Vasse-Wonnerup wetlands
 - 🔨 **3D trees:** CSP instanced trees, five local species, three levels of detail. The file format is confirmed against Content Manager; in-game look being tested (`busselton_trees`). Karri and marri models ready, and bush trees picked by place (karri at Boranup, jarrah-marri inland, tuart on the plain, peppermint on the coast; `src/core/treeZones.ts`) when 3D trees are on. Next: on by default once Mac has seen them (docs/trees.md, "Making 3D trees the default"), then photo textures of real foliage.
 
-## Phase D: More showcase areas ⬜
+## Phase D: More showcase areas 🔨
 
 Each starts as a drive-anywhere base, then gets the Phase B treatment: Yallingup, Margaret River's main street, Cape Naturaliste, Boranup, Cape Leeuwin, Collie Motorplex. Landmarks for each are listed in [docs/landmarks.md](docs/landmarks.md).
 
@@ -121,20 +122,19 @@ Each starts as a drive-anywhere base, then gets the Phase B treatment: Yallingup
 - 🔨 **Traffic.**
   - ✅ CSP traffic-planner lanes (`data/traffic.json`) with one-way streets and limits, checked automatically.
   - ✅ Density zones (busy main roads and the town centre, quiet streets and estates) and a kids' setting per route or layout (`src/core/trafficZones.ts`, `docs/traffic-test.md`). Not yet tried in game.
-  - ⬜ Next:
-    - an in-game test with the planner (`docs/traffic-test.md`)
-    - AI Flood in Track Day on Free Roam
-    - an Aussie traffic car pack (Hilux, Ranger, Corolla, i30, utes with trailers, caravans)
-  - ❓ Does offline traffic work in Content Manager LAN?
+  - ✅ AI Flood on Free Roam: 24 pit boxes on the AI line and town speed hints (`docs/traffic-test.md`). CSP's Traffic mode tag (`traffic-planner-ready`) on traffic builds.
+  - ✅ Researched: no ready-made Aussie traffic car pack exists; single mods listed with their licence notes in `docs/traffic-cars.md`.
+  - ✅ Answered: offline traffic doesn't work in CM LAN (it's an online session); AssettoServer's AI traffic would, but needs server software.
+  - ⬜ Next: an in-game test with the planner, the flood and the kids' setting (`docs/workstation-retest-2.md`).
 - 🔨 **Atmosphere (CSP and Pure).**
   - ✅ The sun's real position, dry-season grass, bounced light, the bay as CSP water, wind, the tiling fix, Pure settings.
   - ✅ Night lighting.
   - ✅ AO baking (first bakes take under a minute on the 4060).
-  - ⬜ Next:
-    - RainFX puddles in low spots from the heights
-    - track sounds: surf, magpies and kookaburras, the jetty train
-    - animated flags and the jetty train
-    - per-track Pure tuning for the bright WA sun
+  - ✅ Built, not yet tried in game:
+    - RainFX puddles: the road's real hollows, and the puddle map from ground and roads only (`rainHollows`)
+    - track sounds: surf, magpies and kookaburras from a track script playing .ogg files (`trackSounds`; the files themselves still to source, CC0)
+    - waving flags and the jetty train on its timetable (`wavingFlags`, `jettyTrain`)
+    - per-track Pure haze for clear WA air, and calmer photo ground on bright sand (`pureTuning`, on by default: compare before keeping)
 
 ## Phase F: Testing and tooling 🔨
 
@@ -147,7 +147,7 @@ Each starts as a drive-anywhere base, then gets the Phase B treatment: Yallingup
   - the automatic AI test per layout, with landmark screenshots
   - AO bakes; everything goes to `\\media\busselton-share`
 - 🔨 Link this chat to Mac's laptop so builds go straight into the share and reports come straight back.
-- ⬜ A night run and a several-AI-cars run in the automatic test; a traffic-planner run.
+- ✅ Night, several-AI-car and rain runs in the automatic test (`run-test.ps1 -Night`, `-Cars N`, `-Rain`). Next: the workstation runs `docs/workstation-retest-2.md`.
 - 🔨 One-click install on the rig: "Install Busselton.cmd" in the share installs every new build and polish, keeps AO bakes, installs the apps and shows what changed; optional check on log-in ([docs/rig-install.md](docs/rig-install.md)). To try on the rig.
 
 ## Phase G: Fun 🔨

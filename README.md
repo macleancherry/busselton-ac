@@ -136,10 +136,10 @@ Fine for racing with your mates. Don't publish or sell tracks built with the aer
 
 The full roadmap is in [ROADMAP.md](ROADMAP.md): Busselton done properly, then open-world town, traffic, CSP and Pure atmosphere (seasons, rain, night), and the wider South West from the capes to Collie. Next up:
 
-1. The rest of the estate from a walk-through: real wall colours for every house.
-2. Traffic driven in game, and per-lane AI splines for AI Flood.
-3. The jetty precinct, and real shop and car park detail on Queen St.
-4. Caves Road: Busselton to Yallingup.
+1. A Busselton base upgrade with everything merged on 30 Oct (22 landmarks, keep-left AI, traffic zones, waving flags, the jetty train), then the workstation retest (`docs/workstation-retest-2.md`).
+2. The first South West builds: Caves Road, Busselton to Dunsborough, Boranup, the capes, Margaret River and Collie (routes in `routes/`, track pages in `tracks/`).
+3. Houses from the photo walk, street by street.
+4. Sharper heights for the capes (GA's ELVIS LiDAR).
 
 ## Credit
 
