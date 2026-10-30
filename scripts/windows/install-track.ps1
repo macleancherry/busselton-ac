@@ -171,4 +171,4 @@ foreach ($root in $acRoots) {
   }
 }
 Write-Host "Done. In Content Manager, refresh the track list (or restart it) to see $slug."
-Write-Host "In game, open Busselton Challenges (checkpoints) or Busselton Map from the apps bar on the right."
+Write-Host "In game, open Busselton Challenges (checkpoints, time trials, drift spots) or Busselton Map from the apps bar on the right."

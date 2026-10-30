@@ -57,7 +57,7 @@ import { bakedShadowParams, extConfig } from "./cspConfig";
 import { buildBarriers } from "./fences";
 import { chunkPhotoSampler, frontageHouses } from "./frontage";
 import { ArtList, type ArtRenderer } from "./art";
-import { challengeCheckpoints, challengesIni } from "./challenges";
+import { challengeFiles } from "./challengeFiles";
 import { buildPieces, gateSigns, kangarooSigns, landmarks, mergeSightings, seenFeatures, streetSigns } from "./furniture";
 import { barrierConcreteTexture, catchFenceTexture, crowdTexture, raceDressing, tyreWallTexture } from "./raceDress";
 import { carParkLights, placeUtilities } from "./utilities";
@@ -1758,10 +1758,12 @@ export async function buildTrack(
     [`${slug}/data/surfaces.ini`]: enc.encode(surfacesIni(opts.traffic, opts.streetsValid ?? !!area, centre)),
     ...(opts.traffic ? { [`${slug}/data/traffic.json`]: enc.encode(trafficText) } : {}),
     [`${slug}/data/map.ini`]: enc.encode(map.ini),
-    // Busselton fork: checkpoints for the Busselton Challenges app (apps/lua/BusseltonChallenges).
-    [`${slug}/data/challenges.ini`]: enc.encode(challengesIni(opts.name, challengeCheckpoints(plan,
-      (x, y, r) => index.nearest(x, y, r),
-      (sources.pois ?? []).map((p) => ({ ...p, at: proj.toLocal(p.at) })), streetPlan.routeNames, 6, streetPlan.junctions))),
+    // Busselton fork: checkpoints, time trial and drift spots for the Busselton Challenges app (challengeFiles.ts).
+    ...challengeFiles(slug, opts, {
+      plan, dummies: trackObjects(plan, opts), nearest: (x, y, r) => index.nearest(x, y, r), toLocal: (p) => proj.toLocal(p), ground,
+      pois: (sources.pois ?? []).map((p) => ({ ...p, at: proj.toLocal(p.at) })), routeNames: streetPlan.routeNames, junctions: streetPlan.junctions,
+      streets: streetPlan.streets, parked: parked.map((c) => c.at), buildings: shown.map((b) => b.ring),
+    }),
     [`${slug}/data/cameras_1.ini`]: enc.encode(camerasIni(cameras)),
     // The automatic test run (scripts/windows/run-test.ps1): a track script that only wakes up for a
     // driver named "Busselton Test". Track scripts need the scripting physics traffic turns on.
