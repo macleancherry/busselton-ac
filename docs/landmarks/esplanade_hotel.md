@@ -23,14 +23,14 @@ Measured from the Landgate aerial `out/refs/esplanade_hotel/aerial_front.jpg` (c
 
 From the street photo `wah_0.jpg` (date unknown, probably mid-2010s) and the aerial. Hex values are eyeballed from photos and aerial and are approximate.
 
-- **Walls:** smooth render painted off-white `#EDEAE2`. Three pedimented bays are painted mid grey `#8A8D91` with white trim: one at the west end, two side by side at the east end. The façade is not symmetrical.
+- **Walls:** smooth render painted off-white `#EDEAE2`. Three pedimented bays are painted mid grey `#8A8D91` with white trim: one at the east end, two side by side at the west end. The façade is not symmetrical.
 - **Height:** two storeys. Main parapet about 8.5 m. The grey bays' triangular pediments peak at about 10 m. Small curved (segmental) pediment in the middle of the white centre section, about 9.5 m.
 - **Roof:** corrugated iron in muted red, `#8E3B40` (reads `#9D6A71` in the sunlit aerial). Main hip about 25-30°. Mostly hidden behind the parapets from the street.
 - **Chimneys:** the record mentions stucco-decorated chimneys. A small box at the west end of the parapet roof is visible in the photo. Not confirmed from the aerial.
 - **Upper-floor windows (street face, left to right):**
-  - west grey bay: 2 tall round-headed sash windows, about 0.9 x 2 m
+  - east grey bay: 2 tall round-headed sash windows, about 0.9 x 2 m
   - white centre section: about 4-6 plain rectangular sash windows, about 0.9 x 1.4 m, partly hidden by street trees
-  - two east grey bays: 2 round-headed windows each
+  - two west grey bays: 2 round-headed windows each
   - Window frames are white, with dark glass.
 - **Ground floor:** almost all hidden behind the gabled infill. The infill is open-fronted or glazed, with white posts. Each small gable has a dark red-brown barge board `#6E2B26`, a white lattice gable infill and a white timber lattice frieze below. Gable apexes are about 4.5 m. Entrance doors are glazed, behind the fence.
 - **Signage:** "ESPLANADE" and "HOTEL" in dark red-brown serif capitals on the white parapet, about 0.7 m tall, one word either side of the central curved pediment. Draw as plain lettering only.

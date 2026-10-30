@@ -1,0 +1,1267 @@
+{
+ "note": "Esplanade Hotel, 30-38 Marine Terrace, Busselton (1899-1900, H. Cowell Ashton), from the Landgate aerial (Oct 2026), the street and drone photos and the inHerit record. Two-storey rendered pub with grey pedimented bays (one at the east end, a pair at the west end), ESPLANADE / HOTEL lettering on the parapet, a single-storey front infill with a row of six small street-facing gables (red-brown barges, white lattice), the beer garden behind a cream rendered fence with white palisade, the 2019 west function wing and the narrow east wing. Signs are plain lettering only, no logos. Metres: x left to right as seen from Marine Terrace (east to west), y back from the front of the infill.",
+ "wallHeight": 3.0,
+ "setback": 4.3,
+ "road": {
+  "width": 12,
+  "verge": 7.2
+ },
+ "lawn": "#8a8f5a",
+ "sunFrom": [
+  -0.5,
+  -0.9,
+  1.2
+ ],
+ "cameras": {
+  "street": {
+   "eye": [
+    19.5,
+    -24,
+    1.7
+   ],
+   "look": [
+    21,
+    6,
+    4.6
+   ],
+   "lens": 22
+  },
+  "aerial": {
+   "eye": [
+    -22,
+    -46,
+    26
+   ],
+   "look": [
+    22,
+    10,
+    2
+   ],
+   "lens": 30
+  }
+ },
+ "walls": {
+  "kind": "render",
+  "colour": "#edeae2"
+ },
+ "finishes": {
+  "grey": {
+   "kind": "render",
+   "colour": "#8a8d91"
+  },
+  "lattice": {
+   "kind": "render",
+   "colour": "#f3f1eb"
+  },
+  "barge": {
+   "kind": "render",
+   "colour": "#6e2b26"
+  },
+  "chimney": {
+   "kind": "render",
+   "colour": "#8c6a58"
+  }
+ },
+ "trim": "#f4f3ef",
+ "roof": {
+  "pitch": 24,
+  "colour": "#74332f",
+  "eaves": 0.35
+ },
+ "blocks": [
+  {
+   "name": "hotel",
+   "x0": 0,
+   "x1": 42.5,
+   "y0": 7.5,
+   "y1": 24.5,
+   "roof": "hip",
+   "wallHeight": 8.5,
+   "eaves": 0.1,
+   "pitch": 24
+  },
+  {
+   "name": "infill",
+   "x0": 3,
+   "x1": 32,
+   "y0": 0.4,
+   "y1": 7.5,
+   "roof": "none",
+   "wallHeight": 3.0
+  },
+  {
+   "name": "gable0",
+   "x0": 3.2,
+   "x1": 7.4,
+   "y0": 0,
+   "y1": 7.5,
+   "roof": "gable",
+   "wallHeight": 3.0,
+   "pitch": 34,
+   "eaves": 0.25,
+   "walls": "lattice"
+  },
+  {
+   "name": "gable1",
+   "x0": 7.6,
+   "x1": 11.8,
+   "y0": 0,
+   "y1": 7.5,
+   "roof": "gable",
+   "wallHeight": 3.0,
+   "pitch": 34,
+   "eaves": 0.25,
+   "walls": "lattice"
+  },
+  {
+   "name": "gable2",
+   "x0": 12.0,
+   "x1": 16.2,
+   "y0": 0,
+   "y1": 7.5,
+   "roof": "gable",
+   "wallHeight": 3.0,
+   "pitch": 34,
+   "eaves": 0.25,
+   "walls": "lattice"
+  },
+  {
+   "name": "gable3",
+   "x0": 16.4,
+   "x1": 20.6,
+   "y0": 0,
+   "y1": 7.5,
+   "roof": "gable",
+   "wallHeight": 3.0,
+   "pitch": 34,
+   "eaves": 0.25,
+   "walls": "lattice"
+  },
+  {
+   "name": "gable4",
+   "x0": 21.2,
+   "x1": 26.3,
+   "y0": 0,
+   "y1": 7.5,
+   "roof": "gable",
+   "wallHeight": 3.0,
+   "pitch": 29,
+   "eaves": 0.25,
+   "walls": "lattice"
+  },
+  {
+   "name": "gable5",
+   "x0": 26.6,
+   "x1": 31.8,
+   "y0": 0,
+   "y1": 7.5,
+   "roof": "gable",
+   "wallHeight": 3.0,
+   "pitch": 29,
+   "eaves": 0.25,
+   "walls": "lattice"
+  },
+  {
+   "name": "west_wing",
+   "x0": 42.5,
+   "x1": 60.5,
+   "y0": 2.3,
+   "y1": 27.7,
+   "roof": "hip",
+   "wallHeight": 4.4,
+   "pitch": 6,
+   "eaves": 0.05,
+   "outbuilding": true
+  },
+  {
+   "name": "east_wing",
+   "x0": -6.5,
+   "x1": 0,
+   "y0": 1.5,
+   "y1": 26,
+   "roof": "hip",
+   "wallHeight": 3.4,
+   "pitch": 25,
+   "outbuilding": true
+  },
+  {
+   "name": "back_a",
+   "x0": 5,
+   "x1": 20,
+   "y0": 24.5,
+   "y1": 33,
+   "roof": "hip",
+   "wallHeight": 3.6,
+   "outbuilding": true
+  },
+  {
+   "name": "back_b",
+   "x0": 22,
+   "x1": 30,
+   "y0": 24.5,
+   "y1": 37,
+   "roof": "hip",
+   "wallHeight": 3.6,
+   "outbuilding": true
+  },
+  {
+   "name": "chimney",
+   "x0": 9.4,
+   "x1": 10.6,
+   "y0": 9.0,
+   "y1": 10.2,
+   "roof": "none",
+   "wallHeight": 9.7,
+   "walls": "chimney",
+   "outbuilding": true
+  }
+ ],
+ "panels": [
+  {
+   "x0": 3.2,
+   "x1": 7.4,
+   "y0": -0.32,
+   "y1": -0.2,
+   "z0": 2.45,
+   "z1": 2.95,
+   "walls": "lattice"
+  },
+  {
+   "x0": 3.2,
+   "x1": 7.4,
+   "y0": -0.34,
+   "y1": -0.2,
+   "z0": 2.25,
+   "z1": 2.45,
+   "walls": "barge"
+  },
+  {
+   "x0": 3.2,
+   "x1": 3.4000000000000004,
+   "y0": -0.3,
+   "y1": 0.0,
+   "z0": 0,
+   "z1": 2.3,
+   "walls": "lattice"
+  },
+  {
+   "x0": 7.2,
+   "x1": 7.4,
+   "y0": -0.3,
+   "y1": 0.0,
+   "z0": 0,
+   "z1": 2.3,
+   "walls": "lattice"
+  },
+  {
+   "x0": 7.6,
+   "x1": 11.8,
+   "y0": -0.32,
+   "y1": -0.2,
+   "z0": 2.45,
+   "z1": 2.95,
+   "walls": "lattice"
+  },
+  {
+   "x0": 7.6,
+   "x1": 11.8,
+   "y0": -0.34,
+   "y1": -0.2,
+   "z0": 2.25,
+   "z1": 2.45,
+   "walls": "barge"
+  },
+  {
+   "x0": 7.6,
+   "x1": 7.8,
+   "y0": -0.3,
+   "y1": 0.0,
+   "z0": 0,
+   "z1": 2.3,
+   "walls": "lattice"
+  },
+  {
+   "x0": 11.600000000000001,
+   "x1": 11.8,
+   "y0": -0.3,
+   "y1": 0.0,
+   "z0": 0,
+   "z1": 2.3,
+   "walls": "lattice"
+  },
+  {
+   "x0": 12.0,
+   "x1": 16.2,
+   "y0": -0.32,
+   "y1": -0.2,
+   "z0": 2.45,
+   "z1": 2.95,
+   "walls": "lattice"
+  },
+  {
+   "x0": 12.0,
+   "x1": 16.2,
+   "y0": -0.34,
+   "y1": -0.2,
+   "z0": 2.25,
+   "z1": 2.45,
+   "walls": "barge"
+  },
+  {
+   "x0": 12.0,
+   "x1": 12.2,
+   "y0": -0.3,
+   "y1": 0.0,
+   "z0": 0,
+   "z1": 2.3,
+   "walls": "lattice"
+  },
+  {
+   "x0": 16.0,
+   "x1": 16.2,
+   "y0": -0.3,
+   "y1": 0.0,
+   "z0": 0,
+   "z1": 2.3,
+   "walls": "lattice"
+  },
+  {
+   "x0": 16.4,
+   "x1": 20.6,
+   "y0": -0.32,
+   "y1": -0.2,
+   "z0": 2.45,
+   "z1": 2.95,
+   "walls": "lattice"
+  },
+  {
+   "x0": 16.4,
+   "x1": 20.6,
+   "y0": -0.34,
+   "y1": -0.2,
+   "z0": 2.25,
+   "z1": 2.45,
+   "walls": "barge"
+  },
+  {
+   "x0": 16.4,
+   "x1": 16.599999999999998,
+   "y0": -0.3,
+   "y1": 0.0,
+   "z0": 0,
+   "z1": 2.3,
+   "walls": "lattice"
+  },
+  {
+   "x0": 20.400000000000002,
+   "x1": 20.6,
+   "y0": -0.3,
+   "y1": 0.0,
+   "z0": 0,
+   "z1": 2.3,
+   "walls": "lattice"
+  },
+  {
+   "x0": 21.2,
+   "x1": 26.3,
+   "y0": -0.32,
+   "y1": -0.2,
+   "z0": 2.45,
+   "z1": 2.95,
+   "walls": "lattice"
+  },
+  {
+   "x0": 21.2,
+   "x1": 26.3,
+   "y0": -0.34,
+   "y1": -0.2,
+   "z0": 2.25,
+   "z1": 2.45,
+   "walls": "barge"
+  },
+  {
+   "x0": 21.2,
+   "x1": 21.4,
+   "y0": -0.3,
+   "y1": 0.0,
+   "z0": 0,
+   "z1": 2.3,
+   "walls": "lattice"
+  },
+  {
+   "x0": 26.1,
+   "x1": 26.3,
+   "y0": -0.3,
+   "y1": 0.0,
+   "z0": 0,
+   "z1": 2.3,
+   "walls": "lattice"
+  },
+  {
+   "x0": 26.6,
+   "x1": 31.8,
+   "y0": -0.32,
+   "y1": -0.2,
+   "z0": 2.45,
+   "z1": 2.95,
+   "walls": "lattice"
+  },
+  {
+   "x0": 26.6,
+   "x1": 31.8,
+   "y0": -0.34,
+   "y1": -0.2,
+   "z0": 2.25,
+   "z1": 2.45,
+   "walls": "barge"
+  },
+  {
+   "x0": 26.6,
+   "x1": 26.8,
+   "y0": -0.3,
+   "y1": 0.0,
+   "z0": 0,
+   "z1": 2.3,
+   "walls": "lattice"
+  },
+  {
+   "x0": 31.6,
+   "x1": 31.8,
+   "y0": -0.3,
+   "y1": 0.0,
+   "z0": 0,
+   "z1": 2.3,
+   "walls": "lattice"
+  },
+  {
+   "x0": 1.0,
+   "x1": 6.9,
+   "y0": 7.3,
+   "y1": 7.52,
+   "z0": 0,
+   "z1": 8.5,
+   "walls": "grey"
+  },
+  {
+   "x0": 0.85,
+   "x1": 7.050000000000001,
+   "y0": 7.24,
+   "y1": 7.34,
+   "z0": 8.3,
+   "z1": 8.55,
+   "walls": "lattice"
+  },
+  {
+   "x0": 31.7,
+   "x1": 37.0,
+   "y0": 7.3,
+   "y1": 7.52,
+   "z0": 0,
+   "z1": 8.5,
+   "walls": "grey"
+  },
+  {
+   "x0": 31.55,
+   "x1": 37.15,
+   "y0": 7.24,
+   "y1": 7.34,
+   "z0": 8.3,
+   "z1": 8.55,
+   "walls": "lattice"
+  },
+  {
+   "x0": 37.3,
+   "x1": 42.2,
+   "y0": 7.3,
+   "y1": 7.52,
+   "z0": 0,
+   "z1": 8.5,
+   "walls": "grey"
+  },
+  {
+   "x0": 37.15,
+   "x1": 42.35,
+   "y0": 7.24,
+   "y1": 7.34,
+   "z0": 8.3,
+   "z1": 8.55,
+   "walls": "lattice"
+  }
+ ],
+ "pediments": [
+  {
+   "x0": 2.95,
+   "x1": 7.65,
+   "y": -0.3,
+   "z": 2.95,
+   "height": 1.59,
+   "walls": "barge"
+  },
+  {
+   "x0": 3.4,
+   "x1": 7.2,
+   "y": -0.34,
+   "z": 3.12,
+   "height": 1.28,
+   "walls": "lattice"
+  },
+  {
+   "x0": 7.35,
+   "x1": 12.05,
+   "y": -0.3,
+   "z": 2.95,
+   "height": 1.59,
+   "walls": "barge"
+  },
+  {
+   "x0": 7.8,
+   "x1": 11.6,
+   "y": -0.34,
+   "z": 3.12,
+   "height": 1.28,
+   "walls": "lattice"
+  },
+  {
+   "x0": 11.75,
+   "x1": 16.45,
+   "y": -0.3,
+   "z": 2.95,
+   "height": 1.59,
+   "walls": "barge"
+  },
+  {
+   "x0": 12.2,
+   "x1": 16.0,
+   "y": -0.34,
+   "z": 3.12,
+   "height": 1.28,
+   "walls": "lattice"
+  },
+  {
+   "x0": 16.15,
+   "x1": 20.85,
+   "y": -0.3,
+   "z": 2.95,
+   "height": 1.59,
+   "walls": "barge"
+  },
+  {
+   "x0": 16.6,
+   "x1": 20.4,
+   "y": -0.34,
+   "z": 3.12,
+   "height": 1.28,
+   "walls": "lattice"
+  },
+  {
+   "x0": 20.95,
+   "x1": 26.55,
+   "y": -0.3,
+   "z": 2.95,
+   "height": 1.55,
+   "walls": "barge"
+  },
+  {
+   "x0": 21.4,
+   "x1": 26.1,
+   "y": -0.34,
+   "z": 3.12,
+   "height": 1.3,
+   "walls": "lattice"
+  },
+  {
+   "x0": 26.35,
+   "x1": 32.05,
+   "y": -0.3,
+   "z": 2.95,
+   "height": 1.58,
+   "walls": "barge"
+  },
+  {
+   "x0": 26.8,
+   "x1": 31.6,
+   "y": -0.34,
+   "z": 3.12,
+   "height": 1.33,
+   "walls": "lattice"
+  },
+  {
+   "x0": 0.85,
+   "x1": 7.050000000000001,
+   "y": 7.28,
+   "z": 8.5,
+   "height": 1.5,
+   "walls": "grey"
+  },
+  {
+   "x0": 31.55,
+   "x1": 37.15,
+   "y": 7.28,
+   "z": 8.5,
+   "height": 1.5,
+   "walls": "grey"
+  },
+  {
+   "x0": 37.15,
+   "x1": 42.35,
+   "y": 7.28,
+   "z": 8.5,
+   "height": 1.5,
+   "walls": "grey"
+  },
+  {
+   "x0": 19.4,
+   "x1": 21.8,
+   "y": 7.42,
+   "z": 8.5,
+   "height": 0.9
+  }
+ ],
+ "verandahs": [
+  {
+   "x0": 32,
+   "x1": 42.5,
+   "y0": 3.0,
+   "y1": 7.3,
+   "wallHeight": 3.6,
+   "height": 3.0,
+   "deckHeight": 0.05,
+   "posts": [
+    32.2,
+    34.8,
+    37.4,
+    40.0,
+    42.3
+   ]
+  }
+ ],
+ "doors": [
+  {
+   "type": "front",
+   "x0": 36.4,
+   "x1": 37.6,
+   "y": 7.3,
+   "height": 2.4,
+   "z0": 0.05,
+   "colour": "#2b2a28"
+  }
+ ],
+ "windows": [
+  {
+   "facing": "front",
+   "wall": 0,
+   "at": 5.3,
+   "width": 3.6,
+   "height": 1.9,
+   "sill": 0.3
+  },
+  {
+   "facing": "front",
+   "wall": 0,
+   "at": 9.7,
+   "width": 3.6,
+   "height": 1.9,
+   "sill": 0.3
+  },
+  {
+   "facing": "front",
+   "wall": 0,
+   "at": 14.1,
+   "width": 3.6,
+   "height": 1.9,
+   "sill": 0.3
+  },
+  {
+   "facing": "front",
+   "wall": 0,
+   "at": 18.5,
+   "width": 3.6,
+   "height": 1.9,
+   "sill": 0.3
+  },
+  {
+   "facing": "front",
+   "wall": 0,
+   "at": 23.75,
+   "width": 4.5,
+   "height": 1.9,
+   "sill": 0.3
+  },
+  {
+   "facing": "front",
+   "wall": 0,
+   "at": 29.2,
+   "width": 4.6,
+   "height": 1.9,
+   "sill": 0.3
+  },
+  {
+   "facing": "front",
+   "wall": 7.3,
+   "at": 2.9,
+   "width": 0.9,
+   "height": 2.0,
+   "sill": 4.9
+  },
+  {
+   "facing": "front",
+   "wall": 7.3,
+   "at": 5.0,
+   "width": 0.9,
+   "height": 2.0,
+   "sill": 4.9
+  },
+  {
+   "facing": "front",
+   "wall": 7.3,
+   "at": 33.3,
+   "width": 0.9,
+   "height": 2.0,
+   "sill": 4.9
+  },
+  {
+   "facing": "front",
+   "wall": 7.3,
+   "at": 35.4,
+   "width": 0.9,
+   "height": 2.0,
+   "sill": 4.9
+  },
+  {
+   "facing": "front",
+   "wall": 7.3,
+   "at": 38.7,
+   "width": 0.9,
+   "height": 2.0,
+   "sill": 4.9
+  },
+  {
+   "facing": "front",
+   "wall": 7.3,
+   "at": 40.8,
+   "width": 0.9,
+   "height": 2.0,
+   "sill": 4.9
+  },
+  {
+   "facing": "front",
+   "wall": 7.5,
+   "at": 10.0,
+   "width": 0.9,
+   "height": 1.4,
+   "sill": 5.3
+  },
+  {
+   "facing": "front",
+   "wall": 7.5,
+   "at": 13.6,
+   "width": 0.9,
+   "height": 1.4,
+   "sill": 5.3
+  },
+  {
+   "facing": "front",
+   "wall": 7.5,
+   "at": 17.2,
+   "width": 0.9,
+   "height": 1.4,
+   "sill": 5.3
+  },
+  {
+   "facing": "front",
+   "wall": 7.5,
+   "at": 24.2,
+   "width": 0.9,
+   "height": 1.4,
+   "sill": 5.3
+  },
+  {
+   "facing": "front",
+   "wall": 7.5,
+   "at": 27.8,
+   "width": 0.9,
+   "height": 1.4,
+   "sill": 5.3
+  },
+  {
+   "facing": "front",
+   "wall": 7.3,
+   "at": 34.3,
+   "width": 1.6,
+   "height": 1.8,
+   "sill": 0.7
+  },
+  {
+   "facing": "front",
+   "wall": 7.3,
+   "at": 39.8,
+   "width": 1.6,
+   "height": 1.8,
+   "sill": 0.7
+  },
+  {
+   "facing": "front",
+   "wall": 2.3,
+   "at": 45.5,
+   "width": 2.4,
+   "height": 2.2,
+   "sill": 0.5
+  },
+  {
+   "facing": "front",
+   "wall": 2.3,
+   "at": 49.5,
+   "width": 2.4,
+   "height": 2.2,
+   "sill": 0.5
+  },
+  {
+   "facing": "front",
+   "wall": 2.3,
+   "at": 53.5,
+   "width": 2.4,
+   "height": 2.2,
+   "sill": 0.5
+  },
+  {
+   "facing": "front",
+   "wall": 2.3,
+   "at": 57.5,
+   "width": 2.4,
+   "height": 2.2,
+   "sill": 0.5
+  },
+  {
+   "facing": "front",
+   "wall": 1.5,
+   "at": -3.2,
+   "width": 2.4,
+   "height": 1.6,
+   "sill": 0.8
+  }
+ ],
+ "fences": [
+  {
+   "x0": -6.5,
+   "y0": -4.300000000000001,
+   "x1": 16.0,
+   "y1": -4.0,
+   "height": 0.55,
+   "colour": "#e6dfc6",
+   "kind": "concrete"
+  },
+  {
+   "x0": -6.5,
+   "y0": -4.180000000000001,
+   "x1": 16.0,
+   "y1": -4.12,
+   "height": 1.35,
+   "colour": "#f2f2ef",
+   "open": true
+  },
+  {
+   "x0": -6.73,
+   "y0": -4.380000000000001,
+   "x1": -6.27,
+   "y1": -3.9200000000000004,
+   "height": 1.55,
+   "colour": "#e6dfc6",
+   "kind": "concrete"
+  },
+  {
+   "x0": -2.98,
+   "y0": -4.380000000000001,
+   "x1": -2.52,
+   "y1": -3.9200000000000004,
+   "height": 1.55,
+   "colour": "#e6dfc6",
+   "kind": "concrete"
+  },
+  {
+   "x0": 0.77,
+   "y0": -4.380000000000001,
+   "x1": 1.23,
+   "y1": -3.9200000000000004,
+   "height": 1.55,
+   "colour": "#e6dfc6",
+   "kind": "concrete"
+  },
+  {
+   "x0": 4.52,
+   "y0": -4.380000000000001,
+   "x1": 4.98,
+   "y1": -3.9200000000000004,
+   "height": 1.55,
+   "colour": "#e6dfc6",
+   "kind": "concrete"
+  },
+  {
+   "x0": 8.27,
+   "y0": -4.380000000000001,
+   "x1": 8.73,
+   "y1": -3.9200000000000004,
+   "height": 1.55,
+   "colour": "#e6dfc6",
+   "kind": "concrete"
+  },
+  {
+   "x0": 12.02,
+   "y0": -4.380000000000001,
+   "x1": 12.48,
+   "y1": -3.9200000000000004,
+   "height": 1.55,
+   "colour": "#e6dfc6",
+   "kind": "concrete"
+  },
+  {
+   "x0": 15.77,
+   "y0": -4.380000000000001,
+   "x1": 16.23,
+   "y1": -3.9200000000000004,
+   "height": 1.55,
+   "colour": "#e6dfc6",
+   "kind": "concrete"
+  },
+  {
+   "x0": 18.2,
+   "y0": -4.300000000000001,
+   "x1": 43.0,
+   "y1": -4.0,
+   "height": 0.55,
+   "colour": "#e6dfc6",
+   "kind": "concrete"
+  },
+  {
+   "x0": 18.2,
+   "y0": -4.180000000000001,
+   "x1": 43.0,
+   "y1": -4.12,
+   "height": 1.35,
+   "colour": "#f2f2ef",
+   "open": true
+  },
+  {
+   "x0": 17.97,
+   "y0": -4.380000000000001,
+   "x1": 18.43,
+   "y1": -3.9200000000000004,
+   "height": 1.55,
+   "colour": "#e6dfc6",
+   "kind": "concrete"
+  },
+  {
+   "x0": 22.1,
+   "y0": -4.380000000000001,
+   "x1": 22.56,
+   "y1": -3.9200000000000004,
+   "height": 1.55,
+   "colour": "#e6dfc6",
+   "kind": "concrete"
+  },
+  {
+   "x0": 26.24,
+   "y0": -4.380000000000001,
+   "x1": 26.7,
+   "y1": -3.9200000000000004,
+   "height": 1.55,
+   "colour": "#e6dfc6",
+   "kind": "concrete"
+  },
+  {
+   "x0": 30.37,
+   "y0": -4.380000000000001,
+   "x1": 30.83,
+   "y1": -3.9200000000000004,
+   "height": 1.55,
+   "colour": "#e6dfc6",
+   "kind": "concrete"
+  },
+  {
+   "x0": 34.5,
+   "y0": -4.380000000000001,
+   "x1": 34.96,
+   "y1": -3.9200000000000004,
+   "height": 1.55,
+   "colour": "#e6dfc6",
+   "kind": "concrete"
+  },
+  {
+   "x0": 38.64,
+   "y0": -4.380000000000001,
+   "x1": 39.1,
+   "y1": -3.9200000000000004,
+   "height": 1.55,
+   "colour": "#e6dfc6",
+   "kind": "concrete"
+  },
+  {
+   "x0": 42.77,
+   "y0": -4.380000000000001,
+   "x1": 43.23,
+   "y1": -3.9200000000000004,
+   "height": 1.55,
+   "colour": "#e6dfc6",
+   "kind": "concrete"
+  },
+  {
+   "x0": 45.0,
+   "y0": -4.300000000000001,
+   "x1": 60.5,
+   "y1": -4.0,
+   "height": 0.55,
+   "colour": "#e6dfc6",
+   "kind": "concrete"
+  },
+  {
+   "x0": 45.0,
+   "y0": -4.180000000000001,
+   "x1": 60.5,
+   "y1": -4.12,
+   "height": 1.35,
+   "colour": "#f2f2ef",
+   "open": true
+  },
+  {
+   "x0": 44.77,
+   "y0": -4.380000000000001,
+   "x1": 45.23,
+   "y1": -3.9200000000000004,
+   "height": 1.55,
+   "colour": "#e6dfc6",
+   "kind": "concrete"
+  },
+  {
+   "x0": 48.65,
+   "y0": -4.380000000000001,
+   "x1": 49.1,
+   "y1": -3.9200000000000004,
+   "height": 1.55,
+   "colour": "#e6dfc6",
+   "kind": "concrete"
+  },
+  {
+   "x0": 52.52,
+   "y0": -4.380000000000001,
+   "x1": 52.98,
+   "y1": -3.9200000000000004,
+   "height": 1.55,
+   "colour": "#e6dfc6",
+   "kind": "concrete"
+  },
+  {
+   "x0": 56.4,
+   "y0": -4.380000000000001,
+   "x1": 56.85,
+   "y1": -3.9200000000000004,
+   "height": 1.55,
+   "colour": "#e6dfc6",
+   "kind": "concrete"
+  },
+  {
+   "x0": 60.27,
+   "y0": -4.380000000000001,
+   "x1": 60.73,
+   "y1": -3.9200000000000004,
+   "height": 1.55,
+   "colour": "#e6dfc6",
+   "kind": "concrete"
+  }
+ ],
+ "hedges": [
+  {
+   "x0": -8,
+   "x1": 16,
+   "y0": -11.2,
+   "depth": 1.3,
+   "height": 0.6
+  },
+  {
+   "x0": 22,
+   "x1": 58,
+   "y0": -11.2,
+   "depth": 1.3,
+   "height": 0.6
+  }
+ ],
+ "paving": [
+  {
+   "x0": -6.5,
+   "y0": -4.0,
+   "x1": 42.5,
+   "y1": 0.0,
+   "colour": "#c9b79a",
+   "kind": "concrete"
+  },
+  {
+   "x0": 32,
+   "y0": 0.0,
+   "x1": 42.5,
+   "y1": 3.0,
+   "colour": "#c9b79a",
+   "kind": "concrete"
+  },
+  {
+   "x0": -10,
+   "y0": -7.6,
+   "x1": 62,
+   "y1": -4.3,
+   "colour": "#cfccc4",
+   "kind": "concrete"
+  },
+  {
+   "x0": -10,
+   "y0": -9.6,
+   "x1": 62,
+   "y1": -7.6,
+   "colour": "#55575a",
+   "kind": "concrete"
+  }
+ ],
+ "tables": [
+  {
+   "x": 4.5,
+   "y": -2.1,
+   "length": 1.6,
+   "colour": "#2b2b2b"
+  },
+  {
+   "x": 9.0,
+   "y": -2.1,
+   "length": 1.6,
+   "colour": "#2b2b2b"
+  },
+  {
+   "x": 13.0,
+   "y": -2.1,
+   "length": 1.6,
+   "colour": "#2b2b2b"
+  },
+  {
+   "x": 22.5,
+   "y": -2.1,
+   "length": 1.6,
+   "colour": "#2b2b2b"
+  },
+  {
+   "x": 27.0,
+   "y": -2.1,
+   "length": 1.6,
+   "colour": "#2b2b2b"
+  },
+  {
+   "x": 35.5,
+   "y": -2.1,
+   "length": 1.6,
+   "colour": "#2b2b2b"
+  },
+  {
+   "x": 39.0,
+   "y": -2.1,
+   "length": 1.6,
+   "colour": "#2b2b2b"
+  }
+ ],
+ "umbrellas": [
+  {
+   "x": 6.0,
+   "y": -2.0,
+   "radius": 1.6,
+   "height": 2.7,
+   "colour": "#f2c230"
+  },
+  {
+   "x": 13.5,
+   "y": -2.0,
+   "radius": 1.6,
+   "height": 2.7,
+   "colour": "#f2c230"
+  },
+  {
+   "x": 24.0,
+   "y": -2.0,
+   "radius": 1.6,
+   "height": 2.7,
+   "colour": "#f2c230"
+  },
+  {
+   "x": 28.0,
+   "y": -2.0,
+   "radius": 1.5,
+   "height": 2.7,
+   "colour": "#3c8fc4"
+  },
+  {
+   "x": 30.5,
+   "y": -2.0,
+   "radius": 1.5,
+   "height": 2.7,
+   "colour": "#3c8fc4"
+  },
+  {
+   "x": -2.0,
+   "y": -2.1,
+   "radius": 1.5,
+   "height": 2.7,
+   "colour": "#8e9296"
+  },
+  {
+   "x": 0.8,
+   "y": -2.1,
+   "radius": 1.5,
+   "height": 2.7,
+   "colour": "#8e9296"
+  },
+  {
+   "x": 37.0,
+   "y": -0.6,
+   "radius": 3.3,
+   "height": 3.1,
+   "colour": "#4a4e52"
+  }
+ ],
+ "signs": [
+  {
+   "x0": 10.0,
+   "x1": 17.8,
+   "y": 7.4,
+   "z0": 7.15,
+   "z1": 8.45,
+   "text": "ESPLANADE",
+   "colour": "#edeae2",
+   "ink": "#6e2b26"
+  },
+  {
+   "x0": 22.8,
+   "x1": 28.0,
+   "y": 7.4,
+   "z0": 7.15,
+   "z1": 8.45,
+   "text": "HOTEL",
+   "colour": "#edeae2",
+   "ink": "#6e2b26"
+  }
+ ],
+ "trees": [
+  {
+   "x": 2.5,
+   "y": -2.6,
+   "height": 5.0,
+   "spread": 2.6
+  },
+  {
+   "x": 18.6,
+   "y": -2.6,
+   "height": 5.5,
+   "spread": 2.8
+  },
+  {
+   "x": 33.5,
+   "y": -2.6,
+   "height": 5.0,
+   "spread": 2.6
+  }
+ ],
+ "hedge": {
+  "colour": "#5d6b3c"
+ }
+}

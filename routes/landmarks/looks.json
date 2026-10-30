@@ -9,6 +9,60 @@
    "specFile": "routes/landmarks/rocky_ridge.json",
    "name": "Rocky Ridge Brewing Co",
    "facing": 345
+  },
+  {
+   "at": [
+    115.346152,
+    -33.645527
+   ],
+   "specFile": "routes/landmarks/hilton_garden_inn.json",
+   "name": "Hilton Garden Inn Busselton",
+   "facing": 335
+  },
+  {
+   "at": [
+    115.345723,
+    -33.645068
+   ],
+   "specFile": "routes/landmarks/visitor_centre.json",
+   "name": "Busselton Visitor Centre",
+   "facing": 111
+  },
+  {
+   "at": [
+    115.349816,
+    -33.652538
+   ],
+   "specFile": "routes/landmarks/busselton_museum.json",
+   "name": "Busselton Museum",
+   "facing": 347
+  },
+  {
+   "at": [
+    115.345216,
+    -33.646675
+   ],
+   "specFile": "routes/landmarks/esplanade_hotel.json",
+   "name": "Esplanade Hotel",
+   "facing": 346
+  },
+  {
+   "at": [
+    115.343484,
+    -33.647133
+   ],
+   "specFile": "routes/landmarks/old_courthouse.json",
+   "name": "Old Courthouse",
+   "facing": 76
+  },
+  {
+   "at": [
+    115.345426,
+    -33.644643
+   ],
+   "specFile": "routes/landmarks/the_goose.json",
+   "name": "The Goose",
+   "facing": 166
   }
  ]
 }

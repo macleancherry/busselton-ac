@@ -1,0 +1,406 @@
+{
+ "note": "Busselton Visitor Centre (Railway House), Foreshore Parade by the jetty, from docs/landmarks/visitor_centre.md (Landgate aerial, OSM outline, 2021 street photos). The 1894 station (white weatherboard, gable end with its brick chimney facing east), the new visitor centre joined to it (white boards, verandah with a dark fascia, louvred plant screen on the roof), the long low-pitched hall and train shed behind with solar panels. The front is the east face, the one seen square-on driving west along Foreshore Parade. Signs are plain lettering. Metres: x left to right as seen from the east (south to north), y back from the east face (westward).",
+ "wallHeight": 3.8,
+ "setback": 12,
+ "road": {
+  "width": 10,
+  "verge": 1.5
+ },
+ "lawn": "#8a8f5a",
+ "sunFrom": [
+  0.7,
+  -0.6,
+  1.2
+ ],
+ "cameras": {
+  "street": {
+   "eye": [
+    2,
+    -34,
+    1.6
+   ],
+   "look": [
+    17,
+    4,
+    2.8
+   ],
+   "lens": 24
+  },
+  "aerial": {
+   "eye": [
+    -22,
+    -40,
+    26
+   ],
+   "look": [
+    17,
+    16,
+    1
+   ],
+   "lens": 30
+  }
+ },
+ "walls": {
+  "kind": "weatherboard",
+  "colour": "#eceeed"
+ },
+ "finishes": {
+  "station": {
+   "kind": "weatherboard",
+   "colour": "#f2f1ec"
+  },
+  "shed": {
+   "kind": "corrugated",
+   "colour": "#dfe1dc"
+  },
+  "brick": {
+   "kind": "brick",
+   "colour": "#8a4f3e"
+  },
+  "louvre": {
+   "kind": "weatherboard",
+   "colour": "#f4f4f1"
+  },
+  "vent": {
+   "kind": "corrugated",
+   "colour": "#2d2f31"
+  },
+  "fascia": {
+   "kind": "render",
+   "colour": "#5a2e2a"
+  },
+  "solar": {
+   "kind": "panel",
+   "colour": "#1f2a3a"
+  }
+ },
+ "trim": "#f2f2ef",
+ "roof": {
+  "pitch": 6,
+  "colour": "#d6d9d4",
+  "eaves": 0.3
+ },
+ "blocks": [
+  {
+   "name": "hall",
+   "x0": 20.2,
+   "x1": 32.0,
+   "y0": 0.3,
+   "y1": 34.2,
+   "roof": "gable",
+   "pitch": 3,
+   "wallHeight": 4.3,
+   "walls": "shed",
+   "roofColour": "#e2e3dc"
+  },
+  {
+   "name": "middle",
+   "x0": 11.5,
+   "x1": 20.2,
+   "y0": 5.0,
+   "y1": 37.2,
+   "roof": "gable",
+   "pitch": 8,
+   "wallHeight": 4.0,
+   "roofColour": "#aeb4b4"
+  },
+  {
+   "name": "centre",
+   "x0": 11.5,
+   "x1": 20.2,
+   "y0": 0.3,
+   "y1": 6.0,
+   "roof": "none",
+   "wallHeight": 3.8
+  },
+  {
+   "name": "station",
+   "x0": 1.4,
+   "x1": 8.6,
+   "y0": 3.6,
+   "y1": 31.4,
+   "roof": "gable",
+   "pitch": 30,
+   "wallHeight": 3.2,
+   "eaves": 0.5,
+   "walls": "station",
+   "roofColour": "#b9c1c4"
+  }
+ ],
+ "panels": [
+  {
+   "x0": 4.5,
+   "x1": 5.5,
+   "y0": 2.95,
+   "y1": 3.6,
+   "z0": 0,
+   "z1": 6.2,
+   "walls": "brick"
+  },
+  {
+   "x0": 12.4,
+   "x1": 18.8,
+   "y0": 0.6,
+   "y1": 5.4,
+   "z0": 3.8,
+   "z1": 5.2,
+   "walls": "louvre"
+  },
+  {
+   "x0": 13.3,
+   "x1": 13.9,
+   "y0": 2.6,
+   "y1": 3.2,
+   "z0": 5.2,
+   "z1": 6.3,
+   "walls": "vent"
+  },
+  {
+   "x0": 11.0,
+   "x1": 28.2,
+   "y0": -3.05,
+   "y1": -2.9,
+   "z0": 3.0,
+   "z1": 3.45,
+   "walls": "fascia"
+  },
+  {
+   "x0": 22.2,
+   "x1": 29.2,
+   "y0": 16.8,
+   "y1": 21.2,
+   "z0": 4.58,
+   "z1": 4.68,
+   "walls": "solar"
+  },
+  {
+   "x0": 22.2,
+   "x1": 29.2,
+   "y0": 23.0,
+   "y1": 27.4,
+   "z0": 4.58,
+   "z1": 4.68,
+   "walls": "solar"
+  }
+ ],
+ "awnings": [
+  {
+   "x0": 11.0,
+   "x1": 28.2,
+   "y0": -3.0,
+   "y1": 0.3,
+   "z": 3.45,
+   "thickness": 0.15,
+   "colour": "#eef0ee",
+   "posts": [
+    11.2,
+    14.6,
+    18.0,
+    21.4,
+    24.8,
+    28.0
+   ]
+  },
+  {
+   "x0": -0.8,
+   "x1": 1.4,
+   "y0": 3.8,
+   "y1": 13.5,
+   "z": 2.85,
+   "thickness": 0.22,
+   "colour": "#f2f2ef",
+   "posts": [
+    -0.65
+   ]
+  }
+ ],
+ "doors": [
+  {
+   "type": "front",
+   "x0": 16.4,
+   "x1": 18.4,
+   "y": 0.3,
+   "height": 2.4,
+   "z0": 0.05,
+   "colour": "#23272b"
+  }
+ ],
+ "windows": [
+  {
+   "facing": "front",
+   "wall": 0.3,
+   "at": 13.8,
+   "width": 3.4,
+   "height": 2.5,
+   "sill": 0.1
+  },
+  {
+   "facing": "front",
+   "wall": 0.3,
+   "at": 21.2,
+   "width": 1.6,
+   "height": 1.6,
+   "sill": 0.9
+  },
+  {
+   "facing": "front",
+   "wall": 0.3,
+   "at": 27.6,
+   "width": 3.2,
+   "height": 1.8,
+   "sill": 0.8
+  },
+  {
+   "facing": "front",
+   "wall": 3.6,
+   "at": 2.7,
+   "width": 0.9,
+   "height": 1.7,
+   "sill": 0.9
+  },
+  {
+   "facing": "front",
+   "wall": 3.6,
+   "at": 7.3,
+   "width": 0.9,
+   "height": 1.7,
+   "sill": 0.9
+  },
+  {
+   "facing": "left",
+   "wall": 1.4,
+   "at": 7.0,
+   "width": 1.0,
+   "height": 1.7,
+   "sill": 0.9
+  },
+  {
+   "facing": "left",
+   "wall": 1.4,
+   "at": 10.5,
+   "width": 1.0,
+   "height": 1.7,
+   "sill": 0.9
+  },
+  {
+   "facing": "left",
+   "wall": 1.4,
+   "at": 16.0,
+   "width": 1.0,
+   "height": 1.7,
+   "sill": 0.9
+  },
+  {
+   "facing": "left",
+   "wall": 1.4,
+   "at": 20.0,
+   "width": 1.0,
+   "height": 1.7,
+   "sill": 0.9
+  },
+  {
+   "facing": "left",
+   "wall": 1.4,
+   "at": 25.0,
+   "width": 1.0,
+   "height": 1.7,
+   "sill": 0.9
+  }
+ ],
+ "paving": [
+  {
+   "x0": -12,
+   "y0": -12,
+   "x1": 34,
+   "y1": 0.3,
+   "colour": "#d9c8a8",
+   "kind": "concrete"
+  },
+  {
+   "x0": -12,
+   "y0": 0.3,
+   "x1": 1.2,
+   "y1": 40,
+   "colour": "#d9c8a8",
+   "kind": "concrete"
+  }
+ ],
+ "fences": [
+  {
+   "x0": 25.5,
+   "y0": -5.0,
+   "x1": 33.5,
+   "y1": -4.4,
+   "height": 0.9,
+   "colour": "#d8cfb5",
+   "kind": "concrete"
+  },
+  {
+   "x0": 32.9,
+   "y0": -5.0,
+   "x1": 33.5,
+   "y1": 2.0,
+   "height": 0.9,
+   "colour": "#d8cfb5",
+   "kind": "concrete"
+  }
+ ],
+ "hedges": [
+  {
+   "x0": 26.0,
+   "x1": 32.8,
+   "y0": -4.3,
+   "depth": 1.2,
+   "height": 1.1
+  }
+ ],
+ "signs": [
+  {
+   "x0": 12.2,
+   "x1": 16.2,
+   "y": -3.2,
+   "z0": 3.02,
+   "z1": 3.43,
+   "text": "Visitor Centre",
+   "colour": "#5a2e2a",
+   "ink": "#f4f4f2"
+  },
+  {
+   "x0": 5.9,
+   "x1": 7.5,
+   "y": 2.4,
+   "z0": 0.5,
+   "z1": 2.1,
+   "text": "Railway House",
+   "colour": "#24324a",
+   "ink": "#f4f4f2",
+   "posts": true
+  }
+ ],
+ "trees": [
+  {
+   "x": -1.5,
+   "y": -6.0,
+   "height": 6,
+   "spread": 3.0
+  },
+  {
+   "x": 36.0,
+   "y": 6.0,
+   "height": 9,
+   "spread": 2.0
+  },
+  {
+   "x": 36.0,
+   "y": 16.0,
+   "height": 9,
+   "spread": 2.0
+  },
+  {
+   "x": 36.0,
+   "y": 26.0,
+   "height": 9,
+   "spread": 2.0
+  }
+ ]
+}

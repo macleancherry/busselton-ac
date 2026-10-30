@@ -1,0 +1,612 @@
+{
+ "note": "Busselton Court House and Police Complex, 4 Queen Street (State Register), from the Landgate aerial (Oct 2026), street photos and the inHerit record. The 1897 red-brick court house (hip roof with a ventilator lantern, a half-timbered gable bay, the maroon-and-cream verandah the cafe uses), the 1873 limestone post office beside it, the police office behind, the long limestone cells and stables range running back with its dark lean-to, and the 1906 brick police cottages to the south (marked outbuilding so they don't move the centre). Signs are plain lettering only. Metres: x left to right as seen from Queen Street (south to north), y back from the front of the court house gable bay.",
+ "wallHeight": 3.5,
+ "setback": 4.6,
+ "road": {
+  "width": 10,
+  "verge": 0.5
+ },
+ "lawn": "#7d8a4c",
+ "sunFrom": [
+  0.55,
+  -0.75,
+  1.0
+ ],
+ "cameras": {
+  "street": {
+   "eye": [
+    9,
+    -16,
+    1.6
+   ],
+   "look": [
+    14,
+    4,
+    3.4
+   ],
+   "lens": 26
+  },
+  "aerial": {
+   "eye": [
+    -16,
+    -38,
+    24
+   ],
+   "look": [
+    6,
+    12,
+    1
+   ],
+   "lens": 28
+  }
+ },
+ "walls": {
+  "kind": "brick",
+  "colour": "#8a4b3a"
+ },
+ "finishes": {
+  "lime": {
+   "kind": "render",
+   "colour": "#e2dcc8"
+  },
+  "cream": {
+   "kind": "render",
+   "colour": "#e6dcc0"
+  },
+  "timber": {
+   "kind": "render",
+   "colour": "#4a3a2e"
+  },
+  "lantern": {
+   "kind": "render",
+   "colour": "#ddd3b8"
+  }
+ },
+ "trim": "#5e2a2d",
+ "roof": {
+  "pitch": 30,
+  "colour": "#c9cdcf",
+  "eaves": 0.45
+ },
+ "blocks": [
+  {
+   "name": "courthouse",
+   "x0": 8.8,
+   "x1": 23.0,
+   "y0": 3.3,
+   "y1": 15.0,
+   "roof": "hip",
+   "wallHeight": 4.5
+  },
+  {
+   "name": "gable_bay",
+   "x0": 16.6,
+   "x1": 22.4,
+   "y0": 0.0,
+   "y1": 9.0,
+   "roof": "gable",
+   "wallHeight": 4.5,
+   "pitch": 40,
+   "eaves": 0.35
+  },
+  {
+   "name": "lantern",
+   "x0": 15.3,
+   "x1": 16.7,
+   "y0": 8.5,
+   "y1": 9.9,
+   "roof": "hip",
+   "wallHeight": 9.0,
+   "pitch": 40,
+   "eaves": 0.15,
+   "walls": "lantern",
+   "outbuilding": true
+  },
+  {
+   "name": "chimney0",
+   "x0": 10.0,
+   "x1": 10.8,
+   "y0": 9.1,
+   "y1": 9.9,
+   "roof": "none",
+   "wallHeight": 8.9,
+   "outbuilding": true
+  },
+  {
+   "name": "chimney1",
+   "x0": 20.900000000000002,
+   "x1": 21.7,
+   "y0": 12.0,
+   "y1": 12.8,
+   "roof": "none",
+   "wallHeight": 8.9,
+   "outbuilding": true
+  },
+  {
+   "name": "chimney2",
+   "x0": 3.6,
+   "x1": 4.4,
+   "y0": 11.1,
+   "y1": 11.9,
+   "roof": "none",
+   "wallHeight": 5.6,
+   "outbuilding": true
+  },
+  {
+   "name": "chimney3",
+   "x0": 8.6,
+   "x1": 9.4,
+   "y0": 12.6,
+   "y1": 13.4,
+   "roof": "none",
+   "wallHeight": 5.6,
+   "outbuilding": true
+  },
+  {
+   "name": "post_office",
+   "x0": 0.0,
+   "x1": 8.8,
+   "y0": 0.6,
+   "y1": 9.0,
+   "roof": "hip",
+   "wallHeight": 3.5,
+   "walls": "lime",
+   "pitch": 28
+  },
+  {
+   "name": "police_office",
+   "x0": -1.0,
+   "x1": 13.0,
+   "y0": 9.0,
+   "y1": 14.0,
+   "roof": "hip",
+   "wallHeight": 3.5,
+   "walls": "lime",
+   "pitch": 28
+  },
+  {
+   "name": "range",
+   "x0": -1.6,
+   "x1": 3.4,
+   "y0": 13.0,
+   "y1": 49.0,
+   "roof": "gable",
+   "wallHeight": 3.3,
+   "walls": "lime",
+   "pitch": 30,
+   "outbuilding": true
+  },
+  {
+   "name": "lean_to",
+   "x0": -5.0,
+   "x1": -1.6,
+   "y0": 4.0,
+   "y1": 49.0,
+   "roof": "hip",
+   "wallHeight": 2.7,
+   "walls": "lime",
+   "pitch": 8,
+   "roofColour": "#4b4c46",
+   "eaves": 0.2,
+   "outbuilding": true
+  },
+  {
+   "name": "cottage_s",
+   "x0": -25.5,
+   "x1": -15.4,
+   "y0": 5.2,
+   "y1": 21.0,
+   "roof": "hip",
+   "wallHeight": 3.4,
+   "outbuilding": true
+  },
+  {
+   "name": "cottage_n",
+   "x0": -15.4,
+   "x1": -5.4,
+   "y0": 5.2,
+   "y1": 21.0,
+   "roof": "hip",
+   "wallHeight": 3.4,
+   "outbuilding": true
+  }
+ ],
+ "panels": [
+  {
+   "x0": 16.55,
+   "x1": 22.45,
+   "y0": -0.08,
+   "y1": 0.02,
+   "z0": 4.2,
+   "z1": 4.45,
+   "walls": "cream"
+  },
+  {
+   "x0": 17.099999999999998,
+   "x1": 18.3,
+   "y0": -0.1,
+   "y1": 0.02,
+   "z0": 0.72,
+   "z1": 0.84,
+   "walls": "cream"
+  },
+  {
+   "x0": 17.099999999999998,
+   "x1": 18.3,
+   "y0": -0.1,
+   "y1": 0.02,
+   "z0": 3.18,
+   "z1": 3.4,
+   "walls": "cream"
+  },
+  {
+   "x0": 20.7,
+   "x1": 21.900000000000002,
+   "y0": -0.1,
+   "y1": 0.02,
+   "z0": 0.72,
+   "z1": 0.84,
+   "walls": "cream"
+  },
+  {
+   "x0": 20.7,
+   "x1": 21.900000000000002,
+   "y0": -0.1,
+   "y1": 0.02,
+   "z0": 3.18,
+   "z1": 3.4,
+   "walls": "cream"
+  }
+ ],
+ "pediments": [
+  {
+   "x0": 16.6,
+   "x1": 22.4,
+   "y": -0.04,
+   "z": 4.5,
+   "height": 2.43,
+   "walls": "timber"
+  },
+  {
+   "x0": 17.15,
+   "x1": 21.85,
+   "y": -0.08,
+   "z": 4.68,
+   "height": 1.92,
+   "walls": "cream"
+  }
+ ],
+ "verandahs": [
+  {
+   "x0": 8.8,
+   "x1": 16.6,
+   "y0": 0.8,
+   "y1": 3.3,
+   "wallHeight": 4.5,
+   "height": 3.3,
+   "deckHeight": 0.45,
+   "posts": [
+    9.0,
+    10.9,
+    12.8,
+    14.7,
+    16.45
+   ]
+  },
+  {
+   "x0": -25.5,
+   "x1": -5.4,
+   "y0": 2.9,
+   "y1": 5.2,
+   "wallHeight": 3.4,
+   "height": 2.8,
+   "deckHeight": 0.3,
+   "posts": [
+    -25.3,
+    -22.4,
+    -19.5,
+    -16.6,
+    -13.7,
+    -10.8,
+    -7.9,
+    -5.6
+   ]
+  }
+ ],
+ "doors": [
+  {
+   "type": "front",
+   "x0": 19.0,
+   "x1": 20.0,
+   "y": 0,
+   "height": 2.7,
+   "z0": 0.35,
+   "colour": "#e8ddbf"
+  },
+  {
+   "type": "front",
+   "x0": 12.3,
+   "x1": 13.3,
+   "y": 3.3,
+   "height": 2.6,
+   "z0": 0.45,
+   "colour": "#3a2a24"
+  },
+  {
+   "type": "front",
+   "x0": 3.8,
+   "x1": 4.8,
+   "y": 0.6,
+   "height": 2.4,
+   "z0": 0.1,
+   "colour": "#3a2a24"
+  },
+  {
+   "type": "front",
+   "x0": -21.2,
+   "x1": -20.2,
+   "y": 5.2,
+   "height": 2.4,
+   "z0": 0.3,
+   "colour": "#3a2a24"
+  },
+  {
+   "type": "front",
+   "x0": -11.0,
+   "x1": -10.0,
+   "y": 5.2,
+   "height": 2.4,
+   "z0": 0.3,
+   "colour": "#3a2a24"
+  }
+ ],
+ "windows": [
+  {
+   "facing": "front",
+   "wall": 0,
+   "at": 17.7,
+   "width": 0.9,
+   "height": 2.2,
+   "sill": 0.9
+  },
+  {
+   "facing": "front",
+   "wall": 0,
+   "at": 21.3,
+   "width": 0.9,
+   "height": 2.2,
+   "sill": 0.9
+  },
+  {
+   "facing": "front",
+   "wall": 3.3,
+   "at": 10.6,
+   "width": 0.9,
+   "height": 2.0,
+   "sill": 1.0
+  },
+  {
+   "facing": "front",
+   "wall": 3.3,
+   "at": 15.0,
+   "width": 0.9,
+   "height": 2.0,
+   "sill": 1.0
+  },
+  {
+   "facing": "right",
+   "wall": 23.0,
+   "at": 6.0,
+   "width": 0.9,
+   "height": 2.2,
+   "sill": 0.9
+  },
+  {
+   "facing": "right",
+   "wall": 23.0,
+   "at": 11.0,
+   "width": 0.9,
+   "height": 2.2,
+   "sill": 0.9
+  },
+  {
+   "facing": "front",
+   "wall": 0.6,
+   "at": 1.8,
+   "width": 1.0,
+   "height": 1.8,
+   "sill": 0.9
+  },
+  {
+   "facing": "front",
+   "wall": 0.6,
+   "at": 6.8,
+   "width": 1.0,
+   "height": 1.8,
+   "sill": 0.9
+  },
+  {
+   "facing": "front",
+   "wall": 5.2,
+   "at": -23.5,
+   "width": 1.0,
+   "height": 1.9,
+   "sill": 0.9
+  },
+  {
+   "facing": "front",
+   "wall": 5.2,
+   "at": -18.0,
+   "width": 1.0,
+   "height": 1.9,
+   "sill": 0.9
+  },
+  {
+   "facing": "front",
+   "wall": 5.2,
+   "at": -12.8,
+   "width": 1.0,
+   "height": 1.9,
+   "sill": 0.9
+  },
+  {
+   "facing": "front",
+   "wall": 5.2,
+   "at": -7.4,
+   "width": 1.0,
+   "height": 1.9,
+   "sill": 0.9
+  }
+ ],
+ "fences": [
+  {
+   "x0": 9.0,
+   "y0": 0.86,
+   "x1": 16.45,
+   "y1": 0.96,
+   "height": 1.35,
+   "colour": "#ede6cf",
+   "open": true
+  },
+  {
+   "x0": 0.4,
+   "y0": -3.9,
+   "x1": 7.2,
+   "y1": -3.85,
+   "height": 0.95,
+   "colour": "#1d1d1f"
+  },
+  {
+   "x0": 8.6,
+   "y0": -3.9,
+   "x1": 15.2,
+   "y1": -3.85,
+   "height": 0.95,
+   "colour": "#1d1d1f"
+  }
+ ],
+ "paving": [
+  {
+   "x0": -28,
+   "y0": -4.6,
+   "x1": 30,
+   "y1": 0.0,
+   "colour": "#c8c6bf",
+   "kind": "concrete"
+  },
+  {
+   "x0": -28,
+   "y0": 0.0,
+   "x1": -5.0,
+   "y1": 2.9,
+   "colour": "#b9b6ae",
+   "kind": "brick"
+  },
+  {
+   "x0": -5.0,
+   "y0": 0.0,
+   "x1": 0.0,
+   "y1": 4.0,
+   "colour": "#b9b6ae",
+   "kind": "brick"
+  }
+ ],
+ "tables": [
+  {
+   "x": 2.0,
+   "y": -2.2,
+   "length": 1.4,
+   "colour": "#b58a5a"
+  },
+  {
+   "x": 5.5,
+   "y": -2.2,
+   "length": 1.4,
+   "colour": "#b58a5a"
+  },
+  {
+   "x": 10.2,
+   "y": -2.2,
+   "length": 1.4,
+   "colour": "#b58a5a"
+  },
+  {
+   "x": 13.6,
+   "y": -2.2,
+   "length": 1.4,
+   "colour": "#b58a5a"
+  }
+ ],
+ "umbrellas": [
+  {
+   "x": 2.0,
+   "y": -2.2,
+   "radius": 1.6,
+   "height": 2.6,
+   "colour": "#4a2028"
+  },
+  {
+   "x": 5.5,
+   "y": -2.2,
+   "radius": 1.6,
+   "height": 2.6,
+   "colour": "#4a2028"
+  },
+  {
+   "x": 10.2,
+   "y": -2.2,
+   "radius": 1.6,
+   "height": 2.6,
+   "colour": "#7a5a44"
+  },
+  {
+   "x": 13.6,
+   "y": -2.2,
+   "radius": 1.6,
+   "height": 2.6,
+   "colour": "#4a2028"
+  }
+ ],
+ "signs": [
+  {
+   "x0": 18.75,
+   "x1": 20.25,
+   "y": -0.12,
+   "z0": 3.15,
+   "z1": 3.65,
+   "text": "COURT HOUSE",
+   "colour": "#2a2420",
+   "ink": "#efe9d8"
+  },
+  {
+   "x0": 11.0,
+   "x1": 14.6,
+   "y": 0.62,
+   "z0": 2.75,
+   "z1": 3.12,
+   "text": "COFFEE HOUSE",
+   "colour": "#1f1d1c",
+   "ink": "#efe9d8"
+  }
+ ],
+ "trees": [
+  {
+   "x": 28.5,
+   "y": 2.0,
+   "height": 11,
+   "spread": 8
+  },
+  {
+   "x": 30.0,
+   "y": 13.0,
+   "height": 12,
+   "spread": 9
+  },
+  {
+   "x": 25.5,
+   "y": 22.0,
+   "height": 10,
+   "spread": 7
+  }
+ ]
+}

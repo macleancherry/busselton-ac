@@ -56,10 +56,21 @@ const files = unzipSync(new Uint8Array(readFileSync(resolve(root, zipPath))));
 const slug = Object.keys(files)[0].split("/")[0];
 const world = readKn5(files[`${slug}/${slug}.kn5`]);
 const proj = new LocalProjection(route.build.origin);
-// Ground: the terrain, else the road surface, under a point.
-const terrain = surfaceHeight(world, /^\d(GRASS|ROAD|STREET|KERB)/);
+// Ground: any surface you can stand on (terrain, roads, paths, car parks; not walls) under a point,
+// else the nearest within 40 m (a landmark's middle can sit on a spot the base cleared or paved).
+const terrain = surfaceHeight(world, /^\d(?!WALL)/);
 const roads = surfaceHeight(world, /^\d(ROAD|STREET)/);
-const ground = (x: number, y: number) => terrain(x, y) ?? 0;
+const ground = (x: number, y: number) => {
+  const h = terrain(x, y);
+  if (h !== null) return h;
+  for (let r = 1; r <= 40; r += 1) {
+    for (let a = 0; a < 24; a++) {
+      const t = (a / 24) * 2 * Math.PI, g = terrain(x + Math.cos(t) * r, y + Math.sin(t) * r);
+      if (g !== null) return g;
+    }
+  }
+  return 0;
+};
 /** Unit direction (local x east, y north) from a point to the nearest road within 80 m. */
 const toNearestRoad = (x: number, y: number): [number, number] => {
   for (let r = 2; r <= 80; r += 2) {
