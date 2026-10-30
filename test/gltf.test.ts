@@ -43,5 +43,8 @@ describe("glTF", () => {
   it("exports only what's within the radius", () => {
     const back = glbToKn5(kn5ToGlb(model(), { centre: [12, -2], radius: 50 }), "l", solidTexture).model;
     expect(back.root.children.map((c) => c.name)).toEqual(["1WALL_NEAR", "LIFTED"]);
+    // Unless it's kept whole (the sea).
+    const kept = glbToKn5(kn5ToGlb(model(), { centre: [12, -2], radius: 50, keep: /^FAR$/ }), "l", solidTexture).model;
+    expect(kept.root.children.map((c) => c.name)).toEqual(["1WALL_NEAR", "FAR", "LIFTED"]);
   });
 });

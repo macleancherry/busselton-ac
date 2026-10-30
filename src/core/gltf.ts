@@ -44,6 +44,8 @@ export interface GlbExportOptions {
   /** Only triangles within `radius` metres of `centre` ([x, z] in AC world coordinates). */
   centre?: [number, number];
   radius?: number;
+  /** Meshes kept whole whatever the radius (the sea, so a view out over the bay reaches the horizon). */
+  keep?: RegExp;
 }
 
 export function kn5ToGlb(model: Kn5Model, o: GlbExportOptions = {}): Uint8Array {
@@ -115,8 +117,9 @@ export function kn5ToGlb(model: Kn5Model, o: GlbExportOptions = {}): Uint8Array 
     if (n.renderable === false || !n.indices.length) return;
     // Triangles within the radius (by their middle), with the vertices they use.
     const keep: number[] = [];
+    const whole = !!o.keep?.test(n.name);
     for (let t = 0; t < n.indices.length; t += 3) {
-      if (o.centre) {
+      if (o.centre && !whole) {
         let cx = 0, cz = 0;
         for (let k = 0; k < 3; k++) {
           const p = apply(parent, n.positions[n.indices[t + k] * 3], n.positions[n.indices[t + k] * 3 + 1], n.positions[n.indices[t + k] * 3 + 2]);
