@@ -9,14 +9,16 @@
     reports\   reports for the laptop session (<date>-<topic>.md) and anything they point to,
                e.g. reports\<date>-<topic>\tuart_cm.bin
 
-  Where it is: BUSSELTON_SHARE, else the older BUSSELTON_TEST_SHARE, else D:\busselton-share.
-  Set it once with:  setx BUSSELTON_SHARE D:\busselton-share
+  Where it is: BUSSELTON_SHARE, else the older BUSSELTON_TEST_SHARE, else D:\busselton-share on the
+  machine that hosts it, else \\media\busselton-share (its network address) from any other machine.
 #>
 function Get-BusseltonShare {
   $root = $env:BUSSELTON_SHARE
   if (-not $root) { $root = $env:BUSSELTON_TEST_SHARE }
-  if (-not $root) { $root = "D:\busselton-share" }
-  if (-not (Test-Path $root)) { return $null }
+  if (-not $root) {
+    $root = @("D:\busselton-share", "\\media\busselton-share") | Where-Object { Test-Path $_ } | Select-Object -First 1
+  }
+  if (-not $root -or -not (Test-Path $root)) { return $null }
   foreach ($d in "builds", "tests", "bakes", "reports") {
     $p = Join-Path $root $d
     if (-not (Test-Path $p)) { New-Item -ItemType Directory -Path $p | Out-Null }

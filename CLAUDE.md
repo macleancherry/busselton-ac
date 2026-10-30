@@ -26,14 +26,14 @@ Code is written in one place only. Check which machine you're on before you chan
 
 ## The share
 
-`D:\busselton-share` on the workstation (`BUSSELTON_SHARE`; layout in `scripts/windows/share.ps1`) is the one place files move between machines and sessions. Mac shouldn't have to copy, attach or download anything by hand.
+`\\media\busselton-share` on the network (`D:\busselton-share` where it's hosted; `BUSSELTON_SHARE` overrides; layout in `scripts/windows/share.ps1`) is the one place files move between machines and sessions. Mac shouldn't have to copy, attach or download anything by hand.
 
 - `builds\<slug>.zip`: the latest build of each track.
 - `tests\<date>_<time>-<slug>-<layout>\` (and `.zip`): automatic AI runs (`run-test.ps1`).
 - `bakes\`: AO bake logs with their times (`bake-vao.ps1`).
 - `reports\<date>-<topic>.md`: workstation reports, with their files in `reports\<date>-<topic>\`.
 
-The scripts read and write there by default. **Laptop session:** when this chat is linked to the workstation (the remote-devices tools are present and a call succeeds), write each finished build straight into `builds\` and read `tests\`, `bakes\` and `reports\` yourself; when it isn't linked, send the files in chat and say the share is waiting for the link. **Workstation:** put everything for the laptop session in the share, never in Downloads or the repo.
+The scripts read and write there by default. **Laptop session:** when this chat is linked to Mac's laptop or the workstation (the remote-devices tools are present and a call succeeds; both reach the share), write each finished build straight into `builds\` and read `tests\`, `bakes\` and `reports\` yourself; when it isn't linked, send the files in chat and say the share is waiting for the link. **Workstation:** put everything for the laptop session in the share, never in Downloads or the repo.
 
 Both Windows machines can run AC at the same time; LAN racing uses Content Manager's built-in LAN mode, with no server software. The workstation has 16 GB RAM: close AC and Blender before photogrammetry, and keep scans under about 200 photos.
 
