@@ -11,7 +11,7 @@
 -- note "car=<i>"), each car leaving the road ("coffroad"), getting stuck ("cstuck") and touching
 -- another car ("contact", note "car=<i>;with=<j>"), and waits for the others to finish their lap
 -- (or GRACE seconds) after the player's car is done. The "env" line at the start says the time of
--- day and the number of cars, so a night run (-Night) can be checked.
+-- day, the number of cars and CSP's rain, so a night run (-Night) or a rain run (-Rain) can be checked.
 
 local MAX_TIME = 480
 local GRACE = 90
@@ -101,10 +101,17 @@ local function logEnv(kind)
   local ok2, mm = pcall(function () return sim.timeMinutes end)
   local ok3, sun = pcall(function () return ac.getSunAngle() end)
   local ok4, lights = pcall(function () return car.headlightsActive end)
-  log(kind, string.format('time=%s;sun=%s;cars=%d;headlights=%s',
+  -- CSP's rain (0..1): how hard it's raining, how wet the track is, how much water stands on it.
+  local function num(f)
+    local okR, v = pcall(f)
+    return (okR and type(v) == 'number') and string.format('%.2f', v) or '?'
+  end
+  log(kind, string.format('time=%s;sun=%s;cars=%d;headlights=%s;rain=%s;wet=%s;water=%s',
     (ok and ok2 and type(hh) == 'number' and type(mm) == 'number') and string.format('%02d:%02d', math.floor(hh), math.floor(mm)) or '?',
     (ok3 and type(sun) == 'number') and string.format('%.1f', sun) or '?', nCars,
-    ok4 and tostring(lights) or '?'))
+    ok4 and tostring(lights) or '?',
+    num(function () return sim.rainIntensity end), num(function () return sim.rainWetness end),
+    num(function () return sim.rainWater end)))
 end
 
 local function finish(why)

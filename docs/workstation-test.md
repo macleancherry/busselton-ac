@@ -69,7 +69,8 @@ Two switches on the same script. Without them a run is the usual single car in d
 
 - **-Night** sets the time in race.ini the way Content Manager does, with the unclamped sun angle CSP reads. AC alone stops at 18:00, so CSP's weather FX must be on. The run's `env` line says the time the game actually ran at; if it says daytime, note it.
 - **-Cars N** starts a race with N AI cars in the same car as the test car (other skins), capped at the layout's pit boxes less one. The test car still drives one lap, then the run waits up to 90 s for the others. The log has every car's contacts, off-road moments and stops.
-- The folder name ends in `-night` or `-cars<N>`, and `run.json` in it says what was asked.
+- **-Rain** drives in a rain weather from `content\weather` (heavy rain first; `-Weather <folder>` picks one). The env line logs CSP's rain intensity, wetness and standing water, and the console says whether it really rained. The report lists the build's rain hollows the drive passed (from the run's copy of `ext_config.ini`).
+- The folder name ends in `-night`, `-cars<N>` or `-rain`, and `run.json` in it says what was asked.
 
 The laptop session reads them with `autotest_report.py` as usual: a night run lists the dark stretches (screenshots where the road ahead is dark), a run with AI cars has a line per car and the incidents, flagging pile-ups (three or more cars) and the roundabout they're at.
 

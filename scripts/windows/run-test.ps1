@@ -10,6 +10,7 @@
   .\scripts\windows\run-test.ps1 C:\somewhere\busselton.zip
   .\scripts\windows\run-test.ps1 busselton -Layout foreshore -Night
   .\scripts\windows\run-test.ps1 busselton -Layout town -Cars 5
+  .\scripts\windows\run-test.ps1 busselton -Layout town -Rain
 
 .NOTES
   Runs code from the repo, never edits it (see CLAUDE.md). Needs the build to have traffic on (the
@@ -22,6 +23,12 @@
   -Night drives at 22:00 (-Time sets another time, e.g. -Time 19:30 for dusk): race.ini's sun angle
   as Content Manager writes it, with the unclamped angle CSP reads (AC alone stops at 18:00, so CSP's
   weather FX must be on). -Weather sets race.ini's weather by name.
+  -Rain drives in the rain: race.ini's weather becomes a rain weather from content\weather (the first
+  of heavy rain, rain, then anything with "rain" in its name; -Weather names one instead). The track
+  script logs CSP's rain intensity, wetness and standing water in its env line, so the report can
+  tell whether it really rained (needs CSP's weather FX).
+  Every run also keeps the installed track's extension\ext_config.ini, for the report's checks
+  (the rain hollows it lists).
   -Cars N puts N AI opponents on the grid in a race session (-Laps long, at most the layout's pit
   boxes less one); the track script logs every car's contacts, off-road moments and stops.
   Close AC before running. The script restores race.ini afterwards.
@@ -47,6 +54,8 @@ param(
   [string]$Time = "",
   # race.ini's [WEATHER] NAME (a folder in content\weather), when given.
   [string]$Weather = "",
+  # Rain run: a rain weather from content\weather (or -Weather's).
+  [switch]$Rain,
   # AI opponents: N other cars, a race session of -Laps laps instead of a solo practice.
   [int]$Cars = 0,
   [int]$Laps = 3
@@ -89,6 +98,14 @@ if (-not $Layout -and $layouts.Count) { $Layout = $layouts[0] }
 if ($Layout -and $layouts -notcontains $Layout) { throw "No layout '$Layout' in $slug (it has: $($layouts -join ', '))." }
 
 $tracks = Join-Path $AcPath "content\tracks\$slug"
+if ($Rain -and -not $Weather) {
+  # A rain weather by its folder name: Kunos ships none, CSP / Sol / Pure add their own.
+  $wet = @(Get-ChildItem (Join-Path $AcPath "content\weather") -Directory -ErrorAction SilentlyContinue | Where-Object { $_.Name -match 'rain' } | ForEach-Object { $_.Name })
+  if (-not $wet.Count) { throw "No rain weather in $AcPath\content\weather (no folder with 'rain' in its name): pass -Weather <folder>." }
+  $pick = @($wet | Where-Object { $_ -match 'heavy_?rain' }) + @($wet | Where-Object { $_ -notmatch 'light|drizzle' }) + $wet
+  $Weather = $pick[0]
+  Write-Host "Rain weather: $Weather (rain weathers here: $($wet -join ', '))"
+}
 if ($Cars -gt 0) {
   # Room on the grid: the layout's pit boxes (ui_track.json), the test car included.
   $ui = if ($Layout) { Join-Path $tracks "ui\$Layout\ui_track.json" } else { Join-Path $tracks "ui\ui_track.json" }
@@ -188,6 +205,7 @@ $started = Get-Date
 $what = @()
 if ($Time) { $what += "at $Time" }
 if ($Cars -gt 0) { $what += "with $Cars AI cars" }
+if ($Weather) { $what += "in $Weather" }
 Write-Host "Starting $slug $($what -join ' ') with the AI driving (up to $Minutes min) ..." -ForegroundColor Cyan
 try {
   $proc = Start-Process -FilePath (Join-Path $AcPath "acs.exe") -WorkingDirectory $AcPath -PassThru
@@ -313,14 +331,16 @@ Start-Sleep -Seconds 3
 # 4. Collect.
 $stamp = $started.ToString("yyyy-MM-dd_HHmm")
 $base = if ($Share -and (Test-Path $Share)) { Join-Path $Share "tests" } else { Join-Path $repo "reports" }
-$suffix = $(if ($Layout) { "-$Layout" } else { "" }) + $(if ($Night) { "-night" } elseif ($Time) { "-" + ($Time -replace ':', '') } else { "" }) + $(if ($Cars -gt 0) { "-cars$Cars" } else { "" })
+$suffix = $(if ($Layout) { "-$Layout" } else { "" }) + $(if ($Night) { "-night" } elseif ($Time) { "-" + ($Time -replace ':', '') } else { "" }) + $(if ($Cars -gt 0) { "-cars$Cars" } else { "" }) + $(if ($Rain) { "-rain" } else { "" })
 $dest = Join-Path $base ("$stamp-$slug" + $suffix)
 New-Item -ItemType Directory -Force -Path $dest | Out-Null
 # What this run was asked to do, for autotest_report.py.
 [ordered]@{
   slug = $slug; layout = $Layout; car = $Car; aiLevel = $AiLevel; night = [bool]$Night; time = $Time
-  sunAngle = $sunAngle; cars = $Cars; laps = $(if ($Cars -gt 0) { $Laps } else { 0 }); weather = $Weather
+  sunAngle = $sunAngle; cars = $Cars; laps = $(if ($Cars -gt 0) { $Laps } else { 0 }); weather = $Weather; rain = [bool]$Rain
 } | ConvertTo-Json | Set-Content (Join-Path $dest "run.json") -Encoding ASCII
+# The track's CSP config as installed (the rain hollows it lists, for autotest_report.py).
+Copy-Item (Join-Path $tracks "extension\ext_config.ini") (Join-Path $dest "ext_config.ini") -ErrorAction SilentlyContinue
 Copy-Item (Join-Path $docs "logs") (Join-Path $dest "logs") -Recurse -Force -ErrorAction SilentlyContinue
 $screens = Get-ChildItem (Join-Path $docs "screens") -File -ErrorAction SilentlyContinue | Where-Object { $_.LastWriteTime -ge $started }
 if ($screens) {
@@ -358,6 +378,12 @@ Write-Host ("  started:   " + ($(if ($start) { $start } else { "no BTEST lines: 
 Write-Host ("  finished:  " + ($(if ($finish) { $finish } else { "no finish line (timed out or crashed)" })))
 Write-Host "  off-road events: $off"
 if ($env0) { Write-Host ("  time of day: " + (($env0 -split ',', 11)[10])) }
+if ($Rain) {
+  $rainNow = if ($env0) { [regex]::Match((($env0 -split ',', 11)[10]), 'rain=([\d.?]+)').Groups[1].Value } else { "" }
+  if (-not $rainNow -or $rainNow -eq "?") { Write-Host "  rain: not logged (CSP too old, or the env line is missing)" -ForegroundColor Yellow }
+  elseif ([double]::Parse($rainNow, $inv) -lt 0.05) { Write-Host "  rain: $rainNow, it didn't rain: is CSP's weather FX on, and is $Weather a rain weather?" -ForegroundColor Yellow }
+  else { Write-Host "  rain: $rainNow ($Weather)" }
+}
 if ($Cars -gt 0) { Write-Host "  AI cars: $Cars; contacts logged: $contacts; their off-road events: $offOthers; stops of 10 s or more: $stuckAll" }
 Write-Host "  results:   $dest"
 Write-Host "  zip:       $zipOut"

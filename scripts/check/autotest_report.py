@@ -19,6 +19,10 @@ Runs with AI opponents (run-test.ps1 -Cars N): a line per car (off-road events, 
 lap done, distance from the AI line) and the incidents: contacts and stops close together in time
 and place, a pile-up when three or more cars are in it, with the roundabout it's at (from the
 build's 1ROAD_RB meshes in the surface file).
+
+Rain runs (run-test.ps1 -Rain): checks it really rained (CSP's rain intensity in the env line) and,
+when the run kept the track's ext_config.ini, lists the rain hollows the build found (rainHollows)
+that the drive passed within HOLLOW_M metres of, each with the screenshot taken nearest it.
 """
 
 import csv
@@ -37,6 +41,8 @@ RELATIVE = 0.5     # or below this share of the run's median brightness
 CLUSTER_S = 15     # incident: events within this many seconds...
 CLUSTER_M = 30     # ...and metres of each other
 RB_MARGIN = 20     # an incident this far outside a roundabout's ring is still "at" it
+WET = 0.05         # CSP rain intensity below which a rain run counts as dry
+HOLLOW_M = 15      # a rain hollow this close to the drive was passed
 
 
 # ---------- reading the results ----------
@@ -119,7 +125,7 @@ def is_night_hour(h):
 
 def run_info(src):
     """What the run was asked to do: run.json (run-test.ps1 writes it), else race.ini.used."""
-    info = {"night": False, "time": None, "cars": 0}
+    info = {"night": False, "time": None, "cars": 0, "rain": False}
     try:
         j = json.loads(read_text(src, "run.json") or "null")
     except ValueError:
@@ -128,6 +134,7 @@ def run_info(src):
         info["night"] = bool(j.get("night"))
         info["time"] = j.get("time") or None
         info["cars"] = int(j.get("cars") or 0)
+        info["rain"] = bool(j.get("rain"))
         return info
     ini = parse_ini(read_text(src, "race.ini.used"))
     light = ini.get("LIGHTING", {})
@@ -150,6 +157,50 @@ def env_hours(rows):
     env = next((r for r in rows if r["kind"] == "env"), None)
     m = re.match(r"^(\d{1,2}):(\d{2})$", (env or {}).get("kv", {}).get("time", ""))
     return int(m.group(1)) + int(m.group(2)) / 60 if m else None
+
+
+# ---------- rain runs ----------
+
+def env_rain(rows):
+    """CSP's rain intensity (0-1) from the env line, or None when it wasn't logged."""
+    env = next((r for r in rows if r["kind"] == "env"), None)
+    try:
+        return float((env or {}).get("kv", {}).get("rain", ""))
+    except ValueError:
+        return None
+
+
+_HOLLOW = re.compile(r"^;\s*hollow\s+(\d+):\s*(-?[\d.]+),\s*(-?[\d.]+),\s*(-?[\d.]+)\s+(\d+)\s*cm,\s*(\d+)\s*m2")
+
+
+def parse_hollows(text):
+    """The rain hollows ext_config.ini lists in [RAIN_FX] (rainHollows.ts): number, AC x, y, z, depth cm, area m2."""
+    out = []
+    for line in (text or "").splitlines():
+        m = _HOLLOW.match(line.strip())
+        if m:
+            out.append({"n": int(m.group(1)), "x": float(m.group(2)), "y": float(m.group(3)), "z": float(m.group(4)),
+                        "cm": int(m.group(5)), "m2": int(m.group(6))})
+    return out
+
+
+def hollows_passed(hollows, pos, shots, near=HOLLOW_M):
+    """Hollows within `near` m of the drive, in drive order, each with the shot row taken nearest it."""
+    if not pos:
+        return []
+    px = np.array([r["x"] for r in pos])
+    pz = np.array([r["z"] for r in pos])
+    out = []
+    for h in hollows:
+        d = np.hypot(px - h["x"], pz - h["z"])
+        i = int(d.argmin())
+        if d[i] > near:
+            continue
+        shot = min(shots, key=lambda r: np.hypot(r["x"] - h["x"], r["z"] - h["z"])) if shots else None
+        sd = float(np.hypot(shot["x"] - h["x"], shot["z"] - h["z"])) if shot else None
+        out.append({**h, "t": pos[i]["t"], "dist": float(d[i]), "shot": shot, "shot_dist": sd})
+    out.sort(key=lambda h: h["t"])
+    return out
 
 
 # ---------- screenshots (night runs) ----------
@@ -440,6 +491,36 @@ def main():
                       f" brightness {min(v for _, v in run):.0f} to {max(v for _, v in run):.0f})"
                       f" near ({run[0][0]['x']:.0f}, {run[0][0]['z']:.0f})")
                 dark_rows += [r for r, _ in run]
+
+    # Rain: did it rain, and which of the build's hollows did the drive pass?
+    if info["rain"] or (env_rain(rows) or 0) >= WET:
+        print()
+        rain = env_rain(rows)
+        env = next((r for r in rows if r["kind"] == "env"), None)
+        if rain is None:
+            print("rain run: CSP's rain wasn't logged (old build or old CSP): can't tell it rained")
+        elif rain < WET:
+            print(f"rain run: WARNING: rain intensity {rain:.2f}, it didn't rain. Check CSP's weather FX is on and the weather is a rain one.")
+        else:
+            kv = env["kv"]
+            print(f"rain run: intensity {rain:.2f}, wetness {kv.get('wet', '?')}, standing water {kv.get('water', '?')} at the start")
+        hollows = parse_hollows(read_text(src, "ext_config.ini"))
+        if not hollows:
+            print("  no rain hollows listed (no ext_config.ini in the run, or the build has rainHollows off)")
+        else:
+            shots = [r for r in rows if r["kind"] == "shot"]
+            screens = read_screens(src)
+            names = {id(row): name for row, name, _ in pair_shots(shots, screens, read_presses(src))} if screens else {}
+            passed = hollows_passed(hollows, pos, shots)
+            print(f"  hollows in the build: {len(hollows)}; passed within {HOLLOW_M} m: {len(passed)}")
+            for h in passed:
+                a = where(h["x"], h["z"])[0]
+                sh = h["shot"]
+                look = "no shots"
+                if sh:
+                    tag = sh["note"].split()[0] if sh["note"] else "?"
+                    look = f"nearest shot {tag}, {h['shot_dist']:.0f} m away" + (f" ({names[id(sh)]})" if id(sh) in names else "")
+                print(f"  hollow {h['n']:3d}: {h['cm']} cm, {h['m2']} m2, at ({h['x']:.0f}, {h['z']:.0f}), {a:.0f} m round the lap; {look}")
 
     # Several cars: a line per car, and the incidents.
     table = car_table(rows)

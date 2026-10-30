@@ -41,6 +41,14 @@ describe("automatic AI test", () => {
     expect(ps).toContain("__CM_UNCLAMPED_SUN_ANGLE");
   });
 
+  it("has a rain switch, and the env line carries CSP's rain for the report", () => {
+    expect(ps).toMatch(/\[switch\]\$Rain/);
+    expect(ps).toContain("rain = [bool]$Rain");
+    expect(ps).toContain("ext_config.ini");
+    expect(lua).toMatch(/rain=%s;wet=%s;water=%s/);
+    expect(py).toContain('kv", {}).get("rain"');
+  });
+
   it.skipIf(!hasPython)("report tests pass on the fixtures", () => {
     const p = spawnSync("python3", ["-I", "scripts/check/test_autotest_report.py"], { encoding: "utf8" });
     expect(p.status, p.stdout + p.stderr).toBe(0);

@@ -46,6 +46,25 @@ def night_folder(tmp):
     return d
 
 
+def rain_folder(tmp, rain_kv):
+    """The single run as a -Rain run: run.json, CSP's rain in the env line, and two hollows in
+    ext_config.ini, one on the 100 m circle next to the lap5 shot and one far off it."""
+    d = os.path.join(tmp, "rain")
+    shutil.copytree(os.path.join(FIX, "single"), d)
+    p = os.path.join(d, "btest.csv")
+    with open(p) as f:
+        text = f.read()
+    with open(p, "w") as f:
+        f.write(text.replace("headlights=false", "headlights=false;" + rain_kv))
+    with open(os.path.join(d, "run.json"), "w") as f:
+        json.dump({"slug": "t", "layout": "", "night": False, "time": "", "cars": 0, "weather": "sol_heavy_rain", "rain": True}, f)
+    with open(os.path.join(d, "ext_config.ini"), "w") as f:
+        f.write("[RAIN_FX]\nRELIEF_MATERIALS = road_?\n; Hollows where water should stand in the rain (rainHollows.ts): 2.\n"
+                "; hollow 1: 93.00, -0.05, 38.00  8 cm, 614 m2, 28 m across\n"
+                "; hollow 2: 400.00, 0.00, 400.00  3 cm, 20 m2, 5 m across\n")
+    return d
+
+
 def run(*args):
     p = subprocess.run([sys.executable, "-I", os.path.join(HERE, "autotest_report.py"), *args],
                        capture_output=True, text=True)
@@ -63,14 +82,14 @@ class Parsing(unittest.TestCase):
         self.assertEqual({r["car"] for r in rows if r["kind"] == "cpos"}, {1, 2, 3})
 
     def test_run_info(self):
-        self.assertEqual(rep.run_info(os.path.join(FIX, "night_cars")), {"night": True, "time": "22:00", "cars": 3})
-        self.assertEqual(rep.run_info(os.path.join(FIX, "single")), {"night": False, "time": "13:00", "cars": 0})
+        self.assertEqual(rep.run_info(os.path.join(FIX, "night_cars")), {"night": True, "time": "22:00", "cars": 3, "rain": False})
+        self.assertEqual(rep.run_info(os.path.join(FIX, "single")), {"night": False, "time": "13:00", "cars": 0, "rain": False})
 
     def test_run_info_from_race_ini(self):
         with tempfile.TemporaryDirectory() as tmp:
             d = night_folder(tmp)
             os.remove(os.path.join(d, "run.json"))
-            self.assertEqual(rep.run_info(d), {"night": True, "time": "22:00", "cars": 3})
+            self.assertEqual(rep.run_info(d), {"night": True, "time": "22:00", "cars": 3, "rain": False})
 
     def test_hours(self):
         self.assertAlmostEqual(rep.hours_of_angle(144), 22)
@@ -215,6 +234,23 @@ class EndToEnd(unittest.TestCase):
             code, out = run(d, os.path.join(FIX, "surface.json"))
             self.assertEqual(code, 0, out)
             self.assertIn("WARNING: the game ran at 18:00", out)
+
+    def test_rain_hollows(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            d = rain_folder(tmp, "rain=0.80;wet=0.60;water=0.20")
+            code, out = run(d, os.path.join(FIX, "surface.json"))
+            self.assertEqual(code, 0, out)
+            self.assertIn("rain run: intensity 0.80, wetness 0.60, standing water 0.20", out)
+            self.assertIn("hollows in the build: 2; passed within 15 m: 1", out)
+            self.assertIn("hollow   1: 8 cm, 614 m2", out)
+            self.assertIn("nearest shot lap5", out)
+
+    def test_rain_dry_warning(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            d = rain_folder(tmp, "rain=0.00;wet=0.00;water=0.00")
+            code, out = run(d, os.path.join(FIX, "surface.json"))
+            self.assertEqual(code, 0, out)
+            self.assertIn("WARNING: rain intensity 0.00, it didn't rain", out)
 
     def test_night_no_screens(self):
         with tempfile.TemporaryDirectory() as tmp:
