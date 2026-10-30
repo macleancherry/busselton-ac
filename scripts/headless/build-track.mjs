@@ -321,14 +321,14 @@ try {
       };
       const ti = r.trafficInput;
       const world = {
-        slug: r.slug, proj: r.proj, model: r.model, options, meta: { name }, mainAi: r.files[`${r.slug}/${mainId}/ai/fast_lane.ai`],
+        slug: r.slug, proj: r.proj, model: r.model, options, meta: { name }, mainAi: r.files[`${r.slug}/${mainId}/ai/fast_lane.ai`], mainHints: r.files[`${r.slug}/${mainId}/data/ai_hints.ini`],
         lines: ti ? ti.roads.map((rd) => rd.pts) : undefined, speeds: ti ? ti.roads.map((rd) => rd.speed) : undefined, rings: ti ? ti.roundabouts.map((rb) => ({ c: rb.c, rOut: rb.rOut })) : undefined,
         // Landmarks (looks built from a spec): the automatic test photographs them.
         landmarks: (window.__landmarks ?? []).map((h) => ({ name: h.name, at: r.proj.toLocal(h.at) })),
       };
       for (const l of layouts) {
         const coords = l.pins ? (await route(l.loop ? [...l.pins, l.pins[0]] : l.pins)).coords : undefined;
-        const f = layoutFiles(world, { id: l.id, name: l.name, coords, spawns: l.spawns }, trackObjects);
+        const f = layoutFiles(world, { id: l.id, name: l.name, coords, spawns: l.spawns, aiPits: l.aiPits }, trackObjects);
         for (const [k, v] of Object.entries(f)) files[k] = b64(v);
         // The world's surfaces (and traffic) are every layout's.
         for (const d of ["surfaces.ini", "traffic.json"]) {
