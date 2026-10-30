@@ -9,7 +9,8 @@ Output: public/dem/wa/15/{x}/{y}.png, Web Mercator tiles at zoom 15 (about 4 m
     python3 -I scripts/dem/make_wa_tiles.py /path/to/waz50.zip
     python3 -I scripts/dem/make_wa_tiles.py /path/to/waz50.zip --box 115.2 -33.74 115.54 -33.56
 
-The box must match STATE_DEMS.wa.box in src/services/tiles.ts.
+The tiles cut so far: --box 115.2 -33.74 115.54 -33.56, then --box 114.98 -33.72 115.2 -33.52 (the capes;
+the LiDAR stops just west of Dunsborough). STATE_DEMS.wa.box in src/services/tiles.ts covers both.
 """
 
 import argparse

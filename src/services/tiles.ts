@@ -200,8 +200,10 @@ const STATE_DEMS = {
     url: `${import.meta.env?.BASE_URL ?? "/"}dem/wa`,
     credit: "Elevation: Digital Elevation Model of Australia derived from LiDAR 5 m grid (c) Commonwealth of Australia (Geoscience Australia), CC BY 4.0",
     label: "WA 5 m",
-    // The tiled area: Busselton, Vasse, Broadwater, the coast either side, and east to Ludlow (Tuart Drive).
-    box: [115.2, -33.74, 115.54, -33.56],
+    // The tiled area: Busselton, Vasse, Broadwater, the coast either side, east to Ludlow (Tuart Drive),
+    // and west to the capes. GA's 5 m LiDAR stops just west of Dunsborough; past it (Yallingup, the
+    // capes) the tiles are missing and the global elevation (about 30 m) fills in.
+    box: [114.98, -33.74, 115.54, -33.52],
   },
 } as const;
 type LercModule = typeof import("lerc");
