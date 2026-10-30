@@ -1,0 +1,38 @@
+# Landmarks
+
+The buildings and places locals would point at, each built from its own spec (`routes/landmarks/`, `src/core/specHouse.ts`) instead of a generated house. Each one gets a description first (`docs/landmarks/<slug>.md`), from the Landgate aerial and reference photos. The photos are only for reading shapes, sizes and colours; they never go into the track. Reference photos live in `out/refs/<slug>/`, which is not committed. Names on signs are plain lettering, with no logos.
+
+Places near home are private: their descriptions and specs go in `routes/private/landmarks/` and appear in the private whole map only.
+
+Status: ✅ built · 📝 described · 📷 gathering photos · ⬜ to do
+
+## The public map (Foreshore and town centre)
+
+| # | Landmark | Where | Status |
+| --- | --- | --- | --- |
+| 1 | Busselton Jetty, Interpretive Centre boatsheds, Underwater Observatory, jetty train | Foreshore | ✅ (`src/core/jetty.ts`) |
+| 2 | Rocky Ridge Brewing Co | 10 Marine Tce | ✅ (`routes/landmarks/rocky_ridge.json`) |
+| 3 | Esplanade Hotel | Marine Tce and Queen St | 📷 |
+| 4 | The Goose | Foreshore, by the jetty | 📷 |
+| 5 | Old Courthouse (ArtGeo) and the Old Post Office Cafe | Queen St | 📷 |
+| 6 | Hilton Garden Inn | Foreshore | 📷 |
+| 7 | Busselton Visitor Centre | Foreshore | 📷 |
+| 8 | Busselton Museum (the old Butter Factory) | Peel Tce, by the Vasse River | 📷 |
+| 9 | Sea Play on the Bay playground, the Barrel and Transition sculptures | Foreshore | ⬜ |
+| 10 | Foreshore cafes: Kyst, Sandbox | Foreshore | ⬜ |
+| 11 | Geographe Bay Yacht Club | Geographe Bay Rd | ⬜ |
+| 12 | Orana Cinemas | Queen St | ⬜ |
+| 13 | The Tav, the Ship Inn, the Banksia Tavern | Town centre | ⬜ |
+| 14 | Busselton Pioneer Cemetery | Marine Tce | ⬜ |
+| 15 | Busselton Volunteer Fire and Rescue station | Town centre | ⬜ |
+| 16 | Busselton Bowling Club, Churchill Park, Barnard Park | East of the jetty | ⬜ |
+| 17 | Victoria Square, Mitchell Park, the Japanese Friendship Garden | Town centre | ⬜ |
+| 18 | Kookaburra Caravan Park | Marine Tce | ⬜ |
+
+## The whole map (private)
+
+Listed in `routes/private/landmarks/README.md`.
+
+## The South West (later, with those tracks)
+
+Cape Naturaliste and Cape Leeuwin lighthouses, Ngilgi Cave's entrance, Sugarloaf Rock, Meelup, the surf car parks at Yallingup and Surfers Point, wineries and cellar doors along Caves Road, Margaret River's main street, Augusta.
