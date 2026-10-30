@@ -2,6 +2,7 @@
   "name": "ac-track-builder",
   "version": "0.1.0",
   "private": true,
+  "license": "SEE LICENSE IN LICENSE",
   "type": "module",
   "description": "Build Assetto Corsa tracks from real-world roads in the browser.",
   "scripts": {
