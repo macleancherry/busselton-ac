@@ -1,6 +1,6 @@
 {
  "name": "Cape Naturaliste Road",
- "_note": "Cape Naturaliste Road (Tourist Drive 250) from the north edge of Dunsborough to the Cape Naturaliste lighthouse: past the Eagle Bay turn-off, then up onto the cape through coastal heath and peppermint, ending at the lighthouse car park loop (the one-way loop itself left out). Point to point, about 11 km. 5 m LiDAR covers only the first 3 km out of Dunsborough; the cape is on the 30 m fallback.",
+ "_note": "Cape Naturaliste Road (Tourist Drive 250) from the north edge of Dunsborough to the Cape Naturaliste lighthouse: past the Eagle Bay turn-off, then up onto the cape through coastal heath and peppermint, ending in the lighthouse car park (the last pin, just in from the turn into its one-way loop). Point to point, about 11 km. 5 m LiDAR covers only the first 3 km out of Dunsborough; the cape is on the 30 m fallback.",
  "loop": false,
  "preset": "country",
  "pins": [
@@ -31,12 +31,49 @@
   [
    115.02669,
    -33.54442
+  ],
+  [
+   115.0205,
+   -33.539
   ]
  ],
  "build": {
   "origin": [
    115.06,
    -33.578
-  ]
- }
+  ],
+  "area": [
+   [
+    [
+     115.018,
+     -33.5367
+    ],
+    [
+     115.0195,
+     -33.5367
+    ],
+    [
+     115.0213,
+     -33.5387
+    ],
+    [
+     115.0213,
+     -33.5399
+    ],
+    [
+     115.0184,
+     -33.5399
+    ],
+    [
+     115.018,
+     -33.5386
+    ]
+   ]
+  ],
+  "streetsValid": false,
+  "_areaNote": "Landmark patches: small areas joining the road to landmarks that stand beyond the 70 m corridor, so they get detailed terrain (and their own streets) to stand on instead of the horizon mesh. streetsValid stays off so side streets along the road still count as off track, as without an area. One patch from the car park up to the lighthouse and the keepers' cottages."
+ },
+ "looks": [
+  "routes/landmarks/cape_naturaliste_road_looks.json"
+ ]
 }

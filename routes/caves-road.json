@@ -41,6 +41,35 @@
   "origin": [
    115.064,
    -33.642
-  ]
- }
+  ],
+  "area": [
+   [
+    [
+     115.0302,
+     -33.6441
+    ],
+    [
+     115.0333,
+     -33.6441
+    ],
+    [
+     115.0351,
+     -33.6458
+    ],
+    [
+     115.0346,
+     -33.6471
+    ],
+    [
+     115.0302,
+     -33.6463
+    ]
+   ]
+  ],
+  "streetsValid": false,
+  "_areaNote": "Landmark patches: small areas joining the road to landmarks that stand beyond the 70 m corridor, so they get detailed terrain (and their own streets) to stand on instead of the horizon mesh. streetsValid stays off so side streets along the road still count as off track, as without an area. One patch from Caves Road at Yallingup to Caves House and the general store."
+ },
+ "looks": [
+  "routes/landmarks/caves_road_yallingup_looks.json"
+ ]
 }

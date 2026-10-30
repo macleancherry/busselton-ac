@@ -37,6 +37,31 @@
   "origin": [
    115.155,
    -34.343
-  ]
- }
+  ],
+  "area": [
+   [
+    [
+     115.1343,
+     -34.368
+    ],
+    [
+     115.1381,
+     -34.368
+    ],
+    [
+     115.1381,
+     -34.3765
+    ],
+    [
+     115.1343,
+     -34.3765
+    ]
+   ]
+  ],
+  "streetsValid": false,
+  "_areaNote": "Landmark patches: small areas joining the road to landmarks that stand beyond the 70 m corridor, so they get detailed terrain (and their own streets) to stand on instead of the horizon mesh. streetsValid stays off so side streets along the road still count as off track, as without an area. One strip from the road's end south past the waterwheel and the keepers' cottages to the lighthouse (OSRM stops the route about 570 m short of it, at the precinct)."
+ },
+ "looks": [
+  "routes/landmarks/cape_leeuwin_looks.json"
+ ]
 }

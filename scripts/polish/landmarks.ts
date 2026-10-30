@@ -23,9 +23,11 @@ import { createCanvas } from "@napi-rs/canvas";
 import { LocalProjection, type LngLat } from "../../src/core/geo";
 import { readKn5, writeKn5 } from "../../src/core/kn5";
 import { surfaceHeight } from "../../src/core/layouts";
+import { landmarkGround } from "../../src/core/landmarkGround";
 import { landmarkClear, landmarkModel } from "../../src/core/landmarkLayer";
 import type { HouseSpec } from "../../src/core/specHouse";
 import { drawSignsOn } from "../../src/services/signs";
+import { demTiles } from "./demTiles";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const args = process.argv.slice(2);
@@ -56,21 +58,13 @@ const files = unzipSync(new Uint8Array(readFileSync(resolve(root, zipPath))));
 const slug = Object.keys(files)[0].split("/")[0];
 const world = readKn5(files[`${slug}/${slug}.kn5`]);
 const proj = new LocalProjection(route.build.origin);
-// Ground: any surface you can stand on (terrain, roads, paths, car parks; not walls) under a point,
-// else the nearest within 40 m (a landmark's middle can sit on a spot the base cleared or paved).
-const terrain = surfaceHeight(world, /^\d(?!WALL)/);
+// Ground (src/core/landmarkGround.ts): the physics ground under a point, else the nearest within
+// 40 m (a landmark's middle can sit on a spot the base cleared or paved), else the horizon mesh
+// (country builds keep detailed terrain only about 70 m either side of the road), else the WA DEM
+// tiles served with the app, else 0.
+const dem = await demTiles(resolve(root, "public/dem/wa"), looks.map((l) => l.at));
+const ground = landmarkGround(world, { dem: (x, y) => dem(proj.toLngLat([x, y])) });
 const roads = surfaceHeight(world, /^\d(ROAD|STREET|UNSEALED|UNPAVED)/);
-const ground = (x: number, y: number) => {
-  const h = terrain(x, y);
-  if (h !== null) return h;
-  for (let r = 1; r <= 40; r += 1) {
-    for (let a = 0; a < 24; a++) {
-      const t = (a / 24) * 2 * Math.PI, g = terrain(x + Math.cos(t) * r, y + Math.sin(t) * r);
-      if (g !== null) return g;
-    }
-  }
-  return 0;
-};
 /** Unit direction (local x east, y north) from a point to the nearest road within 80 m. */
 const toNearestRoad = (x: number, y: number): [number, number] => {
   for (let r = 2; r <= 80; r += 2) {
@@ -96,7 +90,7 @@ for (const l of looks) {
   const lm = landmarkModel(l.spec!, { centre: [x, y], toRoad, z: ground(x, y) + 0.05 }, name, ground, { drawSigns, detailShaders: route.build?.detailShaders !== false });
   out[`${slug}/lm_${name}.kn5`] = writeKn5(lm.model);
   built.push(`lm_${name}.kn5`);
-  console.log(`lm_${name}.kn5: ${lm.triangles} triangles, ${lm.model.materials.length} materials, ground ${ground(x, y).toFixed(2)} m${Number.isFinite(l.facing) ? `, facing ${l.facing}` : ", facing its nearest road"}`);
+  console.log(`lm_${name}.kn5: ${lm.triangles} triangles, ${lm.model.materials.length} materials, ground ${ground(x, y).toFixed(2)} m (${ground.source(x, y)})${Number.isFinite(l.facing) ? `, facing ${l.facing}` : ", facing its nearest road"}`);
 }
 
 // Every layout's models ini (or the single models.ini) gets the landmarks it doesn't list yet; a

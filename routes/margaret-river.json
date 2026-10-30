@@ -50,5 +50,8 @@
    ]
   ],
   "_areaNote": "The town centre: Bussell Hwy from the Carters Rd corner to the river, a block or two either side (Tunbridge St, Willmott Ave). About 0.9 by 1.4 km, smaller than Busselton's."
- }
+ },
+ "looks": [
+  "routes/landmarks/margaret_river_looks.json"
+ ]
 }
