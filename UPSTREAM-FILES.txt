@@ -16,7 +16,6 @@ src/core/cull.ts
 src/core/elevation.ts
 src/core/extend.ts
 src/core/fences.ts
-src/core/footpaths.ts
 src/core/frontage.ts
 src/core/furniture.ts
 src/core/geo.ts
@@ -25,6 +24,7 @@ src/core/lots.ts
 src/core/markings.ts
 src/core/materials.ts
 src/core/mesh.ts
+src/core/network/geom.ts
 src/core/options.ts
 src/core/paintLines.ts
 src/core/photoSurface.ts
@@ -66,7 +66,6 @@ test/demtiles.test.ts
 test/detail.test.ts
 test/extend.test.ts
 test/fences.test.ts
-test/footpaths.test.ts
 test/frontage.test.ts
 test/gates.test.ts
 test/kangaroo.test.ts
