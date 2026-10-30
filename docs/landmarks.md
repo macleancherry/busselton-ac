@@ -12,12 +12,12 @@ Status: ✅ built · 📝 described · 📷 gathering photos · ⬜ to do
 | --- | --- | --- | --- |
 | 1 | Busselton Jetty, Interpretive Centre boatsheds, Underwater Observatory, jetty train | Foreshore | ✅ (`src/core/jetty.ts`) |
 | 2 | Rocky Ridge Brewing Co | 10 Marine Tce | ✅ (`routes/landmarks/rocky_ridge.json`) |
-| 3 | Esplanade Hotel | Marine Tce and Queen St | 📷 |
-| 4 | The Goose | Foreshore, by the jetty | 📷 |
-| 5 | Old Courthouse (ArtGeo) and the Old Post Office Cafe | Queen St | 📷 |
-| 6 | Hilton Garden Inn | Foreshore | 📷 |
-| 7 | Busselton Visitor Centre | Foreshore | 📷 |
-| 8 | Busselton Museum (the old Butter Factory) | Peel Tce, by the Vasse River | 📷 |
+| 3 | Esplanade Hotel | 30-38 Marine Tce | 📝 ([description](landmarks/esplanade_hotel.md)) |
+| 4 | The Goose | Foreshore, by the jetty | 📝 ([description](landmarks/the_goose.md)) |
+| 5 | Old Courthouse group and the Old Post Office Cafe | Queen St | 📝 ([description](landmarks/old_courthouse.md)) |
+| 6 | Hilton Garden Inn | Foreshore Pde and Jetty Way | 📝 ([description](landmarks/hilton_garden_inn.md)) |
+| 7 | Busselton Visitor Centre (Railway House) | Foreshore Pde | 📝 ([description](landmarks/visitor_centre.md)) |
+| 8 | Busselton Museum (the old Butter Factory) | Peel Tce, by the Vasse River | 📝 ([description](landmarks/busselton_museum.md)) |
 | 9 | Sea Play on the Bay playground, the Barrel and Transition sculptures | Foreshore | ⬜ |
 | 10 | Foreshore cafes: Kyst, Sandbox | Foreshore | ⬜ |
 | 11 | Geographe Bay Yacht Club | Geographe Bay Rd | ⬜ |

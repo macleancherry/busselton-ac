@@ -1,6 +1,14 @@
 {
   "note": "Rocky Ridge Brewing Co's Busselton taphouse, 10 Marine Terrace, from the Landgate aerial (Oct 2026) and a street photo. A 1920s-style rendered house with a terracotta hip roof, the beer garden in front behind a timber rail, brick paving to the footpath, a flat-roofed extension and the brewery shed behind. The sign carries the name as plain lettering; no logo or flag artwork. Metres: x left to right as seen from Marine Terrace (east to west), y back from the front wall.",
   "wallHeight": 3.1,
+  "setback": 11.2,
+  "road": { "width": 11, "verge": 0.6 },
+  "lawn": "#8a8f5a",
+  "sunFrom": [-0.3, -0.9, 1.3],
+  "cameras": {
+    "street": { "eye": [7.5, -26, 1.6], "look": [7.5, 0, 2.6], "lens": 26 },
+    "aerial": { "eye": [-14, -34, 16], "look": [6.5, 2, 0.5], "lens": 30 }
+  },
   "walls": { "kind": "render", "colour": "#f1f0eb" },
   "finishes": {
     "extension": { "kind": "cladding", "colour": "#4b5055" },
@@ -53,5 +61,5 @@
   "signs": [
     { "x0": 13.6, "x1": 16.6, "y": -9.6, "z0": 2.0, "z1": 2.75, "text": "ROCKY RIDGE", "colour": "#1d1d1f", "ink": "#f4f4f2", "posts": true }
   ],
-  "trees": [{ "x": 6.2, "y": -4.6, "height": 5.5 }]
+  "trees": [{ "x": 6.2, "y": -4.6, "height": 5.5, "spread": 2.6 }]
 }

@@ -196,6 +196,167 @@ def blob(name, centre, radius, mat, collection, squash=1.0, seed=0, detail=3):
     return ob
 
 
+
+def brick_material(name, colour, mortar="#c4b69c", w=0.23, h=0.115):
+    """Clay pavers in stretcher bond (Blender's brick texture, in metres), with sunken joints."""
+    m = bpy.data.materials.new(name)
+    m.use_nodes = True
+    nt = m.node_tree
+    bsdf = nt.nodes["Principled BSDF"]
+    bsdf.inputs["Roughness"].default_value = 0.85
+    coord = nt.nodes.new("ShaderNodeTexCoord")
+    br = nt.nodes.new("ShaderNodeTexBrick")
+    br.inputs["Color1"].default_value = rgb(colour)
+    br.inputs["Color2"].default_value = [c * 0.78 for c in rgb(colour)[:3]] + [1.0]
+    br.inputs["Mortar"].default_value = rgb(mortar)
+    br.inputs["Scale"].default_value = 1.0
+    br.inputs["Mortar Size"].default_value = 0.008
+    br.inputs["Brick Width"].default_value = w
+    br.inputs["Row Height"].default_value = h
+    br.offset = 0.5
+    nt.links.new(coord.outputs["Object"], br.inputs["Vector"])
+    nt.links.new(br.outputs["Color"], bsdf.inputs["Base Color"])
+    b = nt.nodes.new("ShaderNodeBump")
+    b.inputs["Strength"].default_value = 0.5
+    b.invert = True
+    nt.links.new(br.outputs["Fac"], b.inputs["Height"])
+    nt.links.new(b.outputs["Normal"], bsdf.inputs["Normal"])
+    return m
+
+
+def board_material(name, colour, width=0.14, axis="Y", rough=0.6):
+    """Timber boards (decking, rails, tables): a groove every `width` metres across `axis`, grain noise."""
+    m = material(name, colour, rough=rough, noise=0.35)
+    nt = m.node_tree
+    bsdf = nt.nodes["Principled BSDF"]
+    coord = next(n for n in nt.nodes if n.bl_idname == "ShaderNodeTexCoord")
+    sep = nt.nodes.new("ShaderNodeSeparateXYZ")
+    nt.links.new(coord.outputs["Object"], sep.inputs["Vector"])
+    div = nt.nodes.new("ShaderNodeMath")
+    div.operation = "DIVIDE"
+    div.inputs[1].default_value = width
+    nt.links.new(sep.outputs[axis], div.inputs[0])
+    frac = nt.nodes.new("ShaderNodeMath")
+    frac.operation = "FRACT"
+    nt.links.new(div.outputs[0], frac.inputs[0])
+    gt = nt.nodes.new("ShaderNodeMath")
+    gt.operation = "GREATER_THAN"
+    gt.inputs[1].default_value = 0.06
+    nt.links.new(frac.outputs[0], gt.inputs[0])
+    b = nt.nodes.new("ShaderNodeBump")
+    b.inputs["Strength"].default_value = 0.4
+    nt.links.new(gt.outputs[0], b.inputs["Height"])
+    nt.links.new(b.outputs["Normal"], bsdf.inputs["Normal"])
+    return m
+
+
+def face_obj(name, pts, mat, collection, thickness=0.01):
+    """A flat (or warped) face through the points, given a little thickness."""
+    bm = bmesh.new()
+    vs = [bm.verts.new(p) for p in pts]
+    bm.faces.new(vs)
+    ob = obj_from_bmesh(name, bm, mat, collection)
+    sol = ob.modifiers.new("thickness", "SOLIDIFY")
+    sol.thickness = thickness
+    return ob
+
+
+def build_yard(s, house, street):
+    """The spec's yard and fittings (what src/core/specHouse.ts builds in the game too): paving,
+    open rails, picnic tables, market umbrellas, shade sails, feather flags and lettered signs."""
+    m_steel = material("steel", "#3c3c3e", rough=0.35, metal=0.6)
+    m_wire = material("wire", "#9a9a9a", rough=0.3, metal=0.9)
+    m_timber = board_material("timber_rail", "#6b4a32", width=0.09, axis="Z")
+    for k, pv in enumerate(s.get("paving", [])):
+        kind = pv.get("kind", "brick")
+        col = pv.get("colour", "#9c5440")
+        m = brick_material(f"paving_{k}", col) if kind == "brick" else board_material(f"paving_{k}", col) if kind == "timber" else material(f"paving_{k}", col, rough=0.85, bump=("noise", 50), noise=0.25)
+        box(f"paving_{k}", pv["x0"], pv["y0"], 0.0, pv["x1"], pv["y1"], 0.035, m, street)
+    for k, f in enumerate(s.get("fences", [])):
+        if not f.get("open"):
+            continue
+        H = f.get("height", 1.1)
+        m = board_material(f"rail_{k}", f.get("colour", "#6b4a32"), width=0.09, axis="Z")
+        along = abs(f["x1"] - f["x0"]) >= abs(f["y1"] - f["y0"])
+        L = (f["x1"] - f["x0"]) if along else (f["y1"] - f["y0"])
+        n = max(1, round(abs(L) / 1.8))
+        mx, my = (f["x0"] + f["x1"]) / 2, (f["y0"] + f["y1"]) / 2
+        for i in range(n + 1):
+            q = (f["x0"] if along else f["y0"]) + L * i / n
+            if along:
+                box(f"rail_{k}_post{i}", q - 0.05, my - 0.05, 0, q + 0.05, my + 0.05, H - 0.12, m_steel, street)
+            else:
+                box(f"rail_{k}_post{i}", mx - 0.05, q - 0.05, 0, mx + 0.05, q + 0.05, H - 0.12, m_steel, street)
+        box(f"rail_{k}_top", f["x0"], f["y0"] - (0.06 if along else 0), H - 0.15, f["x1"], f["y1"] + (0.06 if along else 0), H, m, street)
+        for j, z in enumerate((0.3, 0.5, 0.7, 0.9)):
+            if z < H - 0.2:
+                box(f"rail_{k}_wire{j}", f["x0"], my - 0.004, z, f["x1"], my + 0.004, z + 0.008, m_wire, street)
+    for k, tb in enumerate(s.get("tables", [])):
+        m = board_material(f"table_{k}", tb.get("colour", "#6a4a33"), width=0.12, axis="X" if tb.get("turned") else "Y")
+        L = tb.get("length", 1.8) / 2
+        def slab(a0, c0, a1, c1, z0, z1, name):
+            if tb.get("turned"):
+                box(name, tb["x"] + c0, tb["y"] + a0, z0, tb["x"] + c1, tb["y"] + a1, z1, m, street)
+            else:
+                box(name, tb["x"] + a0, tb["y"] + c0, z0, tb["x"] + a1, tb["y"] + c1, z1, m, street)
+        slab(-L, -0.38, L, 0.38, 0.72, 0.76, f"table_{k}_top")
+        for j, c in enumerate((-0.68, 0.68)):
+            slab(-L, c - 0.13, L, c + 0.13, 0.42, 0.45, f"table_{k}_seat{j}")
+        for j, a in enumerate((-L + 0.2, L - 0.2)):
+            slab(a - 0.04, -0.75, a + 0.04, 0.75, 0, 0.72, f"table_{k}_leg{j}")
+    for k, u in enumerate(s.get("umbrellas", [])):
+        r, h = u.get("radius", 1.4), u.get("height", 2.6)
+        m = material(f"umbrella_{k}", u.get("colour", "#f2f0ea"), rough=0.8, bump=("noise", 60))
+        box(f"umbrella_{k}_pole", u["x"] - 0.025, u["y"] - 0.025, 0, u["x"] + 0.025, u["y"] + 0.025, h + 0.1, m_steel, street)
+        bm = bmesh.new()
+        bmesh.ops.create_cone(bm, cap_ends=False, segments=8, radius1=r, radius2=0.02, depth=0.4)
+        ob = obj_from_bmesh(f"umbrella_{k}", bm, m, street)
+        ob.location = (u["x"], u["y"], h - 0.1)
+        ob.modifiers.new("thickness", "SOLIDIFY").thickness = 0.01
+    for k, sl in enumerate(s.get("sails", [])):
+        m = material(f"sail_{k}", sl.get("colour", "#8c9196"), rough=0.8, bump=("noise", 60))
+        face_obj(f"sail_{k}", [tuple(p) for p in sl["pts"]], m, street)
+        for j, (x, y, z) in enumerate(sl["pts"]):
+            if z > 1:
+                box(f"sail_{k}_post{j}", x - 0.05, y - 0.05, 0, x + 0.05, y + 0.05, z, m_steel, street)
+    for k, f in enumerate(s.get("flags", [])):
+        h = f.get("height", 4.0)
+        m = material(f"flag_{k}", f.get("colour", "#f4f4f2"), rough=0.8)
+        box(f"flag_{k}_pole", f["x"] - 0.02, f["y"] - 0.02, 0, f["x"] + 0.02, f["y"] + 0.02, h, m_steel, street)
+        w, z0 = 0.75, 0.9
+        edge = []
+        for i in range(9):
+            q = i / 8
+            z = z0 + (h - 0.15 - z0) * q
+            ww = w * (0.75 + 0.25 * math.sin(q * math.pi * 0.8)) * (math.cos((q - 0.85) / 0.15 * math.pi / 2) if q > 0.85 else 1)
+            edge.append((f["x"] + ww, f["y"], z))
+        pole = [(f["x"], f["y"], z0 + (h - 0.15 - z0) * i / 8) for i in range(9)]
+        face_obj(f"flag_{k}", pole + edge[::-1], m, street, thickness=0.005)
+    for k, sg in enumerate(s.get("signs", [])):
+        m_board = material(f"sign_{k}", sg.get("colour", "#1d1d1f"), rough=0.5)
+        box(f"sign_{k}_board", sg["x0"], sg["y"], sg["z0"], sg["x1"], sg["y"] + 0.08, sg["z1"], m_board, street)
+        if sg.get("posts"):
+            for j, x in enumerate((sg["x0"] + 0.05, sg["x1"] - 0.05)):
+                box(f"sign_{k}_post{j}", x - 0.06, sg["y"] + 0.01, 0, x + 0.06, sg["y"] + 0.07, sg["z1"] + 0.05, m_board, street)
+        if sg.get("text"):
+            cu = bpy.data.curves.new(f"sign_{k}_text", "FONT")
+            cu.body = sg["text"]
+            cu.align_x, cu.align_y = "CENTER", "CENTER"
+            cu.extrude = 0.004
+            ob = bpy.data.objects.new(f"sign_{k}_text", cu)
+            street.objects.link(ob)
+            ob.data.materials.append(material(f"sign_{k}_ink", sg.get("ink", "#f4f4f2"), rough=0.4))
+            # Stand it up facing the street (-y), sized to fit the board.
+            ob.rotation_euler = (math.radians(90), 0, 0)
+            bpy.context.view_layer.update()
+            bw, bh = sg["x1"] - sg["x0"], sg["z1"] - sg["z0"]
+            cu.size = 1.0
+            bpy.context.view_layer.update()
+            dims = ob.dimensions
+            scale = min(0.86 * bw / max(dims.x, 1e-3), 0.6 * bh / max(dims.y, 1e-3))
+            cu.size = scale
+            ob.location = ((sg["x0"] + sg["x1"]) / 2, sg["y"] - 0.006, (sg["z0"] + sg["z1"]) / 2)
+
 # ---------------------------------------------------------------- the scene
 
 def build(spec):
@@ -483,6 +644,8 @@ def build_parts(spec):
         g0, g1, g2, g3 = at(ww / 2, 0.08)
         box(f"window_{k}", g0, g1, sill, g2, g3, sill + wh, m_glass, house)
 
+    build_yard(s, house, street)
+
     # The block and the street.
     road = s["road"]
     yb = -s["setback"]
@@ -492,6 +655,8 @@ def build_parts(spec):
     for k, dr in enumerate(s.get("driveways", [])):
         box(f"driveway_{k}", dr["x0"], yk, 0.0, dr["x1"], dr.get("y1", 0), 0.03, m_concrete, street)
     for k, f in enumerate(s.get("fences", [])):
+        if f.get("open"):
+            continue  # an open rail: build_yard
         m = material(f"fence_{k}", f.get("colour", "#ecebe6"), rough=0.4, bump=("bands", 0.08))
         box(f"fence_{k}", f["x0"], f["y0"], 0, f["x1"], f["y1"], f.get("height", 1.8), m, street)
     for k, hd in enumerate(s.get("hedges", [])):
@@ -508,7 +673,7 @@ def build_parts(spec):
     return s, (min(xs), 0.0, max(xs), max(ys), yk)
 
 
-def lights_and_camera(view, bounds, res, sun_from=None):
+def lights_and_camera(view, bounds, res, sun_from=None, cameras=None):
     x0, y0, x1, y1, yk = bounds
     scene = bpy.context.scene
     world = bpy.data.worlds.new("sky")
@@ -551,6 +716,11 @@ def lights_and_camera(view, bounds, res, sun_from=None):
         "corner": ((x1 + 9, road_mid, 1.7), (cx, y0 + 2, 1.8)),
         "aerial": ((x1 + 14, road_mid - 10, 14), (cx, y0 + 4, 0.5)),
     }[view]
+    # A spec can set its own views ("cameras": {"street": {"eye": [x, y, z], "look": [x, y, z], "lens": mm}}).
+    if cameras and view in cameras:
+        c = cameras[view]
+        eye, look = tuple(c["eye"]), tuple(c["look"])
+        cam_data.lens = c.get("lens", cam_data.lens)
     cam.location = eye
     direction = Vector(look) - Vector(eye)
     cam.rotation_euler = direction.to_track_quat("-Z", "Y").to_euler()
@@ -598,7 +768,7 @@ def main():
     spec = json.load(open(a.spec, encoding="utf-8"))
     spec = spec.get("blender", spec)
     s, bounds = build_parts(spec) if "blocks" in spec else build(spec)
-    lights_and_camera(a.view, bounds, tuple(int(v) for v in a.res.lower().split("x")), spec.get("sunFrom"))
+    lights_and_camera(a.view, bounds, tuple(int(v) for v in a.res.lower().split("x")), spec.get("sunFrom"), spec.get("cameras"))
     render_settings(a.samples, a.cpu)
     bpy.context.scene.render.image_settings.file_format = "PNG"
     bpy.context.scene.render.filepath = a.out
