@@ -332,6 +332,18 @@ def build_yard(s, house, street):
             edge.append((f["x"] + ww, f["y"], z))
         pole = [(f["x"], f["y"], z0 + (h - 0.15 - z0) * i / 8) for i in range(9)]
         face_obj(f"flag_{k}", pole + edge[::-1], m, street, thickness=0.005)
+    finishes = s.get("finishes", {})
+    for k, pd in enumerate(s.get("pediments", [])):
+        f = finishes.get(pd.get("walls", "main"), s["walls"]) if pd.get("walls", "main") != "main" else s["walls"]
+        m = material(f"pediment_{k}", f.get("colour", "#e8e8e5"), rough=0.6, bump=("noise", 40))
+        xm = (pd["x0"] + pd["x1"]) / 2
+        face_obj(f"pediment_{k}", [(pd["x0"], pd["y"], pd["z"]), (pd["x1"], pd["y"], pd["z"]), (xm, pd["y"], pd["z"] + pd["height"])], m, house, thickness=-0.25)
+    for k, aw in enumerate(s.get("awnings", [])):
+        m = material(f"awning_{k}", aw.get("colour", "#ebebe8"), rough=0.4, metal=0.2)
+        th = aw.get("thickness", 0.2)
+        box(f"awning_{k}", aw["x0"], aw["y0"], aw["z"] - th, aw["x1"], aw["y1"], aw["z"], m, house)
+        for j, px in enumerate(aw.get("posts", [])):
+            box(f"awning_{k}_post{j}", px - 0.05, aw["y0"] + 0.1, 0, px + 0.05, aw["y0"] + 0.2, aw["z"] - th, m_steel, house)
     for k, sg in enumerate(s.get("signs", [])):
         m_board = material(f"sign_{k}", sg.get("colour", "#1d1d1f"), rough=0.5)
         box(f"sign_{k}_board", sg["x0"], sg["y"], sg["z0"], sg["x1"], sg["y"] + 0.08, sg["z1"], m_board, street)

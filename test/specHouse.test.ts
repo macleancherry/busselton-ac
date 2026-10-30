@@ -32,8 +32,8 @@ describe("spec houses", () => {
   });
 
   it("puts the roof in the nearest Colorbond colour and every roof face looks up", () => {
-    expect(ROOF_COLOURS[h.roof].name).toBe(ROOF_COLOURS[nearestRoof([85, 88, 91])].name);
-    const roof = h.nodes.find((n) => n.material === `roof_${ROOF_COLOURS[h.roof].name}`)!;
+    expect(ROOF_COLOURS[h.roofs[0]].name).toBe(ROOF_COLOURS[nearestRoof([85, 88, 91])].name);
+    const roof = h.nodes.find((n) => n.material === `roof_${ROOF_COLOURS[h.roofs[0]].name}`)!;
     for (let i = 1; i < roof.normals.length; i += 3) expect(roof.normals[i]).toBeGreaterThan(0);
   });
 

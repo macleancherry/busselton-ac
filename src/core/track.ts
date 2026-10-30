@@ -1441,9 +1441,10 @@ export async function buildTrack(
       };
       for (const list of [shown, homes]) for (let i = list.length - 1; i >= 0; i--) if (inside(list[i])) list.splice(i, 1);
       for (const fc of sh.facades) buildingScenery(`facade_${fc.name}`, facadeTexture(fc), { ambient: 0.45, diffuse: 0.45, specular: 0.05, exp: 10 }, 3);
-      if (!finishes.roofs.has(sh.roof)) {
-        finishes.roofs.add(sh.roof);
-        const c = ROOF_COLOURS[sh.roof];
+      for (const r of sh.roofs) {
+        if (finishes.roofs.has(r)) continue;
+        finishes.roofs.add(r);
+        const c = ROOF_COLOURS[r];
         buildingScenery(`roof_${c.name}`, roofTexture(c), { ambient: 0.45, diffuse: 0.45, specular: 0.25, exp: 25 }, 4);
       }
       for (const so of sh.solids) {

@@ -24,6 +24,8 @@ export interface SpecBlock {
   pitch?: number;
   /** Left out when centring the house on its map position (a shed out the back). */
   outbuilding?: boolean;
+  /** This block's own roof colour (nearest of ROOF_COLOURS), when it differs from the spec's. */
+  roofColour?: string;
 }
 
 export interface HouseSpec {
@@ -40,6 +42,10 @@ export interface HouseSpec {
   fences?: { x0: number; y0: number; x1: number; y1: number; height?: number; colour?: string; open?: boolean; kind?: SurfaceKind }[];
   hedges?: { x0: number; x1: number; y0: number; depth?: number; height?: number }[];
   trees?: { x: number; y: number; height: number; spread?: number }[];
+  /** Triangular pediments standing on a wall's top at y (facing the street), `height` metres high at the middle. */
+  pediments?: { x0: number; x1: number; y: number; z: number; height: number; walls?: string }[];
+  /** Flat awnings and canopies: a thin slab at height z, on posts at the listed x positions along its front edge. */
+  awnings?: { x0: number; x1: number; y0: number; y1: number; z: number; thickness?: number; colour?: string; posts?: number[] }[];
   /** Flat paving (brick, concrete) laid on the ground. */
   paving?: { x0: number; y0: number; x1: number; y1: number; colour?: string; kind?: "brick" | "concrete" | "timber" }[];
   /** Outdoor tables with bench seats (picnic style), `along` x unless `turned`. */
@@ -75,8 +81,8 @@ export interface SpecHouse {
   nodes: Kn5MeshNode[];
   /** Wall finishes it needs: facade_<name> materials with upstream's facade textures. */
   facades: Facade[];
-  /** Roof finish (index into ROOF_COLOURS) it wears. */
-  roof: number;
+  /** Roof finishes (indexes into ROOF_COLOURS) it wears: the spec's first, then any blocks' own. */
+  roofs: number[];
   /** Colours it needs: material name and colour, and a surface texture (surfaceTextures.ts) for some. */
   solids: { name: string; rgb: RGB; surface?: SurfaceKind }[];
   trees: TreeSpot[];
@@ -127,6 +133,13 @@ export function buildSpecHouse(spec: HouseSpec, place: SpecPlacement, tag: strin
   };
   const roof = nearestRoof(hex(spec.roof?.colour, [228, 226, 213]));
   const roofMat = `roof_${ROOF_COLOURS[roof].name}`;
+  const roofs = [roof];
+  const roofFor = (colour?: string) => {
+    if (!colour) return roofMat;
+    const r = nearestRoof(hex(colour, [228, 226, 213]));
+    if (!roofs.includes(r)) roofs.push(r);
+    return `roof_${ROOF_COLOURS[r].name}`;
+  };
   const solids: { name: string; rgb: RGB; surface?: SurfaceKind }[] = [];
   const solid = (name: string, rgb: RGB, surface?: SurfaceKind) => {
     const n = `spec_${tag}_${name}`;
@@ -190,7 +203,7 @@ export function buildSpecHouse(spec: HouseSpec, place: SpecPlacement, tag: strin
     const ev = b.eaves ?? eaves0, pitch = Math.tan(((b.pitch ?? pitchDeg) * Math.PI) / 180);
     const X0 = b.x0 - ev, X1 = b.x1 + ev, Y0 = b.y0 - ev, Y1 = b.y1 + ev;
     const w = X1 - X0, d = Y1 - Y0;
-    const rm = mesh(roofMat);
+    const rm = mesh(roofFor(b.roofColour));
     // Soffit under the eaves, and fascia round them.
     poly(mesh(trim), [W(X0, Y0, H), W(X0, Y1, H), W(X1, Y1, H), W(X1, Y0, H)], planar);
     for (const [ax, ay, bx, by] of [[X0, Y0, X1, Y0], [X1, Y0, X1, Y1], [X1, Y1, X0, Y1], [X0, Y1, X0, Y0]]) {
@@ -245,6 +258,22 @@ export function buildSpecHouse(spec: HouseSpec, place: SpecPlacement, tag: strin
     }
   }
   for (const p of spec.panels ?? []) box(finish(p.walls), p.x0, p.y0, p.z0 ?? 0, p.x1, p.y1, p.z1 ?? H0, true);
+  for (const pd of spec.pediments ?? []) {
+    const wm = finish(pd.walls ?? "main"), xm = (pd.x0 + pd.x1) / 2, L = pd.x1 - pd.x0;
+    const uv = (_p: Vec3, j: number): [number, number] => [j === 1 ? L / PERIOD : j === 2 ? L / 2 / PERIOD : 0, 1 - (j === 2 ? pd.z + pd.height : pd.z) / STOREY];
+    // Front face (towards the street), back face, and a thin top along both rakes.
+    poly(mesh(wm), [W(pd.x0, pd.y, pd.z), W(pd.x1, pd.y, pd.z), W(xm, pd.y, pd.z + pd.height)], uv);
+    poly(mesh(wm), [W(pd.x1, pd.y + 0.25, pd.z), W(pd.x0, pd.y + 0.25, pd.z), W(xm, pd.y + 0.25, pd.z + pd.height)], uv);
+    for (const [ax, bx] of [[pd.x0, xm], [xm, pd.x1]]) {
+      const za = ax === pd.x0 ? pd.z : pd.z + pd.height, zb = bx === pd.x1 ? pd.z : pd.z + pd.height;
+      poly(mesh(trim), [W(ax, pd.y - 0.05, za + 0.12), W(bx, pd.y - 0.05, zb + 0.12), W(bx, pd.y + 0.3, zb + 0.12), W(ax, pd.y + 0.3, za + 0.12)].reverse(), planar);
+    }
+  }
+  for (const [k, aw] of (spec.awnings ?? []).entries()) {
+    const m = solid(`awning${k}`, hex(aw.colour, [235, 235, 232]), "steel"), th = aw.thickness ?? 0.2;
+    box(m, aw.x0, aw.y0, aw.z - th, aw.x1, aw.y1, aw.z);
+    for (const px of aw.posts ?? []) box(solid("pole", [70, 70, 72], "steel"), px - 0.05, aw.y0 + 0.1, 0, px + 0.05, aw.y0 + 0.2, aw.z - th, false, true);
+  }
 
   const deck = solid("deck", [138, 106, 79], "timber");
   for (const v of spec.verandahs ?? []) {
@@ -367,5 +396,5 @@ export function buildSpecHouse(spec: HouseSpec, place: SpecPlacement, tag: strin
   for (const [mat, mb] of meshes) if (mb.indices.length) nodes.push(mb.toKn5(`SPECHOUSE_${tag}_${i++}`, mat));
   // What the car hits: the walls and fences, invisible.
   if (solidWalls.indices.length) nodes.push({ ...solidWalls.toKn5(`1WALL_SPECHOUSE_${tag}`, trim), renderable: false });
-  return { nodes, facades, roof, solids, trees, footprints, signs };
+  return { nodes, facades, roofs, solids, trees, footprints, signs };
 }
