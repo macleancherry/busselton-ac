@@ -23,6 +23,7 @@
 // tracks, and the templates in common/materials_track.ini.
 
 import type { Vec3 } from "./mesh";
+import { pureSections, type AtmosphereInput } from "./pureConfig";
 
 const f = (v: number) => v.toFixed(2);
 
@@ -42,6 +43,8 @@ export interface CspOptions {
   sea?: boolean;
   /** Busselton fork: CSP instanced trees: the tree list's path under extension/ (e.g. trees/trees.txt). */
   trees?: string;
+  /** Busselton fork: Pure tuning from the build (pureConfig.ts); without it, CSP's generic [PURE] values. */
+  pure?: AtmosphereInput;
 }
 
 /** `lights` are lamp heads in local metres (x east, y north, z up). */
@@ -186,18 +189,20 @@ export function extConfig(lights: Vec3[], opts: CspOptions = {}): string {
     "MATERIALS = shader:ksMultilayer?, shader:ksPerPixelMultiMap?",
     "PROP_0 = ksAlphaRef, -193",
     "",
-    // Pure: the values CSP's own track configs use (clear coastal air, little haze).
-    "[PURE]",
-    "ACTIVE = 1",
-    "SUN_DAWN = 1",
-    "SUN_DUSK = 1",
-    "FOG_LEVEL = 0.05",
-    "FOG_BLEND = 1.15",
-    "FOG_DISTANCE = 0.9",
-    "SMOG_MORNING = 0.05",
-    "SMOG_NOON = 0.1",
-    "SMOG_EVENING = 0.15",
-    "",
+    // Pure: tuned to where the track is (pureConfig.ts), else the values CSP's own track configs use.
+    ...(opts.pure ? pureSections(opts.pure) : [
+      "[PURE]",
+      "ACTIVE = 1",
+      "SUN_DAWN = 1",
+      "SUN_DUSK = 1",
+      "FOG_LEVEL = 0.05",
+      "FOG_BLEND = 1.15",
+      "FOG_DISTANCE = 0.9",
+      "SMOG_MORNING = 0.05",
+      "SMOG_NOON = 0.1",
+      "SMOG_EVENING = 0.15",
+      "",
+    ]),
   );
   if (opts.trees) {
     // CSP's instanced 3D trees (docs/trees.md). Every species here is evergreen: no seasonal tint.

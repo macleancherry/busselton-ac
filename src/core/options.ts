@@ -154,6 +154,11 @@ export interface BuildOptions {
    * place of the alpha-tested card trees in the kn5. Needs CSP; the browser preview shows no trees.
    */
   cspTrees?: boolean;
+  /**
+   * Busselton fork: Pure haze from where the track is (clear WA air, coast) and calmer photo ground on
+   * bright sand (pureConfig.ts). On unless false; false writes CSP's generic [PURE] values.
+   */
+  pureTuning?: boolean;
   /** Kerb and gutter where the photos (or a built-up area) show them, instead of a gravel verge. */
   kerbs: boolean;
   /**
