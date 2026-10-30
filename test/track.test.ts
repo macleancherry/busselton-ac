@@ -229,6 +229,21 @@ describe("start and finish on a long road drawn with jitter", async () => {
   });
 });
 
+describe("buildTrack with rain hollows and track sounds on", async () => {
+  const lat0 = -27.92, lng0 = 153.19, mx = 111_320 * Math.cos((lat0 * Math.PI) / 180);
+  const route: LngLat[] = [0, 200, 400].map((x) => [lng0 + x / mx, lat0]);
+  const result = await buildTrack(route, { name: "Wet Road", imageryZoom: 0, corridor: 30, horizon: 0, trees: 0, buildings: false, rainHollows: true, trackSounds: true }, sources);
+
+  it("builds CSP's puddle map from the ground, and ships no sound bank notes with nothing to place", () => {
+    const ini = new TextDecoder().decode(result.files["wet_road/extension/ext_config.ini"]);
+    expect(ini).toMatch(/\[RAIN_FX\][\s\S]*RELIEF_MATERIALS = road_\?/);
+    expect(ini).toContain("; Hollows where water should stand");
+    // No sea or trees here: no emitters, so no soundbank and no placeholder notes.
+    expect(ini).not.toContain("SOUNDBANK");
+    expect(result.files["wet_road/extension/sfx/README.txt"]).toBeUndefined();
+  });
+});
+
 
 describe("buildTrack (aerial imagery, detail shaders)", async () => {
   const { encodePng } = await import("../src/core/png");

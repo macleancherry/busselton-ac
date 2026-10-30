@@ -165,6 +165,16 @@ export interface BuildOptions {
    * place of the alpha-tested card trees in the kn5. Needs CSP; the browser preview shows no trees.
    */
   cspTrees?: boolean;
+  /**
+   * Busselton fork: CSP RainFX puddles in the road's real hollows (rainHollows.ts): the puddle height
+   * map from the ground and roads only, and the hollows listed in ext_config for checking in game.
+   */
+  rainHollows?: boolean;
+  /**
+   * Busselton fork: CSP track sounds (trackSounds.ts): waves along the shore, magpies and kookaburras
+   * in the trees. Needs the placeholder bank (extension/sfx/README.txt) filled on the workstation.
+   */
+  trackSounds?: boolean;
   /** Kerb and gutter where the photos (or a built-up area) show them, instead of a gravel verge. */
   kerbs: boolean;
   /**
