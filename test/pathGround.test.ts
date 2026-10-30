@@ -58,7 +58,6 @@ describe("paths lie on the ground meshes", () => {
 
   const nodes = buildPaths([line], (x, y) => laid(x, y) ?? fn(), () => true, () => true);
   const path = nodes.filter((n) => n.name.startsWith("1ROAD_PATH"));
-  const edges = nodes.filter((n) => n.name.startsWith("PATH_EDGE"));
 
   it("sits a couple of centimetres proud of what is drawn, never floating or sunk", () => {
     expect(path).toHaveLength(1);
@@ -77,26 +76,97 @@ describe("paths lie on the ground meshes", () => {
         }
       }
     }
-    // Over the steps (the cut band's edges, the strip's sides) the ribbon bridges at most a
-    // half-step's rise; everywhere else it's LIFT up.
+    // The steps (the cut band's edges, the strip's sides) cut the path, so it never bridges one:
+    // everywhere it's LIFT up.
     expect(worstDown).toBeGreaterThanOrEqual(-0.005);
-    expect(worstUp).toBeLessThan(0.45);
+    expect(worstUp).toBeLessThan(LIFT + 0.035);
     // Mid-band and mid-strip it's on the drawn ground, not the terrain function.
     expect(heightOf(path, 10, 23)! - 1.6).toBeCloseTo(LIFT, 2);
     expect(heightOf(path, 33, 30)! - 2.15).toBeCloseTo(LIFT, 2);
     expect(heightOf(path, 10, 10)! - 2).toBeCloseTo(LIFT, 2);
   });
 
-  it("has visual-only edges reaching down into the ground", () => {
-    expect(edges.length).toBe(1);
-    expect(/^\d/.test(edges[0].name)).toBe(false);
-    const ys = Array.from(edges[0].positions.filter((_, i) => i % 3 === 1));
-    expect(Math.min(...ys)).toBeLessThan(1.6 - 0.05);
+  it("is cut at a step in the ground", () => {
+    // The east run meets the strip's side, a 15 cm step straight up: no ribbon bridges it. (The
+    // band's sides are 1.5 m ramps on the terrain grid, which the path may lie on.)
+    const p = path[0].positions;
+    for (let k = 0; k < p.length; k += 3) if (-p[k + 2] > 45) expect(Math.abs(p[k] - 30)).toBeGreaterThan(0.2);
+    // And a kerb across a path: 15 cm up, the path stops short of it either side.
+    const kerb = (x: number) => (x > 20 ? 2.15 : 2);
+    const out = buildPaths([{ kind: "foot", pts: [[2, 5], [38, 5]] }], kerb, () => true, () => true);
+    expect(out).toHaveLength(1);
+    const q = out[0].positions;
+    for (let k = 0; k < q.length; k += 3) {
+      expect(Math.abs(q[k] - 20)).toBeGreaterThan(0.2);
+      expect(q[k + 1] - kerb(q[k])).toBeCloseTo(LIFT, 4);
+    }
+  });
+
+  it("follows an even slope", () => {
+    // Ground falling 12% to the east; the path runs north.
+    const slope = terrain(40, (x) => 5 - 0.12 * x);
+    const g = topSurface([slope]);
+    const out = buildPaths([{ kind: "shared", pts: [[20, 2], [20, 38]] }], (x, y) => g(x, y) ?? 0, () => true, () => true);
+    expect(out).toHaveLength(1);
+    const top = out.filter((n) => n.name.startsWith("1ROAD_PATH"));
+    const p = top[0].positions;
+    for (let k = 0; k < p.length; k += 3) expect(p[k + 1] - g(p[k], -p[k + 2])!).toBeCloseTo(LIFT, 3);
+    // One long quad per 15 m at most.
+    expect(top[0].indices.length / 3).toBeLessThanOrEqual(6);
+  });
+
+  it("puts a vertex across wherever the ground comes up, so every vertex is on the ground", () => {
+    // A low ridge along the path under its quarters (5 cm, too gentle to be a step).
+    const g = (_x: number, y: number) => 2 + 0.05 * Math.max(0, Math.min(1, (0.8 - Math.abs(y - 10)) / 0.4));
+    const out = buildPaths([{ kind: "foot", pts: [[0, 10], [30, 10]] }], g, () => true, () => true);
+    expect(out).toHaveLength(1);
+    const p = out[0].positions;
+    const across = new Set<number>();
+    for (let k = 0; k < p.length; k += 3) {
+      expect(p[k + 1] - g(p[k], -p[k + 2])).toBeCloseTo(LIFT, 4);
+      across.add(Math.round(-p[k + 2] * 10));
+    }
+    // Edges and quarters (the centre is then on the line between the quarters).
+    expect(across.size).toBe(4);
+  });
+
+  it("is two long quads' worth on a straight level run, three vertices across only over a crown", () => {
+    const level = terrain(120, () => 2);
+    const g = topSurface([level]);
+    const out = buildPaths([{ kind: "foot", pts: [[5, 60], [115, 60]] }], (x, y) => g(x, y) ?? 0, () => true, () => true);
+    const top = out.filter((n) => n.name.startsWith("1ROAD_PATH"));
+    expect(top).toHaveLength(1);
+    // 110 m in quads of at most 15 m: 8 quads, 16 triangles (was 4 per 1.5 m, plus edge skirts).
+    expect(top[0].indices.length / 3).toBeLessThanOrEqual(16);
+    expect(out).toHaveLength(1);
+    // A low crown along the middle (8 cm over 1.5 m, on the terrain grid): the centre comes up over it.
+    const crown = terrain(42, (_x, y) => 2 + 0.08 * Math.max(0, 1 - Math.abs(y - 21) / 1.5));
+    const gc = topSurface([crown]);
+    const over = buildPaths([{ kind: "foot", pts: [[3, 21], [39, 21]] }], (x, y) => gc(x, y) ?? 0, () => true, () => true);
+    const ribbon = over.filter((n) => n.name.startsWith("1ROAD_PATH"));
+    expect(ribbon).toHaveLength(1);
+    const p = ribbon[0].positions;
+    let centre = 0;
+    for (let k = 0; k < p.length; k += 3) if (Math.abs(-p[k + 2] - 21) < 0.01) { centre++; expect(p[k + 1]).toBeCloseTo(2.08 + LIFT, 3); }
+    expect(centre).toBeGreaterThan(0);
+  });
+
+  it("faces up everywhere", () => {
+    for (const n of path) {
+      const p = n.positions, ix = n.indices;
+      for (let t = 0; t < ix.length; t += 3) {
+        const a = ix[t] * 3, b = ix[t + 1] * 3, c = ix[t + 2] * 3;
+        // AC space: x east, y up, z south. Normal's y from (b - a) x (c - a).
+        const ny = (p[b + 2] - p[a + 2]) * (p[c] - p[a]) - (p[b] - p[a]) * (p[c + 2] - p[a + 2]);
+        expect(ny).toBeGreaterThan(0);
+      }
+    }
   });
 
   it("splits a long network over several meshes under the vertex limit", () => {
+    // Ground rolling every few metres, so the ribbon can't be merged into long quads.
     const many = Array.from({ length: 30 }, (_, k) => ({ kind: "foot" as const, pts: [[0, k * 4], [1200, k * 4]] as [number, number][] }));
-    const out = buildPaths(many, () => 0, () => true, () => true);
+    const out = buildPaths(many, (x) => 0.3 * Math.sin(x), () => true, () => true);
     const top = out.filter((n) => n.name.startsWith("1ROAD_PATH_FOOT"));
     expect(top.length).toBeGreaterThan(1);
     for (const n of out) expect(n.positions.length / 3).toBeLessThanOrEqual(65535);
@@ -201,7 +271,6 @@ describe("in a build", () => {
     walk(built.model.root);
     const paths = all.filter((n) => n.name.startsWith("1ROAD_PATH"));
     expect(paths.length).toBeGreaterThan(0);
-    expect(all.some((n) => n.name.startsWith("PATH_EDGE"))).toBe(true);
     const grounds = all.filter((n) => /^1GRASS/.test(n.name));
     const g = topSurface(grounds, /./);
     let n = 0;

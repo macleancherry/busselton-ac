@@ -115,3 +115,34 @@ describe("house roofs", async () => {
     }
   });
 });
+
+describe("one ground per building", async () => {
+  const { buildBuildings } = await import("../src/core/buildings");
+  const ring: [number, number][] = [[0, 0], [12, 0], [12, 8], [0, 8]];
+  const b = { ring, ...plainHouse("hip" as const, 0, 2.8), source: "frontage" as const, front: [[0, 0], [12, 0]] as [[number, number], [number, number]], setback: 8 };
+  // Point by point, the ground drops 4 m past x = 10 (the horizon mesh held under the terrain past
+  // the detailed terrain's edge); the base's own ground carries on at 2 m.
+  const pointwise = (x: number) => (x > 10 ? -2 : 2);
+  const wallsLow = (nodes: ReturnType<typeof buildBuildings>) => Math.min(...nodes.filter((n) => /^1WALL/.test(n.name)).flatMap((n) => Array.from(n.positions.filter((_, i) => i % 3 === 1))));
+
+  it("sinks the whole house to its lowest corner on a point-by-point ground", () => {
+    expect(wallsLow(buildBuildings([b], pointwise))).toBeLessThan(-1.9);
+  });
+
+  it("keeps the windows' sills over the ground outside them on a slope", () => {
+    // Ground rising 1 m across the house: the floor is at the low side, the high side's windows
+    // would have started under the ground.
+    const slope = (_x: number, y: number) => 2 + y / 8;
+    const nodes = buildBuildings([{ ...b, height: 6 }], slope);
+    const glass = nodes.filter((n) => /^WINDOWS/.test(n.name));
+    expect(glass.length).toBeGreaterThan(0);
+    for (const n of glass) {
+      const p = n.positions;
+      for (let k = 0; k < p.length; k += 3) expect(p[k + 1]).toBeGreaterThan(slope(p[k], -p[k + 2]) + 0.03);
+    }
+  });
+
+  it("stands the house on the ground groundFor picks for it", () => {
+    expect(wallsLow(buildBuildings([b], pointwise, () => 0.02, () => () => 2))).toBeCloseTo(1.98, 3);
+  });
+});

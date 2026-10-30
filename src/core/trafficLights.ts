@@ -598,9 +598,17 @@ export function addTrafficLights(trafficText: string, sites: SignalSite[], durat
     if (!match && site.kind === "junction") continue;
     // Corner k joins side k-1 and side k: on a rectangle, the sum of the two sides' offsets.
     const n = (k: number): Vec2 => [Math.cos(site.theta + (k * Math.PI) / 2), Math.sin(site.theta + (k * Math.PI) / 2)];
+    const extent = [...site.extent] as [number, number, number, number];
+    // The lanes ended on the junction's old polygon; the rectangle's sides are at the stop lines, so
+    // some ends fall outside it and the planner loses them. Each end is carried on along its lane
+    // into the rectangle, or failing that the nearest sides are moved out a little to take it in;
+    // a site where neither works keeps its polygon and gives way as before.
+    const fix = match ? keepLaneEnds(data, match.it.points, site.c, n, extent) : { ok: true, moves: [] };
+    if (!fix.ok) continue;
+    for (const m of fix.moves) data.lanes[m.lane].points[m.index] = m.to;
     const points: [number, number, number][] = [0, 1, 2, 3].map((k) => {
       const a = n((k + 3) % 4), b = n(k);
-      const ea = site.extent[(k + 3) % 4], eb = site.extent[k];
+      const ea = extent[(k + 3) % 4], eb = extent[k];
       const x = site.c[0] + a[0] * ea + b[0] * eb, y = site.c[1] + a[1] * ea + b[1] * eb;
       return [round(x), round(h), round(-y)];
     });
@@ -622,3 +630,63 @@ export function addTrafficLights(trafficText: string, sites: SignalSite[], durat
 }
 
 const round = (v: number) => Math.round(v * 1000) / 1000;
+
+/** How far a lane's end may be carried on along it into a signalled junction's rectangle, metres. */
+const CARRY_MAX = 12;
+/** How far a side of the rectangle may move out to take in a lane end, metres. */
+const GROW_MAX = 2;
+/** How far inside the rectangle a lane end is put, metres. */
+const INSIDE = 0.3;
+
+/** Inside a polygon of AC points (x, _, z), tested in local x, y (y = -z). */
+function inPolygon(poly: [number, number, number][], p: Vec2): boolean {
+  let c = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const yi = -poly[i][2], yj = -poly[j][2];
+    if (yi > p[1] !== yj > p[1] && p[0] < ((poly[j][0] - poly[i][0]) * (p[1] - yi)) / (yj - yi) + poly[i][0]) c = !c;
+  }
+  return c;
+}
+
+/**
+ * For a junction's polygon becoming a signalled rectangle (centre c, side k at `extent[k]` along
+ * n(k)): the lane ends inside the old polygon, each carried on along its lane into the rectangle
+ * (up to CARRY_MAX), or else taken in by moving sides out (up to GROW_MAX each; `extent` is grown
+ * in place). Not ok when some end can't be kept either way.
+ */
+export function keepLaneEnds(
+  data: { lanes: { points: [number, number, number][]; loop?: boolean }[] },
+  old: [number, number, number][],
+  c: Vec2,
+  n: (k: number) => Vec2,
+  extent: [number, number, number, number],
+): { ok: boolean; moves: { lane: number; index: number; to: [number, number, number] }[] } {
+  const start = [...extent];
+  const over = (p: Vec2, k: number, margin = 0) => (p[0] - c[0]) * n(k)[0] + (p[1] - c[1]) * n(k)[1] - (extent[k] - margin);
+  const inRect = (p: Vec2, margin = 0) => [0, 1, 2, 3].every((k) => over(p, k, margin) <= 0);
+  const moves: { lane: number; index: number; to: [number, number, number] }[] = [];
+  const grow: Vec2[] = [];
+  data.lanes.forEach((lane, li) => {
+    if (lane.loop || lane.points.length < 2) return;
+    for (const index of [0, lane.points.length - 1]) {
+      const e = lane.points[index], q = lane.points[index === 0 ? 1 : index - 1];
+      const p: Vec2 = [e[0], -e[2]];
+      if (!inPolygon(old, p) || inRect(p)) continue;
+      const L = Math.hypot(e[0] - q[0], e[2] - q[2]) || 1;
+      const d: Vec2 = [(e[0] - q[0]) / L, -(e[2] - q[2]) / L];
+      let carried: Vec2 | null = null;
+      for (let t = 0.25; t <= CARRY_MAX; t += 0.25) {
+        const r: Vec2 = [p[0] + d[0] * t, p[1] + d[1] * t];
+        if (inRect(r, INSIDE)) { carried = r; break; }
+      }
+      if (carried) moves.push({ lane: li, index, to: [round(carried[0]), e[1], round(-carried[1])] });
+      else grow.push(p);
+    }
+  });
+  for (const p of grow) for (let k = 0; k < 4; k++) {
+    const by = over(p, k) + INSIDE;
+    if (by > 0) extent[k] += by;
+  }
+  return { ok: extent.every((v, k) => v - start[k] <= GROW_MAX), moves };
+}
+

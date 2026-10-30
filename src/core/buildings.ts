@@ -26,6 +26,8 @@ import type { TerrainChunk } from "./terrain";
 import { FACADES, LAYOUTS, PITCHED, ROOF_COLOURS, type Dress, type Layout } from "./buildingStyles";
 import { pad } from "./roadMesh";
 import { alongRing, SINK } from "./sceneGround";
+/** How far a window's sill stays over the ground outside it, metres. */
+const SILL_CLEAR = 0.08;
 
 export interface Building extends Dress {
   /** Footprint, local metres, first point not repeated. */
@@ -380,7 +382,13 @@ function frontReserved(b: Building, ring: Vec2[], edge: number): [number, number
  * Glass panes over the facade's windows, a little proud of the wall, one
  * window = one texture repeat (so CSP can put a room behind each at night).
  */
-function windowPanes(cm: ChunkedMesh, p: Vec2, q: Vec2, u0: number, floor: number, top: number, skip: [number, number][], L: Layout): void {
+/**
+ * Window glass along one wall, storey by storey. `ground`, when given, keeps each pane's sill a few
+ * centimetres over the ground outside it: a big building's floor is its lowest ground, so on a
+ * slope its low windows ran into the higher ground along the other walls (cut short, or left out
+ * when too little is left).
+ */
+function windowPanes(cm: ChunkedMesh, p: Vec2, q: Vec2, u0: number, floor: number, top: number, skip: [number, number][], L: Layout, ground?: HeightFn): void {
   const len = Math.hypot(q[0] - p[0], q[1] - p[1]);
   if (len < 1) return;
   const d: Vec2 = [(q[0] - p[0]) / len, (q[1] - p[1]) / len];
@@ -394,7 +402,13 @@ function windowPanes(cm: ChunkedMesh, p: Vec2, q: Vec2, u0: number, floor: numbe
         if (a < 0.15 || c > len - 0.15 || storey + w.z1 > top - 0.05) continue;
         if (skip.some(([s0, s1]) => a < s1 && c > s0)) continue;
         const at = (m: number, z: number): Vec3 => [p[0] + d[0] * m + out[0] * 0.015, p[1] + d[1] * m + out[1] * 0.015, z];
-        face(cm.next(4), [at(a, storey + w.z0), at(c, storey + w.z0), at(c, storey + w.z1), at(a, storey + w.z1)],
+        let z0 = storey + w.z0;
+        if (ground) {
+          const outside = (m: number) => ground(p[0] + d[0] * m + out[0] * 0.3, p[1] + d[1] * m + out[1] * 0.3);
+          z0 = Math.max(z0, Math.max(outside(a), outside(c), outside((a + c) / 2)) + SILL_CLEAR);
+          if (storey + w.z1 - z0 < 0.4) continue;
+        }
+        face(cm.next(4), [at(a, z0), at(c, z0), at(c, storey + w.z1), at(a, storey + w.z1)],
           (v) => [Math.hypot(v[0] - p[0], v[1] - p[1]) - a > (c - a) / 2 ? 1 : 0, v[2] > storey + (w.z0 + w.z1) / 2 ? 0 : 1]);
       }
     }
@@ -457,8 +471,12 @@ interface Band {
 /**
  * `ground` is what they stand on (sceneGround.ts): the walls start at the lowest ground along the
  * footprint's edges, `sink` metres into it (more for buildings out on the coarse horizon mesh).
+ * `groundFor`, when given, picks the ground for each building instead (one ground for the whole
+ * footprint, so a house straddling the edge of the detailed terrain isn't dropped to the horizon
+ * mesh held metres under it).
  */
-export function buildBuildings(buildings: Building[], ground: HeightFn, sink: (b: Building) => number = () => SINK): Kn5MeshNode[] {
+export function buildBuildings(buildings: Building[], ground: HeightFn, sink: (b: Building) => number = () => SINK, groundFor?: (b: Building) => HeightFn): Kn5MeshNode[] {
+  const base0 = ground;
   const walls = new Map<number, ChunkedMesh>(), roofs = new Map<number, ChunkedMesh>();
   const of = (m: Map<number, ChunkedMesh>, k: number) => {
     let c = m.get(k);
@@ -468,6 +486,7 @@ export function buildBuildings(buildings: Building[], ground: HeightFn, sink: (b
   const soffits = new ChunkedMesh(0), garages = new ChunkedMesh(0), doors = new ChunkedMesh(0), drives = new ChunkedMesh(0);
   const panes = new ChunkedMesh(0), posts = new ChunkedMesh(0), awnings = new ChunkedMesh(0);
   for (const b of buildings) {
+    const ground = groundFor ? groundFor(b) : base0;
     const ring = ringArea(b.ring) < 0 ? b.ring.slice().reverse() : b.ring;
     const hs = ring.map(([x, y]) => ground(x, y));
     const floor = Math.min(...alongRing(ring, 0.5).map(([x, y]) => ground(x, y)));
@@ -496,7 +515,7 @@ export function buildBuildings(buildings: Building[], ground: HeightFn, sink: (b
       let u = 0;
       for (let k = 0; k < ring.length; k++) {
         const p = ring[k], q = ring[(k + 1) % ring.length];
-        if (band.panes) windowPanes(panes, p, q, u, band.floor, Math.min(band.z1, top), band.front && k === edge ? reserved : [], band.L);
+        if (band.panes) windowPanes(panes, p, q, u, band.floor, Math.min(band.z1, top), band.front && k === edge ? reserved : [], band.L, ground);
         u = wall(wm, p, q, band.z0, band.z1, u, band.floor, band.L);
       }
     }
