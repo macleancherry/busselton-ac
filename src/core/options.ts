@@ -149,6 +149,11 @@ export interface BuildOptions {
    * bigger blocks, more than 40 m from the route (default 0.05). Larger thins a big area build.
    */
   terrainLodFarTol?: number;
+  /**
+   * Busselton fork: real 3D trees with CSP's instanced tree system (cspTrees.ts, treeModels.ts) in
+   * place of the alpha-tested card trees in the kn5. Needs CSP; the browser preview shows no trees.
+   */
+  cspTrees?: boolean;
   /** Kerb and gutter where the photos (or a built-up area) show them, instead of a gravel verge. */
   kerbs: boolean;
   /**

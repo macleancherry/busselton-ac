@@ -272,3 +272,15 @@ Rough load in a town view: about 30 trees at A, about 120 at B and about 250 at 
 5. Sapling on Blender 5.x headless.
 6. Whether `YEAR_PROGRESS` seasons follow the southern hemisphere (moot if seasons are off).
 7. Whether there is any CM command-line switch for tree conversion (none found in source search; not exhaustive).
+
+---
+
+## What we built (30 Oct)
+
+- **`src/core/cspTrees.ts`**: the `.bin` writer (CM's converter layout above: normalised vertices, tangents, xxHash32 texture checksums, the converter's winding, the trunk-width block), `tree.ini` with explicit LOD distances (45 / 100 / 180 m, then CSP's billboard) and `USE_AO_CHANNEL=1`, and the tree list writer.
+- **`src/core/treeModels.ts`**: the five species drawn procedurally (no third-party art): branch skeletons of tapered cylinders with drawn bark, and leaf cards from a drawn 2 × 2 atlas per species (normal map from a dome over each cluster, AO in its alpha). Three LODs use the same cards (fewer and bigger further out). LOD 0 is 0.5k (palm) to 4.8k (Norfolk pine) triangles.
+- **`build.cspTrees: true`** in a route turns it on: the build writes `extension/trees/<species>.bin` and `extension/trees/trees.txt` and adds `[TREES] LIST_0` to ext_config, and the card trees leave the kn5 (their trunks' collision stays). Off by default until the check below passes. The browser preview shows no trees with it on.
+
+### The one check that needs Content Manager
+
+`scripts/trees/make_reference.ts tuart <dir>` then `blender --background --python scripts/trees/obj_to_fbx.py -- <dir>/tuart.obj <dir>/tuart.fbx` make a reference model. Convert `tuart.fbx` in CM (Content > Tools > Creator tools > Tree model converter) to `tuart_cm.bin`, and compare it with ours: `npx tsx scripts/trees/compare_bin.ts <dir>/tuart.bin tuart_cm.bin` (tree.ini, each LOD's counts and box, winding). Then a build with `cspTrees` on, driven: are the trees where the card trees were, upright, the right way round, lit from the right side?

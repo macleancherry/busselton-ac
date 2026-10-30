@@ -16,6 +16,8 @@ import type { GroundDetail, GroundLayer } from "./ground";
 import { aiHintsIni, buildAiLine } from "./aiLine";
 import { Area, areaRings, makeCover } from "./area";
 import { buildJettyPrecinct, JETTY_MATERIALS, type JettyFeatures } from "./jetty";
+import { treeList, writeTreeBin } from "./cspTrees";
+import { MODEL_NAMES, treeModel } from "./treeModels";
 import { asLayout, dummiesKn5 } from "./layouts";
 import { BACKDROP_CHUNK, backdropHeight, buildBackdropChunk, planBackdrop } from "./backdrop";
 import { writeFastLaneAi } from "./aiSpline";
@@ -1220,7 +1222,8 @@ export async function buildTrack(
     return { ...t, variant: pickSpecies(speciesRand(), !!t.coastal, town, ocean.length > 0 && sea.near(t.x, t.y, FORESHORE)) };
   });
   const treesKept = offStreets(offRings(planted)).filter((t) => !cleared(t.x, t.y, true));
-  const trees = buildTrees(treesKept, ground);
+  // Busselton fork: with CSP trees on, the trees go in CSP's tree list instead of the kn5 (below).
+  const trees = opts.cspTrees ? [] : buildTrees(treesKept, ground);
   const trunks = treeTrunks(treesKept, ground);
   // Tree lines on the horizon: canopy in the far photo, out to 1 km, as cheap unshadowed sprites.
   const far = farTreeSpots.filter((t) => !inCover(t.x, t.y, -5) && cover(t.x, t.y) < 1000 && !sea.has(t.x, t.y));
@@ -1610,7 +1613,7 @@ export async function buildTrack(
         group("MARKINGS", markings),
         group("VERGE", roadMeshes.verge),
         group("KERBS", kerbsClear.nodes),
-        group("TREES", [...trees, ...(houseTrees.length ? buildTrees(houseTrees, ground, "HOUSETREES") : [])]),
+        group("TREES", [...trees, ...(houseTrees.length && !opts.cspTrees ? buildTrees(houseTrees, ground, "HOUSETREES") : [])]),
         group("RAILS", [...railsClear.nodes, ...rails.posts]),
         group("GUIDEPOSTS", posts),
         group("BUILDINGS", [...houses, ...specNodes]),
@@ -1710,6 +1713,17 @@ export async function buildTrack(
     materials.push(material("parked_car", "parked_car.png", { ambient: 0.45, diffuse: 0.55, specular: 0.5, exp: 40 }));
   }
 
+  // Busselton fork: CSP instanced trees: a model per species used and the tree list (cspTrees.ts).
+  const cspTreeFiles: Record<string, Uint8Array> = {};
+  if (opts.cspTrees) {
+    const all = [...treesKept, ...houseTrees];
+    const used = [...new Set(all.map((t) => t.variant))].filter((v) => v >= 0 && v < MODEL_NAMES.length);
+    for (const v of used) cspTreeFiles[`${slug}/extension/trees/${MODEL_NAMES[v]}.bin`] = writeTreeBin(treeModel(v));
+    const r = rng(7);
+    cspTreeFiles[`${slug}/extension/trees/trees.txt`] = enc.encode(treeList(all.filter((t) => used.includes(t.variant)).map((t) => ({
+      model: `${MODEL_NAMES[t.variant]}.bin`, pos: toAc(t.x, t.y, ground(t.x, t.y) - 0.1), angle: r() * 360, size: t.scale,
+    }))));
+  }
   await progress("Writing track files");
   const kn5 = writeKn5(model);
   const aiPoints = buildAiLine(plan);
@@ -1743,6 +1757,7 @@ export async function buildTrack(
       .replace("__CLOSED__", plan.closed ? "true" : "false")
       // The speed limit at each 1% of the lap, km/h, so the test drives at the limit.
       .replace("__LIMITS__", Array.from({ length: 100 }, (_, k) => speedAt(Math.min(nS - 1, Math.round(((k + 0.5) / 100) * (nS - 1))))).join(", "))) } : {}),
+    ...cspTreeFiles,
     // Busselton fork: the AO bakery's settings, next to the models_*.ini it bakes (bake-vao.ps1).
     [`${slug}/baked_shadow_params.ini`]: enc.encode(bakedShadowParams()),
     [`${slug}/extension/ext_config.ini`]: enc.encode(extConfig([...utilities.lights, ...carPark.lights, ...jettyLamps.lights], {
@@ -1750,6 +1765,7 @@ export async function buildTrack(
       // Busselton fork: south-west WA's dry summer, and the bay.
       drySummer: centre[0] > 112 && centre[0] < 119.5 && centre[1] < -30 && centre[1] > -36,
       sea: ocean.length > 0,
+      trees: opts.cspTrees && Object.keys(cspTreeFiles).length ? "trees/trees.txt" : undefined,
       // A town's glow at night where most of the route is built up.
       builtUp: town.filter((t) => t >= 1).length > town.length / 2,
       radiusKm: Math.max(...outline2d.map((p) => Math.hypot(p[0] - outline2d[0][0], p[1] - outline2d[0][1]))) / 2000,

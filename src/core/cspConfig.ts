@@ -40,6 +40,8 @@ export interface CspOptions {
   drySummer?: boolean;
   /** Busselton fork: there's sea in the track (Material_Water and light bounced off it). */
   sea?: boolean;
+  /** Busselton fork: CSP instanced trees: the tree list's path under extension/ (e.g. trees/trees.txt). */
+  trees?: string;
 }
 
 /** `lights` are lamp heads in local metres (x east, y north, z up). */
@@ -197,6 +199,10 @@ export function extConfig(lights: Vec3[], opts: CspOptions = {}): string {
     "SMOG_EVENING = 0.15",
     "",
   );
+  if (opts.trees) {
+    // CSP's instanced 3D trees (docs/trees.md). Every species here is evergreen: no seasonal tint.
+    lines.push("[TREES]", `LIST_0 = ${opts.trees}`, "", "[LIGHTING]", "ENABLE_TREES_LIGHTING = 1", "");
+  }
   if (opts.sea) lines.push("[Material_Water]", "Materials = sea", "Type = SEA", "UseRecommendedTextures = 1", "");
   if (opts.drySummer) {
     lines.push(
