@@ -17,12 +17,15 @@
 //   that takes drops, and line paint marked for the physics (slippery wet).
 // - Shadows: thin two-sided things (fences, signs, tree sprites) cast them
 //   without acne.
+// - Flags: ksFlags meshes (flags.ts) become CSP dynamic flags that wave in
+//   its wind.
 //
 // Syntax follows CSP's documentation (acc-extension-config wiki: Tracks -
 // Lights, Conditions, Grass FX, RainFX) and its shipped configs for Kunos
 // tracks, and the templates in common/materials_track.ini.
 
 import type { Vec3 } from "./mesh";
+import { flagCspLines } from "./flags";
 
 const f = (v: number) => v.toFixed(2);
 
@@ -31,6 +34,8 @@ export interface CspOptions {
   builtUp?: boolean;
   /** Half the track's extent, km: how far the glow reaches. */
   radiusKm?: number;
+  /** There are flags (ksFlags meshes, flags.ts): wave them in CSP's wind. */
+  flags?: boolean;
 }
 
 /** `lights` are lamp heads in local metres (x east, y north, z up). */
@@ -132,5 +137,6 @@ export function extConfig(lights: Vec3[], opts: CspOptions = {}): string {
       "",
     );
   }
+  if (opts.flags) lines.push(...flagCspLines());
   return lines.join("\r\n");
 }

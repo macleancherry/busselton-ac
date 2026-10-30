@@ -32,6 +32,7 @@ import { dressBuilding, FACADES, facadeTexture, ROOF_COLOURS, roofTexture } from
 import { camerasIni, placeCameras } from "./cameras";
 import { cullable } from "./cull";
 import { extConfig } from "./cspConfig";
+import { buildRaceFlags, flagMaterial, RACE_FLAG_MATERIAL, raceFlagTexture, takeRaceFlags } from "./flags";
 import { buildBarriers } from "./fences";
 import { chunkPhotoSampler, frontageHouses } from "./frontage";
 import { ArtList, type ArtRenderer } from "./art";
@@ -1036,13 +1037,16 @@ export async function buildTrack(
     cutout("race_crowd", crowdTexture(false));
     cutout("race_spectators", crowdTexture(true));
   }
+  // The marshal flags as cloth that waves (flags.ts), not printed faces.
+  const raceFlags = race && opts.wavingFlags !== false ? takeRaceFlags(race.pieces) : null;
+  if (raceFlags?.flags.length) addScenery("flag_race.png", raceFlagTexture(), flagMaterial(RACE_FLAG_MATERIAL, "flag_race.png"));
   const pieces = [
     ...(opts.streetSigns ? streetSigns(streetPlan, plan, opts, art) : []),
     ...(opts.landmarks ? landmarks((sources.pois ?? []).map((p) => ({ ...p, at: proj.toLocal(p.at) })), plan, index, opts, art,
       (x, y) => Math.min(streetIndex.clearance(x, y), ...kept.map((b) => (pointInside(x, y, b.ring) ? -1 : Infinity)))) : []),
     ...seenFeatures((sources.seen ?? []).map((f) => ({ ...f, at: proj.toLocal(f.at) })), plan, index, opts, art),
     // The race gantries replace the plain START and FINISH signs.
-    ...(race ? race.pieces : gateSigns(plan, opts, art)),
+    ...(race ? raceFlags?.rest ?? race.pieces : gateSigns(plan, opts, art)),
     ...utilities.pieces,
     ...(verge ? letterboxes(plan, verge, vergeGround) : []),
   ];
@@ -1072,7 +1076,7 @@ export async function buildTrack(
         group("ROAD", roadMeshes.road),
         group("SIDESTREETS", sideStreets),
         group("FURNITURE", furniture),
-        group("RACE", race?.nodes ?? []),
+        group("RACE", [...(race?.nodes ?? []), ...buildRaceFlags(raceFlags?.flags ?? [])]),
         group("WIRES", utilities.wires),
         group("ROUNDABOUTS", [...ringsClear.nodes, ...shrubs, ...ringWalls]),
         group("MARKINGS", markings),
@@ -1111,6 +1115,7 @@ export async function buildTrack(
       // A town's glow at night where most of the route is built up.
       builtUp: town.filter((t) => t >= 1).length > town.length / 2,
       radiusKm: Math.max(...outline2d.map((p) => Math.hypot(p[0] - outline2d[0][0], p[1] - outline2d[0][1]))) / 2000,
+      flags: !!raceFlags?.flags.length,
     })),
     [`${slug}/map.png`]: map.png,
     [`${slug}/ui/ui_track.json`]: enc.encode(uiTrackJson(trackMeta, {

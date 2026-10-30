@@ -109,6 +109,11 @@ export interface BuildOptions {
   raceDress: boolean;
   /** Sponsors on the banners and flags, comma-separated. */
   sponsors: string;
+  /**
+   * The race-day marshal flags are cloth on AC's flag shader (ksFlags), which CSP turns into
+   * dynamic flags that wave in its wind (flags.ts). On unless false; false prints them still.
+   */
+  wavingFlags?: boolean;
 }
 
 export const DEFAULT_OPTIONS: BuildOptions = {
