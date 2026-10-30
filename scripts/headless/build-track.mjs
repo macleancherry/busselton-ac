@@ -372,6 +372,15 @@ try {
       // Each layout loads the world, its dummies and the layers.
       for (const k of perLayout) files[k] = ini([`${slug}.kn5`, `layout_${k.match(/models_([^/]+)\.ini$/)[1]}.kn5`, ...names.slice(1)]);
     } else files[`${slug}/models.ini`] = ini(names);
+    // A layer's sidecar can carry its own CSP lines ("extConfig": [lines]), e.g. a pergola's festoon
+    // lights: appended to the track's ext_config.ini. Use auto-numbered [SECTION_...] names there.
+    const extKey = `${slug}/extension/ext_config.ini`;
+    const extra = layers.flatMap((f) => {
+      const side = f.replace(/\.kn5$/, ".json");
+      const lines = existsSync(side) ? JSON.parse(readFileSync(side, "utf8")).extConfig ?? [] : [];
+      return lines.length ? ["", `; Layer ${basename(f)}`, ...lines] : [];
+    });
+    if (extra.length) files[extKey] = new TextEncoder().encode((files[extKey] ? new TextDecoder().decode(files[extKey]) : "") + extra.join("\r\n") + "\r\n");
     zipBytes = Buffer.from(zipSync(files, { level: 6 }));
   }
   writeFileSync(join(out, `${slug}.zip`), zipBytes);

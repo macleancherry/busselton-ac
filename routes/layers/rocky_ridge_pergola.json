@@ -1,0 +1,33 @@
+{
+ "note": "hand-made detail layer: scripts/blender/landmarks/rocky_ridge_pergola.py (scripts/blender/landmarks/build.sh rocky_ridge_pergola). Adds to the Rocky Ridge spec, so it replaces nothing.",
+ "replaces": [],
+ "extConfig": [
+  "[Material_DistantEmissive]",
+  "Materials = rocky_ridge_pergola_festoon_bulb",
+  "",
+  "[MATERIAL_ADJUSTMENT_...]",
+  "ACTIVE = 1",
+  "DESCRIPTION = Rocky Ridge festoon bulbs glow at night",
+  "MATERIALS = rocky_ridge_pergola_festoon_bulb",
+  "CONDITION = NIGHT_SMOOTH",
+  "KEY_0 = ksEmissive",
+  "VALUE_0 = 255, 185, 105, 0.9",
+  "OFF_VALUE_0 = 0, 0, 0",
+  "",
+  "[LIGHT_SERIES_...]",
+  "DESCRIPTION = Rocky Ridge festoon glow",
+  "CONDITION = NIGHT_SMOOTH",
+  "COLOR = 255, 180, 110, 0.03",
+  "SPOT = 0",
+  "RANGE = 6",
+  "FADE_AT = 150",
+  "FADE_SMOOTH = 30",
+  "POSITION_0 = 214.25, 4.96, -385.12",
+  "POSITION_1 = 211.55, 4.96, -384.39",
+  "POSITION_2 = 208.84, 4.96, -383.67",
+  "POSITION_3 = 203.99, 5.26, -383.61",
+  "POSITION_4 = 201.74, 5.36, -385.08",
+  "POSITION_5 = 217.79, 4.86, -379.23",
+  "POSITION_6 = 219.35, 4.86, -373.44"
+ ]
+}
