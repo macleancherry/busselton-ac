@@ -106,7 +106,7 @@ Make town feel like town before going regional.
   - ✅ Norfolk pines along the foreshore, with palms mixed in (the photo can't tell a palm from other trees)
   - garden beds along the path
   - jetty precinct buildings: waiting on Mac's Mapillary footage for their fronts
-- ⬜ **Jetty precinct:** the Interpretive Centre, the jetty train line, the Underwater Observatory at the far end, and jetty lights at night.
+- 🔨 **Jetty precinct** (30 Oct): the train line (1,067 mm rails on sleepers), both platforms, the red train at the shore platform, the Interpretive Centre's four blue boatsheds and the Observatory's drum and pavilion, from OSM ([docs/jetty.md](docs/jetty.md)). Still to do: night lighting checked against photos, the train running to the timetable, sizes nobody publishes (a tape-measure walk).
 - 🔨 **Queen St and the town centre:** ✅ its own route, ✅ shopfronts with verandahs, posts, signs and windows, ✅ real shop names on the signs, ✅ parked cars where the photo had them. Still to do: kerbside parking bays marked out.
 - 🔨 **WA road details:**
   - ✅ give-way lines at roundabouts; stop and give-way lines where street photos saw them (side streets show their own lines in the aerial photo)
@@ -161,7 +161,7 @@ Plan:
 
 What makes a map look great at any time of day and in any weather.
 
-- ⬜ **Seasons:** WA verges and paddocks are green in winter and straw from December to April. Use CSP's seasonal adjustments and our ground mask to switch between them. This is a real South West signature.
+- ✅ **Seasons** (30 Oct): grass, verges and paddocks go straw from December to April and green from June to September, by date (CSP's seasonAutumn), trees stay green. To check in game.
 - ⬜ **RainFX:**
   - wet roads, with puddles in low spots found from the DEM
   - wet kerbs and gutters
@@ -174,7 +174,7 @@ What makes a map look great at any time of day and in any weather.
   - ✅ the jetty lights: lamp posts every 45 m down both sides of the jetty, following its bend
 - ⬜ **Water:** CSP's water shader for the bay, waves at the beach, boats at moorings.
 - ⬜ **Audio:** surf at the beach, magpies and kookaburras in the morning, wind in the she-oaks, the jetty train (CSP track audio).
-- ⬜ **Baked ambient occlusion.** CSP's AO bakery ([acc-bakeryoptix](https://github.com/ac-custom-shaders-patch/acc-bakeryoptix)) bakes it on the player's PC; upstream's research says CSP expects tracks to have it and nothing does more for how solid a scene looks. A workstation job, run from a script in the repo after each install.
+- 🔨 **Baked ambient occlusion** (30 Oct): every build ships the bakery's settings and `scripts/windows/bake-vao.ps1` bakes each layout on the workstation ([docs/csp.md](docs/csp.md)). Also done from the same research: the sun's real position and time zone for CSP and Pure, bounced light, the sea as CSP water, the tiling fix, wind. Next: the first bake and its time.
 - Lighting quality otherwise (local cubemaps, fog, detail normal maps): upstream's area, taken in by merging.
 - ⬜ **Pure:** tune Pure's lighting per track so the bright WA sun and glare off the bay look right.
 - ⬜ **Animated objects:** flags, swaying trees, the jetty train.
@@ -225,7 +225,7 @@ Each needs its own trees, ground and roadside:
   - Armco on bends and drop-offs
   - farm driveways and mailboxes on posts
 - 🔨 Long roads: ✅ 16 km builds within budget (coarser terrain grid and horizon per route); still to check: 30+ km, draw distances.
-- ⬜ Proper trees: CSP's 3D trees (instanced, with LODs; next on upstream's list). Ours to add: tuart, karri, peppermint and she-oak models and where each grows.
+- 🔨 Proper trees (30 Oct): CSP instanced 3D trees with our own models of peppermint, she-oak, Norfolk pine, tuart and palm, three LODs each, behind `build.cspTrees` until a Content Manager reference conversion confirms the format ([docs/trees.md](docs/trees.md)). Next: that check, then karri and marri, and photo textures of real local foliage.
 - ⬜ Vineyard generator.
 - ⬜ Landmarks: lighthouses, wineries and cellar doors, surf car parks (Yallingup, Surfers Point), the caves' entrances.
 
