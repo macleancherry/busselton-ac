@@ -19,6 +19,7 @@ import { pad } from "./roadMesh";
 import { box, rng } from "./scenery";
 import { fill, vergeTexture } from "./textures";
 import { resample } from "./polyline";
+import { SINK } from "./sceneGround";
 
 /** A street line near the route (local metres), as the vector tiles class it. */
 export interface FarmLine {
@@ -367,18 +368,8 @@ export function buildFarmRoadsides(input: FarmInput): FarmResult {
   const kit = new Kit();
   const nodes: Kn5MeshNode[] = [];
 
-  /** Height of the ground beside the road: the verge's slope near the asphalt, then the terrain. */
-  const groundAt = (x: number, y: number): number => {
-    const f = frameAt(plan, index, x, y, 40);
-    if (!f || f.edge > opts.vergeWidth + 2) return ground(x, y);
-    const S = plan.samples, smp = S[f.n.seg];
-    const side = f.n.t >= 0 ? 1 : -1;
-    const edgeZ = surfaceHeight(smp, side * f.half, opts.crown);
-    const verge = edgeZ - 0.2 * Math.min(1, Math.max(0, f.edge) / Math.max(0.1, opts.vergeWidth));
-    if (f.edge <= opts.vergeWidth) return verge;
-    const k = (f.edge - opts.vergeWidth) / 2;
-    return verge * (1 - k) + ground(x, y) * k;
-  };
+  /** Busselton fork: the ground everything stands on is the base's own meshes (sceneGround.ts), verge and road included. */
+  const groundAt = ground;
   /** The apron's top: just over the road at the edge, a few centimetres over the ground beyond. */
   const apronZ = (x: number, y: number): number => {
     const f = frameAt(plan, index, x, y, 40);
@@ -423,7 +414,7 @@ export function buildFarmRoadsides(input: FarmInput): FarmResult {
         b = add(p, left, sgn * w / 2);
       }
       for (const q of [a, b]) {
-        const z = i === 0 ? (roadZ(plan, index, opts, q[0], q[1]) ?? groundAt(q[0], q[1])) + 0.005 : apronZ(q[0], q[1]);
+        const z = i === 0 ? groundAt(q[0], q[1]) + 0.005 : apronZ(q[0], q[1]);
         apron.vertex([q[0], q[1], z], q[0] / 3, q[1] / 3);
       }
     });
@@ -447,7 +438,7 @@ export function buildFarmRoadsides(input: FarmInput): FarmResult {
       const zg = groundAt(g[0], g[1]);
       const postA = add(g, fdir, -hw), postB = add(g, fdir, hw);
       for (const p of [postA, postB]) {
-        if (!blocked(p[0], p[1])) box(kit.get("timber"), p, fdir, 0.2, 0.2, groundAt(p[0], p[1]) - 0.3, groundAt(p[0], p[1]) + 1.45);
+        if (!blocked(p[0], p[1])) box(kit.get("timber"), p, fdir, 0.2, 0.2, groundAt(p[0], p[1]) - SINK, groundAt(p[0], p[1]) + 1.45);
       }
       // The gate leaf, unless a cattle grid takes its place: galvanised tube, 5 rails and two stiles,
       // hinged on post A, shut (across the drive) or swung open into the paddock.
@@ -472,7 +463,7 @@ export function buildFarmRoadsides(input: FarmInput): FarmResult {
           const p = add(start, fdir, e * j * 3.3);
           if (blocked(p[0], p[1]) || (frameAt(plan, index, p[0], p[1], 40)?.edge ?? 99) < opts.vergeWidth + 2) break;
           const zp = groundAt(p[0], p[1]), zq = groundAt(prev[0], prev[1]);
-          box(kit.get("steel"), p, fdir, j === 3 ? 0.12 : 0.03, j === 3 ? 0.12 : 0.03, zp - 0.3, zp + 1.1);
+          box(kit.get("steel"), p, fdir, j === 3 ? 0.12 : 0.03, j === 3 ? 0.12 : 0.03, zp - SINK, zp + 1.1);
           const midW = lerp2(prev, p, 0.5), zm = (zp + zq) / 2;
           for (const h of [0.3, 0.55, 0.8, 1.05]) box(kit.get("wire"), midW, fdir, 3.3, 0.008, zm + h, zm + h + 0.008);
           prev = p;
@@ -490,13 +481,13 @@ export function buildFarmRoadsides(input: FarmInput): FarmResult {
     if (r() < 0.55) {
       // A 44-gallon drum on its side, open end to the road, on a timber post and cradle.
       const u = (Math.floor(r() * DRUMS.length) + 0.5) / DRUMS.length;
-      box(kit.get("timber"), mb0, toRoad, 0.1, 0.1, z - 0.4, z + 0.78);
+      box(kit.get("timber"), mb0, toRoad, 0.1, 0.1, z - SINK, z + 0.78);
       box(kit.get("timber"), mb0, toRoad, 0.75, 0.42, z + 0.72, z + 0.78);
       drum(kit.get("farm_drum", 80), mb0, toRoad, 0.88, 0.29, z + 0.78 + 0.29, u);
     } else {
       // A box on a post, the door to the road.
       const mat = ["letterbox", "steel", "canopy"][Math.floor(r() * 3)];
-      box(kit.get("timber"), mb0, toRoad, 0.09, 0.09, z - 0.4, z + 1.0);
+      box(kit.get("timber"), mb0, toRoad, 0.09, 0.09, z - SINK, z + 1.0);
       box(kit.get(mat), mb0, toRoad, 0.45, 0.3, z + 1.0, z + 1.3);
     }
   });
@@ -506,7 +497,7 @@ export function buildFarmRoadsides(input: FarmInput): FarmResult {
     // A grid at a gate sits on the gravel apron; without one (a side street drawn there) it's left out.
     if (!g.route && !aproned.has(g.drive!)) return;
     const base = g.route
-      ? (x: number, y: number) => roadZ(plan, index, opts, x, y) ?? ground(x, y)
+      ? ground
       : (x: number, y: number) => apronZ(x, y) + 0.002;
     nodes.push(gridMesh(g, base).toKn5(`1KERB_CATTLEGRID_${pad(k)}`, "cattle_grid"));
     const left: Vec2 = [-g.along[1], g.along[0]];
@@ -515,7 +506,7 @@ export function buildFarmRoadsides(input: FarmInput): FarmResult {
       if (blocked(c[0], c[1])) continue;
       const zc = groundAt(c[0], c[1]);
       for (const u of [-GRID_L / 2, GRID_L / 2]) {
-        box(kit.get("canopy"), add(c, g.along, u), g.along, 0.15, 0.15, zc - 0.3, zc + 1.0);
+        box(kit.get("canopy"), add(c, g.along, u), g.along, 0.15, 0.15, zc - SINK, zc + 1.0);
       }
       box(kit.get("canopy"), c, g.along, GRID_L + 0.15, 0.08, zc + 0.82, zc + 0.95);
     }

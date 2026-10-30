@@ -30,6 +30,7 @@ import type { Vec2 } from "./geo";
 import { MeshBuilder, type Vec3 } from "./mesh";
 import { encodePng } from "./png";
 import { fill } from "./textures";
+import { SINK } from "./sceneGround";
 
 /** A signal node from OSM, local metres. `crossing`: a pedestrian crossing's signals (not a junction's). */
 export interface SignalNode {
@@ -440,7 +441,7 @@ export function buildTrafficLights(input: TrafficLightInput): TrafficLightResult
     for (const pole of poles) {
       const z0 = groundZ(pole.at[0], pole.at[1]);
       const r = pole.mast ? MAST_R : POST_R;
-      cylinder(postMb, pole.at[0], pole.at[1], z0 - 0.3, z0 + (pole.mast ? MAST_H : POST_H), r);
+      cylinder(postMb, pole.at[0], pole.at[1], z0 - SINK, z0 + (pole.mast ? MAST_H : POST_H), r);
       for (const arm of pole.arms) {
         const mid: Vec3 = [pole.at[0] + arm.dir[0] * arm.len / 2, pole.at[1] + arm.dir[1] * arm.len / 2, z0 + MAST_ARM_Z];
         box(postMb, mid, arm.dir, arm.len / 2 + r, 0.045, 0.045);

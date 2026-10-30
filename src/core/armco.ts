@@ -17,6 +17,7 @@ import type { BuildOptions } from "./options";
 import { surfaceHeight, type RoadPlan, type SegmentIndex } from "./road";
 import { pad } from "./roadMesh";
 import { box, ChunkedMesh } from "./scenery";
+import { SINK } from "./sceneGround";
 
 export type Needs = [boolean[], boolean[]];
 
@@ -221,7 +222,8 @@ const MAX_RUN = 4000;
  * Visual rails (ARMCO_L_000...), posts with blockouts (ARMCOPOSTS_000...) and invisible collision walls
  * (1WALL_ARMCO_L_000...). `rails` holds both the visual beams and the walls.
  */
-export function buildArmco(plan: RoadPlan, opts: BuildOptions, needs: Needs): { rails: Kn5MeshNode[]; posts: Kn5MeshNode[] } {
+/** The beam follows `ground` (sceneGround.ts) along its line, and each post stands on it. */
+export function buildArmco(plan: RoadPlan, opts: BuildOptions, needs: Needs, ground: HeightFn): { rails: Kn5MeshNode[]; posts: Kn5MeshNode[] } {
   const s = plan.samples;
   const beams: Kn5MeshNode[] = [], walls: Kn5MeshNode[] = [];
   const posts = new ChunkedMesh(40);
@@ -242,10 +244,11 @@ export function buildArmco(plan: RoadPlan, opts: BuildOptions, needs: Needs): { 
         const q = s[k];
         const half = q.width / 2;
         const t = sign * (half + opts.vergeWidth * 0.55);
+        const p: Vec2 = [q.pos[0] + q.left[0] * t, q.pos[1] + q.left[1] * t];
         rings.push({
-          p: [q.pos[0] + q.left[0] * t, q.pos[1] + q.left[1] * t],
+          p,
           out: [q.left[0] * sign, q.left[1] * sign],
-          z: surfaceHeight(q, sign * half, opts.crown) - 0.2 * 0.55,
+          z: ground(p[0], p[1]),
           u: q.s / 4,
           drop: 0,
         });
@@ -275,7 +278,7 @@ export function buildArmco(plan: RoadPlan, opts: BuildOptions, needs: Needs): { 
         const blk: Vec2 = [r.p[0] + r.out[0] * (P + 0.075), r.p[1] + r.out[1] * (P + 0.075)];
         box(posts.next(), blk, q.tan, 0.1, 0.15, r.z + BEAM_BOTTOM + 0.04, r.z + BEAM_TOP - 0.04);
         const post: Vec2 = [r.p[0] + r.out[0] * (P + 0.2), r.p[1] + r.out[1] * (P + 0.2)];
-        box(posts.next(), post, q.tan, 0.15, 0.1, r.z - 0.5, r.z + BEAM_TOP - 0.03);
+        box(posts.next(), post, q.tan, 0.15, 0.1, ground(post[0], post[1]) - SINK, r.z + BEAM_TOP - 0.03);
       }
       i = j;
     }

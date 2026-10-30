@@ -16,6 +16,7 @@ import type { MeshBuilder, Vec3 } from "./mesh";
 import { pad } from "./roadMesh";
 import { ChunkedMesh, rng } from "./scenery";
 import { FENCE_COLOURS, FENCE_PANEL, FENCE_HEIGHT, FRONT_WALL_REPEAT, SHRUB_SPECIES } from "./houseTextures";
+import { SINK } from "./sceneGround";
 
 const SIDE = 1.2;
 const VERGE = 4.5;
@@ -146,7 +147,7 @@ function fence(cm: ChunkedMesh, [a, b]: [Vec2, Vec2], ground: HeightFn, ok: (p: 
     const q: Vec2 = [a[0] + ((b[0] - a[0]) * (k + 1)) / n, a[1] + ((b[1] - a[1]) * (k + 1)) / n];
     const m: Vec2 = [(p[0] + q[0]) / 2, (p[1] + q[1]) / 2];
     if (!ok(p) || !ok(q) || !ok(m)) continue;
-    const z = Math.min(ground(p[0], p[1]), ground(q[0], q[1])) - 0.05;
+    const z = lowestAlong(ground, p, q) - SINK;
     const mb = cm.next(8);
     const dx = q[0] - p[0], dy = q[1] - p[1], l = Math.hypot(dx, dy) || 1;
     for (const side of [1, -1]) {
@@ -167,7 +168,7 @@ function fence(cm: ChunkedMesh, [a, b]: [Vec2, Vec2], ground: HeightFn, ok: (p: 
 function wallBox(mb: MeshBuilder, a: Vec2, c: Vec2, depth: number, ground: HeightFn, h: number): void {
   const dx = c[0] - a[0], dy = c[1] - a[1], l = Math.hypot(dx, dy) || 1;
   const nx = dy / l * depth / 2, ny = -dx / l * depth / 2;
-  const z0 = Math.min(ground(a[0], a[1]), ground(c[0], c[1])) - 0.1;
+  const z0 = lowestAlong(ground, a, c) - SINK;
   const z1 = Math.max(ground(a[0], a[1]), ground(c[0], c[1])) + h;
   const corners: Vec2[] = [[a[0] + nx, a[1] + ny], [c[0] + nx, c[1] + ny], [c[0] - nx, c[1] - ny], [a[0] - nx, a[1] - ny]];
   // Corners run counter-clockwise from above, so each edge's outside is to its right.
@@ -192,11 +193,19 @@ function wallBox(mb: MeshBuilder, a: Vec2, c: Vec2, depth: number, ground: Heigh
   mb.quad(i, i + 1, i + 2, i + 3);
 }
 
-/** Flat garden bed a few centimetres above the ground. */
+/** The lowest ground along a line, every half metre: where a panel's foot goes so none of it floats. */
+function lowestAlong(ground: HeightFn, a: Vec2, b: Vec2): number {
+  const n = Math.max(1, Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / 0.5));
+  let lo = Infinity;
+  for (let k = 0; k <= n; k++) lo = Math.min(lo, ground(a[0] + ((b[0] - a[0]) * k) / n, a[1] + ((b[1] - a[1]) * k) / n));
+  return lo;
+}
+
+/** Flat garden bed a few centimetres above the ground (inside the ground check's 5 cm). */
 function bed(mb: MeshBuilder, a: Vec2, b: Vec2, c: Vec2, d: Vec2, ground: HeightFn): void {
   const i = mb.vertexCount;
   for (const p of [a, b, c, d]) {
-    mb.vertex([p[0], p[1], ground(p[0], p[1]) + 0.07], p[0] / 2, p[1] / 2);
+    mb.vertex([p[0], p[1], ground(p[0], p[1]) + 0.04], p[0] / 2, p[1] / 2);
     mb.normals!.push(0, 0, 1);
   }
   // a->b runs along the house, c and d are toward the street: make it face up.
@@ -209,7 +218,7 @@ function bed(mb: MeshBuilder, a: Vec2, b: Vec2, c: Vec2, d: Vec2, ground: Height
 export function shrub(mb: MeshBuilder, c: Vec2, size: number, species: number, rot: number, ground: HeightFn): void {
   const sp = SHRUB_SPECIES[species];
   const H = size, W = size * 1.4;
-  const z = ground(c[0], c[1]) - 0.05;
+  const z = ground(c[0], c[1]) - SINK;
   for (let p = 0; p < 2; p++) {
     const a = rot + (p * Math.PI) / 2;
     const dx = Math.cos(a) * W / 2, dy = Math.sin(a) * W / 2;

@@ -3,7 +3,8 @@
 //   node scripts/check/all.mjs <slug> [--json out/<slug>.checks.json]
 //
 // Runs: check_build (spikes, heights), budget, layout_check (when it has layouts), dump_surface then
-// surface_check and street_ground, traffic_check (when it has traffic). Exits non-zero if any fails.
+// surface_check and street_ground, path_ground, ground_check (placed things on the ground, parked cars
+// off the roads), traffic_check (when it has traffic). Exits non-zero if any fails.
 // The headline numbers (triangles, AI off the road per layout, tilt, edge steps, ground through
 // streets, traffic loose ends) go in the JSON, so scripts/upgrade/base.mjs can compare two builds.
 
@@ -58,6 +59,10 @@ results.push(r);
 summary.groundThroughStreetsCm = num(r.text, /worst ([\d.]+) cm/);
 r = run("paths", "python3", ["-I", "scripts/check/path_ground.py", `out/${slug}.surface.json`]);
 results.push(r);
+r = run("ground", "npx", ["tsx", "scripts/check/ground_check.ts", `out/${slug}.zip`]);
+results.push(r);
+summary.offGround = num(r.text, /off the ground \(over \d+ cm\): (\d+)/);
+summary.parkedOnRoad = num(r.text, /parked cars on a road: (\d+)/);
 
 if (names.some((n) => n.endsWith("traffic.json"))) {
   r = run("traffic", "python3", ["-I", "scripts/check/traffic_check.py", `out/${slug}.zip`, `out/${slug}.surface.json`]);

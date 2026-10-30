@@ -13,15 +13,16 @@
 // spacing, on poles of their own (or on a known power pole nearby). Power
 // poles are never invented: newer estates have their power underground.
 
+import type { HeightFn } from "./elevation";
 import type { Vec2 } from "./geo";
 import type { Kn5MeshNode } from "./kn5";
-import { KERB_H } from "./kerbs";
 import { MeshBuilder, type Vec3 } from "./mesh";
 import type { BuildOptions } from "./options";
 import { inRoundabout, type RoadPlan, type SegmentIndex } from "./road";
 import { pad } from "./roadMesh";
 import { ChunkedMesh } from "./scenery";
-import { off, vergeZ, type Piece } from "./furniture";
+import { off, type Piece } from "./furniture";
+import { SINK } from "./sceneGround";
 
 /** Behind the kerb, on the nature strip or verge, metres from the road edge. */
 const SET_BACK = 1.0;
@@ -65,6 +66,8 @@ export function placeUtilities(
   plan: RoadPlan,
   index: SegmentIndex,
   opts: BuildOptions,
+  /** The ground everything stands on (sceneGround.ts). */
+  ground: HeightFn,
   /** How built-up it is at each sample: 0 country, 1 edge of town, 2 town. */
   town: (i: number) => number,
   /** No pole here (a side street, a driveway, a building). */
@@ -81,7 +84,7 @@ export function placeUtilities(
     if (Math.abs(t) > half + 25) return null;
     // Straight across onto the verge, keeping its place along the street.
     const at: Vec2 = [p[0] + s.left[0] * (t - n.t), p[1] + s.left[1] * (t - n.t)];
-    return { at, i: n.seg, side, z: groundAt(plan, opts, n.seg, side, t), out: [s.left[0] * side, s.left[1] * side] };
+    return { at, i: n.seg, side, z: ground(at[0], at[1]), out: [s.left[0] * side, s.left[1] * side] };
   };
   const dedupe = (spots: Spot[], r: number) => {
     const out: Spot[] = [];
@@ -109,7 +112,7 @@ export function placeUtilities(
     if (near(known, at, LIGHT_SPACING * 0.6) || blocked(at[0], at[1]) || inRoundabout(plan, at[0], at[1], 3)) continue;
     // On a power pole if there's one close by.
     const pole = near(poles, at, 18);
-    const spot: Spot = pole ?? { at, i, side, z: groundAt(plan, opts, i, side, t), out: [s.left[0] * side, s.left[1] * side] };
+    const spot: Spot = pole ?? { at, i, side, z: ground(at[0], at[1]), out: [s.left[0] * side, s.left[1] * side] };
     known.push(spot);
     lamps.push(spot);
   }
@@ -118,7 +121,7 @@ export function placeUtilities(
   const lights: Vec3[] = [];
   for (const p of poles) {
     const s = plan.samples[p.i];
-    pieces.push({ kind: "box", at: p.at, along: s.tan, length: 0.28, depth: 0.28, z0: p.z - 1, z1: p.z + POLE_H, material: "timber" });
+    pieces.push({ kind: "box", at: p.at, along: s.tan, length: 0.28, depth: 0.28, z0: p.z - SINK, z1: p.z + POLE_H, material: "timber" });
     // Crossarm across the line (the line runs along the street).
     pieces.push({ kind: "box", at: p.at, along: p.out, length: 2.2, depth: 0.1, z0: p.z + ARM_H, z1: p.z + ARM_H + 0.12, material: "timber" });
   }
@@ -127,7 +130,7 @@ export function placeUtilities(
     const onPole = poles.find((p) => Math.hypot(p.at[0] - l.at[0], p.at[1] - l.at[1]) < 3);
     const base = onPole ?? l;
     const toRoad: Vec2 = [-base.out[0], -base.out[1]];
-    if (!onPole) pieces.push({ kind: "box", at: base.at, along: s.tan, length: 0.16, depth: 0.16, z0: base.z - 0.6, z1: base.z + LAMP_H + 0.3, material: "steel" });
+    if (!onPole) pieces.push({ kind: "box", at: base.at, along: s.tan, length: 0.16, depth: 0.16, z0: base.z - SINK, z1: base.z + LAMP_H + 0.3, material: "steel" });
     // Outreach arm over the road, the lantern on its end.
     const reach = 2.2;
     const mid: Vec2 = [base.at[0] + toRoad[0] * reach / 2, base.at[1] + toRoad[1] * reach / 2];
@@ -138,13 +141,6 @@ export function placeUtilities(
   }
 
   return { pieces, wires: buildWires(spans(poles, input.lines, plan)), lights, poles: poles.length };
-}
-
-/** Ground height at the foot of something at lateral offset t: verge, or nature strip behind a kerb. */
-function groundAt(plan: RoadPlan, opts: BuildOptions, i: number, side: 1 | -1, t: number): number {
-  const s = plan.samples[i];
-  const kerbed = (s.kerb?.[side === 1 ? 0 : 1] ?? 0) > 0;
-  return vergeZ(s, t, opts) + (kerbed ? KERB_H + 0.2 * Math.min(1, (Math.abs(t) - s.width / 2) / Math.max(0.1, opts.vergeWidth)) : 0);
 }
 
 function sampleAt(plan: RoadPlan, s: number): number {
@@ -258,6 +254,7 @@ function twoSided(mb: MeshBuilder, c: [Vec3, Vec3, Vec3, Vec3], n: Vec3): void {
  */
 export function carParkLights(
   aisles: Vec2[][],
+  /** The ground the poles stand on (sceneGround.ts). */
   ground: (x: number, y: number) => number,
   blocked: (x: number, y: number) => boolean,
   existing: Vec3[] = [],
@@ -283,8 +280,9 @@ export function carParkLights(
         if (blocked(at[0], at[1]) || placed.some((p) => Math.hypot(p[0] - at[0], p[1] - at[1]) < 20)) continue;
         placed.push(at);
         const z = ground(at[0], at[1]);
-        pieces.push({ kind: "box", at, along: tan, length: 0.18, depth: 0.18, z0: z - 0.6, z1: z + H + 0.2, material: "steel" });
-        // A lantern each way across the aisle.
+        pieces.push({ kind: "box", at, along: tan, length: 0.18, depth: 0.18, z0: z - SINK, z1: z + H + 0.2, material: "steel" });
+        // A lantern each way across the aisle, each on a short arm from the pole (they used to hang in the air).
+        pieces.push({ kind: "box", at, along: left, length: 1.6, depth: 0.06, z0: z + H - 0.02, z1: z + H + 0.04, material: "steel" });
         for (const s of [1, -1]) {
           const tip: Vec2 = [at[0] + left[0] * s * 1.1, at[1] + left[1] * s * 1.1];
           pieces.push({ kind: "box", at: tip, along: left, length: 0.8, depth: 0.35, z0: z + H - 0.1, z1: z + H + 0.06, material: "lamp" });

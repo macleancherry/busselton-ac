@@ -15,6 +15,7 @@ import { surfaceHeight, type RoadPlan, type SegmentIndex } from "./road";
 import type { TerrainChunk } from "./terrain";
 import { TREE_SPECIES } from "./treeSprites";
 import { pad } from "./roadMesh";
+import { SINK } from "./sceneGround";
 
 export function rng(seed: number): () => number {
   let s = seed >>> 0;
@@ -223,8 +224,11 @@ export function treeTrunks(spots: TreeSpot[], ground: HeightFn): Kn5MeshNode[] {
 const TREE_PLANES = 3;
 const TREE_VERTS = TREE_PLANES * 8;
 
-/** Crossed-quad trees (three planes, both faces), alpha-tested. */
-export function buildTrees(spots: TreeSpot[], ground: HeightFn, name = "TREES"): Kn5MeshNode[] {
+/**
+ * Crossed-quad trees (three planes, both faces), alpha-tested. The trunk (the planes' shared middle)
+ * stands `sink` metres into the ground at the tree's spot.
+ */
+export function buildTrees(spots: TreeSpot[], ground: HeightFn, name = "TREES", sink = SINK): Kn5MeshNode[] {
   const rand = rng(99);
   const out = new ChunkedMesh(TREE_VERTS);
   for (const t of spots) {
@@ -232,7 +236,7 @@ export function buildTrees(spots: TreeSpot[], ground: HeightFn, name = "TREES"):
     const v = TREE_SPECIES[t.variant] ?? TREE_SPECIES[0];
     const H = v.height * t.scale;
     const W = v.crown * 2 * t.scale;
-    const z = ground(t.x, t.y) - 0.3;
+    const z = ground(t.x, t.y) - sink;
     const rot = rand() * Math.PI;
     for (let p = 0; p < TREE_PLANES; p++) {
       const a = rot + (p * Math.PI) / TREE_PLANES;
@@ -361,6 +365,8 @@ export function buildGuardRails(
   plan: RoadPlan,
   opts: BuildOptions,
   needs: [boolean[], boolean[]],
+  /** The ground the posts stand on (sceneGround.ts). */
+  ground: HeightFn,
 ): { rails: Kn5MeshNode[]; posts: Kn5MeshNode[] } {
   const rails: Kn5MeshNode[] = [];
   const posts = new ChunkedMesh(20);
@@ -380,8 +386,8 @@ export function buildGuardRails(
         const p = s[k];
         const half = p.width / 2;
         const t = sign * (half + opts.vergeWidth * 0.55);
-        const z = surfaceHeight(p, sign * half, opts.crown) - 0.2 * 0.55;
         const x = p.pos[0] + p.left[0] * t, y = p.pos[1] + p.left[1] * t;
+        const z = ground(x, y);
         const u = p.s / 4;
         // Front (facing the road) and back faces, separate vertices for their normals.
         const nIn: Vec3 = [-p.left[0] * sign, -p.left[1] * sign, 0];
@@ -392,7 +398,8 @@ export function buildGuardRails(
         }
         if ((k - i) % postEvery === 0) {
           const back = 0.08 * sign;
-          box(posts.next(), [x + p.left[0] * back, y + p.left[1] * back], p.tan, 0.1, 0.1, z - 0.4, z + RAIL_TOP - 0.03);
+          const at: Vec2 = [x + p.left[0] * back, y + p.left[1] * back];
+          box(posts.next(), at, p.tan, 0.1, 0.1, ground(at[0], at[1]) - SINK, z + RAIL_TOP - 0.03);
         }
       }
       for (let k = 0; k < j - i - 1; k++) {
@@ -420,8 +427,8 @@ export function buildGuardRails(
  */
 const POST_RED: [number, number] = [0.02, 0.31], POST_WHITE: [number, number] = [0.35, 0.64], POST_PLAIN: [number, number] = [0.7, 0.98];
 
-/** White guide posts every 50 m each side, except where a rail runs. */
-export function buildGuidePosts(plan: RoadPlan, opts: BuildOptions, needs: [boolean[], boolean[]]): Kn5MeshNode[] {
+/** White guide posts every 50 m each side, except where a rail runs, standing on `ground` (sceneGround.ts). */
+export function buildGuidePosts(plan: RoadPlan, opts: BuildOptions, needs: [boolean[], boolean[]], ground: HeightFn): Kn5MeshNode[] {
   const out = new ChunkedMesh(20);
   const every = Math.max(1, Math.round(50 / opts.spacing));
   const skip = Math.round(30 / opts.spacing);
@@ -433,13 +440,14 @@ export function buildGuidePosts(plan: RoadPlan, opts: BuildOptions, needs: [bool
       const sign = side === 0 ? 1 : -1;
       const half = p.width / 2;
       const t = sign * (half + opts.vergeWidth * 0.75);
-      const z = surfaceHeight(p, sign * half, opts.crown) - 0.2 * 0.75;
+      const at: Vec2 = [p.pos[0] + p.left[0] * t, p.pos[1] + p.left[1] * t];
+      const z = ground(at[0], at[1]);
       // Flat face to the traffic: 5 cm along the road, 10 cm across. Side 3 faces back down the road (traffic
       // going along it, with a left-hand post on its left), side 1 faces traffic coming the other way.
       const faces: [number, number][] = side === 0
         ? [POST_PLAIN, POST_WHITE, POST_PLAIN, POST_RED]
         : [POST_PLAIN, POST_RED, POST_PLAIN, POST_WHITE];
-      box(out.next(), [p.pos[0] + p.left[0] * t, p.pos[1] + p.left[1] * t], p.tan, 0.05, 0.1, z - 0.3, z + 1.0, faces);
+      box(out.next(), at, p.tan, 0.05, 0.1, z - SINK, z + 1.0, faces);
     }
   }
   return out.all().map((m, i) => m.toKn5(`GUIDEPOSTS_${pad(i)}`, "guidepost"));

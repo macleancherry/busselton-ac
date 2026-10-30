@@ -121,7 +121,10 @@ function addCar(mb: MeshBuilder, car: ParkedCar, z: number): void {
   }
 }
 
-/** Visual cars (PARKED_CARS) and their invisible collision boxes (1WALL_CAR). */
+/** Where the tyres touch the ground: along the car, and to its left. */
+const WHEELS: [number, number][] = [[1.4, 0.74], [1.4, -0.74], [-1.4, 0.74], [-1.4, -0.74]];
+
+/** Visual cars (PARKED_CARS) and their invisible collision boxes (1WALL_CAR), on `ground` (sceneGround.ts). */
 export function buildParkedCars(cars: ParkedCar[], ground: HeightFn): Kn5MeshNode[] {
   const meshes: MeshBuilder[] = [];
   let mb = new MeshBuilder();
@@ -131,7 +134,9 @@ export function buildParkedCars(cars: ParkedCar[], ground: HeightFn): Kn5MeshNod
       meshes.push(mb);
       mb = new MeshBuilder();
     }
-    const z = ground(car.at[0], car.at[1]);
+    // The tyres (2 cm above the car's base) touch the lowest ground under the four of them.
+    const [fx, fy] = car.dir;
+    const z = Math.min(...WHEELS.map(([f, s]) => ground(car.at[0] + fx * f - fy * s, car.at[1] + fy * f + fx * s))) - 0.02;
     addCar(mb, car, z);
     box(walls.next(), car.at, car.dir, 4.4, 1.75, z - 0.3, z + 1.4);
   }

@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { MeshBuilder } from "../src/core/mesh";
 import type { Kn5MeshNode } from "../src/core/kn5";
 import { buildPaths, LIFT } from "../src/core/paths";
-import { groundMeshHeight } from "../src/core/pathGround";
+import { topSurface } from "../src/core/sceneGround";
 import { Area } from "../src/core/area";
 import { backdropHeight, buildBackdropChunk } from "../src/core/backdrop";
 import type { BuildOptions } from "../src/core/options";
@@ -29,7 +29,7 @@ function terrain(size: number, h: (x: number, y: number) => number, name = "1GRA
 }
 
 /** Height of a kn5 mesh's highest surface at local (x, y). */
-const heightOf = (nodes: Kn5MeshNode[], x: number, y: number) => groundMeshHeight(nodes, [[[x, y], [x, y]]], 4, /./)(x, y);
+const heightOf = (nodes: Kn5MeshNode[], x: number, y: number) => topSurface(nodes, /./)(x, y);
 
 describe("paths lie on the ground meshes", () => {
   // The terrain function says 2 m everywhere, but the mesh was cut 40 cm lower in a band
@@ -45,15 +45,15 @@ describe("paths lie on the ground meshes", () => {
   })();
   // A shared path running north through the cut band and over the strip.
   const line = { kind: "shared" as const, pts: [[10, 2], [10, 50], [33, 50], [33, 5]] as [number, number][] };
-  const laid = groundMeshHeight([ground, strip], [line.pts]);
+  const laid = topSurface([ground, strip]);
 
   it("reads the highest mesh at a point", () => {
     expect(laid(10, 10)).toBeCloseTo(2, 5);
     expect(laid(10, 23)).toBeCloseTo(1.6, 5);
     expect(laid(33, 30)).toBeCloseTo(2.15, 5);
-    // Off every mesh, and away from the paths it was built for.
+    // Off every mesh.
     expect(laid(-5, 10)).toBeNull();
-    expect(laid(55, 55)).toBeNull();
+    expect(laid(65, 55)).toBeNull();
   });
 
   const nodes = buildPaths([line], (x, y) => laid(x, y) ?? fn(), () => true, () => true);
@@ -203,8 +203,7 @@ describe("in a build", () => {
     expect(paths.length).toBeGreaterThan(0);
     expect(all.some((n) => n.name.startsWith("PATH_EDGE"))).toBe(true);
     const grounds = all.filter((n) => /^1GRASS/.test(n.name));
-    const lines = paths.map((n) => { const out: [number, number][] = []; for (let k = 0; k < n.positions.length; k += 3) out.push([n.positions[k], -n.positions[k + 2]]); return out; });
-    const g = groundMeshHeight(grounds, lines);
+    const g = topSurface(grounds, /./);
     let n = 0;
     for (const m of paths) {
       for (let k = 0; k < m.positions.length; k += 3) {
@@ -218,7 +217,7 @@ describe("in a build", () => {
     }
     expect(n).toBeGreaterThan(100);
     // Nowhere does the horizon come up through the detailed terrain.
-    const terrainH = groundMeshHeight(all.filter((m) => m.name.startsWith("1GRASS_t")), [[[-100, 0], [700, 0]]], 60, /./);
+    const terrainH = topSurface(all.filter((m) => m.name.startsWith("1GRASS_t")), /./);
     for (const b of all.filter((m) => m.name.startsWith("BACKDROP"))) {
       for (let k = 0; k < b.positions.length; k += 3) {
         const t = terrainH(b.positions[k], -b.positions[k + 2]);

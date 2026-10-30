@@ -21,6 +21,7 @@ import { pad } from "./roadMesh";
 import { buildWireFences, box, isWireFence, ribbon, type Barrier } from "./fences";
 import { encodePng } from "./png";
 import { fill, rng } from "./textures";
+import { SINK } from "./sceneGround";
 
 /** A vineyard or paddock: exterior ring first, then holes; `edge[r][i]` false where ring r's edge i is only a tile seam. */
 export interface FarmPolygon {
@@ -156,8 +157,8 @@ export function buildVines(
   for (const s of kept) {
     const zp = ground(s.p[0], s.p[1]), zq = ground(s.q[0], s.q[1]);
     canopy(next(leaf, 20), s.p, s.q, zp, zq, !has.has(`${s.row}:${s.k - 1}`), !has.has(`${s.row}:${s.k + 1}`));
-    box(next(posts, 16), s.p, VINE.post, -0.2, VINE.postTop, ground);
-    if (!has.has(`${s.row}:${s.k + 1}`)) box(next(posts, 16), s.q, VINE.post, -0.2, VINE.postTop, ground);
+    box(next(posts, 16), s.p, VINE.post, -SINK, VINE.postTop, ground);
+    if (!has.has(`${s.row}:${s.k + 1}`)) box(next(posts, 16), s.q, VINE.post, -SINK, VINE.postTop, ground);
     ribbon(next(wire, 8), s.p, s.q, zp + VINE.wire, zq + VINE.wire, 0.02);
     metres += Math.hypot(s.q[0] - s.p[0], s.q[1] - s.p[1]);
   }

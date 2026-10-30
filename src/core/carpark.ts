@@ -16,6 +16,7 @@ import type { Vec2 } from "./geo";
 import type { Kn5MeshNode } from "./kn5";
 import { MeshBuilder, type Vec3 } from "./mesh";
 import type { TerrainChunk } from "./terrain";
+import { SINK } from "./sceneGround";
 
 /** Grey, mid-dark: asphalt in the photo (0..1 channels). */
 export function isAsphalt(r: number, g: number, b: number): boolean {
@@ -590,7 +591,7 @@ export function buildIslands(rings: Vec2[][], ground: HeightFn, chunk: TerrainCh
       const len = Math.hypot(q[0] - p[0], q[1] - p[1]);
       const nrm: Vec3 = [(q[1] - p[1]) / (len || 1), -(q[0] - p[0]) / (len || 1), 0];
       const j = kerb.vertexCount;
-      const gp = ground(p[0], p[1]) - 0.05, gq = ground(q[0], q[1]) - 0.05;
+      const gp = ground(p[0], p[1]) - SINK, gq = ground(q[0], q[1]) - SINK;
       kerb.vertex([p[0], p[1], gp], u, 1);
       kerb.vertex([q[0], q[1], gq], u + len / 2, 1);
       kerb.vertex([q[0], q[1], z], u + len / 2, 0);
