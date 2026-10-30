@@ -16,6 +16,7 @@ describe("route presets", () => {
     expect(r.build.origin).toEqual([1, 2]);
     expect(r.build.terrainStep).toBe(PRESETS.country.build.terrainStep);
     expect(r.build.traffic).toBe(true);
+    expect(r.build.zones).toBe(true);
   });
 
   it("turns Armco on for country roads and off for towns", () => {

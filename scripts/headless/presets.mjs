@@ -7,6 +7,7 @@
 //   - W-beam Armco on tight bends, embankments, bridges and culverts (armco, src/core/armco.ts)
 //   - vine rows and post-and-wire paddock fences (farmland, src/core/farm.ts)
 //   - farm driveways, gates, mailboxes and cattle grids (farmRoadsides, src/core/farmRoadsides.ts)
+//   - landscape zones for the trees, ground and verges (zones, src/core/zones.ts)
 // town: a flat South West town (Busselton). No banking, a fine terrain grid and the ground only
 //   just under the road, so kerbs and edges stay true (CLAUDE.md, "Busselton is flat"). Kerbside
 //   parking bays and bike lanes painted (kerbside, src/core/kerbside.ts).
@@ -24,6 +25,7 @@ export const PRESETS = {
       armco: true,
       farmland: true,
       farmRoadsides: true,
+      zones: true,
     },
   },
   town: {

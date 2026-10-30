@@ -6,6 +6,10 @@ import { fetchRetry, warnMissing } from "./dataWarnings";
 import { VectorTile } from "@mapbox/vector-tile";
 import { PbfReader } from "pbf";
 import { lngLatToPixel, pixelToLngLat, type LngLat } from "../core/geo";
+import type { LandcoverPolygon } from "../core/zones";
+
+/** Busselton fork: landcover classes the landscape zones read (zones.ts landcoverZone). */
+const LANDCOVER_ZONED = new Set(["wood", "forest", "wetland", "farmland", "grass", "sand", "rock"]);
 
 const TILEJSON = "https://tiles.openfreemap.org/planet";
 const Z = 14;
@@ -277,7 +281,7 @@ export interface TilePolygon {
  * class pier, as areas) from z13 tiles over [west, south, east, north].
  * Polygons are clipped to their tiles so neighbouring tiles meet without overlap.
  */
-export async function fetchCoast(bbox: [number, number, number, number]): Promise<{ ocean: TilePolygon[]; piers: TilePolygon[]; beaches: TilePolygon[] }> {
+export async function fetchCoast(bbox: [number, number, number, number]): Promise<{ ocean: TilePolygon[]; piers: TilePolygon[]; beaches: TilePolygon[]; landcover: LandcoverPolygon[] }> {
   const url = await tileTemplate();
   const z = 13;
   const [w, s, e, n] = bbox;
@@ -287,6 +291,8 @@ export async function fetchCoast(bbox: [number, number, number, number]): Promis
   const ocean: TilePolygon[] = [];
   const piers: TilePolygon[] = [];
   const beaches: TilePolygon[] = [];
+  // Busselton fork: landcover for the landscape zones (zones.ts), from the same tiles.
+  const landcover: LandcoverPolygon[] = [];
   const jobs: Promise<void>[] = [];
   let missing = 0;
   for (let ty = y0; ty <= y1; ty++) {
@@ -299,7 +305,7 @@ export async function fetchCoast(bbox: [number, number, number, number]): Promis
         }
         if (!r.ok) return;
         const tile = new VectorTile(new PbfReader(new Uint8Array(await r.arrayBuffer())));
-        const take = (layer: string, want: (p: Record<string, unknown>) => boolean, out: TilePolygon[]) => {
+        const take = (layer: string, want: (p: Record<string, unknown>) => boolean, out: TilePolygon[], tag?: (p: Record<string, unknown>, poly: TilePolygon) => void) => {
           const l = tile.layers[layer];
           for (let i = 0; l && i < l.length; i++) {
             const f = l.feature(i);
@@ -315,6 +321,7 @@ export async function fetchCoast(bbox: [number, number, number, number]): Promis
               if (signedArea(ring) > 0) {
                 poly = { rings: [ll], edge: [edge] };
                 out.push(poly);
+                tag?.(f.properties, poly);
               } else if (poly) {
                 poly.rings.push(ll);
                 poly.edge.push(edge);
@@ -325,10 +332,12 @@ export async function fetchCoast(bbox: [number, number, number, number]): Promis
         take("water", (p) => p.class === "ocean", ocean);
         take("transportation", (p) => p.class === "pier", piers);
         take("landcover", (p) => p.class === "sand" && (p.subclass === "beach" || p.subclass === undefined), beaches);
+        take("landcover", (p) => LANDCOVER_ZONED.has(String(p.class)), [], (p, poly) =>
+          landcover.push({ cls: String(p.class), subclass: p.subclass === undefined ? undefined : String(p.subclass), rings: poly.rings }));
       })().catch(() => undefined));
     }
   }
   await Promise.all(jobs);
   if (missing) warnMissing(`${missing} coast tiles (sea, piers, beaches)`);
-  return { ocean, piers, beaches };
+  return { ocean, piers, beaches, landcover };
 }
