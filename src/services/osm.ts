@@ -167,7 +167,75 @@ const TILE_CLASS: Record<string, string> = {
  * answer wins; if all fail, the build falls back to widths by road class
  * from the vector tiles. Buildings come from the vector tiles too.
  */
-export async function fetchOsm(routeCoords: LngLat[], areas: LngLat[][] = [], want: { cattleGrids?: boolean } = {}): Promise<OsmData> {
+export async function fetchOsm(routeCoords: LngLat[], areas: LngLat[][] = [], want: { cattleGrids?: boolean; trafficSignals?: boolean } = {}): Promise<OsmData> {
+  // Busselton fork: traffic signals in a query of their own, alongside: the main query is a cache
+  // and snapshot key, and adding to it would stop every frozen snapshot replaying.
+  const signals = want.trafficSignals ? fetchTrafficSignals(routeCoords, areas) : Promise.resolve(undefined);
+  const data = await fetchOsmMain(routeCoords, areas, want);
+  const found = await signals;
+  if (found) data.features.trafficSignals = found;
+  return data;
+}
+
+/** Busselton fork: the Overpass query for traffic signals near the route and over any area. */
+export function signalQuery(routeCoords: LngLat[], areas: LngLat[][] = []): string {
+  const step = Math.max(1, Math.ceil(routeCoords.length / 180));
+  const sampled = routeCoords.filter((_, i) => i % step === 0 || i === routeCoords.length - 1);
+  const around = sampled.map((p) => `${p[1].toFixed(6)},${p[0].toFixed(6)}`).join(",");
+  const polys = areas.filter((a) => a.length >= 3).map((a) => `poly:"${a.map((p) => `${p[1].toFixed(6)} ${p[0].toFixed(6)}`).join(" ")}"`);
+  const sel = (where: string) => `
+    node(${where})[highway=traffic_signals];
+    node(${where})[highway=crossing][crossing=traffic_signals];
+    node(${where})[highway=crossing]["crossing:signals"=yes];`;
+  return `[out:json][timeout:${polys.length ? 60 : 30}];(${sel(`around:40,${around}`)}${polys.map(sel).join("")}
+  );out;`;
+}
+
+/** Busselton fork: traffic signals from OSM nodes' tags: a junction's, or a pedestrian crossing's. Flashing and emergency signals aren't. */
+export function signalsFromElements(elements: { type: string; lat?: number; lon?: number; tags?: Record<string, string> }[]): { at: LngLat; crossing: boolean }[] {
+  const out: { at: LngLat; crossing: boolean }[] = [];
+  const seen = new Set<string>();
+  for (const e of elements) {
+    if (e.type !== "node" || e.lat === undefined || e.lon === undefined) continue;
+    const t = e.tags ?? {};
+    if (/^(emergency|blinker|level_crossing|ramp_meter)$/.test(t.traffic_signals ?? "")) continue;
+    const crossing = t.highway === "crossing";
+    if (!crossing && t.highway !== "traffic_signals") continue;
+    const key = `${e.lon.toFixed(7)},${e.lat.toFixed(7)}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push({ at: [e.lon, e.lat], crossing });
+  }
+  return out;
+}
+
+async function fetchTrafficSignals(routeCoords: LngLat[], areas: LngLat[][]): Promise<{ at: LngLat; crossing: boolean }[] | undefined> {
+  const query = signalQuery(routeCoords, areas);
+  for (let round = 0; round < 3; round++) {
+    if (round) await new Promise((ok) => setTimeout(ok, 5000 * round));
+    const ctl = new AbortController();
+    const timer = setTimeout(() => ctl.abort(), 65000);
+    try {
+      return await Promise.any(OVERPASS.map(async (url) => {
+        const r = await fetch(url, { method: "POST", body: new URLSearchParams({ data: query }), signal: ctl.signal });
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        const body = await r.json();
+        if (body.remark && /timed out|runtime error/i.test(body.remark)) throw new Error(body.remark);
+        if (!Array.isArray(body.elements)) throw new Error("no elements");
+        return signalsFromElements(body.elements);
+      }));
+    } catch {
+      // every mirror failed this round
+    } finally {
+      clearTimeout(timer);
+      ctl.abort();
+    }
+  }
+  warnMissing("OpenStreetMap (Overpass): traffic signals");
+  return undefined;
+}
+
+async function fetchOsmMain(routeCoords: LngLat[], areas: LngLat[][], want: { cattleGrids?: boolean }): Promise<OsmData> {
   const step = Math.max(1, Math.ceil(routeCoords.length / 180));
   const sampled = routeCoords.filter((_, i) => i % step === 0 || i === routeCoords.length - 1);
   const around = sampled.map((p) => `${p[1].toFixed(6)},${p[0].toFixed(6)}`).join(",");
