@@ -21,7 +21,7 @@ Status: ✅ built · 📝 described · 📷 gathering photos · ⬜ to do
 | 9 | Sea Play on the Bay playground, the Barrel and Transition sculptures | Foreshore | ⬜ |
 | 10 | Foreshore cafes: Kyst, Sandbox | Foreshore | ⬜ |
 | 11 | Geographe Bay Yacht Club | Geographe Bay Rd | ⬜ |
-| 12 | Orana Cinemas | Queen St | ⬜ |
+| 12 | Orana Cinemas | Albert St | ⬜ |
 | 13 | The Tav, the Ship Inn, the Banksia Tavern | Town centre | ⬜ |
 | 14 | Busselton Pioneer Cemetery | Marine Tce | ⬜ |
 | 15 | Busselton Volunteer Fire and Rescue station | Town centre | ⬜ |

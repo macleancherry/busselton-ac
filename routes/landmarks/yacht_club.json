@@ -1,0 +1,742 @@
+{
+ "note": "Geographe Bay Yacht Club, Geographe Bay Rd, Busselton, from docs/landmarks/yacht_club.md (Landgate aerial, OSM outline, club photos). Tan face-brick clubhouse on the dune: the main hall with its low pale roof and a verandah to the bay, the two-storey race tower at the north-west corner (white window band, dark green fascia, G.B.Y.C. in blue letters), the lower solar-panelled wing and entry to the south, the east annex, the 2023 deck with its limestone wall under six blue shade sails, and four teal sails over the BBQ courtyard. The front is the beach (north) side. Signs are plain lettering. Metres: x left to right as seen from the beach (east to west), y back from the hall's north wall (southward).",
+ "wallHeight": 4.4,
+ "setback": 14,
+ "road": {
+  "width": 4,
+  "verge": 0.5
+ },
+ "lawn": "#7f9a4e",
+ "sunFrom": [
+  -0.4,
+  -0.8,
+  1.1
+ ],
+ "cameras": {
+  "street": {
+   "eye": [
+    36,
+    -26,
+    1.7
+   ],
+   "look": [
+    24,
+    4,
+    4.0
+   ],
+   "lens": 24
+  },
+  "aerial": {
+   "eye": [
+    -24,
+    -40,
+    28
+   ],
+   "look": [
+    14,
+    10,
+    1
+   ],
+   "lens": 30
+  }
+ },
+ "walls": {
+  "kind": "brick",
+  "colour": "#d6b98c"
+ },
+ "finishes": {
+  "upper": {
+   "kind": "weatherboard",
+   "colour": "#f1efe6"
+  },
+  "fascia": {
+   "kind": "render",
+   "colour": "#2e4a3e"
+  },
+  "plant": {
+   "kind": "corrugated",
+   "colour": "#cfd2cf"
+  },
+  "solar": {
+   "kind": "panel",
+   "colour": "#1f2a3a"
+  },
+  "lime": {
+   "kind": "render",
+   "colour": "#e6dcc0"
+  }
+ },
+ "trim": "#f2f1ea",
+ "roof": {
+  "pitch": 5,
+  "colour": "#e4e2d8",
+  "eaves": 0.4
+ },
+ "blocks": [
+  {
+   "name": "hall",
+   "x0": 5.2,
+   "x1": 32.0,
+   "y0": 0.0,
+   "y1": 16.7,
+   "roof": "gable",
+   "pitch": 5,
+   "wallHeight": 4.4
+  },
+  {
+   "name": "tower",
+   "x0": 25.3,
+   "x1": 32.08,
+   "y0": -0.08,
+   "y1": 4.4,
+   "roof": "none",
+   "wallHeight": 7.0
+  },
+  {
+   "name": "solar_wing",
+   "x0": 12.8,
+   "x1": 31.5,
+   "y0": 16.7,
+   "y1": 24.0,
+   "roof": "none",
+   "wallHeight": 3.6
+  },
+  {
+   "name": "entry",
+   "x0": 5.2,
+   "x1": 12.8,
+   "y0": 16.7,
+   "y1": 26.0,
+   "roof": "none",
+   "wallHeight": 4.0
+  },
+  {
+   "name": "annex",
+   "x0": 0.0,
+   "x1": 5.5,
+   "y0": 15.5,
+   "y1": 23.4,
+   "roof": "none",
+   "wallHeight": 3.2
+  }
+ ],
+ "panels": [
+  {
+   "x0": 25.3,
+   "x1": 31.2,
+   "y0": -0.16,
+   "y1": -0.06,
+   "z0": 4.4,
+   "z1": 6.75,
+   "walls": "upper"
+  },
+  {
+   "x0": 32.06,
+   "x1": 32.16,
+   "y0": -0.08,
+   "y1": 4.4,
+   "z0": 4.4,
+   "z1": 6.75,
+   "walls": "upper"
+  },
+  {
+   "x0": 25.1,
+   "x1": 32.2,
+   "y0": -0.35,
+   "y1": 4.6,
+   "z0": 6.75,
+   "z1": 7.15,
+   "walls": "fascia"
+  },
+  {
+   "x0": 19.0,
+   "x1": 20.2,
+   "y0": 7.0,
+   "y1": 8.2,
+   "z0": 4.8,
+   "z1": 5.7,
+   "walls": "plant"
+  },
+  {
+   "x0": 13.8,
+   "x1": 19.0,
+   "y0": 19.0,
+   "y1": 22.9,
+   "z0": 3.62,
+   "z1": 3.72,
+   "walls": "solar"
+  },
+  {
+   "x0": 19.5,
+   "x1": 24.7,
+   "y0": 19.0,
+   "y1": 22.9,
+   "z0": 3.62,
+   "z1": 3.72,
+   "walls": "solar"
+  },
+  {
+   "x0": 25.3,
+   "x1": 30.5,
+   "y0": 19.0,
+   "y1": 22.9,
+   "z0": 3.62,
+   "z1": 3.72,
+   "walls": "solar"
+  }
+ ],
+ "awnings": [
+  {
+   "x0": 5.2,
+   "x1": 32.0,
+   "y0": -3.0,
+   "y1": 0.0,
+   "z": 2.9,
+   "thickness": 0.2,
+   "colour": "#efeee6",
+   "posts": [
+    5.4,
+    9.4,
+    13.4,
+    17.4,
+    21.4,
+    25.3,
+    31.8
+   ]
+  }
+ ],
+ "windows": [
+  {
+   "facing": "front",
+   "wall": 0.0,
+   "at": 7.0,
+   "width": 2.4,
+   "height": 2.1,
+   "sill": 0.3
+  },
+  {
+   "facing": "front",
+   "wall": 0.0,
+   "at": 10.0,
+   "width": 2.4,
+   "height": 2.1,
+   "sill": 0.3
+  },
+  {
+   "facing": "front",
+   "wall": 0.0,
+   "at": 13.0,
+   "width": 2.4,
+   "height": 2.1,
+   "sill": 0.3
+  },
+  {
+   "facing": "front",
+   "wall": 0.0,
+   "at": 16.0,
+   "width": 2.4,
+   "height": 2.1,
+   "sill": 0.3
+  },
+  {
+   "facing": "front",
+   "wall": 0.0,
+   "at": 19.0,
+   "width": 2.4,
+   "height": 2.1,
+   "sill": 0.3
+  },
+  {
+   "facing": "front",
+   "wall": 0.0,
+   "at": 22.0,
+   "width": 2.4,
+   "height": 2.1,
+   "sill": 0.3
+  },
+  {
+   "facing": "front",
+   "wall": -0.08,
+   "at": 29.8,
+   "width": 1.6,
+   "height": 1.2,
+   "sill": 1.0
+  },
+  {
+   "facing": "front",
+   "wall": -0.16,
+   "at": 26.4,
+   "width": 1.7,
+   "height": 1.4,
+   "sill": 4.85
+  },
+  {
+   "facing": "front",
+   "wall": -0.16,
+   "at": 28.3,
+   "width": 1.7,
+   "height": 1.4,
+   "sill": 4.85
+  },
+  {
+   "facing": "front",
+   "wall": -0.16,
+   "at": 30.2,
+   "width": 1.7,
+   "height": 1.4,
+   "sill": 4.85
+  },
+  {
+   "facing": "right",
+   "wall": 32.16,
+   "at": 1.2,
+   "width": 1.6,
+   "height": 1.4,
+   "sill": 4.85
+  },
+  {
+   "facing": "right",
+   "wall": 32.16,
+   "at": 3.2,
+   "width": 1.6,
+   "height": 1.4,
+   "sill": 4.85
+  },
+  {
+   "facing": "right",
+   "wall": 32.0,
+   "at": 5.0,
+   "width": 1.8,
+   "height": 1.3,
+   "sill": 1.0
+  },
+  {
+   "facing": "right",
+   "wall": 32.0,
+   "at": 9.0,
+   "width": 1.8,
+   "height": 1.3,
+   "sill": 1.0
+  },
+  {
+   "facing": "right",
+   "wall": 32.0,
+   "at": 13.0,
+   "width": 1.8,
+   "height": 1.3,
+   "sill": 1.0
+  }
+ ],
+ "doors": [
+  {
+   "type": "front",
+   "x0": 23.0,
+   "x1": 24.8,
+   "y": 0.0,
+   "height": 2.3,
+   "z0": 0.05,
+   "colour": "#2b2f33"
+  }
+ ],
+ "fences": [
+  {
+   "x0": 3.0,
+   "y0": -9.7,
+   "x1": 23.7,
+   "y1": -9.4,
+   "height": 0.7,
+   "colour": "#e6dcc0",
+   "kind": "concrete"
+  },
+  {
+   "x0": 3.0,
+   "y0": -9.3,
+   "x1": 23.7,
+   "y1": -9.25,
+   "height": 1.0,
+   "colour": "#5a4632",
+   "open": true
+  }
+ ],
+ "hedges": [
+  {
+   "x0": -8.9,
+   "x1": -5.7,
+   "y0": -2.9,
+   "depth": 9.9,
+   "height": 2.2
+  }
+ ],
+ "paving": [
+  {
+   "x0": 5.2,
+   "y0": -3.0,
+   "x1": 32.0,
+   "y1": 0.0,
+   "colour": "#cfc6b0",
+   "kind": "concrete"
+  },
+  {
+   "x0": 3.0,
+   "y0": -9.4,
+   "x1": 23.7,
+   "y1": -3.0,
+   "colour": "#9a7a5a",
+   "kind": "timber"
+  },
+  {
+   "x0": -6.0,
+   "y0": 0.0,
+   "x1": 5.2,
+   "y1": 15.5,
+   "colour": "#b98466",
+   "kind": "brick"
+  },
+  {
+   "x0": 32.0,
+   "y0": -3.0,
+   "x1": 34.6,
+   "y1": 30.0,
+   "colour": "#cfc6b0",
+   "kind": "concrete"
+  }
+ ],
+ "tables": [
+  {
+   "x": 6.5,
+   "y": -6.2,
+   "length": 2.0,
+   "colour": "#7a5a3e"
+  },
+  {
+   "x": 10.5,
+   "y": -6.2,
+   "length": 2.0,
+   "colour": "#7a5a3e"
+  },
+  {
+   "x": 14.5,
+   "y": -6.2,
+   "length": 2.0,
+   "colour": "#7a5a3e"
+  },
+  {
+   "x": 18.5,
+   "y": -6.2,
+   "length": 2.0,
+   "colour": "#7a5a3e"
+  },
+  {
+   "x": -1.0,
+   "y": 6.0,
+   "length": 1.8,
+   "turned": true,
+   "colour": "#7a5a3e"
+  },
+  {
+   "x": 2.6,
+   "y": 6.0,
+   "length": 1.8,
+   "turned": true,
+   "colour": "#7a5a3e"
+  },
+  {
+   "x": -1.0,
+   "y": 12.0,
+   "length": 1.8,
+   "turned": true,
+   "colour": "#7a5a3e"
+  },
+  {
+   "x": 2.6,
+   "y": 12.0,
+   "length": 1.8,
+   "turned": true,
+   "colour": "#7a5a3e"
+  }
+ ],
+ "sails": [
+  {
+   "pts": [
+    [
+     23.7,
+     -3.4,
+     3.4
+    ],
+    [
+     18.58,
+     -3.4,
+     2.6
+    ],
+    [
+     18.58,
+     -9.6,
+     3.4
+    ],
+    [
+     23.7,
+     -9.6,
+     2.6
+    ]
+   ],
+   "colour": "#1e6fc4"
+  },
+  {
+   "pts": [
+    [
+     18.58,
+     -3.4,
+     3.4
+    ],
+    [
+     13.46,
+     -3.4,
+     2.6
+    ],
+    [
+     13.46,
+     -9.6,
+     3.4
+    ],
+    [
+     18.58,
+     -9.6,
+     2.6
+    ]
+   ],
+   "colour": "#1e6fc4"
+  },
+  {
+   "pts": [
+    [
+     13.46,
+     -3.4,
+     3.4
+    ],
+    [
+     8.34,
+     -3.4,
+     2.6
+    ],
+    [
+     8.34,
+     -9.6,
+     3.4
+    ],
+    [
+     13.46,
+     -9.6,
+     2.6
+    ]
+   ],
+   "colour": "#1e6fc4"
+  },
+  {
+   "pts": [
+    [
+     8.34,
+     -3.4,
+     3.4
+    ],
+    [
+     3.22,
+     -3.4,
+     2.6
+    ],
+    [
+     3.22,
+     -9.6,
+     3.4
+    ],
+    [
+     8.34,
+     -9.6,
+     2.6
+    ]
+   ],
+   "colour": "#1e6fc4"
+  },
+  {
+   "pts": [
+    [
+     3.22,
+     -3.4,
+     3.4
+    ],
+    [
+     -1.9,
+     -3.4,
+     2.6
+    ],
+    [
+     -1.9,
+     -9.6,
+     3.4
+    ],
+    [
+     3.22,
+     -9.6,
+     2.6
+    ]
+   ],
+   "colour": "#1e6fc4"
+  },
+  {
+   "pts": [
+    [
+     -1.9,
+     -3.4,
+     3.4
+    ],
+    [
+     -7.02,
+     -3.4,
+     2.6
+    ],
+    [
+     -7.02,
+     -9.6,
+     3.4
+    ],
+    [
+     -1.9,
+     -9.6,
+     2.6
+    ]
+   ],
+   "colour": "#1e6fc4"
+  },
+  {
+   "pts": [
+    [
+     -4.9,
+     3.1,
+     3.3
+    ],
+    [
+     -0.1,
+     3.1,
+     2.6
+    ],
+    [
+     -0.1,
+     9.1,
+     3.3
+    ],
+    [
+     -4.9,
+     9.1,
+     2.6
+    ]
+   ],
+   "colour": "#2f86a6"
+  },
+  {
+   "pts": [
+    [
+     -4.9,
+     9.1,
+     3.3
+    ],
+    [
+     -0.1,
+     9.1,
+     2.6
+    ],
+    [
+     -0.1,
+     15.1,
+     3.3
+    ],
+    [
+     -4.9,
+     15.1,
+     2.6
+    ]
+   ],
+   "colour": "#2f86a6"
+  },
+  {
+   "pts": [
+    [
+     -0.1,
+     3.1,
+     3.3
+    ],
+    [
+     4.7,
+     3.1,
+     2.6
+    ],
+    [
+     4.7,
+     9.1,
+     3.3
+    ],
+    [
+     -0.1,
+     9.1,
+     2.6
+    ]
+   ],
+   "colour": "#2f86a6"
+  },
+  {
+   "pts": [
+    [
+     -0.1,
+     9.1,
+     3.3
+    ],
+    [
+     4.7,
+     9.1,
+     2.6
+    ],
+    [
+     4.7,
+     15.1,
+     3.3
+    ],
+    [
+     -0.1,
+     15.1,
+     2.6
+    ]
+   ],
+   "colour": "#2f86a6"
+  }
+ ],
+ "signs": [
+  {
+   "x0": 25.8,
+   "x1": 30.9,
+   "y": -0.14,
+   "z0": 3.15,
+   "z1": 4.3,
+   "text": "G.B.Y.C.",
+   "colour": "#d6b98c",
+   "ink": "#1f3fbf"
+  }
+ ],
+ "trees": [
+  {
+   "x": -8.6,
+   "y": 11.7,
+   "height": 9,
+   "spread": 7
+  },
+  {
+   "x": -7.0,
+   "y": 25.8,
+   "height": 10,
+   "spread": 8
+  },
+  {
+   "x": 15.4,
+   "y": 31.5,
+   "height": 8,
+   "spread": 6
+  }
+ ]
+}

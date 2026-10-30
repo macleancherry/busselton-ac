@@ -1,0 +1,259 @@
+{
+ "note": "Orana Cinemas Busselton, 27 Albert St, a few doors west of Queen St, from docs/landmarks/orana_cinemas.md (Landgate aerial, OSM outline, 2019 street photos). A tall plain box: the front auditorium block about 11 m high in pale beige render, a lower rear block with rooftop plant, a sandstone-coloured block base and corner pier on the Albert St front, a dark teal canopy over the entrance and poster cases, and the name in plain dark lettering high on the front. Signs are plain lettering. Metres: x left to right as seen from Albert St (west to east), y back from the front wall (northward).",
+ "wallHeight": 11.0,
+ "setback": 4,
+ "road": {
+  "width": 16,
+  "verge": 0.5
+ },
+ "lawn": "#8a8f5a",
+ "sunFrom": [
+  0.5,
+  -0.8,
+  1.2
+ ],
+ "cameras": {
+  "street": {
+   "eye": [
+    36,
+    -22,
+    1.6
+   ],
+   "look": [
+    12,
+    6,
+    6.0
+   ],
+   "lens": 22
+  },
+  "aerial": {
+   "eye": [
+    44,
+    -40,
+    30
+   ],
+   "look": [
+    9,
+    18,
+    4
+   ],
+   "lens": 30
+  }
+ },
+ "walls": {
+  "kind": "render",
+  "colour": "#d8cfbd"
+ },
+ "finishes": {
+  "stone": {
+   "kind": "brick",
+   "colour": "#c6a878"
+  },
+  "rear": {
+   "kind": "render",
+   "colour": "#d2c9b6"
+  },
+  "posters": {
+   "kind": "render",
+   "colour": "#2a2e33"
+  },
+  "plant": {
+   "kind": "corrugated",
+   "colour": "#cfd1cf"
+  },
+  "roofsheet": {
+   "kind": "corrugated",
+   "colour": "#8f9a92"
+  }
+ },
+ "trim": "#e9e4d8",
+ "roof": {
+  "pitch": 3,
+  "colour": "#8f9a92",
+  "eaves": 0.1
+ },
+ "blocks": [
+  {
+   "name": "front_auditorium",
+   "x0": 0.0,
+   "x1": 20.4,
+   "y0": 0.0,
+   "y1": 24.0,
+   "roof": "none",
+   "wallHeight": 11.0
+  },
+  {
+   "name": "rear_auditorium",
+   "x0": 0.0,
+   "x1": 17.5,
+   "y0": 24.0,
+   "y1": 46.0,
+   "roof": "none",
+   "wallHeight": 9.5,
+   "walls": "rear"
+  }
+ ],
+ "panels": [
+  {
+   "x0": 0.0,
+   "x1": 15.6,
+   "y0": -0.12,
+   "y1": 0.0,
+   "z0": 0.0,
+   "z1": 3.6,
+   "walls": "stone"
+  },
+  {
+   "x0": 15.6,
+   "x1": 20.5,
+   "y0": -0.15,
+   "y1": 0.0,
+   "z0": 0.0,
+   "z1": 8.2,
+   "walls": "stone"
+  },
+  {
+   "x0": 20.4,
+   "x1": 20.55,
+   "y0": 0.0,
+   "y1": 5.0,
+   "z0": 0.0,
+   "z1": 8.2,
+   "walls": "stone"
+  },
+  {
+   "x0": 1.6,
+   "x1": 3.0,
+   "y0": -0.2,
+   "y1": -0.12,
+   "z0": 0.6,
+   "z1": 2.5,
+   "walls": "posters"
+  },
+  {
+   "x0": 12.4,
+   "x1": 13.8,
+   "y0": -0.2,
+   "y1": -0.12,
+   "z0": 0.6,
+   "z1": 2.5,
+   "walls": "posters"
+  },
+  {
+   "x0": 0.0,
+   "x1": 20.4,
+   "y0": 0.0,
+   "y1": 24.0,
+   "z0": 11.0,
+   "z1": 11.06,
+   "walls": "roofsheet"
+  },
+  {
+   "x0": 0.0,
+   "x1": 17.5,
+   "y0": 24.0,
+   "y1": 46.0,
+   "z0": 9.5,
+   "z1": 9.56,
+   "walls": "roofsheet"
+  },
+  {
+   "x0": -0.05,
+   "x1": 20.45,
+   "y0": -0.05,
+   "y1": 0.25,
+   "z0": 11.0,
+   "z1": 11.6,
+   "walls": "rear"
+  },
+  {
+   "x0": -0.05,
+   "x1": 0.25,
+   "y0": -0.05,
+   "y1": 24.0,
+   "z0": 11.0,
+   "z1": 11.6,
+   "walls": "rear"
+  },
+  {
+   "x0": 20.15,
+   "x1": 20.45,
+   "y0": -0.05,
+   "y1": 24.0,
+   "z0": 11.0,
+   "z1": 11.6,
+   "walls": "rear"
+  },
+  {
+   "x0": 5.0,
+   "x1": 10.5,
+   "y0": 24.3,
+   "y1": 27.6,
+   "z0": 9.5,
+   "z1": 10.7,
+   "walls": "plant"
+  },
+  {
+   "x0": 11.2,
+   "x1": 15.2,
+   "y0": 24.5,
+   "y1": 26.0,
+   "z0": 9.5,
+   "z1": 10.4,
+   "walls": "plant"
+  }
+ ],
+ "awnings": [
+  {
+   "x0": 0.0,
+   "x1": 15.6,
+   "y0": -3.6,
+   "y1": 0.0,
+   "z": 3.6,
+   "thickness": 0.4,
+   "colour": "#3e5552"
+  }
+ ],
+ "doors": [
+  {
+   "type": "front",
+   "x0": 4.6,
+   "x1": 11.4,
+   "y": 0.0,
+   "height": 2.8,
+   "z0": 0.0,
+   "colour": "#1d2326"
+  }
+ ],
+ "windows": [],
+ "paving": [
+  {
+   "x0": -6.0,
+   "y0": -4.0,
+   "x1": 26.0,
+   "y1": 0.0,
+   "colour": "#a35a45",
+   "kind": "brick"
+  }
+ ],
+ "signs": [
+  {
+   "x0": 2.5,
+   "x1": 14.5,
+   "y": -0.06,
+   "z0": 8.4,
+   "z1": 10.0,
+   "text": "ORANA CINEMAS",
+   "colour": "#d8cfbd",
+   "ink": "#3a3f44"
+  }
+ ],
+ "trees": [
+  {
+   "x": -7.0,
+   "y": -3.0,
+   "height": 8,
+   "spread": 6
+  }
+ ]
+}

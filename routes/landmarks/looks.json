@@ -90,6 +90,24 @@
    "specFile": "routes/landmarks/transition.json",
    "name": "Transition",
    "facing": 255
+  },
+  {
+   "at": [
+    115.329073,
+    -33.650602
+   ],
+   "specFile": "routes/landmarks/yacht_club.json",
+   "name": "Geographe Bay Yacht Club",
+   "facing": 346
+  },
+  {
+   "at": [
+    115.344454,
+    -33.65188
+   ],
+   "specFile": "routes/landmarks/orana_cinemas.json",
+   "name": "Orana Cinemas",
+   "facing": 167
   }
  ]
 }

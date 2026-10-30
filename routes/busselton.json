@@ -90,9 +90,27 @@
      115.342,
      -33.644
     ]
+   ],
+   [
+    [
+     115.3281,
+     -33.6516
+    ],
+    [
+     115.3302,
+     -33.6516
+    ],
+    [
+     115.3302,
+     -33.6496
+    ],
+    [
+     115.3281,
+     -33.6496
+    ]
    ]
   ],
-  "_areaNote": "The town centre and, since 30 Oct, the jetty precinct (Foreshore Pde, Jetty Way, the Visitor Centre, The Goose, the Hilton) as a second polygon: it was only horizon scenery before."
+  "_areaNote": "The town centre and, since 30 Oct, the jetty precinct (Foreshore Pde, Jetty Way, the Visitor Centre, The Goose, the Hilton) as a second polygon: it was only horizon scenery before. A third small polygon takes in the Geographe Bay Yacht Club, just west of the town box."
  },
  "layout": {
   "id": "foreshore",
