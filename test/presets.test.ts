@@ -18,6 +18,11 @@ describe("route presets", () => {
     expect(r.build.traffic).toBe(true);
   });
 
+  it("turns Armco on for country roads and off for towns", () => {
+    expect(applyPreset({ preset: "country" }).build.armco).toBe(true);
+    expect(applyPreset({ preset: "town" }).build.armco).toBe(false);
+  });
+
   it("refuses an unknown preset", () => {
     expect(() => applyPreset({ preset: "moon" })).toThrow(/unknown preset/);
   });

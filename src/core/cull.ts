@@ -17,6 +17,8 @@ const DRAW_DISTANCE: [RegExp, number][] = [
   [/^(MARKINGS|RRPM)/, 450],
   [/^FURNITURE/, 600],
   [/^(GUIDEPOSTS|RAILPOSTS)/, 500],
+  [/^ARMCOPOSTS/, 400], // Busselton fork: Armco posts and blockouts; the beam itself goes out to 1.2 km
+  [/^ARMCO_/, 1200],
   [/^WIRES/, 350], // a few centimetres thick: they only shimmer further off
 ];
 

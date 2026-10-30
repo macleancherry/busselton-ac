@@ -39,6 +39,7 @@ import { encodeDdsDxt1, encodeDdsDxt5 } from "./dds";
 import { decodeOwnPng, encodePng } from "./png";
 import { buildMarkings, type DiscreteMark } from "./markings";
 import { buildTerrainChunk, makeTerrainFn, meshTop, planTerrainChunks, type TerrainChunk } from "./terrain";
+import { armcoNeeds, buildArmco } from "./armco";
 import { BARRIERS, barrierTexture, detailTexture, normalFromHeight, windowTexture, flatNormalTexture, GROUND_TILE, groundDetail, groundMask, type GroundKind, mapsTexture, paintTexture, sealTexture, type SealKind, garageTexture, grassTexture, concreteTexture, postTexture, railTexture, solidTexture, vergeTexture } from "./textures";
 import {
   buildGuardRails, buildGuidePosts, buildTrees, treeTrunks, filterTrees, railNeeds, rng, treeSpotsFromImagery, type TreeSpot,
@@ -142,6 +143,8 @@ export interface OsmFeatures {
   /** Footprints (first point not repeated) with OSM / vector tile tags. */
   buildings: { ring: LngLat[]; tags: Record<string, string> }[];
   guardRails: LngLat[][];
+  /** Busselton fork: road bridges (bridge=yes) and waterways near the route, for Armco at crossings (armco.ts). */
+  crossings?: { bridges: LngLat[][]; waterways: { pts: LngLat[]; cls: string; brunnel?: string }[] };
   /** OSM junction=roundabout ways near the route, with their circulating lanes when tagged. */
   roundaboutRings?: { pts: LngLat[]; lanes?: number }[];
   /** Fences, walls and hedges near the route (OSM barrier=*). */
@@ -1291,7 +1294,16 @@ export async function buildTrack(
   const ringWalls = plan.roundabouts.map((rb, k) => buildRingWall(rb, k, opts, ground)).filter((w): w is Kn5Node & { kind: "mesh" } => !!w);
 
   const osmRails = opts.guardRails ? (sources.osm?.guardRails ?? []).map((l) => l.map((p) => proj.toLocal(p))) : [];
-  const needs = railNeeds(plan, opts, ground, osmRails, index);
+  let needs = railNeeds(plan, opts, ground, osmRails, index);
+  // Busselton fork: Armco on country bends, embankments and crossings (armco.ts).
+  const crossings = sources.osm?.crossings;
+  if (opts.armco && opts.guardRails) needs = armcoNeeds(plan, opts, needs, {
+    ground, index, speedAt,
+    crossings: crossings && {
+      bridges: crossings.bridges.map((l) => l.map((p) => proj.toLocal(p))),
+      waterways: crossings.waterways.map((w) => ({ ...w, pts: w.pts.map((p) => proj.toLocal(p)) })),
+    },
+  });
   if (!opts.guardRails) needs.forEach((side) => side.fill(false));
   // No rails or posts on or beside a roundabout.
   const nearRing = plan.samples.map((s) => !!inRoundabout(plan, s.pos[0], s.pos[1], 15));
@@ -1300,7 +1312,7 @@ export async function buildTrack(
   needs.forEach((side) => side.forEach((_, i) => { if (nearRing[i]) side[i] = false; }));
   // Kerbed streets have neither.
   needs.forEach((side, k) => side.forEach((_, i) => { if (kerbAt(i, k === 0 ? 1 : -1)) side[i] = false; }));
-  const rails = buildGuardRails(plan, opts, needs);
+  const rails = opts.armco ? buildArmco(plan, opts, needs) : buildGuardRails(plan, opts, needs);
   const postMask = needs.map((side, k) => side.map((v, i) => v || nearRing[i] || mouth(k === 0 ? 1 : -1, plan.samples[i].s) || kerbAt(i, k === 0 ? 1 : -1))) as [boolean[], boolean[]];
   const posts = opts.guidePosts ? buildGuidePosts(plan, opts, postMask) : [];
   // Inside the corridor buildings stand on the detailed terrain; further out, on the horizon mesh.

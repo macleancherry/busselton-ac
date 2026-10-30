@@ -62,11 +62,20 @@ export interface TilePoi {
   rank?: number;
 }
 
+/** Busselton fork: a waterway line (OpenMapTiles waterway layer: river, stream, canal, drain, ditch). */
+export interface TileWaterway {
+  pts: LngLat[];
+  cls: string;
+  /** "tunnel" where it runs through a culvert, "bridge" over an aqueduct. */
+  brunnel?: string;
+}
+
 export interface TileFeatures {
   buildings: TileBuilding[];
   roads: TileRoad[];
   names: TileName[];
   pois: TilePoi[];
+  waterways: TileWaterway[];
 }
 
 type P = { x: number; y: number };
@@ -115,15 +124,16 @@ export async function fetchTileFeatures(bbox: [number, number, number, number]):
   const roads: TileRoad[] = [];
   const names: TileName[] = [];
   const pois: TilePoi[] = [];
+  const waterways: TileWaterway[] = [];
   const jobs: Promise<void>[] = [];
   // Each tile's features in its own slot, joined in tile order at the end: pushing into the shared
   // lists as tiles arrived put them in a different order every build, and everything chosen at random
   // per house or tree after that (facades, species) came out different on each rebuild.
-  const slots: { buildings: TileBuilding[]; roads: TileRoad[]; names: TileName[]; pois: TilePoi[] }[] = [];
+  const slots: { buildings: TileBuilding[]; roads: TileRoad[]; names: TileName[]; pois: TilePoi[]; waterways: TileWaterway[] }[] = [];
   let missing = 0;
   for (let ty = y0; ty <= y1; ty++) {
     for (let tx = x0; tx <= x1; tx++) {
-      const slot = { buildings: [] as TileBuilding[], roads: [] as TileRoad[], names: [] as TileName[], pois: [] as TilePoi[] };
+      const slot = { buildings: [] as TileBuilding[], roads: [] as TileRoad[], names: [] as TileName[], pois: [] as TilePoi[], waterways: [] as TileWaterway[] };
       slots.push(slot);
       jobs.push((async () => {
         const { buildings, roads, names, pois } = slot;
@@ -160,6 +170,13 @@ export async function fetchTileFeatures(bbox: [number, number, number, number]):
           const service = f.properties.service !== undefined ? String(f.properties.service) : undefined;
           for (const line of f.loadGeometry()) roads.push({ pts: line.map((p) => toLngLat(p, tl.extent)), cls, surface, brunnel, subclass, bicycle, ...(oneway ? { oneway } : {}), ...(service ? { service } : {}) });
         }
+        const wl = tile.layers.waterway;
+        for (let i = 0; wl && i < wl.length; i++) {
+          const f = wl.feature(i);
+          if (f.type !== 2) continue;
+          const brunnel = f.properties.brunnel !== undefined ? String(f.properties.brunnel) : undefined;
+          for (const line of f.loadGeometry()) slot.waterways.push({ pts: line.map((p) => toLngLat(p, wl.extent)), cls: String(f.properties.class ?? ""), ...(brunnel ? { brunnel } : {}) });
+        }
         const nl = tile.layers.transportation_name;
         for (let i = 0; nl && i < nl.length; i++) {
           const f = nl.feature(i);
@@ -194,9 +211,10 @@ export async function fetchTileFeatures(bbox: [number, number, number, number]):
     roads.push(...slot.roads);
     names.push(...slot.names);
     pois.push(...slot.pois);
+    waterways.push(...slot.waterways);
   }
   if (missing) warnMissing(`${missing} map tiles (buildings, streets, shops)`);
-  return { buildings, roads, names, pois };
+  return { buildings, roads, names, pois, waterways };
 }
 
 /** Typical asphalt width by OpenMapTiles road class, metres. */

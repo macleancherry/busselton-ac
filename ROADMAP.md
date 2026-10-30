@@ -100,7 +100,7 @@ Generated tracks across the region at a lighter detail level, rebuilt whenever t
   - ❓ Next: order the capes LiDAR from GA's ELVIS portal (free, links emailed), cut it into tiles.
 - 🔨 **Caves Road, Dunsborough to Yallingup:** route ready (`routes/caves-road.json`). Build once the heights are sorted.
 - 🔨 **A drive-anywhere preset:** ✅ `"preset": "country"` (`scripts/headless/presets.mjs`). Still to do: country settings (wider terrain grid, corridor and horizon sized to the budget, gentle banking) so a new road is one route file. Check 30+ km roads and draw distances.
-- ⬜ **Country roadsides:** gravel shoulders, guideposts (done), Armco on bends and drop-offs, farm driveways, mailboxes, cattle grids.
+- 🔨 **Country roadsides:** gravel shoulders, guideposts (done), Armco on bends, embankments, bridges and culverts (done: `build.armco`, on in the country preset, `src/core/armco.ts`), farm driveways, mailboxes, cattle grids.
 - ⬜ **Unsealed roads:** gravel surface physics, dust, a limestone gravel texture (Boranup, farm roads).
 - ⬜ **Landscape zones:** each with its own trees, ground and roadside.
   - coast: white sand, peppermint, granite

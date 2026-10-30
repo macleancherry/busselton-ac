@@ -80,6 +80,15 @@ export async function runBuild(job: BuildJob, report: Report, traceProgress: (te
     }) : Promise.resolve(undefined),
   ]);
   if (tiles) osm.features.buildings = tiles.buildings;
+  // Busselton fork: road bridges and waterways, for Armco at crossings (armco.ts).
+  if (opts.armco) {
+    osm.features.crossings = {
+      bridges: [...(osm.roads ?? []), ...(tiles?.roads ?? [])]
+        .filter((r) => r.brunnel === "bridge" && /^(motorway|trunk|primary|secondary|tertiary|minor|service|track)/.test(r.cls))
+        .map((r) => r.pts),
+      waterways: tiles?.waterways ?? [],
+    };
+  }
   // Busselton fork: what stands on the jetties (railway, platforms, buildings), over their own box.
   const pierPts = (coast?.piers ?? []).flatMap((p) => p.rings[0] ?? []);
   const jetty = pierPts.length && opts.sea !== false

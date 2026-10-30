@@ -77,6 +77,12 @@ export interface BuildOptions {
   guardRails: boolean;
   /** White guide posts along the verges. */
   guidePosts: boolean;
+  /**
+   * Busselton fork: W-beam (Armco) guard rail where Australian country roads have it (armco.ts): the
+   * outside of bends well under the speed limit, embankments, bridges and culverts, on top of guardRails'
+   * drop-offs and OSM rails; with posts, blockouts, buried ends and a separate collision wall. Needs guardRails.
+   */
+  armco?: boolean;
   /** Buildings from OSM footprints. */
   buildings: boolean;
   /** Placeholder buildings where the aerial imagery shows a roof. */
