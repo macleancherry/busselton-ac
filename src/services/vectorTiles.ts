@@ -12,7 +12,7 @@ const Z = 14;
 
 let template: Promise<string> | null = null;
 
-function tileTemplate(): Promise<string> {
+export function tileTemplate(): Promise<string> {
   template ??= fetchRetry(TILEJSON)
     .then((r) => {
       if (!r?.ok) throw new Error("map tile index unavailable");
@@ -78,10 +78,10 @@ export interface TileFeatures {
   waterways: TileWaterway[];
 }
 
-type P = { x: number; y: number };
+export type P = { x: number; y: number };
 
 /** Clips a ring to the tile square (Sutherland-Hodgman), so buildings split across tiles meet exactly. */
-function clipToTile(ring: P[], extent: number): P[] {
+export function clipToTile(ring: P[], extent: number): P[] {
   let out = ring;
   const edges: [(p: P) => boolean, (a: P, b: P) => P][] = [
     [(p) => p.x >= 0, (a, b) => ({ x: 0, y: a.y + ((b.y - a.y) * (0 - a.x)) / (b.x - a.x) })],
@@ -104,7 +104,7 @@ function clipToTile(ring: P[], extent: number): P[] {
   return out;
 }
 
-function signedArea(r: P[]): number {
+export function signedArea(r: P[]): number {
   let a = 0;
   for (let i = 0; i < r.length; i++) {
     const p = r[i], q = r[(i + 1) % r.length];

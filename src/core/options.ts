@@ -175,6 +175,11 @@ export interface BuildOptions {
   raceDress: boolean;
   /** Sponsors on the banners and flags, comma-separated. */
   sponsors: string;
+  /**
+   * Busselton fork: vineyards and paddocks (farm.ts): vine rows on OSM vineyards and post-and-wire
+   * fences along paddock boundaries and OSM wire fences beside the road. On in the country preset.
+   */
+  farmland?: boolean;
 }
 
 export const DEFAULT_OPTIONS: BuildOptions = {

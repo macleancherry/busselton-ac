@@ -56,6 +56,7 @@ import { camerasIni, placeCameras } from "./cameras";
 import { cullable } from "./cull";
 import { bakedShadowParams, extConfig } from "./cspConfig";
 import { buildBarriers } from "./fences";
+import { buildFarmland, vineLeafTexture, type FarmPolygon } from "./farm";
 import { chunkPhotoSampler, frontageHouses } from "./frontage";
 import { ArtList, type ArtRenderer } from "./art";
 import { challengeCheckpoints, challengesIni } from "./challenges";
@@ -131,6 +132,8 @@ export interface DataSources {
   /** Busselton fork: landmarks built as layers after the base (landmarkLayer.ts): the automatic test photographs them. */
   landmarks?: { name: string; at: LngLat }[];
   coast?: { ocean: { rings: LngLat[][]; edge: boolean[][] }[]; piers: { rings: LngLat[][]; edge: boolean[][] }[]; beaches?: { rings: LngLat[][]; edge: boolean[][] }[] };
+  /** Busselton fork: vineyards and paddocks beside the road (services/landcover.ts; farm.ts builds them). */
+  farmland?: FarmPolygon[];
   /** Busselton fork: what stands on the jetties (osm.ts fetchPierFeatures; jetty.ts builds it). */
   jetty?: { railways: LngLat[][]; platforms: { pts: LngLat[]; shelter: boolean }[]; buildings: { pts: LngLat[]; name: string }[] };
   /** Tiled ground detail textures for ksMultilayer terrain (lawn, rough, sand, litter); null to keep plain photo terrain. */
@@ -1236,6 +1239,15 @@ export async function buildTrack(
     (x, y) => streetIndex.clearance(x, y) > 1.5 && !inRoundabout(plan, x, y, opts.vergeWidth + 3),
     area ? cover : undefined,
   );
+  // Busselton fork: vine rows and post-and-wire farm fences (farm.ts).
+  const farm = opts.farmland ? buildFarmland(
+    (sources.farmland ?? []).map((f) => ({ ...f, rings: f.rings.map((r) => r.map((p) => proj.toLocal(p))) })),
+    (sources.osm?.barriers ?? []).map((b) => ({ ...b, pts: b.pts.map((p) => proj.toLocal(p)) })),
+    index, opts, ground,
+    (x, y) => streetIndex.clearance(x, y) > 1.5 && !inRoundabout(plan, x, y, opts.vergeWidth + 3) && !cleared(x, y),
+    cover,
+  ) : null;
+  if (farm?.vineMetres) addScenery("vine_leaf.png", vineLeafTexture(), material("vine_leaf", "vine_leaf.png", { ambient: 0.5, diffuse: 0.4, specular: 0, exp: 1 }));
   // A tree and a ring of shrubs on each island big enough for them.
   const islandTrees = plan.roundabouts.flatMap((rb) => {
     const ri = innerRadius(rb);
@@ -1638,6 +1650,7 @@ export async function buildTrack(
         group("BUILDINGS", [...houses, ...specNodes]),
         group("SHOPS", shopMeshes),
         group("FENCES", keepOffRoute(barriers, onRoad).nodes),
+        group("FARM", farm ? keepOffRoute(farm.nodes, onRoad).nodes : []),
         group("PATHS", pathMeshes),
         group("LOTS", keepOffRoute(lots, onRoad).nodes),
         group("CARPARKS", islandNodes),
@@ -1792,6 +1805,7 @@ export async function buildTrack(
       drySummer: centre[0] > 112 && centre[0] < 119.5 && centre[1] < -30 && centre[1] > -36,
       sea: ocean.length > 0,
       trees: opts.cspTrees && Object.keys(cspTreeFiles).length ? "trees/trees.txt" : undefined,
+      vines: !!farm?.vineMetres,
       // A town's glow at night where most of the route is built up.
       builtUp: town.filter((t) => t >= 1).length > town.length / 2,
       radiusKm: Math.max(...outline2d.map((p) => Math.hypot(p[0] - outline2d[0][0], p[1] - outline2d[0][1]))) / 2000,
