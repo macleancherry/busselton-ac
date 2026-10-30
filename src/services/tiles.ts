@@ -486,23 +486,25 @@ export async function loadChunkImagery(
     // Later sources only fill what earlier ones left empty.
     ctx.globalCompositeOperation = k === 0 ? "source-over" : "destination-over";
     let missing = false;
-    const jobs: Promise<void>[] = [];
+    const jobs: Promise<{ tx: number; ty: number; bmp: ImageBitmap | null }>[] = [];
     for (let ty = range.y0; ty <= range.y1; ty++) {
       for (let tx = range.x0; tx <= range.x1; tx++) {
-        jobs.push(loadBitmap(tileUrl(source, z, tx, ty)).catch(() => null).then((bmp) => {
-          if (!bmp) {
-            missing = true;
-            return;
-          }
-          any = true;
-          used?.add(source);
-          here.add(source);
-          // +0.5 px overlap hides hairline seams between tiles.
-          ctx.drawImage(bmp, (tx * 256 - p0[0]) * scale, (ty * 256 - p0[1]) * scale, 256 * scale + 0.5, 256 * scale + 0.5);
-        }));
+        jobs.push(loadBitmap(tileUrl(source, z, tx, ty)).catch(() => null).then((bmp) => ({ tx, ty, bmp })));
       }
     }
-    await Promise.all(jobs);
+    // Drawn in tile order, not arrival order: the tiles overlap by half a pixel, so the order
+    // decides the seams, and the same inputs must give the same photo (frozen snapshots).
+    for (const { tx, ty, bmp } of await Promise.all(jobs)) {
+      if (!bmp) {
+        missing = true;
+        continue;
+      }
+      any = true;
+      used?.add(source);
+      here.add(source);
+      // +0.5 px overlap hides hairline seams between tiles.
+      ctx.drawImage(bmp, (tx * 256 - p0[0]) * scale, (ty * 256 - p0[1]) * scale, 256 * scale + 0.5, 256 * scale + 0.5);
+    }
     if (!missing) break;
   }
   if (!any) return null;
