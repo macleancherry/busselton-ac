@@ -95,7 +95,8 @@ describe("fast_lane.ai", () => {
     }));
     const bytes = writeFastLaneAi(pts);
     // header 16 + 3 * 20 base + 4 + 3 * 72 extra + 4 grid flag
-    expect(bytes.length).toBe(16 + 60 + 4 + 216 + 4);
+    // Points, extra data, then the lookup grid (flag 1; aiGrid.test.ts covers its contents).
+    expect(new DataView(bytes.buffer, bytes.byteOffset).getInt32(16 + 60 + 4 + 216, true)).toBe(1);
     expect(readFastLaneAi(bytes)).toEqual(pts);
   });
 });
