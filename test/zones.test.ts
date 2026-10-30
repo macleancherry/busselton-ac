@@ -48,13 +48,15 @@ describe("region map", () => {
 
 describe("species", () => {
   it("resolves species to the models the build has, borrowing a model for the ones it lacks", () => {
-    const list = resolveSpecies({ karri: 6, marri: 3, peppermint: 1 }, MODEL_NAMES);
-    const tuart = MODEL_NAMES.indexOf("tuart"), pep = MODEL_NAMES.indexOf("peppermint");
+    // A build without karri and marri models borrows the tuart's.
+    const five = MODEL_NAMES.filter((n) => n !== "karri" && n !== "marri");
+    const list = resolveSpecies({ karri: 6, marri: 3, peppermint: 1 }, five);
+    const tuart = five.indexOf("tuart"), pep = five.indexOf("peppermint");
     expect(list).toContainEqual({ pick: { variant: tuart, scale: 1.6 }, weight: 6 });
     expect(list).toContainEqual({ pick: { variant: tuart, scale: 1 }, weight: 3 });
     expect(list).toContainEqual({ pick: { variant: pep, scale: 1 }, weight: 1 });
-    // With real karri and marri models, they're used as they are.
-    const more = [...MODEL_NAMES, "karri", "marri"];
+    // With real karri and marri models (the CSP trees have them now), they're used as they are.
+    const more = [...five, "karri", "marri"];
     const own = resolveSpecies({ karri: 6, marri: 3 }, more);
     expect(own.map((o) => more[o.pick.variant]).sort()).toEqual(["karri", "marri"]);
     expect(own.every((o) => o.pick.scale === 1)).toBe(true);
