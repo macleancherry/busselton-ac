@@ -84,6 +84,7 @@ import { buildVergeConcrete, laybacks, letterboxes, readVerge } from "./footpath
 import { findLines, paintCandidates, type ImageLine } from "./paintLines";
 import { applyTrace, displayOf, traceRoad, type RasterSampler, type TraceResult } from "./trace";
 import { buildSideStreets, LineIndex, traceSideStreets, planSideStreets, streetSurface, type StreetLine, type StreetName } from "./sideStreets";
+import { networkPreview } from "./network/preview";
 
 /** Progress callback; a returned promise is awaited, which lets a UI repaint. */
 export type Progress = (stage: string, fraction?: number) => void | Promise<void>;
@@ -2052,6 +2053,8 @@ export async function buildTrack(
     [`${slug}/ui/outline.png`]: outlinePng(outline2d),
     [`${slug}/ui/preview.png`]: previewPng(outline2d, plan.closed),
     [`${slug}/README.txt`]: enc.encode(readme(trackMeta, textured.size ? (typeof sources.imageryCredit === "function" ? sources.imageryCredit() : sources.imageryCredit) ?? "aerial imagery" : null)),
+    // Busselton fork: the network-core prototype, for inspection only (src/core/network).
+    ...(opts.networkCore ? networkPreview(slug, { lines: sources.streets?.lines ?? [], rings: sources.osm?.roundaboutRings ?? [], toLocal: (p) => proj.toLocal(p), height: dem }) : {}),
   };
 
   // Busselton fork: one layout of several on the map (layouts.ts).
