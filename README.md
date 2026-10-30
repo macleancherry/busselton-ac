@@ -143,6 +143,10 @@ The full roadmap is in [ROADMAP.md](ROADMAP.md): Busselton done properly, then o
 
 ## Credit
 
-The track builder is [honestjams/ac-track-builder](https://github.com/honestjams/ac-track-builder). Its [README](https://github.com/honestjams/ac-track-builder#readme) covers everything the builder does and how it works. The upstream repo has no licence file yet, so this fork is for personal use.
+The track builder is [honestjams/ac-track-builder](https://github.com/honestjams/ac-track-builder). Its [README](https://github.com/honestjams/ac-track-builder#readme) covers everything the builder does and how it works. The upstream repo has no licence, so the files derived from it (listed in [UPSTREAM-FILES.txt](UPSTREAM-FILES.txt)) are for personal use only.
+
+## Licence
+
+The code written for Busselton AC is under the [PolyForm Noncommercial License 1.0.0](LICENSE): free to use, change and share for anything non-commercial. It doesn't cover the upstream-derived files in `UPSTREAM-FILES.txt` or the map data and imagery, which keep their own terms (see [LICENSE](LICENSE)). `python3 -I scripts/provenance/upstream_overlap.py . <upstream checkout>` reports how much upstream code is left; the goal is none.
 
 Assetto Corsa is a trademark of Kunos Simulazioni. This project is not affiliated with or endorsed by Kunos.
