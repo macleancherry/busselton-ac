@@ -52,6 +52,7 @@
     "terrainUnderRoad": 0.12,
     "traceGuard": false,
     "traffic": true,
+    "aiKeepLeft": true,
     "origin": [
       115.34662,
       -33.64936

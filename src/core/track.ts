@@ -1733,7 +1733,7 @@ export async function buildTrack(
   }
   await progress("Writing track files");
   const kn5 = writeKn5(model);
-  const aiPoints = buildAiLine(plan);
+  const aiPoints = buildAiLine(plan, { keepLeft: opts.aiKeepLeft });
   // Busselton fork: the automatic test photographs each landmark it passes.
   const landmarkList = [
     ...(sources.landmarks ?? []),

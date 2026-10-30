@@ -130,6 +130,12 @@ export interface BuildOptions {
    * street in it drivable, not only the corridor round the route (see area.ts).
    */
   area?: [number, number][] | [number, number][][];
+  /**
+   * Busselton fork: the AI line keeps left, in the left lane a quarter of the road's width left of
+   * centre, centred on narrow streets and through roundabouts (keepLeft.ts). For town and country
+   * roads where AI and traffic share two-way streets; off for circuits.
+   */
+  aiKeepLeft?: boolean;
   /** Busselton fork: side streets count as track (IS_VALID_TRACK) rather than off it: for area builds and free roam. */
   streetsValid?: boolean;
   /** Busselton fork: this build is layout `layout` of a map with several (layouts.ts): its dummies, AI and data go in that layout's places. */

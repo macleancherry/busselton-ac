@@ -5,6 +5,7 @@ import type { AiPoint } from "./aiSpline";
 import { toAc } from "./mesh";
 import type { RoadPlan } from "./road";
 import { innerRadius, outerRadius } from "./roundabout";
+import { keepLeftOffsets } from "./keepLeft";
 
 const G = 9.81;
 const LATERAL_GRIP = 1.0; // g
@@ -60,11 +61,25 @@ function ringLine(plan: RoadPlan): { pos: [number, number][]; nearRing: boolean[
   return { pos, nearRing };
 }
 
-export function buildAiLine(plan: RoadPlan): AiPoint[] {
+export interface AiLineOptions {
+  /** Busselton fork: the line in the left lane, not down the middle (keepLeft.ts). */
+  keepLeft?: boolean;
+}
+
+export function buildAiLine(plan: RoadPlan, lineOpts: AiLineOptions = {}): AiPoint[] {
   const s = plan.samples;
   const n = s.length;
   const { pos, nearRing } = ringLine(plan);
-  const radius = s.map((p) => Math.min(1000, 1 / Math.max(1e-3, Math.abs(p.curvature))));
+  // Busselton fork: keep left, metres to the left of the centreline (0 = centred).
+  const off = lineOpts.keepLeft ? keepLeftOffsets(plan) : s.map(() => 0);
+  off.forEach((o, i) => {
+    if (o > 0) pos[i] = [pos[i][0] + s[i].left[0] * o, pos[i][1] + s[i].left[1] * o];
+  });
+  // A left-hand bend gets tighter by the offset, a right-hand one wider.
+  const radius = s.map((p, i) => {
+    const r = 1 / Math.max(1e-3, Math.abs(p.curvature));
+    return Math.min(1000, Math.max(1, r - Math.sign(p.curvature) * off[i]));
+  });
   const seg = s.map((p, i) => {
     if (!plan.closed && i === n - 1) return 0;
     const j = (i + 1) % n;
@@ -104,8 +119,8 @@ export function buildAiLine(plan: RoadPlan): AiPoint[] {
       radius: radius[i],
       // The AI keeps within these: a metre short of each edge, so it doesn't clip the kerbs
       // (a 15 cm kerb stops a low race car, and it can't climb back on).
-      sideLeft: nearRing[i] ? RING_SIDE : Math.max(1, p.width / 2 - KERB_CLEARANCE),
-      sideRight: nearRing[i] ? RING_SIDE : Math.max(1, p.width / 2 - KERB_CLEARANCE),
+      sideLeft: nearRing[i] ? RING_SIDE : Math.max(1, p.width / 2 - off[i] - KERB_CLEARANCE),
+      sideRight: nearRing[i] ? RING_SIDE : Math.max(1, p.width / 2 + off[i] - KERB_CLEARANCE),
       camber: bankAngle,
       direction: p.bank >= 0 ? 1 : -1,
       normal: [0, 1, 0],

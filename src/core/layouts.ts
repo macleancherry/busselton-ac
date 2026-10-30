@@ -257,7 +257,7 @@ export function layoutFiles(world: World, layout: LayoutSpec, trackObjects: (pla
     plan.samples.forEach((s, i) => { s.h = hs[i]; s.bank = 0; });
     closed = plan.closed;
     length = plan.length;
-    const ai = keepOnSurface(buildAiLine(plan), height);
+    const ai = keepOnSurface(buildAiLine(plan, { keepLeft: opts.aiKeepLeft }), height);
     files[`${base}/ai/fast_lane.ai`] = writeFastLaneAi(ai);
     // Speed limits from the street each stretch is on (the world's), so the AI drives a town street
     // at 50 rather than at the grip limit.

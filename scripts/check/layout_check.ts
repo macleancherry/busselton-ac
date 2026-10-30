@@ -1,12 +1,17 @@
 // Checks a map with several layouts: every layout's spawn and timing dummies and its AI line sit on
 // the shared world's road surface.
-//   npx tsx scripts/check/layout_check.ts out/<slug>.zip [--where]
-// Exits non-zero if a spawn is off the road, or more than 2% of an AI line is.
+//   npx tsx scripts/check/layout_check.ts out/<slug>.zip [--where] [--keep-left]
+// Exits non-zero if a spawn is off the road, or more than 2% of an AI line is, or a keep-left line
+// (aiKeepLeft: one with more room on its right than its left; every line with --keep-left) has under
+// 90% of the points where the road's middle can be told on its left half (keepLeft.ts).
 import { readFileSync } from "node:fs";
 import { unzipSync } from "fflate";
 import { readKn5, type Kn5GroupNode } from "../../src/core/kn5";
 import { surfaceHeight } from "../../src/core/layouts";
 import { readFastLaneAi } from "../../src/core/aiSpline";
+import { keepLeftShare } from "../../src/core/keepLeft";
+
+const forceKeepLeft = process.argv.includes("--keep-left");
 
 const files = unzipSync(new Uint8Array(readFileSync(process.argv[2])));
 const slug = Object.keys(files)[0].split("/")[0];
@@ -51,6 +56,15 @@ for (const id of layouts) {
     }
     line += `; AI line ${pts.length} points, ${(100 * miss / pts.length).toFixed(1)}% off the road, worst height gap ${worst.toFixed(2)} m`;
     if (miss / pts.length > 0.02) bad++;
+    // Keep left: built that way (more room right than left on a good share of the line) or asked for.
+    const asym = pts.filter((p) => p.sideRight - p.sideLeft >= 0.5).length / pts.length;
+    if (forceKeepLeft || asym > 0.2) {
+      const k = keepLeftShare(pts, height);
+      line += `; keep left: ${(100 * k.share).toFixed(0)}% of ${k.measured} measured points on the left half`;
+      if (k.worst && k.share < 1) line += ` (furthest right around x ${k.worst[0].toFixed(0)} z ${k.worst[1].toFixed(0)})`;
+      if (forceKeepLeft && asym <= 0.2) { line += ", but the line is centred (built without aiKeepLeft)"; bad++; }
+      else if (k.measured >= 20 && k.share < 0.9) bad++;
+    }
   } else {
     line += "; no AI line";
   }
