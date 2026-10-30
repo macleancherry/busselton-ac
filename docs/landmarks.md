@@ -22,11 +22,11 @@ Status: ✅ built · 📝 described · 📷 gathering photos · ⬜ to do
 | 10 | Foreshore cafes: Kyst, Sandbox | Foreshore | ✅ ([description](landmarks/foreshore_cafes.md)) |
 | 11 | Geographe Bay Yacht Club | Geographe Bay Rd | ✅ ([description](landmarks/yacht_club.md)) |
 | 12 | Orana Cinemas | Albert St | ✅ ([description](landmarks/orana_cinemas.md)) |
-| 13 | The Tav, the Ship Inn, the Banksia Tavern | Town centre | ⬜ |
+| 13 | The Tav, the Ship Inn, the Banksia Tavern | Town centre | ✅ ([descriptions](landmarks/the_tav.md), [Ship Inn](landmarks/ship_inn.md), [Banksia](landmarks/banksia_tavern.md)) |
 | 14 | Busselton Pioneer Cemetery | Marine Tce | ✅ ([description](landmarks/pioneer_cemetery.md)) |
 | 15 | Busselton Volunteer Fire and Rescue station | Town centre | ✅ ([description](landmarks/fire_station.md)) |
-| 16 | Busselton Bowling Club, Churchill Park, Barnard Park | East of the jetty | ⬜ |
-| 17 | Victoria Square, Mitchell Park, the Japanese Friendship Garden | Town centre | ⬜ |
+| 16 | Busselton Bowling Club, Churchill Park, Barnard Park | East of the jetty | ✅ bowling club; Churchill and Barnard specced, outside the built area |
+| 17 | Victoria Square, Mitchell Park, the Japanese Friendship Garden | Town centre | ✅ |
 | 18 | Kookaburra Caravan Park | Marine Tce | ⬜ |
 | 19 | St Mary's Anglican Church (1845, the oldest stone church in WA) and bell tower | Queen St and Peel Tce | ✅ ([description](landmarks/st_marys.md)) |
 

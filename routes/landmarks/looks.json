@@ -171,6 +171,42 @@
    "specFile": "routes/landmarks/japanese_friendship_garden.json",
    "name": "Japanese Friendship Garden gate",
    "facing": 168
+  },
+  {
+   "at": [
+    115.345288,
+    -33.651794
+   ],
+   "specFile": "routes/landmarks/the_tav.json",
+   "name": "The Tav (Vasse Tavern)",
+   "facing": 256
+  },
+  {
+   "at": [
+    115.341789,
+    -33.652997
+   ],
+   "specFile": "routes/landmarks/ship_inn.json",
+   "name": "The Ship Inn",
+   "facing": 0
+  },
+  {
+   "at": [
+    115.341955,
+    -33.652897
+   ],
+   "specFile": "routes/landmarks/ship_inn_stables.json",
+   "name": "The Ship Inn (stables wing)",
+   "facing": 350
+  },
+  {
+   "at": [
+    115.345327,
+    -33.650686
+   ],
+   "specFile": "routes/landmarks/banksia_tavern.json",
+   "name": "The Banksia Tavern",
+   "facing": 170
   }
  ]
 }

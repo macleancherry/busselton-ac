@@ -1,0 +1,628 @@
+{
+ "note": "The Tav: the Vasse Tavern, 44 Queen Street, Busselton, in the old Vasse Hotel (1906, heavily rebuilt 2002-03), on the north-east corner of Queen and Albert Streets. From the Landgate aerial (Oct 2026), a 2019 street photo and a recent photo of the Queen Street front. Two-storey painted brick hotel, hipped pale roofs behind a cream parapet with VASSE HOTEL lettering, navy ground floor under a deep grey awning on navy posts along Queen Street, and a two-storey navy verandah down the Albert Street side. Signs are plain lettering only, no logos. Metres: x left to right as seen from Queen Street (north to south), y back from the awning edge (east).",
+ "wallHeight": 7.2,
+ "setback": 0.3,
+ "road": {
+  "width": 9,
+  "verge": 0.4
+ },
+ "lawn": "#8a8f5a",
+ "sunFrom": [
+  -0.9,
+  -0.45,
+  1.1
+ ],
+ "cameras": {
+  "street": {
+   "eye": [
+    12,
+    -16,
+    1.7
+   ],
+   "look": [
+    18,
+    6,
+    4.5
+   ],
+   "lens": 22
+  },
+  "corner": {
+   "eye": [
+    46,
+    -12,
+    1.7
+   ],
+   "look": [
+    26,
+    8,
+    4.5
+   ],
+   "lens": 22
+  },
+  "aerial": {
+   "eye": [
+    52,
+    -30,
+    30
+   ],
+   "look": [
+    17,
+    11,
+    2
+   ],
+   "lens": 30
+  }
+ },
+ "walls": {
+  "kind": "render",
+  "colour": "#ece8dc"
+ },
+ "finishes": {
+  "navy": {
+   "kind": "render",
+   "colour": "#3b4763"
+  },
+  "cream": {
+   "kind": "render",
+   "colour": "#eee2c2"
+  }
+ },
+ "trim": "#f2efe6",
+ "roof": {
+  "pitch": 25,
+  "colour": "#d6d8d5",
+  "eaves": 0.3
+ },
+ "blocks": [
+  {
+   "name": "north",
+   "x0": 0.3,
+   "x1": 8.5,
+   "y0": 2.8,
+   "y1": 23.5,
+   "roof": "hip",
+   "wallHeight": 7.2,
+   "eaves": 0.2
+  },
+  {
+   "name": "middle",
+   "x0": 8.5,
+   "x1": 33.4,
+   "y0": 2.8,
+   "y1": 16.5,
+   "roof": "hip",
+   "wallHeight": 7.2,
+   "eaves": 0.2
+  }
+ ],
+ "panels": [
+  {
+   "x0": 0.3,
+   "x1": 33.4,
+   "y0": 2.5999999999999996,
+   "y1": 3.05,
+   "z0": 7.2,
+   "z1": 8.3,
+   "walls": "cream"
+  },
+  {
+   "x0": 0.2,
+   "x1": 33.5,
+   "y0": 2.48,
+   "y1": 2.65,
+   "z0": 7.05,
+   "z1": 7.3,
+   "walls": "cream"
+  },
+  {
+   "x0": 0.2,
+   "x1": 33.5,
+   "y0": 2.48,
+   "y1": 2.65,
+   "z0": 8.2,
+   "z1": 8.4,
+   "walls": "cream"
+  },
+  {
+   "x0": 0.3,
+   "x1": 0.8,
+   "y0": 2.5,
+   "y1": 2.8,
+   "z0": 3.4,
+   "z1": 8.6,
+   "walls": "cream"
+  },
+  {
+   "x0": 5.6,
+   "x1": 6.1,
+   "y0": 2.5,
+   "y1": 2.8,
+   "z0": 3.4,
+   "z1": 8.6,
+   "walls": "cream"
+  },
+  {
+   "x0": 11.0,
+   "x1": 11.5,
+   "y0": 2.5,
+   "y1": 2.8,
+   "z0": 3.4,
+   "z1": 8.6,
+   "walls": "cream"
+  },
+  {
+   "x0": 22.6,
+   "x1": 23.1,
+   "y0": 2.5,
+   "y1": 2.8,
+   "z0": 3.4,
+   "z1": 8.6,
+   "walls": "cream"
+  },
+  {
+   "x0": 28.0,
+   "x1": 28.5,
+   "y0": 2.5,
+   "y1": 2.8,
+   "z0": 3.4,
+   "z1": 8.6,
+   "walls": "cream"
+  },
+  {
+   "x0": 33.0,
+   "x1": 33.5,
+   "y0": 2.5,
+   "y1": 2.8,
+   "z0": 3.4,
+   "z1": 8.6,
+   "walls": "cream"
+  },
+  {
+   "x0": 13.2,
+   "x1": 20.6,
+   "y0": 2.5799999999999996,
+   "y1": 2.75,
+   "z0": 3.4,
+   "z1": 7.0,
+   "walls": "navy"
+  },
+  {
+   "x0": 13.2,
+   "x1": 20.6,
+   "y0": 2.5999999999999996,
+   "y1": 3.0,
+   "z0": 8.3,
+   "z1": 9.1,
+   "walls": "cream"
+  },
+  {
+   "x0": 0.3,
+   "x1": 33.4,
+   "y0": 2.7399999999999998,
+   "y1": 2.8,
+   "z0": 0,
+   "z1": 3.4,
+   "walls": "navy"
+  },
+  {
+   "x0": 33.4,
+   "x1": 33.46,
+   "y0": 2.8,
+   "y1": 16.5,
+   "z0": 0,
+   "z1": 3.4,
+   "walls": "navy"
+  },
+  {
+   "x0": 36.82,
+   "x1": 37.0,
+   "y0": 0.010000000000000009,
+   "y1": 0.19,
+   "z0": 0,
+   "z1": 7.15,
+   "walls": "navy"
+  },
+  {
+   "x0": 36.82,
+   "x1": 37.0,
+   "y0": 3.91,
+   "y1": 4.09,
+   "z0": 0,
+   "z1": 7.15,
+   "walls": "navy"
+  },
+  {
+   "x0": 36.82,
+   "x1": 37.0,
+   "y0": 8.11,
+   "y1": 8.29,
+   "z0": 0,
+   "z1": 7.15,
+   "walls": "navy"
+  },
+  {
+   "x0": 36.82,
+   "x1": 37.0,
+   "y0": 12.31,
+   "y1": 12.49,
+   "z0": 0,
+   "z1": 7.15,
+   "walls": "navy"
+  },
+  {
+   "x0": 36.82,
+   "x1": 37.0,
+   "y0": 16.21,
+   "y1": 16.39,
+   "z0": 0,
+   "z1": 7.15,
+   "walls": "navy"
+  },
+  {
+   "x0": 35.10999999999999,
+   "x1": 35.29,
+   "y0": 0.0,
+   "y1": 0.18,
+   "z0": 0,
+   "z1": 7.15,
+   "walls": "navy"
+  },
+  {
+   "x0": 36.92,
+   "x1": 37.0,
+   "y0": 0.0,
+   "y1": 16.5,
+   "z0": 3.5,
+   "z1": 4.5,
+   "walls": "navy"
+  },
+  {
+   "x0": 33.4,
+   "x1": 37.0,
+   "y0": 0.0,
+   "y1": 0.08,
+   "z0": 3.5,
+   "z1": 4.5,
+   "walls": "navy"
+  }
+ ],
+ "awnings": [
+  {
+   "x0": 0.3,
+   "x1": 33.4,
+   "y0": 0.0,
+   "y1": 2.8,
+   "z": 3.4,
+   "thickness": 0.25,
+   "colour": "#8f9599",
+   "posts": [
+    0.6,
+    4.8,
+    9.0,
+    13.2,
+    17.4,
+    21.6,
+    25.8,
+    30.0
+   ]
+  },
+  {
+   "x0": 33.4,
+   "x1": 37.0,
+   "y0": 0.0,
+   "y1": 16.5,
+   "z": 3.5,
+   "thickness": 0.3,
+   "colour": "#3b4763"
+  },
+  {
+   "x0": 33.4,
+   "x1": 37.2,
+   "y0": -0.2,
+   "y1": 16.5,
+   "z": 7.3,
+   "thickness": 0.15,
+   "colour": "#9aa7b4"
+  }
+ ],
+ "doors": [
+  {
+   "type": "front",
+   "x0": 15.2,
+   "x1": 16.8,
+   "y": 2.8,
+   "height": 2.4,
+   "z0": 0.0,
+   "colour": "#6b4a32"
+  },
+  {
+   "type": "front",
+   "x0": 18.0,
+   "x1": 19.6,
+   "y": 2.8,
+   "height": 2.4,
+   "z0": 0.0,
+   "colour": "#6b4a32"
+  }
+ ],
+ "windows": [
+  {
+   "facing": "front",
+   "wall": 2.8,
+   "at": 2.2,
+   "width": 1.0,
+   "height": 1.6,
+   "sill": 4.4
+  },
+  {
+   "facing": "front",
+   "wall": 2.8,
+   "at": 4.1,
+   "width": 1.0,
+   "height": 1.6,
+   "sill": 4.4
+  },
+  {
+   "facing": "front",
+   "wall": 2.8,
+   "at": 7.2,
+   "width": 1.0,
+   "height": 1.6,
+   "sill": 4.4
+  },
+  {
+   "facing": "front",
+   "wall": 2.8,
+   "at": 9.4,
+   "width": 1.0,
+   "height": 1.6,
+   "sill": 4.4
+  },
+  {
+   "facing": "front",
+   "wall": 2.8,
+   "at": 12.0,
+   "width": 1.0,
+   "height": 1.6,
+   "sill": 4.4
+  },
+  {
+   "facing": "front",
+   "wall": 2.8,
+   "at": 21.8,
+   "width": 1.0,
+   "height": 1.6,
+   "sill": 4.4
+  },
+  {
+   "facing": "front",
+   "wall": 2.8,
+   "at": 25.0,
+   "width": 1.0,
+   "height": 1.6,
+   "sill": 4.4
+  },
+  {
+   "facing": "front",
+   "wall": 2.8,
+   "at": 27.0,
+   "width": 1.0,
+   "height": 1.6,
+   "sill": 4.4
+  },
+  {
+   "facing": "front",
+   "wall": 2.8,
+   "at": 30.0,
+   "width": 1.0,
+   "height": 1.6,
+   "sill": 4.4
+  },
+  {
+   "facing": "front",
+   "wall": 2.8,
+   "at": 31.9,
+   "width": 1.0,
+   "height": 1.6,
+   "sill": 4.4
+  },
+  {
+   "facing": "front",
+   "wall": 2.8,
+   "at": 2.8,
+   "width": 2.4,
+   "height": 2.0,
+   "sill": 0.6
+  },
+  {
+   "facing": "front",
+   "wall": 2.8,
+   "at": 7.0,
+   "width": 2.4,
+   "height": 2.0,
+   "sill": 0.6
+  },
+  {
+   "facing": "front",
+   "wall": 2.8,
+   "at": 10.0,
+   "width": 2.4,
+   "height": 2.0,
+   "sill": 0.6
+  },
+  {
+   "facing": "front",
+   "wall": 2.8,
+   "at": 23.5,
+   "width": 2.4,
+   "height": 2.0,
+   "sill": 0.6
+  },
+  {
+   "facing": "front",
+   "wall": 2.8,
+   "at": 26.8,
+   "width": 2.4,
+   "height": 2.0,
+   "sill": 0.6
+  },
+  {
+   "facing": "front",
+   "wall": 2.8,
+   "at": 30.2,
+   "width": 2.4,
+   "height": 2.0,
+   "sill": 0.6
+  },
+  {
+   "facing": "right",
+   "wall": 33.4,
+   "at": 5.0,
+   "width": 1.0,
+   "height": 1.6,
+   "sill": 4.4
+  },
+  {
+   "facing": "right",
+   "wall": 33.4,
+   "at": 5.0,
+   "width": 1.6,
+   "height": 1.9,
+   "sill": 0.6
+  },
+  {
+   "facing": "right",
+   "wall": 33.4,
+   "at": 8.5,
+   "width": 1.0,
+   "height": 1.6,
+   "sill": 4.4
+  },
+  {
+   "facing": "right",
+   "wall": 33.4,
+   "at": 8.5,
+   "width": 1.6,
+   "height": 1.9,
+   "sill": 0.6
+  },
+  {
+   "facing": "right",
+   "wall": 33.4,
+   "at": 12.0,
+   "width": 1.0,
+   "height": 1.6,
+   "sill": 4.4
+  },
+  {
+   "facing": "right",
+   "wall": 33.4,
+   "at": 12.0,
+   "width": 1.6,
+   "height": 1.9,
+   "sill": 0.6
+  },
+  {
+   "facing": "right",
+   "wall": 33.4,
+   "at": 15.0,
+   "width": 1.0,
+   "height": 1.6,
+   "sill": 4.4
+  },
+  {
+   "facing": "right",
+   "wall": 33.4,
+   "at": 15.0,
+   "width": 1.6,
+   "height": 1.9,
+   "sill": 0.6
+  }
+ ],
+ "paving": [
+  {
+   "x0": 0.0,
+   "y0": 0.0,
+   "x1": 37.2,
+   "y1": 2.8,
+   "colour": "#c4c0b6",
+   "kind": "concrete"
+  },
+  {
+   "x0": 33.4,
+   "y0": 2.8,
+   "x1": 37.2,
+   "y1": 16.5,
+   "colour": "#c4c0b6",
+   "kind": "concrete"
+  }
+ ],
+ "tables": [
+  {
+   "x": 2.5,
+   "y": 1.5,
+   "length": 1.2,
+   "colour": "#e6e6e3"
+  },
+  {
+   "x": 6.0,
+   "y": 1.5,
+   "length": 1.2,
+   "colour": "#e6e6e3"
+  },
+  {
+   "x": 9.5,
+   "y": 1.5,
+   "length": 1.2,
+   "colour": "#e6e6e3"
+  },
+  {
+   "x": 23.0,
+   "y": 1.5,
+   "length": 1.2,
+   "colour": "#e6e6e3"
+  },
+  {
+   "x": 26.5,
+   "y": 1.5,
+   "length": 1.2,
+   "colour": "#e6e6e3"
+  },
+  {
+   "x": 30.0,
+   "y": 1.5,
+   "length": 1.2,
+   "colour": "#e6e6e3"
+  }
+ ],
+ "signs": [
+  {
+   "x0": 13.6,
+   "x1": 20.2,
+   "y": 2.5,
+   "z0": 7.45,
+   "z1": 8.15,
+   "text": "VASSE HOTEL",
+   "colour": "#eee2c2",
+   "ink": "#3b4763"
+  },
+  {
+   "x0": 13.6,
+   "x1": 20.2,
+   "y": -0.12,
+   "z0": 3.45,
+   "z1": 4.05,
+   "text": "VASSE TAVERN",
+   "colour": "#3b4763",
+   "ink": "#f2efe6"
+  }
+ ],
+ "trees": [
+  {
+   "x": 21.0,
+   "y": -1.0,
+   "height": 6.5,
+   "spread": 3.5
+  }
+ ]
+}

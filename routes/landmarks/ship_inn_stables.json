@@ -1,0 +1,287 @@
+{
+ "note": "The Ship Inn's east wing on Albert Street: the old limestone stables (probably 1840s, from George Guerrier's first Ship Inn), now part of the pub. From the Landgate aerial (Oct 2026), 2019 street photos and the inHerit record. Steep grey corrugated gable roof with its ridge along the street, a bare limestone gable end facing east, the street wall painted white with a steep cross gable (white barges, a small vent window) and a bracketed skillion verandah. East of it, a dark timber gabled pergola over the beer garden gate and a low limestone wall. Metres: x left to right as seen from Albert Street (east to west), y back from the verandah edge.",
+ "wallHeight": 3.0,
+ "setback": 0.4,
+ "road": {
+  "width": 14,
+  "verge": 2.3
+ },
+ "lawn": "#8a8f5a",
+ "sunFrom": [
+  0.4,
+  -0.9,
+  1.2
+ ],
+ "cameras": {
+  "street": {
+   "eye": [
+    -16,
+    -10,
+    1.7
+   ],
+   "look": [
+    6,
+    4,
+    3.0
+   ],
+   "lens": 24
+  },
+  "aerial": {
+   "eye": [
+    -18,
+    -24,
+    18
+   ],
+   "look": [
+    5,
+    4,
+    1.5
+   ],
+   "lens": 30
+  }
+ },
+ "walls": {
+  "kind": "render",
+  "colour": "#cdb68c"
+ },
+ "finishes": {
+  "white": {
+   "kind": "render",
+   "colour": "#efefeb"
+  },
+  "dark": {
+   "kind": "cladding",
+   "colour": "#4a4c4e"
+  }
+ },
+ "trim": "#f3f3f0",
+ "roof": {
+  "pitch": 42,
+  "colour": "#b9bcbc",
+  "eaves": 0.3
+ },
+ "blocks": [
+  {
+   "name": "stables",
+   "x0": 0.0,
+   "x1": 12.7,
+   "y0": 1.5,
+   "y1": 8.0,
+   "roof": "gable",
+   "wallHeight": 3.0
+  },
+  {
+   "name": "cross_gable",
+   "x0": 2.7,
+   "x1": 8.3,
+   "y0": 0.6,
+   "y1": 6.5,
+   "roof": "gable",
+   "wallHeight": 3.0,
+   "walls": "white"
+  }
+ ],
+ "panels": [
+  {
+   "x0": 0.0,
+   "x1": 12.7,
+   "y0": 1.46,
+   "y1": 1.52,
+   "z0": 0.0,
+   "z1": 3.0,
+   "walls": "white"
+  },
+  {
+   "x0": 12.0,
+   "x1": 12.7,
+   "y0": 1.5,
+   "y1": 8.0,
+   "z0": 0.0,
+   "z1": 3.0,
+   "walls": "white"
+  }
+ ],
+ "pediments": [
+  {
+   "x0": -4.6,
+   "x1": -0.6,
+   "y": 0.2,
+   "z": 2.7,
+   "height": 1.5,
+   "walls": "dark"
+  }
+ ],
+ "verandahs": [
+  {
+   "x0": 0.0,
+   "x1": 2.7,
+   "y0": 0.0,
+   "y1": 1.5,
+   "wallHeight": 3.0,
+   "height": 2.55,
+   "deckHeight": 0.04,
+   "posts": []
+  },
+  {
+   "x0": 8.3,
+   "x1": 12.7,
+   "y0": 0.0,
+   "y1": 1.5,
+   "wallHeight": 3.0,
+   "height": 2.55,
+   "deckHeight": 0.04,
+   "posts": []
+  }
+ ],
+ "doors": [
+  {
+   "type": "front",
+   "x0": 8.8,
+   "x1": 9.7,
+   "y": 1.5,
+   "height": 2.2,
+   "z0": 0.05,
+   "colour": "#3a2f28"
+  }
+ ],
+ "windows": [
+  {
+   "facing": "front",
+   "wall": 0.6,
+   "at": 5.5,
+   "width": 0.8,
+   "height": 0.6,
+   "sill": 3.7
+  },
+  {
+   "facing": "front",
+   "wall": 0.6,
+   "at": 5.5,
+   "width": 1.6,
+   "height": 1.7,
+   "sill": 0.8
+  },
+  {
+   "facing": "front",
+   "wall": 1.5,
+   "at": 1.4,
+   "width": 0.9,
+   "height": 1.6,
+   "sill": 0.9
+  },
+  {
+   "facing": "front",
+   "wall": 1.5,
+   "at": 10.0,
+   "width": 0.9,
+   "height": 1.6,
+   "sill": 0.9
+  },
+  {
+   "facing": "front",
+   "wall": 1.5,
+   "at": 11.6,
+   "width": 0.9,
+   "height": 1.6,
+   "sill": 0.9
+  },
+  {
+   "facing": "left",
+   "wall": 0.0,
+   "at": 4.8,
+   "width": 0.9,
+   "height": 1.0,
+   "sill": 3.4
+  }
+ ],
+ "fences": [
+  {
+   "x0": -12.0,
+   "y0": 0.1,
+   "x1": -4.6,
+   "y1": 0.5,
+   "height": 0.8,
+   "colour": "#cdb68c",
+   "kind": "concrete"
+  },
+  {
+   "x0": -12.0,
+   "y0": 0.3,
+   "x1": -4.6,
+   "y1": 0.32,
+   "height": 1.5,
+   "colour": "#1f2022",
+   "open": true
+  }
+ ],
+ "paving": [
+  {
+   "x0": -12.0,
+   "y0": -2.6,
+   "x1": 13.0,
+   "y1": 0.1,
+   "colour": "#9b5a48",
+   "kind": "brick"
+  }
+ ],
+ "sails": [
+  {
+   "pts": [
+    [
+     -4.6,
+     0.2,
+     2.7
+    ],
+    [
+     -2.5999999999999996,
+     0.2,
+     4.2
+    ],
+    [
+     -2.5999999999999996,
+     5.2,
+     4.2
+    ],
+    [
+     -4.6,
+     5.2,
+     2.7
+    ]
+   ],
+   "colour": "#4a4c4e"
+  },
+  {
+   "pts": [
+    [
+     -2.5999999999999996,
+     0.2,
+     4.2
+    ],
+    [
+     -0.6,
+     0.2,
+     2.7
+    ],
+    [
+     -0.6,
+     5.2,
+     2.7
+    ],
+    [
+     -2.5999999999999996,
+     5.2,
+     4.2
+    ]
+   ],
+   "colour": "#4a4c4e"
+  }
+ ],
+ "trees": [
+  {
+   "x": -8.0,
+   "y": 4.0,
+   "height": 8.0,
+   "spread": 5.0
+  }
+ ]
+}
