@@ -63,6 +63,33 @@
    "specFile": "routes/landmarks/the_goose.json",
    "name": "The Goose",
    "facing": 166
+  },
+  {
+   "at": [
+    115.343434,
+    -33.645187
+   ],
+   "specFile": "routes/landmarks/foreshore_cafes.json",
+   "name": "Kyst and Sandbox",
+   "facing": 205
+  },
+  {
+   "at": [
+    115.344074,
+    -33.644993
+   ],
+   "specFile": "routes/landmarks/sea_play.json",
+   "name": "Sea Play on the Bay",
+   "facing": 166
+  },
+  {
+   "at": [
+    115.3428445,
+    -33.645035
+   ],
+   "specFile": "routes/landmarks/transition.json",
+   "name": "Transition",
+   "facing": 255
   }
  ]
 }
