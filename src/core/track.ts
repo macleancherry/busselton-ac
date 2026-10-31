@@ -65,7 +65,7 @@ import { dressBuilding, FACADES, facadeTexture, ROOF_COLOURS, roofTexture } from
 import { facadeForLook, facadeForStyle } from "./houseLooks";
 import { buildSpecHouse, type HouseSpec } from "./specHouse";
 import { surfaceTexture } from "./surfaceTextures";
-import { GRAVEL_MATERIAL, gravelTexture, isUnsealed, unsealedSamples } from "./unsealed";
+import { GRAVEL_MATERIAL, gravelTexture, isUnsealed, surfaceKeyFor, unsealedSamples } from "./unsealed";
 import { material, nmMaterial } from "./materials";
 export { material, nmMaterial };
 import { landmarkShots } from "./landmarkShots";
@@ -89,9 +89,12 @@ import { carParkLights, placeUtilities } from "./utilities";
 import { buildVergeConcrete, laybacks, letterboxes, readVerge } from "./footpaths";
 import { findLines, paintCandidates, type ImageLine } from "./paintLines";
 import { applyTrace, displayOf, traceRoad, type RasterSampler, type TraceResult } from "./trace";
-import { buildSideStreets, LineIndex, traceSideStreets, planSideStreets, streetSurface, type StreetLine, type StreetName } from "./sideStreets";
+import { buildSideStreets, LineIndex, traceSideStreets, planSideStreets, streetSurface, type SideStreet, type StreetLine, type StreetName } from "./sideStreets";
 import { networkPreview } from "./network/preview";
 import { planJunctionCore, type JunctionCore } from "./network/phase1";
+import { planNetworkStreets } from "./network/phase2";
+import { isKerbedStreet, type GraphStreet } from "./network/streets";
+import { buildStreetMeshes, type MeshStreet } from "./network/streetMesh";
 
 /** Progress callback; a returned promise is awaited, which lets a UI repaint. */
 export type Progress = (stage: string, fraction?: number) => void | Promise<void>;
@@ -836,6 +839,19 @@ export async function buildTrack(
   const streetPlan = planSideStreets(
     opts.sideStreets ? sources.streets?.lines ?? [] : [], sources.streets?.names ?? [], plan, index, opts, proj, area,
   );
+  // Busselton fork: networkCore phase 2 (network/phase2.ts): in an area build the streets and their
+  // mouths come from the network's graph (divided roads as one road with a median) instead.
+  const netLines = opts.networkCore && area ? (sources.streets?.lines ?? []).map((l) => ({ ...l, pts: l.pts.map((p) => proj.toLocal(p)) })) : [];
+  const netRings = opts.networkCore && area ? (sources.osm?.roundaboutRings ?? []).map((r) => ({ pts: r.pts.map((p) => proj.toLocal(p)), lanes: r.lanes })) : [];
+  const routeRibbon = { samples: plan.samples, closed: plan.closed, length: plan.length, crown: opts.crown, nearest: (x: number, y: number, max: number) => index.nearest(x, y, max) };
+  const net2 = opts.networkCore && area && opts.sideStreets ? planNetworkStreets({
+    lines: netLines, rings: netRings, names: (sources.streets?.names ?? []).map((n) => ({ name: n.name, pts: n.pts.map((p) => proj.toLocal(p)) })),
+    route: routeRibbon, builtRings: plan.roundabouts, inArea: ([x, y]) => area.signed(x, y) < -3, corridor: opts.corridor, vergeWidth: opts.vergeWidth,
+  }) : null;
+  if (net2) {
+    streetPlan.streets = net2.streets as SideStreet[];
+    streetPlan.junctions = net2.mouths;
+  }
   // Busselton fork: an area build's streets away from the route get their own photo (one zoom level
   // coarser, to keep the download and memory down) so they're traced too, not left on OSM's line.
   let streetRaster = raster;
@@ -848,7 +864,8 @@ export async function buildTrack(
       streetRaster = Object.assign(both(raster, extra), { display: both(displayOf(raster), displayOf(extra)) });
     }
   }
-  const sideTraced = streetRaster && opts.traceRoads ? traceSideStreets(streetPlan.streets, streetRaster, opts, index) : 0;
+  // (Phase 2's streets keep the graph's lines: tracing that knows the junction caps is still to come.)
+  const sideTraced = streetRaster && opts.traceRoads && !net2 ? traceSideStreets(streetPlan.streets, streetRaster, opts, index) : 0;
   const streetIndex = new LineIndex(streetPlan.streets);
   // Busselton fork: networkCore (network/phase1.ts, planned below before the kerbs): junctions built
   // as one surface each take over their mouths, and the route inside them counts as a mouth.
@@ -1045,9 +1062,10 @@ export async function buildTrack(
   };
   if (opts.networkCore && area) {
     net = planJunctionCore({
-      lines: (sources.streets?.lines ?? []).map((l) => ({ ...l, pts: l.pts.map((p) => proj.toLocal(p)) })),
-      rings: (sources.osm?.roundaboutRings ?? []).map((r) => ({ pts: r.pts.map((p) => proj.toLocal(p)), lanes: r.lanes })),
-      route: { samples: plan.samples, closed: plan.closed, length: plan.length, crown: opts.crown, nearest: (x, y, max) => index.nearest(x, y, max) },
+      lines: netLines,
+      rings: netRings,
+      route: routeRibbon,
+      ...(net2 ? { graph: net2.graph } : {}),
       streets: streetPlan.streets,
       builtRings: plan.roundabouts,
       terrain: (x, y) => terrainAt(x, y).h,
@@ -1207,7 +1225,7 @@ export async function buildTrack(
         .map((x) => x.st)
       : [],
   );
-  const sideStreets = buildSideStreets(streetPlan.streets, plan, index, opts, net ? net.streetGround((x, y) => terrainAt(x, y).h) : (x, y) => terrainAt(x, y).h, (st, i) => {
+  const sideMaterial = (st: SideStreet, i: number): string | { material: string; perStreet: true } => {
     if (photoStreets.has(st) && st.traced && streetRaster) {
       const sub = st.traced.plan, conf = st.traced.conf;
       const name = `side_photo_${String(i).padStart(3, "0")}`;
@@ -1223,7 +1241,20 @@ export async function buildTrack(
     if (gravelOn && isUnsealed(st.surface, st.cls)) return gravelMaterial(i, st.width);
     const mid = st.pts[Math.floor(st.pts.length / 2)];
     return roadMaterial(i, st.width, { ...plan.samples[0], pos: mid });
-  }, net?.streetSkip);
+  };
+  // Busselton fork: networkCore phase 2's streets are meshed from the graph's plan with kerbs, medians
+  // and markings (network/streetMesh.ts), meeting the junctions' fields at their caps.
+  const netStreets = net2 && net ? (() => {
+    const jn = net;
+    return buildStreetMeshes(streetPlan.streets as MeshStreet[], {
+      ground: jn.streetGround((x, y) => terrainAt(x, y).h), lift: 0.1, skip: jn.streetSkip as (st: MeshStreet, s0: number, s1: number) => boolean,
+      joinZ: ([x, y]) => { const nr = index.nearest(x, y, 40); if (!nr) return null; const at = index.at(nr); return surfaceHeight({ ...plan.samples[nr.seg], h: at.h, bank: at.bank, width: at.width }, nr.t, opts.crown); },
+      clear: (p, si) => Math.min(jn.streetClear(p, new Set([si])), (() => { const nr = index.nearest(p[0], p[1], 30); return nr ? nr.dist - index.at(nr).width / 2 : Infinity; })()),
+      kerbed: (si) => opts.kerbs && !(gravelOn && isUnsealed(streetPlan.streets[si].surface, streetPlan.streets[si].cls)) && isKerbedStreet(streetPlan.streets[si] as GraphStreet),
+      markings: opts.markings, material: (si) => sideMaterial(streetPlan.streets[si], si), surfaceKey: (m) => surfaceKeyFor(m, false),
+    });
+  })() : null;
+  const sideStreets = netStreets ? netStreets.road : buildSideStreets(streetPlan.streets, plan, index, opts, net ? net.streetGround((x, y) => terrainAt(x, y).h) : (x, y) => terrainAt(x, y).h, sideMaterial, net?.streetSkip);
   const sampleNear = (sd: number) => plan.samples[Math.max(0, Math.min(plan.samples.length - 1, Math.round(sd / opts.spacing)))];
   // Markings read off the photo where the road was traced; generated elsewhere.
   let imageLines: ImageLine[] = [];
@@ -1312,9 +1343,11 @@ export async function buildTrack(
     routeKerb: (i, side) => kerbs[side === 1 ? 0 : 1][((i % nS) + nS) % nS],
     stripOut: opts.vergeWidth + STRIP_EXTRA, vergeWidth: opts.vergeWidth, markings: opts.markings,
     roadMaterial: (pj) => roadMaterial(pj.id, 4, { ...plan.samples[0], pos: pj.j.centre, kerb: [1, 1] }),
+    ...(netStreets ? { streetKerbed: (si: number) => netStreets.kerbed.has(si) } : {}),
   }) ?? null;
-  const netNodes = netMeshes ? [...netMeshes.road, ...netMeshes.dress] : [];
+  const netNodes = netMeshes ? [...netMeshes.road, ...netMeshes.dress, ...(netStreets?.dress ?? [])] : [];
   if (netMeshes) markings.push(...netMeshes.markings);
+  if (netStreets) markings.push(...netStreets.markings);
   // Busselton fork: kerbside parking bays and bike lanes (kerbside.ts).
   const kerbside = opts.markings && opts.kerbside
     ? kerbsideForTrack(plan, opts.sideStreets ? streetPlan.streets : [], index, opts, (x, y) => terrainAt(x, y).h, sources.osm?.kerbside ?? [], (p) => proj.toLocal(p), parkedSpots)

@@ -52,6 +52,9 @@ describe("networkCore in an area build", () => {
     expect(all.some((n) => /^1ROAD_J\d+$/.test(n))).toBe(true);
     expect(all.some((n) => /^1STREET_J\d+$/.test(n))).toBe(true);
     expect(all.some((n) => /^1GRASS_ISLAND_J\d+$/.test(n))).toBe(true);
+    // Phase 2: the streets come from the graph and are meshed with their kerbs (streetMesh.ts).
+    expect(all.some((n) => /^1KERB_S\d+(_T\d+)?$/.test(n))).toBe(true);
+    expect(all.some((n) => /^1STREET_\d+$/.test(n))).toBe(true);
     // The route is cut back to the junction's caps: some of its rows are covered.
     expect(built.plan.samples.some((s) => s.crown === 0)).toBe(true);
   });
