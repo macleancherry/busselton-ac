@@ -9,7 +9,6 @@ const REQUIRED: Record<string, unknown> = {
   banking: true,
   buildingRadius: 250,
   buildings: true,
-  carParkIslands: false,
   carParks: true,
   chunkSize: 200,
   corridor: 90,
@@ -70,8 +69,8 @@ const OPTIONAL = [
 const KNOWN = new Set([...Object.keys(REQUIRED), ...OPTIONAL]);
 
 describe("build options", () => {
-  it("has exactly the required fields (groundDetail, raceDress and sponsors deleted)", () => {
-    expect(Object.keys(REQUIRED)).toHaveLength(51);
+  it("has exactly the required fields (groundDetail, raceDress, sponsors and carParkIslands deleted)", () => {
+    expect(Object.keys(REQUIRED)).toHaveLength(50);
     expect(Object.keys(DEFAULT_OPTIONS).sort()).toEqual(Object.keys(REQUIRED).sort());
   });
 

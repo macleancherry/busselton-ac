@@ -141,8 +141,6 @@ export interface BuildOptions {
   /** On unless false (only with kerbside bays). */
   laneBayClear?: boolean;
   carParks: boolean;
-  /** Experimental car park islands. */
-  carParkIslands: boolean;
   parkedCars: boolean;
   /** On unless false. */
   parkedBays?: boolean;
@@ -229,7 +227,6 @@ const defaults: RequiredFields<BuildOptions> = {
   markings: true,
   kerbs: true,
   carParks: true,
-  carParkIslands: false,
   parkedCars: true,
 
   traffic: false,

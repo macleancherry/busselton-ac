@@ -10,7 +10,7 @@ Dresses each house's lot the way a WA suburban block looks from the street:
 2. Along the front boundary: nothing (common), a low limestone wall, a low brick wall, or a hedge, with a gap for the driveway.
 3. A mulch garden bed with shrubs along the front of the house, leaving the driveway and a path to the front door.
 
-Exports two geometry helpers used by tests and a shrub builder used by `track.ts` for car park island shrubs.
+Exports two geometry helpers and a shrub builder, used by tests (the car park island shrubs that also used `shrub` were deleted on 31 Oct).
 
 Coordinates are local metres, x east, y north, z up; mesh builders convert to AC axes when written (`MeshBuilder.toKn5`). Tests read AC positions: x, height, minus north.
 
@@ -23,7 +23,7 @@ Coordinates are local metres, x east, y north, z up; mesh builders convert to AC
 - `frontWall(b: Building): { ring: Vec2[]; k: number }`: the ring made counter-clockwise (reversed if its signed area is negative, otherwise the same array), and the index k of the front wall edge in it (edge k runs from `ring[k]` to `ring[(k+1) % n]`), or -1 if `b.front` is missing or matches no edge. Used by `test/houses.test.ts` (and internally). `buildings.ts` has its own private front-wall finder; see bug 2.
 - `footAlong(a: Vec2, b: Vec2, ground: HeightFn, tol = 0.01): { pts: Vec2[]; foot: number[] }`: see rule 9. Used by `test/lotsFoot.test.ts`.
 - `stepsAlong(a: Vec2, b: Vec2, step = 0.5): Vec2[]`: see rule 9. Exported, used only by `footAlong` today.
-- `shrub(mb: MeshBuilder, c: Vec2, size: number, species: 0 | 1, rot: number, ground: HeightFn): void`: see rule 12. `track.ts` calls it for car park island shrubs with a constant ground (`() => top`, the island's raised top), size 0.6 to 1.2, its own position seeds. Keep the argument order.
+- `shrub(mb: MeshBuilder, c: Vec2, size: number, species: 0 | 1, rot: number, ground: HeightFn): void`: see rule 12. Used inside the module and by `test/lots.test.ts`.
 
 Dependencies: `pointInRing`, `ringArea` (buildings), `ChunkedMesh` (mesh accumulator, `meshKit.ts`, re-exported from scenery), `pad` (3-digit zero padding), `SINK`, and from `houseTextures.ts`: `FENCE_COLOURS` (woodland, basalt, paperbark, in that order), `FENCE_PANEL` = 2.4 m, `FENCE_HEIGHT` = 1.8 m, `FRONT_WALL_REPEAT` = 2 m, `SHRUB_SPECIES` (two entries, each a u range in the shrub atlas: westringia 0 to 0.5, flowering 0.5 to 1).
 

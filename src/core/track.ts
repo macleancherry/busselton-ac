@@ -5,10 +5,10 @@
 import { buildPaths, footPathTexture, PATH_BLOCK, sharedPathTexture, type PathLine } from "./paths";
 import { TREE_SPECIES, treeSpeciesAtlas } from "./treeSprites";
 import { FENCE_COLOURS, fenceTexture, frontWallTexture, hedgeTexture, mulchTexture, shrubAtlas } from "./houseTextures";
-import { buildLots, shrub } from "./lots";
+import { buildLots } from "./lots";
 import { buildParkedCars, carSeat, carTexture, paintFor, TYRE_SINK } from "./parkedCars";
 import { buildShopfronts, findShopfronts, shopSignTexture, shopStats, shopWindowTexture, type SignDrawer } from "./shops";
-import { buildIslands, findIslands, footprintMask, lineMask, paintOutCars } from "./carpark";
+import { footprintMask, lineMask, paintOutCars } from "./carpark";
 import { trafficJson, type TrafficRoad } from "./traffic";
 import { townCentreFromMap, zoneRoads } from "./trafficZones";
 import autotestLua from "./lua/autotest.lua?raw";
@@ -32,7 +32,7 @@ import { outlinePng, previewPng, readme, slugify, streetMap, surfacesIni, trackM
 import type { HeightFn } from "./elevation";
 import { boundsOf, LocalProjection, type Bounds, type LngLat, type Vec2 } from "./geo";
 import { frameTransform, IDENTITY, writeKn5, type Kn5GroupNode, type Kn5Material, type Kn5MeshNode, type Kn5Model, type Kn5Node, type Kn5Texture } from "./kn5";
-import { MeshBuilder, toAc } from "./mesh";
+import { toAc } from "./mesh";
 import { withDefaults, type BuildOptions } from "./options";
 import { simplify } from "./polyline";
 import { applyElevation, inRoundabout, isLoop, planRoad, surfaceHeight, SegmentIndex, type RoadPlan, type RoadSample } from "./road";
@@ -58,7 +58,7 @@ import { buildBayPads, placeParked, type BayQuad, type PhotoCar, type PlacedCar 
 import { armcoNeeds, buildArmco } from "./armco";
 import { BARRIERS, barrierTexture, detailTexture, normalFromHeight, windowTexture, flatNormalTexture, groundDetail, groundMask, mapsTexture, paintTexture, sealTexture, type SealKind, garageTexture, grassTexture, concreteTexture, postTexture, railTexture, solidTexture, vergeTexture } from "./textures";
 import {
-  buildGuardRails, buildGuidePosts, buildTrees, treeTrunks, filterTrees, railNeeds, placeRandom, treeSpotsFromImagery, type TreeSpot,
+  buildGuardRails, buildGuidePosts, buildTrees, treeTrunks, filterTrees, railNeeds, treeSpotsFromImagery, type TreeSpot,
 } from "./scenery";
 import { buildBuildings, centroid, detectBuildings, filterBuildings, fromOsm, houseRoof, isRectangle, plainHouse, pointInRing, ringArea, usedFinishes, type Building } from "./buildings";
 import { dressBuilding, FACADES, facadeTexture, ROOF_COLOURS, roofTexture } from "./buildingStyles";
@@ -254,7 +254,7 @@ export interface TrackResult {
     streetSigns: number;
     signs: number;
     railMetres: number;
-    /** Parked cars painted out of the ground photo, and car park islands raised. */
+    /** Parked cars painted out of the ground photo. */
     carsPainted?: number;
     parkedCars?: number;
     /** Busselton fork: parked cars the last pass dropped (parkedClear.ts), by what they touched. */
@@ -271,6 +271,7 @@ export interface TrackResult {
     shops?: number;
     verandahs?: number;
     shopNames?: number;
+    /** Never set (car park islands were deleted); the old browser UI still reads it, so it goes with the UI. */
     carParkIslands?: number;
   };
 }
@@ -664,7 +665,6 @@ export async function buildTrack(
     ? (sources.streets?.lines ?? []).filter((l) => /^(service|parking_aisle)/.test(l.cls)).map((l) => l.pts.map((p) => proj.toLocal(p)))
     : [];
   const osmRings = opts.carParks ? (sources.osm?.buildings ?? []).map((b) => b.ring.map((p) => proj.toLocal(p))) : [];
-  const islandsFound: { chunk: TerrainChunk; rings: Vec2[][] }[] = [];
   const photos: Parameters<typeof chunkPhotoSampler>[0] = [];
 
   const textured = new Set<string>();
@@ -683,7 +683,7 @@ export async function buildTrack(
       await progress("Fetching aerial imagery", done / jobs.length);
       const img = await sources.imagery(proj, job.chunk, job.zoom, job.size);
       if (!img) continue;
-      // Busselton fork: parked cars painted out of the ground photo, and the car parks' planted islands found in it.
+      // Busselton fork: parked cars painted out of the ground photo.
       const span = job.chunk.maxX - job.chunk.minX;
       let clean: ReturnType<typeof paintOutCars> | null = null;
       if (opts.carParks && img.rgba && job.prefix === "terrain") {
@@ -710,8 +710,6 @@ export async function buildTrack(
             });
           }
         }
-        const rings = opts.carParkIslands ? findIslands(clean.rgba, job.size, job.chunk) : [];
-        if (rings.length) islandsFound.push({ chunk: job.chunk, rings });
       }
       if (photoSea && img.rgba && sea.near((job.chunk.minX + job.chunk.maxX) / 2, (job.chunk.minY + job.chunk.maxY) / 2, (job.chunk.maxX - job.chunk.minX) * 0.71)) seaPhotos.push({ chunk: job.chunk, rgba: img.rgba, size: job.size });
       const toned = beachLook && (clean?.rgba ?? img.rgba) ? beachLook.tone(job.chunk, (clean?.rgba ?? img.rgba)!, job.size) : null;
@@ -1689,7 +1687,6 @@ export async function buildTrack(
   let bayQuads: BayQuad[] = [];
   const placedParked = opts.parkedBays !== false ? (() => {
     const through = new LineIndex(streetPlan.streets.filter((st) => !/^(parking_aisle|driveway|drive-through)$/.test(st.service ?? "")));
-    const islandRings = islandsFound.flatMap((f) => f.rings);
     return placeParked(parkedSpots, {
       aisles: parkingLines.length
         ? (sources.streets?.lines ?? []).filter((l) => l.service === "parking_aisle").map((l) => ({ pts: l.pts.map((p) => proj.toLocal(p)), width: 6 }))
@@ -1701,7 +1698,7 @@ export async function buildTrack(
         if (n && n.dist < index.at(n).width / 2 + 0.3) return true;
         if (plan.roundabouts.some((rb) => Math.hypot(x - rb.c[0], y - rb.c[1]) < outerRadius(rb) + 0.5)) return true;
         if (!kerb && through.clearance(x, y) < 0.2) return true;
-        return shown.some((b) => pointInRing(x, y, b.ring)) || islandRings.some((r) => pointInRing(x, y, r));
+        return shown.some((b) => pointInRing(x, y, b.ring));
       },
     });
   })() : null;
@@ -1731,39 +1728,6 @@ export async function buildTrack(
   // The base's ground for a footprint is the mesh's (ground.forRing): a corner past the terrain mesh's
   // edge doesn't take the analytic terrain under it.
   const houses = buildBuildings(shown, buildingGround, (b) => (onBaseRing(b.ring) ? SINK : 0.4), (b) => (onBaseRing(b.ring) ? ground.forRing(b.ring) : horizonGround));
-  // Car park islands, clear of the road, the streets, buildings and the rings, with shrubs.
-  const islandNodes: Kn5MeshNode[] = [];
-  const islandShrubs = new MeshBuilder();
-  islandShrubs.normals = [];
-  // Salt for the shrubs' draws (random.ts placeRandom), +0..5 for each draw.
-  const SALT_SHRUB = 0x5b00;
-  let islandCount = 0;
-  for (const { chunk, rings } of islandsFound) {
-    const ok = rings.filter((ring) => ring.every(([x, y]) => {
-      const n = index.nearest(x, y, 40);
-      if (n && n.dist < index.at(n).width / 2 + 2) return false;
-      if (streetIndex.clearance(x, y) < 0.5 || inRoundabout(plan, x, y, 3)) return false;
-      return !kept.some((b) => pointInRing(x, y, b.ring));
-    }));
-    if (!ok.length) continue;
-    islandCount += ok.length;
-    islandNodes.push(...buildIslands(ok, ground, chunk, `terrain_${chunk.key}`, chunk.key));
-    for (const ring of ok) {
-      // A shrub every 2-3 m^2 or so, inside the island, standing on its raised top.
-      const xs = ring.map((p) => p[0]), ys = ring.map((p) => p[1]);
-      const top = Math.max(...ring.map(([x, y]) => ground(x, y))) + 0.15;
-      for (let x = Math.min(...xs) + 0.8; x < Math.max(...xs) - 0.8; x += 1.8) {
-        for (let y = Math.min(...ys) + 0.8; y < Math.max(...ys) - 0.8; y += 1.8) {
-          // Busselton fork: each shrub's draws from its grid point (random.ts), not the island order.
-          const d = (k: number) => placeRandom(x, y, SALT_SHRUB + k);
-          const px = x + (d(0) - 0.5) * 0.8, py = y + (d(1) - 0.5) * 0.8;
-          if (!pointInRing(px, py, ring) || d(2) < 0.35 || islandShrubs.vertexCount > 60000) continue;
-          shrub(islandShrubs, [px, py], 0.6 + d(3) * 0.6, d(4) < 0.5 ? 0 : 1, d(5) * Math.PI, () => top);
-        }
-      }
-    }
-  }
-  if (islandShrubs.indices.length) islandNodes.push(islandShrubs.toKn5("ISLAND_SHRUBS", "shrubs", { castShadows: true }));
   const lots = opts.buildings ? buildLots(homes.filter((b) => b.ring.every(([x, y]) => inCover(x, y, 1))), buildingGround, { roadGap }) : [];
 
   const group = (name: string, children: Kn5Node[]): Kn5GroupNode => ({ kind: "node", name, transform: IDENTITY, children });
@@ -1795,7 +1759,6 @@ export async function buildTrack(
         group("FARM", farm ? keepOffRoute(farm.nodes, onRoad).nodes : []),
         group("PATHS", pathMeshes),
         group("LOTS", keepOffRoute(lots, onRoad).nodes),
-        group("CARPARKS", islandNodes),
         group("JETTY", piers.length ? [...buildPiers(piers, shoreGround, sea), ...jettyLamps.nodes, ...jettyPrecinct.nodes] : []),
         group("SEAWALL", ocean.length ? [
           ...buildSeawall(beaches, shoreGround, sea, (x, y) => !!index.nearest(x, y, 250), piers),
@@ -1922,11 +1885,10 @@ export async function buildTrack(
     const pads = bayQuads.length ? buildBayPads(bayQuads, ground, bayHeight(ground, topSurface(asphaltBuilt, BAY_ASPHALT))) : [];
     if (pads.length) model.root.children.push(group("CARPARKS", pads));
     const padTop = pads.length ? topSurface(pads) : null;
-    // No wheel on grass, a kerb or a car park island at the top (parkedCheck.ts): a bay that reached
-    // over a kerb or an island loses its car.
+    // No wheel on grass or a kerb at the top (parkedCheck.ts): a bay that reached over a kerb loses its car.
     {
-      // The top: the base's ground as built (sceneGround.ts covers the same meshes), or an island or pad over it.
-      const extra = topSurface([...islandNodes, ...pads], PHYSICS_GROUND);
+      // The top: the base's ground as built (sceneGround.ts covers the same meshes), or a pad over it.
+      const extra = topSurface(pads, PHYSICS_GROUND);
       const top = (x: number, y: number) => {
         const g = ground.mesh(x, y), e = extra(x, y);
         return g === null ? e : e === null ? g : Math.max(g, e);
@@ -2128,7 +2090,6 @@ export async function buildTrack(
       shops: shopStats(shopfronts).shops,
       verandahs: shopStats(shopfronts).verandahs,
       shopNames: shopStats(shopfronts).named,
-      carParkIslands: islandCount,
       footpathMetres: verge ? (verge.paths[0].filter(Boolean).length + verge.paths[1].filter(Boolean).length) * opts.spacing : 0,
       driveways: verge?.drives.length ?? 0,
       streetLights: utilities.lights.length,

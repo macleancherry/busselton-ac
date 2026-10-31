@@ -131,7 +131,6 @@ Layouts: `layouts.ts` builds each extra layout with `withDefaults({ ...route.bui
 | `kerbside` | boolean | — | T `true` | off (and needs `markings`) | track.ts:1235 |
 | `laneBayClear` | boolean | — | | **on** unless `false` (only with kerbside bays) | track.ts:1240 |
 | `carParks` | boolean | `true` | | | track.ts:661, 664, 667, 690 |
-| `carParkIslands` | boolean | `false` | | | track.ts:714 |
 | `parkedCars` | boolean | `true` | | | track.ts:703 |
 | `parkedBays` | boolean | — | | **on** unless `false` | track.ts:1714 |
 | `padClear` | boolean | — | | **on** unless `false` | track.ts:1941 |
@@ -172,7 +171,7 @@ Routes on 31 Oct 2026 (routes/ and routes/private/) set these `build` fields: or
 ## Could be deleted (lead checks with Mac)
 
 - **`groundDetail`**: never read; ksMultilayer ground is controlled by `detailShaders`. Delete the field (and its default). `textures.ts` has an unrelated function `groundDetail` that stays.
-- **`carParkIslands`**: experimental, off, set by no route or UI ("tree canopy still fools it"). Delete with its reader (track.ts:714 and `findIslands`) or keep as an experiment: Mac's call.
+- **`carParkIslands`**: deleted with `findIslands`/`buildIslands` (31 Oct).
 - **`raceDress` and `sponsors`**: deleted with race dressing (31 Oct); left as ignored optional fields until the old UI goes.
 - Pure tuning numbers no UI, preset or route sets (`chunkSize`, `demZoom`, `horizonZoom`, `terrainBlend`, `terrainLodNear`, `maxTrees`, `runUp`, `runOff`, `buildingRadius`, `spacing`, `defaultWidth`, `crown`): could become module constants, but several are used by tests to shape fixtures. Recommend keeping them as options.
 - The "on unless false" switches (`gravelRoads`, `photoSea`, `pureTuning`, `wavingFlags`, `jettyTrain`, `poleClear`, `padClear`, `parkedBays`, `laneBayClear`, `trafficLights`, `driftZones`) are escape hatches for regressions; keep.
@@ -191,7 +190,7 @@ Routes on 31 Oct 2026 (routes/ and routes/private/) set these `build` fields: or
 
 - `groundDetail` deleted (never read); 53 required fields, 31 optional.
 - Kept with Mac's approval pending: `carParkIslands`, `raceDress`, `sponsors`. `textureSize` stays 1024 (Bugs 1).
-- Later on 31 Oct (delete what we don't use): race dressing deleted; `raceDress` and `sponsors` are ignored optional fields (51 required, 33 optional) until the old UI that sends them goes.
+- Later on 31 Oct (delete what we don't use): race dressing deleted; `raceDress` and `sponsors` are ignored optional fields (51 required, 33 optional) until the old UI that sends them goes. `carParkIslands` deleted too (50 required).
 - `DEFAULT_OPTIONS` is frozen; `withDefaults` copies `noTrace` and skips `undefined` values (Bugs 4).
 - Added `OPTIONAL_OPTION_KEYS` and `unknownOptionKeys(obj)` (Bugs 6); build-track.mjs doesn't call it yet.
 - Still open: pipeline's duplicated fallbacks (Bugs 3), phase1.ts namespaces (Bugs 5).
