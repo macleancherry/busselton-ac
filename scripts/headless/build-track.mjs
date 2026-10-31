@@ -330,6 +330,7 @@ try {
       const ti = r.trafficInput;
       const world = {
         slug: r.slug, proj: r.proj, model: r.model, options, meta: { name }, mainAi: r.files[`${r.slug}/${mainId}/ai/fast_lane.ai`], mainHints: r.files[`${r.slug}/${mainId}/data/ai_hints.ini`],
+        bays: r.bayBoxes,
         lines: ti ? ti.roads.map((rd) => rd.pts) : undefined, speeds: ti ? ti.roads.map((rd) => rd.speed) : undefined, rings: ti ? ti.roundabouts.map((rb) => ({ c: rb.c, rOut: rb.rOut })) : undefined,
         // Landmarks (looks built from a spec): the automatic test photographs them.
         landmarks: (window.__landmarks ?? []).map((h) => ({ name: h.name, at: r.proj.toLocal(h.at) })),

@@ -139,6 +139,11 @@ export interface BuildOptions {
    */
   kerbside?: boolean;
   /**
+   * Busselton fork: traffic lanes and the keep-left AI line move in to keep half a lane clear of the
+   * painted kerbside bays (bayLanes.ts), so cars parked in them stay. On unless false.
+   */
+  laneBayClear?: boolean;
+  /**
    * The look of houses in this area, when it isn't the usual mix: weights per facade, by name
    * from buildingStyles.ts (e.g. a weatherboard estate: { wb_white: 3, wb_grey: 2, wb_blue: 1 }).
    * Street-photo and hand-set looks still win house by house.

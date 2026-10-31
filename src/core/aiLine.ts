@@ -6,6 +6,7 @@ import { toAc } from "./mesh";
 import type { RoadPlan } from "./road";
 import { innerRadius, outerRadius } from "./roundabout";
 import { keepLeftOffsets } from "./keepLeft";
+import type { BayBox } from "./bayLanes";
 
 const G = 9.81;
 const LATERAL_GRIP = 1.0; // g
@@ -64,6 +65,8 @@ function ringLine(plan: RoadPlan): { pos: [number, number][]; nearRing: boolean[
 export interface AiLineOptions {
   /** Busselton fork: the line in the left lane, not down the middle (keepLeft.ts). */
   keepLeft?: boolean;
+  /** Busselton fork: painted kerbside bays the keep-left line keeps clear of (bayLanes.ts). */
+  bays?: BayBox[];
 }
 
 export function buildAiLine(plan: RoadPlan, lineOpts: AiLineOptions = {}): AiPoint[] {
@@ -71,9 +74,9 @@ export function buildAiLine(plan: RoadPlan, lineOpts: AiLineOptions = {}): AiPoi
   const n = s.length;
   const { pos, nearRing } = ringLine(plan);
   // Busselton fork: keep left, metres to the left of the centreline (0 = centred).
-  const off = lineOpts.keepLeft ? keepLeftOffsets(plan) : s.map(() => 0);
+  const off = lineOpts.keepLeft ? keepLeftOffsets(plan, lineOpts.bays) : s.map(() => 0);
   off.forEach((o, i) => {
-    if (o > 0) pos[i] = [pos[i][0] + s[i].left[0] * o, pos[i][1] + s[i].left[1] * o];
+    if (o !== 0) pos[i] = [pos[i][0] + s[i].left[0] * o, pos[i][1] + s[i].left[1] * o];
   });
   // A left-hand bend gets tighter by the offset, a right-hand one wider.
   const radius = s.map((p, i) => {

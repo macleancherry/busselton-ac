@@ -12,6 +12,7 @@
 // (asLayout); every other layout is a route over roads the world already has, or a set of spawn
 // points for free roam, laid on the world's own road surface (layoutFiles).
 import { aiHintsIni, buildAiLine } from "./aiLine";
+import type { BayBox } from "./bayLanes";
 import { layoutChallengesIni } from "./challengeFiles";
 import { cruiseLayoutIni, cruiseSights, limitsByPercent } from "./cruise";
 import type { ChallengesOption } from "./challenges";
@@ -145,6 +146,8 @@ export interface World {
   /** Busselton fork: landmarks the automatic test photographs as it drives past (landmarkShots.ts). */
   landmarks?: Landmark[];
   rings?: { c: Vec2; rOut: number }[];
+  /** Busselton fork: painted kerbside bays (track.ts bayBoxes) a layout's keep-left line keeps clear of (bayLanes.ts). */
+  bays?: BayBox[];
 }
 
 /** Nearest point on any of a set of lines, by a grid of their segments. */
@@ -267,7 +270,7 @@ function routeAi(world: World, coords: LngLat[], opts: BuildOptions, height: (x:
   const plan = planRoad(world.lines?.length ? snapToLines(dense, world.lines, world.rings) : local, opts);
   const hs = fillHeights(plan.samples.map((s) => height(s.pos[0], s.pos[1])), 0);
   plan.samples.forEach((s, i) => { s.h = hs[i]; s.bank = 0; });
-  const ai = keepOnSurface(buildAiLine(plan, { keepLeft: opts.aiKeepLeft }), height);
+  const ai = keepOnSurface(buildAiLine(plan, { keepLeft: opts.aiKeepLeft, bays: world.bays }), height);
   // Speed limits from the street each stretch is on (the world's), so the AI drives a town street
   // at 50 rather than at the grip limit.
   let limitAt: ((d: number) => number | undefined) | undefined;

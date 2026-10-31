@@ -5,6 +5,7 @@
 
 import type { RoadPlan } from "./road";
 import { outerRadius } from "./roundabout";
+import { bayBand, LANE_CLEAR, type BayBox } from "./bayLanes";
 
 type Vec2 = [number, number];
 
@@ -31,11 +32,27 @@ export function laneOffset(width: number): number {
 /**
  * Each sample's keep-left offset, metres to the left of the centreline: a quarter of the road's
  * width (laneOffset), faded to nothing at roundabouts (the line keeps its smoothed, centred way
- * round the ring and its arms) and smoothed along the line.
+ * round the ring and its arms) and smoothed along the line. With `bays` (kerbside.ts boxes on the
+ * route), moved in to keep half a lane off them (negative where bays on the left push it right of centre).
  */
-export function keepLeftOffsets(plan: RoadPlan): number[] {
+export function keepLeftOffsets(plan: RoadPlan, bays: BayBox[] = []): number[] {
   const s = plan.samples, n = s.length;
   if (!n) return [];
+  const smoothed = smoothOffsets(plan);
+  // Busselton fork: clear of the route's painted kerbside bays (bayLanes.ts), as a traffic lane is:
+  // half a lane from a bay each side. Where both can't be cleared the line stays as it was.
+  const band = bays.length ? bayBand(s.map((p) => p.pos), s.map((p) => p.width), bays, plan.closed) : null;
+  if (!band) return smoothed;
+  return smoothed.map((o, i) => {
+    const hi = band.hi[i] === null ? Infinity : band.hi[i]! - LANE_CLEAR;
+    const lo = band.lo[i] === null ? -Infinity : band.lo[i]! + LANE_CLEAR;
+    if (hi < lo) return o;
+    return Math.max(lo, Math.min(hi, o));
+  });
+}
+
+function smoothOffsets(plan: RoadPlan): number[] {
+  const s = plan.samples, n = s.length;
   const raw = s.map((p) => {
     let f = 1;
     for (const rb of plan.roundabouts) {

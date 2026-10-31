@@ -46,6 +46,7 @@ import { encodeDdsDxt1, encodeDdsDxt5 } from "./dds";
 import { decodeOwnPng, encodePng } from "./png";
 import { buildMarkings, type DiscreteMark } from "./markings";
 import { kerbsideForTrack, type KerbTags } from "./kerbside";
+import { withBayBands, type BayBox } from "./bayLanes";
 import { buildTerrainChunk, makeTerrainFn, meshTop, planTerrainChunks, type TerrainChunk } from "./terrain";
 import { ROAD_SURFACE, sceneGround, SINK, topSurface } from "./sceneGround";
 import { onRoadFrom } from "./poleSpot";
@@ -205,6 +206,8 @@ export interface TrackResult {
   parked: { at: [number, number]; dir: [number, number] }[];
   /** What the traffic graph was built from, for checking it offline. */
   trafficInput?: { roads: TrafficRoad[]; roundabouts: { c: Vec2; h: number; rIn: number; rOut: number }[] };
+  /** Busselton fork: the painted kerbside bays lanes keep clear of (bayLanes.ts), for the layouts' keep-left lines. */
+  bayBoxes?: BayBox[];
   /** Raw pixels for textures the browser can't decode (DDS), keyed by texture name. */
   previewTextures: Record<string, { rgba: Uint8Array; width: number; height: number }>;
   stats: {
@@ -1314,6 +1317,8 @@ export async function buildTrack(
     ? kerbsideForTrack(plan, opts.sideStreets ? streetPlan.streets : [], index, opts, (x, y) => terrainAt(x, y).h, sources.osm?.kerbside ?? [], (p) => proj.toLocal(p), parkedSpots)
     : null;
   if (kerbside) markings.push(...kerbside.nodes);
+  // Busselton fork: the bays the traffic lanes and the keep-left line keep clear of (bayLanes.ts).
+  const bayBoxes: BayBox[] = kerbside && opts.laneBayClear !== false ? kerbside.boxes : [];
   // Busselton fork: the ground stays 4 cm under every street, within a grid step of it: at a mouth
   // across the route's raised verge, and where the ground bulges, it came up through the street.
   // The return fills at street mouths are street too (1STREET_RETFILL): on a hillside the ground
@@ -1975,9 +1980,11 @@ export async function buildTrack(
       ? zoneRoads([...routeRoads.map((r) => ({ ...r, cls: r.pts.map((p) => sources.roadClassAt?.(proj.toLngLat(p))) })), ...streetRoads],
         townCentreFromMap((p) => proj.toLocal(p), sources.landuse, sources.pois))
       : [...routeRoads, ...streetRoads.map(({ cls: _cls, ...r }) => r)];
+    // Busselton fork: lanes clear of the painted kerbside bays (bayLanes.ts).
+    const lanesClear = bayBoxes.length ? withBayBands(roads, bayBoxes) : roads;
     // Kept for checking the traffic graph offline (the headless build writes it out).
-    trafficInput = { roads, roundabouts: rbs };
-    return trafficJson(roads, rbs, opts.trafficSetting);
+    trafficInput = { roads: lanesClear, roundabouts: rbs };
+    return trafficJson(lanesClear, rbs, opts.trafficSetting);
   };
 
   // Busselton fork: the signalled junctions' lights run by the traffic planner (trafficLights.ts).
@@ -2039,7 +2046,7 @@ export async function buildTrack(
   }
   await progress("Writing track files");
   const kn5 = writeKn5(model);
-  const aiPoints = buildAiLine(plan, { keepLeft: opts.aiKeepLeft });
+  const aiPoints = buildAiLine(plan, { keepLeft: opts.aiKeepLeft, bays: bayBoxes.filter((b) => b.street === 0) });
   // Busselton fork: the automatic test photographs each landmark it passes.
   const landmarkList = [
     ...(sources.landmarks ?? []),
@@ -2150,6 +2157,7 @@ export async function buildTrack(
     slug, files: laid, model, plan, proj, previewTextures,
     parked: parked.map((c) => ({ at: c.at, dir: c.dir })),
     trafficInput,
+    bayBoxes,
     houses: homes.filter((b) => b.front).map((b) => ({
       front: [proj.toLngLat(b.front![0]), proj.toLngLat(b.front![1])] as [LngLat, LngLat],
       height: b.height,
