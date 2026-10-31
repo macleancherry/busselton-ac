@@ -40,7 +40,7 @@ import { extendRoute, pathLength } from "./extend";
 import { keepOffRoute, onRoute } from "./clearance";
 import { buildRingMarkings, buildRingMeshes, buildRingWall, fitCircle, innerRadius, outerRadius, resolveRoundabouts, ringsOnRoute, vergeOuterRadius, type RoundaboutHint } from "./roundabout";
 import { buildRoadMeshes, buildWalls, type RoadMaterialFn } from "./roadMesh";
-import { buildKerbReturns, buildKerbs, KERB_BACK, KERB_H, kerbEvidence, planKerbs, STRIP_EXTRA, stripPhotoTexture, type StripMaterialFn } from "./kerbs";
+import { buildKerbReturns, buildKerbs, KERB_BACK, kerbEvidence, planKerbs, STRIP_EXTRA, stripPhotoTexture, type StripMaterialFn } from "./kerbs";
 import { photoRoadTexture } from "./photoSurface";
 import { encodeDdsDxt1, encodeDdsDxt5 } from "./dds";
 import { decodeOwnPng, encodePng } from "./png";
@@ -86,7 +86,7 @@ import { cruiseFiles } from "./cruise";
 import { buildPieces, gateSigns, kangarooSigns, landmarks, mergeSightings, seenFeatures, streetSigns } from "./furniture";
 import { barrierConcreteTexture, catchFenceTexture, crowdTexture, raceDressing, tyreWallTexture } from "./raceDress";
 import { carParkLights, placeUtilities } from "./utilities";
-import { buildVergeConcrete, laybacks, letterboxes, readVerge } from "./footpaths";
+import { buildVergeConcrete, laybacks, letterboxes, readVerge, stripGround } from "./footpaths";
 import { findLines, paintCandidates, type ImageLine } from "./paintLines";
 import { applyTrace, displayOf, traceRoad, type RasterSampler, type TraceResult } from "./trace";
 import { buildSideStreets, LineIndex, traceSideStreets, planSideStreets, streetSurface, type StreetLine, type StreetName } from "./sideStreets";
@@ -1101,16 +1101,13 @@ export async function buildTrack(
   // Footpaths and driveway crossovers in the nature strip, where the photo shows them; the kerb lays back at each driveway.
   const stripOuter = opts.vergeWidth + STRIP_EXTRA;
   const verge = opts.kerbs && raster ? readVerge(plan, raster, kerbs, stripOuter, (x, y) => streetIndex.clearance(x, y) < 0.5) : null;
-  const kerbMeshes = buildKerbs(plan, opts, kerbs, stripMaterial, net ? new Set([...(returns?.noRamp ?? []), ...net.noRamp]) : returns?.noRamp, verge ? laybacks(nS, verge) : undefined);
-  // The ground under the verge concrete: the strip top (road edge plus a kerb) within the strip, terrain beyond.
-  const vergeGround = (x: number, y: number) => {
-    const n = index.nearest(x, y, opts.vergeWidth + STRIP_EXTRA + 30);
-    if (!n) return terrainAt(x, y).h;
-    const at = index.at(n);
-    if (n.dist - at.width / 2 > stripOuter) return terrainAt(x, y).h;
-    const side = n.t >= 0 ? 1 : -1;
-    return surfaceHeight({ ...plan.samples[n.seg], h: at.h, bank: at.bank, width: at.width }, (side * at.width) / 2, opts.crown) + KERB_H;
-  };
+  const drops = verge ? laybacks(nS, verge) : undefined;
+  const kerbMeshes = buildKerbs(plan, opts, kerbs, stripMaterial, net ? new Set([...(returns?.noRamp ?? []), ...net.noRamp]) : returns?.noRamp, drops);
+  // The ground under the verge concrete: the strip and kerb meshes as built (laid back at driveways);
+  // where they don't reach, the same strip worked out (footpaths.ts stripGround), terrain beyond.
+  const stripMesh = verge ? topSurface([...kerbMeshes.strip, ...kerbMeshes.kerb, ...kerbReturns]) : () => null;
+  const stripRule = stripGround(plan, index, opts.crown, opts.vergeWidth, kerbs, drops, (x, y) => terrainAt(x, y).h);
+  const vergeGround = (x: number, y: number) => stripMesh(x, y) ?? stripRule(x, y);
   const vergeConcrete = verge ? buildVergeConcrete(plan, verge, vergeGround) : [];
   // Photo surface on the traced side streets too (the nearest 40, to keep the file in check).
   const photoStreets = new Set(

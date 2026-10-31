@@ -41,14 +41,14 @@ Per sample per side, 1 across each crossover's samples, 0 elsewhere. Passed to t
 
 ### Height: the twist
 
-Footpaths and crossovers are physics ground themselves (`1STREET_...`), so they can't stand on a surface that includes them. They take `under(x, y)`: the ground *before* verge concrete is added (nature strip and kerb meshes, then terrain). With the one-surface work that's the surface sampler built from everything except these slabs; until then the pipeline passes the strip-top rule it uses now. Either way the module only calls the function: no road-sample or kerb-height arithmetic inside it.
+Footpaths and crossovers are physics ground themselves (`1STREET_...`), so they can't stand on a surface that includes them. They take `under(x, y)`: the ground *before* verge concrete is added (nature strip and kerb meshes, then terrain). The pipeline passes `stripGround`: the nature strip exactly as the kerb module builds it (`stripRise`: kerb top at the kerb's back, laid back at a driveway's samples, rising to the strip's outer edge), terrain beyond. (It was the road edge plus a full kerb right across, so a footpath crossing a driveway floated up to 13 cm over the laid-back strip.) Either way the module only calls the function: no road-sample or kerb-height arithmetic inside it.
 
 The old signature passed extra arguments to the height function (distance from edge, the road sample, the side). Drop them: a plain `(x, y)` function.
 
 - **Proud:** slabs stand 4 cm above `under`.
 - **Footpaths:** for each side, for each pair of neighbouring samples that both have a band, a slab between the two cross-sections (band start to band end at each sample, offsets measured from that sample's road edge). Built in the same along-the-road chunks as the road (`chunkRanges` from the road mesh module), one mesh per chunk with any slabs: `1STREET_PATH_NNN`, material `concrete`. `scripts/check/path_ground.py`, `pathGround.ts` and `clearance.ts` match on `STREET_PATH`, so keep that name.
-- **Crossovers:** for each crossover, a slab between each pair of its samples, from the top of the laid-back kerb (at the kerb's back) out to the reach, or further out to the footpath's start if a footpath starts beyond the reach there. The inner edge sits on the laid-back kerb top: `under` at the kerb's back, less the kerb height times `LAYBACK`, plus 5 mm so it doesn't z-fight with the kerb. The outer edge is proud like the footpaths. One mesh: `1STREET_DRIVE_000`, material `concrete`.
-- **Slab shape:** a top quad plus a small edge down each long side, reaching 3 cm below `under` (so 7 cm of face below the top), the inner edge facing the road and the outer facing away. Winding so the top faces up on both sides of the road. UVs: across 0 (inner) to 1 (outer); along = distance along / 3 (a joint every 3 m).
+- **Crossovers:** for each crossover, a slab between each pair of its samples, from the top of the laid-back kerb (at the kerb's back) out to the reach, or further out to the footpath's start if a footpath starts beyond the reach there. The inner edge sits on the laid-back kerb top: `under` at the kerb's back (already laid back there), plus 5 mm so it doesn't z-fight with the kerb. The outer edge is proud like the footpaths. One mesh: `1STREET_DRIVE_000`, material `concrete`.
+- **Slab shape:** a top made of cells no more than 0.5 m a side, every vertex its lift over `under` (the strip mesh bends along its quads' diagonals where a layback starts or ends, and a four-corner top floated up to 5 cm over it there), plus a small edge down each long side, reaching 3 cm below `under` (so 7 cm of face below the top), the inner edge facing the road and the outer facing away. Winding so the top faces up on both sides of the road. UVs: across 0 (inner) to 1 (outer), in proportion between; along = distance along / 3 (a joint every 3 m).
 
 ## Letterboxes (`letterboxes`)
 
@@ -79,7 +79,7 @@ The old signature passed extra arguments to the height function (distance from e
 4. A 3.5 m wide strip of concrete across the whole strip gives one crossover; a 15 m one gives none (too long to be a driveway).
 5. No kerb on a side: nothing read there.
 6. Laybacks mark exactly the crossover samples on the right side array.
-7. Slabs: footpath meshes named `1STREET_PATH_`, crossover `1STREET_DRIVE_000`; slab tops 4 cm above `under` (use a tilted plane); crossover inner edge at the laid-back kerb height; top normals face up on both sides.
+7. Slabs: footpath meshes named `1STREET_PATH_`, crossover `1STREET_DRIVE_000`; slab tops 4 cm above `under` (use a tilted plane); crossover inner edge 5 mm over `under` at the kerb's back; `stripGround` follows `stripRise` (laid back at crossovers); top normals face up on both sides.
 8. Letterboxes: one per crossover, on the approach side, post base SINK under `ground`.
 9. `under` is called with plain (x, y) only.
 

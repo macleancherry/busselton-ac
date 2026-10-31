@@ -228,6 +228,71 @@ function gridMesh(g: CattleGrid, base: (x: number, y: number) => number): MeshBu
   return mb;
 }
 
+/** A gate leaf's lowest rail and its stiles' feet, over the ground at its hinge post, metres. */
+const LEAF_RAIL0 = 0.18, LEAF_FOOT = 0.12;
+/** How far the ground under a swung leaf may rise over its hinge post's (it would come up through the stiles) or fall. */
+const LEAF_RISE = 0.1, LEAF_DROP = 0.35;
+
+/**
+ * Which way a gate leaf hung on `post` can lie: the first of `angles` (radians from `fdir` towards
+ * `dir`, the drive's way into the paddock) where nothing stands under it and the ground under it
+ * stays between LEAF_DROP under and LEAF_RISE over the post's. A leaf swung open up a bank, or
+ * across onto a side street, stood 20 to 30 cm into the ground. Null when none fits (no leaf).
+ */
+export function gateLeaf(
+  post: Vec2,
+  fdir: Vec2,
+  dir: Vec2,
+  len: number,
+  angles: number[],
+  ground: (x: number, y: number) => number,
+  blocked: (x: number, y: number) => boolean,
+): Vec2 | null {
+  const z0 = ground(post[0], post[1]);
+  for (const th of angles) {
+    const leaf = norm(add(add([0, 0], fdir, Math.cos(th)), dir, Math.sin(th)));
+    let fits = true;
+    const n = Math.max(2, Math.ceil(len / 0.25));
+    for (let i = 0; i <= n && fits; i++) {
+      const p = add(post, leaf, 0.15 + (len * i) / n);
+      const dz = ground(p[0], p[1]) - z0;
+      if (dz > LEAF_RISE || dz < -LEAF_DROP || (i > 0 && blocked(p[0], p[1]))) fits = false;
+    }
+    if (fits) return leaf;
+  }
+  return null;
+}
+
+/**
+ * A thin square bar from `a` at height `za` to `b` at `zb` (a fence wire): four long faces, open
+ * ends, explicit normals.
+ */
+export function strand(mb: MeshBuilder, a: Vec2, za: number, b: Vec2, zb: number, w: number): void {
+  const d = norm([b[0] - a[0], b[1] - a[1]]);
+  const s: Vec2 = [-d[1], d[0]], h = w / 2;
+  const at = (p: Vec2, z: number, u: number, v: number): Vec3 => [p[0] + s[0] * u * h, p[1] + s[1] * u * h, z + v * h];
+  // Each face: its corner offsets (across, up) and outward normal.
+  const faces: [[number, number], [number, number], Vec3][] = [
+    [[-1, 1], [1, 1], [0, 0, 1]],
+    [[1, -1], [-1, -1], [0, 0, -1]],
+    [[1, 1], [1, -1], [s[0], s[1], 0]],
+    [[-1, -1], [-1, 1], [-s[0], -s[1], 0]],
+  ];
+  if (mb.normals === null && mb.vertexCount === 0) mb.normals = [];
+  for (const [[u0, v0], [u1, v1], n] of faces) {
+    const i0 = mb.vertex(at(a, za, u0, v0), 0, 0), i1 = mb.vertex(at(a, za, u1, v1), 1, 0);
+    const i2 = mb.vertex(at(b, zb, u1, v1), 1, 1), i3 = mb.vertex(at(b, zb, u0, v0), 0, 1);
+    mb.normals?.push(...n, ...n, ...n, ...n);
+    // Counter-clockwise seen from outside.
+    const P = mb.positions;
+    const e1 = [P[i1 * 3] - P[i0 * 3], P[i1 * 3 + 1] - P[i0 * 3 + 1], P[i1 * 3 + 2] - P[i0 * 3 + 2]];
+    const e2 = [P[i2 * 3] - P[i0 * 3], P[i2 * 3 + 1] - P[i0 * 3 + 1], P[i2 * 3 + 2] - P[i0 * 3 + 2]];
+    const c = [e1[1] * e2[2] - e1[2] * e2[1], e1[2] * e2[0] - e1[0] * e2[2], e1[0] * e2[1] - e1[1] * e2[0]];
+    if (c[0] * n[0] + c[1] * n[1] + c[2] * n[2] >= 0) mb.quad(i0, i1, i2, i3);
+    else mb.quad(i0, i3, i2, i1);
+  }
+}
+
 /** Collects solid pieces by material (explicit normals, for box()). */
 class Kit {
   private readonly by = new Map<string, MeshBuilder[]>();
@@ -435,37 +500,46 @@ export function buildFarmRoadsides(input: FarmInput): FarmResult {
       const across = Math.max(0.7, Math.abs(dr.dir[0] * f0.left[0] + dr.dir[1] * f0.left[1]));
       const hw = (APRON_W / 2 + 0.2) / across;
       const fdir = f0.tan;
-      const zg = groundAt(g[0], g[1]);
       const postA = add(g, fdir, -hw), postB = add(g, fdir, hw);
-      for (const p of [postA, postB]) {
-        if (!blocked(p[0], p[1])) box(kit.get("timber"), p, fdir, 0.2, 0.2, groundAt(p[0], p[1]) - SINK, groundAt(p[0], p[1]) + 1.45);
-      }
+      const posted = [postA, postB].map((p) => !blocked(p[0], p[1]));
+      [postA, postB].forEach((p, i) => {
+        if (posted[i]) box(kit.get("timber"), p, fdir, 0.2, 0.2, groundAt(p[0], p[1]) - SINK, groundAt(p[0], p[1]) + 1.45);
+      });
       // The gate leaf, unless a cattle grid takes its place: galvanised tube, 5 rails and two stiles,
-      // hinged on post A, shut (across the drive) or swung open into the paddock.
-      if (!(gated.has(k) && aproned.has(k)) && !blocked(postA[0], postA[1])) {
+      // hinged on post A, shut (across the drive) or swung open into the paddock. It hangs at post
+      // A's ground, and only where it clears the ground and nothing stands (gateLeaf).
+      if (!(gated.has(k) && aproned.has(k)) && posted[0]) {
         const open = r() < 0.65;
         const th = open ? (1.35 + r() * 0.4) : 0;
-        const leaf = norm(add(add([0, 0], fdir, Math.cos(th)), dr.dir, Math.sin(th)));
         const len = Math.min(2 * hw - 0.3, 4.2);
-        const mid = add(postA, leaf, 0.15 + len / 2);
-        const steel = kit.get("steel", 200);
-        for (let rail = 0; rail < 5; rail++) {
-          const z = zg + 0.18 + rail * 0.24;
-          box(steel, mid, leaf, len, 0.04, z, z + 0.04);
+        // Shut if it won't swing open there, or open (square to the drive) if it won't shut.
+        const leaf = gateLeaf(postA, fdir, dr.dir, len, open ? [th, 0] : [0, Math.PI / 2], groundAt, blocked);
+        if (leaf) {
+          const zA = groundAt(postA[0], postA[1]);
+          const mid = add(postA, leaf, 0.15 + len / 2);
+          const steel = kit.get("steel", 200);
+          for (let rail = 0; rail < 5; rail++) {
+            const z = zA + LEAF_RAIL0 + rail * 0.24;
+            box(steel, mid, leaf, len, 0.04, z, z + 0.04);
+          }
+          for (const e of [-1, 1]) box(steel, add(mid, leaf, (e * len) / 2), leaf, 0.05, 0.05, zA + LEAF_FOOT, zA + 1.2);
         }
-        for (const e of [-1, 1]) box(steel, add(mid, leaf, (e * len) / 2), leaf, 0.05, 0.05, zg + 0.12, zg + 1.2);
       }
-      // A few metres of ringlock-style wire fence each side: star pickets and four strands.
+      // A few metres of ringlock-style wire fence each side: star pickets and four strands, each
+      // strand running from post to post at the same height over the ground at each (on a slope a
+      // level strand rose clear of the lower picket's top). No wire from a gate post that isn't there.
       for (const e of [-1, 1] as const) {
         const start = e < 0 ? postA : postB;
-        let prev = start;
+        let prev: Vec2 | null = posted[e < 0 ? 0 : 1] ? start : null;
         for (let j = 1; j <= 3; j++) {
           const p = add(start, fdir, e * j * 3.3);
           if (blocked(p[0], p[1]) || (frameAt(plan, index, p[0], p[1], 40)?.edge ?? 99) < opts.vergeWidth + 2) break;
-          const zp = groundAt(p[0], p[1]), zq = groundAt(prev[0], prev[1]);
+          const zp = groundAt(p[0], p[1]);
           box(kit.get("steel"), p, fdir, j === 3 ? 0.12 : 0.03, j === 3 ? 0.12 : 0.03, zp - SINK, zp + 1.1);
-          const midW = lerp2(prev, p, 0.5), zm = (zp + zq) / 2;
-          for (const h of [0.3, 0.55, 0.8, 1.05]) box(kit.get("wire"), midW, fdir, 3.3, 0.008, zm + h, zm + h + 0.008);
+          if (prev) {
+            const zq = groundAt(prev[0], prev[1]);
+            for (const h of [0.3, 0.55, 0.8, 1.05]) strand(kit.get("wire"), prev, zq + h, p, zp + h, 0.008);
+          }
           prev = p;
         }
       }
@@ -504,10 +578,12 @@ export function buildFarmRoadsides(input: FarmInput): FarmResult {
     for (const e of [-1, 1]) {
       const c = add(g.at, left, e * (g.half + 0.45));
       if (blocked(c[0], c[1])) continue;
-      const zc = groundAt(c[0], c[1]);
-      for (const u of [-GRID_L / 2, GRID_L / 2]) {
-        box(kit.get("canopy"), add(c, g.along, u), g.along, 0.15, 0.15, zc - SINK, zc + 1.0);
-      }
+      // Each post on the ground at its own foot (a grid on a grade has one end higher), the rail
+      // level from the lower post's height.
+      const feet = [-GRID_L / 2, GRID_L / 2].map((u) => add(c, g.along, u));
+      const zs = feet.map((p) => groundAt(p[0], p[1]));
+      feet.forEach((p, i) => box(kit.get("canopy"), p, g.along, 0.15, 0.15, zs[i] - SINK, zs[i] + 1.0));
+      const zc = Math.min(...zs);
       box(kit.get("canopy"), c, g.along, GRID_L + 0.15, 0.08, zc + 0.82, zc + 0.95);
     }
   });

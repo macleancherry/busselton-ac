@@ -35,6 +35,7 @@ Functions and types:
   - `StripMaterialFn = (ci, a, b) => { material: string; photo: boolean }`: the nature strip material for chunk ci (sample rows a..b), and whether it's a photo with the strip UV layout below.
   - `noRamp`: section keys `` `${i}:${side}` `` (section from sample i to i + 1) not to build.
   - `drops`: 1 where a driveway crosses the kerb.
+- `stripRise(k, drop, d, vergeWidth): number`: the strip's top `d` metres out from the road edge over the road edge's height, as the profile below builds it: the kerb top (laid back by `drop`) at the kerb's back, straight up to `zOut` at the strip's outer edge. `footpaths.ts` stands the verge concrete on it where the strip mesh doesn't reach.
 - `stripPhotoTexture(plan, raster, opts, a, b, H = 2048): { rgba: Uint8Array; width: 64; height: H }`.
 - `buildKerbReturns(plan, opts, junctions, kerb, fillMaterial, photo?, streetEdge?, streetPhoto?, streetClearance?): { nodes; noRamp: Set<string>; atlas?; sideAtlas? }`
   - `junctions: { seg; side: 1 | -1; width; dir: [x, y] }[]`: the route sample index at the mouth, the side, the street's width, and its unit direction away from the route.
