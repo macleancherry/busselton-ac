@@ -1,705 +1,739 @@
-// Procedural textures (asphalt with markings, verge, grass) so a build never
-// depends on a texture download, and small raster drawing for map.png and
-// the Content Manager outline/preview images.
+// Busselton fork: every texture a build paints for itself, plus a small anti-aliased raster for the
+// map and outline images (docs/specs/textures.md). Written fresh from that spec.
+//
+// All procedural, all deterministic: the same call gives the same bytes, so a build never needs a
+// download and two builds of the same route match.
 
 import { encodeDdsDxt1 } from "./dds";
 import { encodePng } from "./png";
+import { rng } from "./random";
 
-export function rng(seed: number): () => number {
-  let s = seed >>> 0;
-  return () => {
-    s = (s + 0x6d2b79f5) >>> 0;
-    let t = s;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
+export { rng };
 
-/** Tileable value noise in 0..1 with `cells` lattice cells across. */
-export function valueNoise(w: number, h: number, cells: number, seed: number): Float32Array {
+type Rgb = readonly [number, number, number];
+type Rgba = readonly [number, number, number, number];
+type Pixels = Uint8Array | Uint8ClampedArray;
+
+/* ---------------- shared building blocks ---------------- */
+
+const clamp01 = (v: number) => (v < 0 ? 0 : v > 1 ? 1 : v);
+const smooth = (t: number) => t * t * (3 - 2 * t);
+const smoothstep = (e0: number, e1: number, v: number) => smooth(clamp01((v - e0) / (e1 - e0)));
+const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
+/** A float to a byte: clamped to 0..255, fraction dropped (NaN gives 0). */
+const toByte = (v: number) => (v >= 255 ? 255 : v > 0 ? v | 0 : 0);
+const wrapIndex = (v: number, n: number) => ((v % n) + n) % n;
+
+/**
+ * Tileable value noise in 0..1: a lattice `cells` across (and proportionally many down) of random
+ * values, smoothstep-interpolated, wrapping at the edges so the result tiles both ways.
+ */
+export function valueNoise(width: number, height: number, cells: number, seed: number): Float32Array {
+  const cx = Math.max(1, Math.round(cells));
+  const cy = Math.max(1, Math.round((cells * height) / width));
   const r = rng(seed);
-  const cx = cells, cy = Math.max(1, Math.round((cells * h) / w));
-  const lattice = Array.from({ length: cx * cy }, r);
-  const out = new Float32Array(w * h);
-  for (let y = 0; y < h; y++) {
-    const fy = (y / h) * cy, iy = Math.floor(fy), ty = fy - iy;
-    const sy = ty * ty * (3 - 2 * ty);
-    for (let x = 0; x < w; x++) {
-      const fx = (x / w) * cx, ix = Math.floor(fx), tx = fx - ix;
-      const sx = tx * tx * (3 - 2 * tx);
-      const a = lattice[(iy % cy) * cx + (ix % cx)], b = lattice[(iy % cy) * cx + ((ix + 1) % cx)];
-      const c = lattice[((iy + 1) % cy) * cx + (ix % cx)], d = lattice[((iy + 1) % cy) * cx + ((ix + 1) % cx)];
-      out[y * w + x] = (a + (b - a) * sx) * (1 - sy) + (c + (d - c) * sx) * sy;
+  const lattice = new Float32Array(cx * cy);
+  for (let i = 0; i < lattice.length; i++) lattice[i] = r();
+  // Per-column lattice cells and weights, reused for every row.
+  const x0 = new Int32Array(width), x1 = new Int32Array(width), tx = new Float32Array(width);
+  for (let x = 0; x < width; x++) {
+    const f = (x / width) * cx, i = Math.floor(f);
+    x0[x] = i % cx;
+    x1[x] = (i + 1) % cx;
+    tx[x] = smooth(f - i);
+  }
+  const out = new Float32Array(width * height);
+  for (let y = 0; y < height; y++) {
+    const f = (y / height) * cy, j = Math.floor(f), ty = smooth(f - j);
+    const row0 = (j % cy) * cx, row1 = ((j + 1) % cy) * cx;
+    for (let x = 0; x < width; x++) {
+      const top = lerp(lattice[row0 + x0[x]], lattice[row0 + x1[x]], tx[x]);
+      const bottom = lerp(lattice[row1 + x0[x]], lattice[row1 + x1[x]], tx[x]);
+      out[y * width + x] = lerp(top, bottom, ty);
     }
   }
   return out;
 }
 
-export function fill(w: number, h: number, shade: (x: number, y: number, i: number) => [number, number, number]): Uint8Array {
-  const px = new Uint8Array(w * h * 4);
-  for (let y = 0; y < h; y++) {
-    for (let x = 0; x < w; x++) {
-      const i = y * w + x;
-      const [r, g, b] = shade(x, y, i);
-      px[i * 4] = Math.max(0, Math.min(255, r));
-      px[i * 4 + 1] = Math.max(0, Math.min(255, g));
-      px[i * 4 + 2] = Math.max(0, Math.min(255, b));
-      px[i * 4 + 3] = 255;
+/** Opaque RGBA pixels from a shading function of (x, y, pixel index) giving RGB; values clamped to 0..255. */
+export function fill(width: number, height: number, shade: (x: number, y: number, i: number) => ArrayLike<number>): Uint8Array {
+  const out = new Uint8Array(width * height * 4);
+  for (let y = 0, i = 0; y < height; y++) {
+    for (let x = 0; x < width; x++, i++) {
+      const c = shade(x, y, i), o = i * 4;
+      out[o] = toByte(c[0]);
+      out[o + 1] = toByte(c[1]);
+      out[o + 2] = toByte(c[2]);
+      out[o + 3] = 255;
     }
   }
-  return px;
+  return out;
 }
+
+/** A 4 x 4 opaque PNG of one colour. */
+export function solidTexture(rgb: readonly [number, number, number]): Uint8Array {
+  return encodePng(fill(4, 4, () => rgb), 4, 4);
+}
+
+/** RGB float planes, for textures painted in several passes. */
+class Planes {
+  readonly r: Float32Array;
+  readonly g: Float32Array;
+  readonly b: Float32Array;
+  constructor(readonly width: number, readonly height: number) {
+    this.r = new Float32Array(width * height);
+    this.g = new Float32Array(width * height);
+    this.b = new Float32Array(width * height);
+  }
+  set(i: number, c: ArrayLike<number>): void {
+    this.r[i] = c[0];
+    this.g[i] = c[1];
+    this.b[i] = c[2];
+  }
+  /** Moves pixel i towards colour c by t. */
+  mix(i: number, c: ArrayLike<number>, t: number): void {
+    this.r[i] += (c[0] - this.r[i]) * t;
+    this.g[i] += (c[1] - this.g[i]) * t;
+    this.b[i] += (c[2] - this.b[i]) * t;
+  }
+  add(i: number, d: number): void {
+    this.r[i] += d;
+    this.g[i] += d;
+    this.b[i] += d;
+  }
+  rgba(): Uint8Array {
+    return fill(this.width, this.height, (_x, _y, i) => [this.r[i], this.g[i], this.b[i]]);
+  }
+  png(): Uint8Array {
+    return encodePng(this.rgba(), this.width, this.height);
+  }
+}
+
+/* ---------------- road surface ---------------- */
+
+/** Metres of road one seal texture covers along v; the road meshes' v coordinates use it. */
+export const SEAL_LENGTH = 24;
 
 export type SealKind = "asphalt" | "chipseal";
 
-/** Road surface texture repeats every this many metres along the road. */
-export const SEAL_LENGTH = 24;
+const SEAL_W = 512, SEAL_H = 1024;
+const CRACK: Rgb = [24, 24, 25];
+const STONES: Rgb[] = [
+  [122, 120, 114], // grey
+  [132, 116, 96], // brown
+  [106, 112, 120], // blue-grey
+  [142, 138, 130], // pale grey
+];
 
 /**
- * Bare road surface (no markings; those are separate geometry) across the
- * full width (u 0..1, left to right) and SEAL_LENGTH metres along (v),
- * tiling seamlessly along the road. RGBA, 512 x 1024.
- *
- *  - asphalt: dense-graded, dark and fine, with sealed cracks ("tar
- *    snakes"), patch repairs, polished wheel paths and an oil-drip line
- *    down each lane.
- *  - chipseal: spray seal, the usual rural Australian surface: lighter,
- *    coarse stone, with binder bleeding through darker in the wheel paths
- *    and premix patches.
- *
- * Returned as DXT1 DDS (these are the largest textures on the road), plus
- * the raw pixels for the browser preview.
+ * The road surface, 512 x 1024: u across the whole road (left to right), v along it for
+ * SEAL_LENGTH metres, tiling along v. Wheel paths, patches and sealed cracks; no markings.
  */
 export function sealTexture(kind: SealKind, twoLane: boolean, variant: number): { dds: Uint8Array; rgba: Uint8Array; width: number; height: number } {
-  const w = 512, h = 1024;
-  const seed = (kind === "asphalt" ? 100 : 200) + variant * 17 + (twoLane ? 5 : 0);
-  const r = rng(seed);
-  const coarse = valueNoise(w, h, 6, seed + 1), mid = valueNoise(w, h, 48, seed + 2), fine = valueNoise(w, h, 160, seed + 3);
-  // Wheel paths: two per lane, ~0.9 m either side of each lane's centre.
-  const lanes = twoLane ? [0.25, 0.75] : [0.5];
-  const laneW = twoLane ? 0.5 : 1;
-  const wheel = (u: number) => {
-    let best = 0;
-    for (const c of lanes) {
-      for (const o of [-0.26, 0.26]) best = Math.max(best, 1 - Math.min(1, Math.abs(u - (c + o * laneW)) / (0.09 * laneW)));
-    }
-    return best * best * (3 - 2 * best);
-  };
-  const drip = (u: number) => Math.max(...lanes.map((c) => 1 - Math.min(1, Math.abs(u - c) / (0.05 * laneW))));
+  const W = SEAL_W, H = SEAL_H;
+  const lanes = twoLane ? 2 : 1;
+  const laneW = W / lanes;
+  const r = rng((kind === "asphalt" ? 7100 : 7300) + variant * 17 + lanes * 5);
+  const n1 = valueNoise(W, H, 4, Math.floor(r() * 1e9));
+  const n2 = valueNoise(W, H, 16, Math.floor(r() * 1e9));
+  const n3 = valueNoise(W, H, 64, Math.floor(r() * 1e9));
 
-  const px = new Uint8Array(w * h * 4);
-  const stone: [number, number, number][] = [[112, 110, 106], [74, 73, 72], [122, 108, 92], [98, 102, 112], [136, 132, 124]];
-  for (let y = 0; y < h; y++) {
-    for (let x = 0; x < w; x++) {
-      const i = y * w + x, u = x / w;
-      const wp = wheel(u);
-      let c: [number, number, number];
-      if (kind === "chipseal") {
-        const s = stone[Math.floor(r() * stone.length)];
-        const k = 0.85 + (coarse[i] - 0.5) * 0.25 + (mid[i] - 0.5) * 0.2 + (fine[i] - 0.5) * 0.35;
-        // Flushed binder in the wheel paths: darker and smoother.
-        const flush = wp * (0.35 + coarse[i] * 0.3);
-        c = [s[0] * k * (1 - flush) + 52 * flush, s[1] * k * (1 - flush) + 52 * flush, s[2] * k * (1 - flush) + 54 * flush];
+  // Across the road: how much of a wheel path, and of a lane's centre (oil drips), each column is.
+  const wheel = new Float32Array(W), centre = new Float32Array(W);
+  for (let x = 0; x < W; x++) {
+    let w = 0, c = 0;
+    for (let l = 0; l < lanes; l++) {
+      const mid = (l + 0.5) * laneW;
+      for (const side of [-1, 1]) w += Math.exp(-(((x - (mid + side * 0.26 * laneW)) / (0.06 * laneW)) ** 2));
+      c += Math.exp(-(((x - mid) / (0.025 * laneW)) ** 2));
+    }
+    wheel[x] = Math.min(1, w);
+    centre[x] = Math.min(1, c);
+  }
+
+  const px = new Planes(W, H);
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      const i = y * W + x;
+      if (kind === "asphalt") {
+        let v = 60 + 12 * (n1[i] - 0.5) + 12 * (n2[i] - 0.5) + 10 * (n3[i] - 0.5) + (r() - 0.5) * 20;
+        v -= 4 * wheel[x];
+        v -= 3.5 * centre[x] * (0.4 + n2[i]);
+        px.set(i, [v - 1, v, v + 1]);
       } else {
-        const g = (r() - 0.5) * 20 * (1 - wp * 0.5);
-        const base = 60 + (coarse[i] - 0.5) * 12 + (mid[i] - 0.5) * 8 + (fine[i] - 0.5) * 10 + g - wp * 5 - drip(u) * 7 * mid[i];
-        c = [base, base, base + 2];
+        // Stones about 2 px (a centimetre or so), each row of stones shifted so no grid shows, binder
+        // showing between some of them; colours muted towards grey, as weathered chip is.
+        const shift = Math.floor(y / 2) * 5;
+        const cx = Math.floor((x + shift) / 2), cy = Math.floor(y / 2);
+        const h = hash2(cx & 1023, cy, variant);
+        const tone = 0.83 + 0.2 * (n1[i] - 0.5) + 0.2 * (n2[i] - 0.5);
+        let c: number[];
+        if (h < 0.1 || r() < 0.07) c = [64 * tone, 62 * tone, 57 * tone];
+        else {
+          const s = STONES[Math.floor(h * 97) % STONES.length];
+          const b = (0.86 + 0.24 * ((h * 7.31) % 1) + (r() - 0.5) * 0.2) * tone;
+          const grey = (s[0] + s[1] + s[2]) / 3;
+          c = [lerp(grey, s[0], 0.55) * b * 1.02, lerp(grey, s[1], 0.55) * b, lerp(grey, s[2], 0.55) * b * 0.96];
+        }
+        px.set(i, c);
+        // Flushed binder in the wheel paths: darker and smoother.
+        px.mix(i, [56 * tone, 54 * tone, 51 * tone], 0.55 * wheel[x]);
       }
-      px.set([c[0], c[1], c[2], 255].map((v) => Math.max(0, Math.min(255, v))), i * 4);
     }
   }
 
-  const shade = (x: number, y: number, f: (c: number) => number) => {
-    const xx = Math.max(0, Math.min(w - 1, Math.floor(x)));
-    const yy = ((Math.floor(y) % h) + h) % h; // wrap along the road
-    const i = (yy * w + xx) * 4;
-    for (let k = 0; k < 3; k++) px[i + k] = Math.max(0, Math.min(255, f(px[i + k])));
-  };
-
-  // Patch repairs: rectangles within a lane, a new or faded tone with a sealed edge.
+  // Patches: newer seal in a lane, a different tone with a dark sealed edge, wrapping along v.
   const patches = 1 + Math.floor(r() * 3);
   for (let p = 0; p < patches; p++) {
-    const lane = lanes[Math.floor(r() * lanes.length)];
-    const pw = (0.15 + r() * 0.25) * laneW * w, ph = (1.5 + r() * 5) / SEAL_LENGTH * h;
-    const px0 = (lane - laneW * 0.4 + r() * laneW * 0.8) * w - pw / 2, py0 = r() * h;
-    const tone = kind === "chipseal" ? -30 - r() * 15 : r() < 0.6 ? -9 : 8;
-    for (let y = 0; y < ph; y++) {
-      for (let x = 0; x < pw; x++) {
-        const edge = x < 2 || y < 2 || x > pw - 3 || y > ph - 3;
-        shade(px0 + x, py0 + y, (c) => (edge ? c * 0.55 : c + tone + (r() - 0.5) * 6));
+    const lane = Math.floor(r() * lanes);
+    const pw = Math.round(laneW * (0.15 + r() * 0.3));
+    const x0 = Math.round(lane * laneW + r() * (laneW - pw));
+    const len = Math.round(((1.5 + r() * 5) / SEAL_LENGTH) * H);
+    const y0 = Math.floor(r() * H);
+    const delta = (r() < 0.35 ? -1 : 1) * (5 + r() * 6);
+    for (let dy = 0; dy < len; dy++) {
+      const y = (y0 + dy) % H;
+      for (let x = x0; x < x0 + pw && x < W; x++) {
+        const i = y * W + x;
+        const rim = dy < 2 || dy >= len - 2 || x < x0 + 2 || x >= x0 + pw - 2;
+        if (kind === "asphalt") px.add(i, rim ? -16 : delta);
+        else if (rim) px.mix(i, [30, 30, 29], 0.8);
+        else {
+          px.r[i] = px.r[i] * 0.45 + 13;
+          px.g[i] = px.g[i] * 0.45 + 13;
+          px.b[i] = px.b[i] * 0.45 + 12;
+        }
       }
     }
   }
 
-  // Sealed cracks: dark meandering lines, mostly along the road, some across.
+  // Sealed cracks: dark meandering lines 3 px wide, mostly along the road, wrapping along v.
+  const stamp = (cx: number, cy: number) => {
+    for (let dy = -2; dy <= 2; dy++) {
+      for (let dx = -2; dx <= 2; dx++) {
+        const x = Math.round(cx) + dx;
+        if (x < 0 || x >= W) continue;
+        const d = Math.hypot(Math.round(cx) + dx - cx, Math.round(cy) + dy - cy);
+        const t = clamp01(2 - d) * 0.85;
+        if (t > 0) px.mix(wrapIndex(Math.round(cy) + dy, H) * W + x, CRACK, t);
+      }
+    }
+  };
+  const crack = (x: number, y: number, base: number, spread: number, length: number) => {
+    let heading = base + (r() - 0.5) * 2 * spread;
+    for (let s = 0; s < length; s += 1.5) {
+      stamp(x, y);
+      heading += (r() - 0.5) * 0.4;
+      heading = Math.max(base - spread, Math.min(base + spread, heading));
+      x += Math.cos(heading) * 1.5;
+      y += Math.sin(heading) * 1.5;
+      if (x < 2 || x > W - 3) break;
+    }
+  };
   const cracks = kind === "asphalt" ? 4 + Math.floor(r() * 4) : 1 + Math.floor(r() * 2);
+  const along = Math.PI / 2, thirty = Math.PI / 6;
   for (let c = 0; c < cracks; c++) {
-    const along = r() < 0.7;
-    let x = twoLane && c === 0 ? w * 0.5 : r() * w, y = r() * h;
-    let a = along ? Math.PI / 2 + (r() - 0.5) * 0.4 : (r() - 0.5) * 0.6;
-    const len = (along ? 200 + r() * 600 : 80 + r() * 200);
-    for (let t = 0; t < len; t++) {
-      a += (r() - 0.5) * 0.35;
-      if (along) a = Math.PI / 2 + Math.max(-0.5, Math.min(0.5, a - Math.PI / 2));
-      x += Math.cos(a);
-      y += Math.sin(a);
-      for (let dx = -1.5; dx <= 1.5; dx++) shade(x + dx, y, () => 26 + r() * 8);
-    }
+    const x = 8 + r() * (W - 16), y = r() * H;
+    const dir = r() < 0.5 ? 1 : -1;
+    if (r() < 0.75) crack(x, y, dir * along, thirty, 150 + r() * 350);
+    else crack(x, y, dir > 0 ? 0 : Math.PI, Math.PI / 7, 40 + r() * 110);
   }
-  return { dds: encodeDdsDxt1(px, w, h), rgba: px, width: w, height: h };
+  if (twoLane) crack(W / 2 + (r() - 0.5) * 10, r() * H, along, Math.PI / 18, 300 + r() * 300);
+
+  const rgba = px.rgba();
+  return { dds: encodeDdsDxt1(rgba, W, H), rgba, width: W, height: H };
 }
 
-/** Road paint, slightly worn. Tiles every metre. */
+/** A repeatable 0..1 number for an integer cell. */
+function hash2(x: number, y: number, salt: number): number {
+  let h = Math.imul(x | 0, 0x27d4eb2d) ^ Math.imul(y | 0, 0x165667b1) ^ Math.imul(salt | 0, 0x9e3779b9);
+  h ^= h >>> 15;
+  h = Math.imul(h, 0x85ebca6b);
+  h ^= h >>> 13;
+  h = Math.imul(h, 0xc2b2ae35);
+  h ^= h >>> 16;
+  return (h >>> 0) / 4294967296;
+}
+
+/* ---------------- small plain textures ---------------- */
+
+/** Line paint, 64 px for a metre: near white with worn patches. */
 export function paintTexture(): Uint8Array {
-  const w = 64, h = 64;
-  const r = rng(301);
-  const wear = valueNoise(w, h, 8, 302);
-  return encodePng(fill(w, h, (_x, _y, i) => {
-    const k = 228 - Math.max(0, wear[i] - 0.6) * 160 + (r() - 0.5) * 18;
-    return [k, k, k - 3];
-  }), w, h, { alpha: false });
+  const s = 64, r = rng(211);
+  const wear = valueNoise(s, s, 8, 212), fine = valueNoise(s, s, 32, 213);
+  return encodePng(fill(s, s, (_x, _y, i) => {
+    const worn = smoothstep(0.36, 0.14, wear[i]) * (0.7 + 0.6 * fine[i]);
+    const v = 228 - 60 * worn + (r() - 0.5) * 10;
+    return [v, v, v - 3];
+  }), s, s);
 }
 
+/** The roadside verge, 256 px: gravel brown fading into dry grass. */
 export function vergeTexture(): Uint8Array {
-  const w = 256, h = 256;
-  const n1 = valueNoise(w, h, 16, 21), n2 = valueNoise(w, h, 64, 22);
-  const r = rng(23);
-  const px = fill(w, h, (_x, _y, i) => {
-    const g = r();
-    const k = n1[i] * 0.6 + n2[i] * 0.4;
-    // gravel at the road edge fading into dry grass (u = 0 outer, 1 inner)
-    return [96 + k * 40 + g * 30, 90 + k * 36 + g * 26, 70 + k * 24 + g * 20];
-  });
-  return encodePng(px, w, h, { alpha: false });
+  const s = 256, r = rng(221);
+  const blend = valueNoise(s, s, 4, 222), mid = valueNoise(s, s, 16, 223), fine = valueNoise(s, s, 64, 224);
+  const gravel: Rgb = [140, 124, 96], dry: Rgb = [118, 114, 80];
+  return encodePng(fill(s, s, (_x, _y, i) => {
+    const t = smoothstep(0.3, 0.7, blend[i]);
+    const k = 1 + 0.16 * (mid[i] - 0.5) + 0.16 * (fine[i] - 0.5) + (r() - 0.5) * 0.14;
+    return [lerp(gravel[0], dry[0], t) * k, lerp(gravel[1], dry[1], t) * k, lerp(gravel[2], dry[2], t) * k];
+  }), s, s);
 }
 
+/** Grass, 512 px: green with two scales of noise and grain. */
 export function grassTexture(): Uint8Array {
-  const w = 512, h = 512;
-  const n1 = valueNoise(w, h, 8, 31), n2 = valueNoise(w, h, 48, 32);
-  const r = rng(33);
-  const px = fill(w, h, (_x, _y, i) => {
-    const k = n1[i] * 0.55 + n2[i] * 0.45, g = r();
-    return [52 + k * 40 + g * 18, 78 + k * 46 + g * 22, 36 + k * 22 + g * 12];
-  });
-  return encodePng(px, w, h, { alpha: false });
+  const s = 512, r = rng(231);
+  const big = valueNoise(s, s, 8, 232), small = valueNoise(s, s, 48, 233);
+  return encodePng(fill(s, s, (_x, _y, i) => {
+    const k = 1 + 0.24 * (big[i] - 0.5) + 0.2 * (small[i] - 0.5) + (r() - 0.5) * 0.2;
+    const dry = 6 * (big[i] - 0.5);
+    return [(82 + dry) * k, 113 * k, 53 * k];
+  }), s, s);
 }
 
-/**
- * Kerb and gutter concrete: pale grey, weathered, with a contraction joint
- * across the top row (v = 0) so each tile of the texture is one pour.
- */
+/** Concrete, 64 x 256: pale weathered grey, a contraction joint across the top two rows (one pour per tile). */
 export function concreteTexture(): Uint8Array {
-  const w = 64, h = 256;
-  const n1 = valueNoise(w, h, 4, 41), n2 = valueNoise(w, h, 16, 42);
-  const r = rng(43);
+  const w = 64, h = 256, r = rng(241);
+  const stain = valueNoise(w, h, 4, 242), grit = valueNoise(w, h, 16, 243);
   return encodePng(fill(w, h, (_x, y, i) => {
-    const k = n1[i] * 0.6 + n2[i] * 0.4;
-    const joint = y < 2 ? 0.55 : 1;
-    const g = 150 + k * 34 + (r() - 0.5) * 16;
-    return [g * joint, g * joint, (g - 4) * joint];
-  }), w, h, { alpha: false });
+    if (y < 2) return [93, 93, 90];
+    const v = 168 + 14 * (stain[i] - 0.5) + 8 * (grit[i] - 0.5) + (r() - 0.5) * 10;
+    return [v, v, v - 4];
+  }), w, h);
 }
 
-export function solidTexture(rgb: [number, number, number]): Uint8Array {
-  return encodePng(fill(4, 4, () => rgb), 4, 4, { alpha: false });
-}
-
-/** RGBA canvas with anti-aliased thick polylines, for map and outline images. */
-export class Raster {
-  readonly px: Uint8Array;
-  constructor(readonly width: number, readonly height: number, background: [number, number, number, number] = [0, 0, 0, 0]) {
-    this.px = new Uint8Array(width * height * 4);
-    for (let i = 0; i < width * height; i++) this.px.set(background, i * 4);
-  }
-
-  private blend(x: number, y: number, rgba: [number, number, number, number], cover: number): void {
-    const i = (y * this.width + x) * 4;
-    const a = (rgba[3] / 255) * cover;
-    const da = this.px[i + 3] / 255;
-    const oa = a + da * (1 - a);
-    if (oa <= 0) return;
-    for (let k = 0; k < 3; k++) {
-      this.px[i + k] = Math.round((rgba[k] * a + this.px[i + k] * da * (1 - a)) / oa);
-    }
-    this.px[i + 3] = Math.round(oa * 255);
-  }
-
-  line(pts: [number, number][], thickness: number, rgba: [number, number, number, number]): void {
-    const r = thickness / 2;
-    // Coverage per pixel is the max over segments, so joints do not double up.
-    const cover = new Float32Array(this.width * this.height);
-    for (let s = 1; s < pts.length; s++) {
-      const [ax, ay] = pts[s - 1], [bx, by] = pts[s];
-      const x0 = Math.max(0, Math.floor(Math.min(ax, bx) - r - 1)), x1 = Math.min(this.width - 1, Math.ceil(Math.max(ax, bx) + r + 1));
-      const y0 = Math.max(0, Math.floor(Math.min(ay, by) - r - 1)), y1 = Math.min(this.height - 1, Math.ceil(Math.max(ay, by) + r + 1));
-      const dx = bx - ax, dy = by - ay, L2 = dx * dx + dy * dy || 1e-9;
-      for (let y = y0; y <= y1; y++) {
-        for (let x = x0; x <= x1; x++) {
-          const cx = x + 0.5, cy = y + 0.5;
-          const t = Math.max(0, Math.min(1, ((cx - ax) * dx + (cy - ay) * dy) / L2));
-          const d = Math.hypot(cx - (ax + dx * t), cy - (ay + dy * t));
-          const c = Math.max(0, Math.min(1, r + 0.5 - d));
-          const k = y * this.width + x;
-          if (c > cover[k]) cover[k] = c;
-        }
-      }
-    }
-    for (let k = 0; k < cover.length; k++) {
-      if (cover[k] > 0) this.blend(k % this.width, Math.floor(k / this.width), rgba, cover[k]);
-    }
-  }
-
-  dot(x: number, y: number, radius: number, rgba: [number, number, number, number]): void {
-    for (let py = Math.floor(y - radius - 1); py <= Math.ceil(y + radius + 1); py++) {
-      for (let px = Math.floor(x - radius - 1); px <= Math.ceil(x + radius + 1); px++) {
-        if (px < 0 || py < 0 || px >= this.width || py >= this.height) continue;
-        const c = Math.max(0, Math.min(1, radius + 0.5 - Math.hypot(px + 0.5 - x, py + 0.5 - y)));
-        if (c > 0) this.blend(px, py, rgba, c);
-      }
-    }
-  }
-
-  png(): Uint8Array {
-    return encodePng(this.px, this.width, this.height);
-  }
-}
-
-/* ---------------- scenery textures ---------------- */
-
-/** Tree atlas variants: u ranges within the 512 x 512 atlas. */
-export const TREE_VARIANTS = [
-  { u0: 0, u1: 0.25, kind: "broadleaf", height: 12, width: 10.2 },
-  { u0: 0.25, u1: 0.5, kind: "conifer", height: 15, width: 8.25 },
-  { u0: 0.5, u1: 0.75, kind: "eucalypt", height: 16, width: 9.6 },
-  { u0: 0.75, u1: 1, kind: "palm", height: 10, width: 7 },
-] as const;
-
-/**
- * Tree sprites side by side with an alpha channel, for alpha-tested
- * crossed-quad trees: a broadleaf shade tree, a conifer, a eucalypt (pale
- * trunk, sparse grey-green clumps you can see through) and a palm.
- */
-export function treeAtlas(): Uint8Array {
-  const w = 1024, h = 512;
-  const px = new Uint8Array(w * h * 4);
-  const r = rng(41);
-  const put = (x: number, y: number, c: [number, number, number]) => {
-    if (x < 0 || y < 0 || x >= w || y >= h) return;
-    const i = (Math.floor(y) * w + Math.floor(x)) * 4;
-    px[i] = c[0];
-    px[i + 1] = c[1];
-    px[i + 2] = c[2];
-    px[i + 3] = 255;
-  };
-  const green: [number, number, number] = [34, 70, 30];
-  const blob = (cx: number, cy: number, rad: number, shade: number, x0: number, x1: number, col = green, holes = 0.55) => {
-    for (let y = cy - rad; y <= cy + rad; y++) {
-      for (let x = Math.max(x0, cx - rad); x <= Math.min(x1 - 1, cx + rad); x++) {
-        const d = Math.hypot(x - cx, y - cy) / rad;
-        if (d > 1 || r() < d * d * holes) continue; // ragged, see-through edges
-        const k = shade * (0.75 + 0.35 * (1 - d)) * (0.85 + r() * 0.3);
-        put(x, y, [col[0] * k + 8, col[1] * k + 14, col[2] * k + 6]);
-      }
-    }
-  };
-  const line = (x0: number, y0: number, x1: number, y1: number, width: number, col: (t: number) => [number, number, number]) => {
-    const n = Math.ceil(Math.hypot(x1 - x0, y1 - y0));
-    for (let i = 0; i <= n; i++) {
-      const t = i / Math.max(1, n), x = x0 + (x1 - x0) * t, y = y0 + (y1 - y0) * t;
-      const wd = typeof width === "number" ? width : 1;
-      for (let dx = -wd / 2; dx <= wd / 2; dx++) put(x + dx, y, col(t));
-    }
-  };
-  // Broadleaf: trunk with a couple of branches, clumped canopy.
-  for (let y = 330; y < 512; y++) {
-    const t = 3.5 + (512 - y) * 0.008;
-    for (let x = 128 - t; x < 128 + t; x++) put(x, y, [92 + r() * 25, 78 + r() * 20, 62 + r() * 15]);
-  }
-  for (let i = 0; i < 110; i++) {
-    const a = r() * Math.PI * 2, d = Math.sqrt(r());
-    blob(128 + Math.cos(a) * d * 92, 215 + Math.sin(a) * d * 150, 16 + r() * 24, 0.7 + r() * 0.6, 0, 256);
-  }
-  // Conifer: narrow trunk, stacked tiers.
-  for (let y = 380; y < 512; y++) for (let x = 378; x < 390; x++) put(x, y, [78 + r() * 20, 60 + r() * 15, 45]);
-  for (let tier = 0; tier < 9; tier++) {
-    const y = 40 + tier * 40, half = 18 + tier * 11;
-    for (let i = 0; i < 26; i++) {
-      const x = 384 + (r() * 2 - 1) * half;
-      blob(x, y + r() * 30, 10 + r() * 10, 0.55 + r() * 0.45, 256, 512);
-    }
-  }
-  // Eucalypt: a tall pale trunk forking into a few limbs, sparse grey-green clumps at their ends.
-  const gum = (t: number): [number, number, number] => {
-    const patch = r() < 0.15 ? 0.82 : 1;
-    return [(208 - t * 20) * patch + r() * 10, (200 - t * 22) * patch + r() * 10, (184 - t * 26) * patch + r() * 8];
-  };
-  for (let y = 300; y < 512; y++) {
-    const t = 3.5 + (y - 300) * 0.02;
-    for (let x = 640 - t; x < 640 + t; x++) put(x, y, gum((512 - y) / 212));
-  }
-  // Limbs leave the trunk at different heights and bend outward, then up;
-  // foliage clumps along their outer half.
-  const limbs: [number, number, number][] = [
-    [300, -95, 95], [318, 82, 120], [342, -55, 175], [360, 100, 205], [305, 20, 55], [330, -20, 120],
-  ];
-  for (const [y0, dx, yEnd] of limbs) {
-    const midX = 640 + dx * 0.55, midY = (y0 + yEnd) / 2 + 25;
-    const w0 = y0 > 320 ? 4 : 5;
-    line(640, y0, midX, midY, w0, (t) => gum(0.55 + t * 0.2));
-    line(midX, midY, 640 + dx, yEnd, w0 - 2, (t) => gum(0.75 + t * 0.25));
-    for (let i = 0; i < 12; i++) {
-      const t = 0.45 + r() * 0.65;
-      const x = midX + (dx * 0.45) * (t - 0.5) * 2 + (r() - 0.5) * 40, y = midY + (yEnd - midY) * Math.min(1, t) - r() * 25;
-      blob(x, y, 10 + r() * 15, 0.75 + r() * 0.5, 512, 768, [92, 104, 72], 0.75);
-    }
-  }
-  // Palm: a thin ringed trunk with a crown of drooping fronds.
-  const cx = 896, cy = 150;
-  for (let y = cy; y < 512; y++) {
-    const x = cx + Math.sin((y - cy) / 120) * 6;
-    const ring = (y % 9) < 2 ? 0.8 : 1;
-    for (let dx = -4; dx <= 4; dx++) put(x + dx, y, [118 * ring + r() * 12, 104 * ring + r() * 10, 86 * ring]);
-  }
-  // Fronds: some rising before they droop, some hanging; dense leaflets either side.
-  for (let f = 0; f < 18; f++) {
-    const a = (f / 18) * Math.PI * 2 + r() * 0.3;
-    const L = 80 + r() * 40, lift = 0.2 + r() * 0.8, droop = 0.5 + r() * 0.7;
-    const reach = Math.cos(a);
-    let px0 = cx, py0 = cy;
-    for (let i = 1; i <= 30; i++) {
-      const t = i / 30;
-      const x = cx + reach * L * t, y = cy - lift * L * t * 0.9 + droop * L * t * t;
-      line(px0, py0, x, y, 3, () => [74 + r() * 15, 100 + r() * 20, 48]);
-      // Leaflets: long near the base, shorter toward the tip, angled forward and down.
-      const nx = -(y - py0), ny = x - px0, nl = Math.hypot(nx, ny) || 1;
-      const len = 22 * (1 - t * 0.55);
-      for (const sgn of [1, -1]) {
-        const ex = x + (nx / nl) * len * sgn + (x - px0) * 0.8, ey = y + (ny / nl) * len * sgn + len * 0.6;
-        line(x, y, ex, ey, 2, () => [50 + r() * 22, 96 + r() * 28, 38 + r() * 12]);
-      }
-      px0 = x;
-      py0 = y;
-    }
-  }
-  return encodePng(px, w, h);
-}
-
-/** W-beam guard rail, 1 m along (u) by the beam height (v). */
+/** W-beam guard rail, 64 px: two ridges and a groove across v, galvanised grey. */
 export function railTexture(): Uint8Array {
-  const w = 64, h = 64;
-  const r = rng(51);
-  return encodePng(fill(w, h, (_x, y) => {
-    // Two raised ridges and a central groove.
-    const v = y / h;
-    const shade = 150 + 45 * Math.cos(v * Math.PI * 4) + (r() - 0.5) * 12;
-    return [shade, shade + 2, shade + 6];
-  }), w, h, { alpha: false });
+  const s = 64, r = rng(251);
+  return encodePng(fill(s, s, (_x, y) => {
+    const ridge = 0.5 + 0.5 * Math.cos((2 * Math.PI * 2 * y) / s);
+    const v = (ridge - 0.5) * 92 + (r() - 0.5) * 8;
+    return [148 + v, 150 + v, 154 + v];
+  }), s, s);
 }
 
-/** Guide post, Australian style: white, red reflector on one face and white on the other. */
+const POST_W = 48, POST_H = 64;
+const POST_WHITE: Rgb = [236, 236, 230];
+
+/**
+ * A guide post, 48 x 64, in thirds across: red reflector, white reflector, plain. Reflectors on
+ * rows 3 to 11 with a darker outline row above and below (the scenery spec's u ranges match).
+ */
 export function postTexture(): Uint8Array {
-  // Australian guide post, 1.3 m: white all over, a reflector near the top (18 x 5 cm, about 40 to 50 cm
-  // of it down from the top on the 64-pixel height). Left third: red reflector; middle: white; right: plain.
-  const w = 48, h = 64;
-  return encodePng(fill(w, h, (x, y) => {
-    const third = Math.floor(x / 16), inX = x % 16;
-    if (third < 2 && y >= 3 && y < 12 && inX >= 3 && inX < 13) return third === 0 ? [215, 25, 25] : [250, 250, 250];
-    const shade = third < 2 && (y === 2 || y === 12) ? 0.9 : 1;
-    return [236 * shade, 236 * shade, 230 * shade];
-  }), w, h, { alpha: false });
+  const third = POST_W / 3;
+  return encodePng(fill(POST_W, POST_H, (x, y) => {
+    const t = Math.floor(x / third), lx = x - t * third;
+    if (t < 2) {
+      if (y === 2 || y === 12) return [212, 212, 207];
+      if (y >= 3 && y <= 11 && lx >= 3 && lx <= 12) return t === 0 ? [215, 25, 25] : [250, 250, 250];
+    }
+    return POST_WHITE;
+  }), POST_W, POST_H);
 }
 
-/** A Colorbond roller door, 2.6 m x 2.1 m: fine horizontal ribs, a darker bottom rail. */
+/** A Colorbond roller door, 64 px: fine horizontal ribs, a darker bottom rail. */
 export function garageTexture(): Uint8Array {
-  const w = 64, h = 64;
-  const r = rng(91);
-  return encodePng(fill(w, h, (_x, y) => {
-    const n = (r() - 0.5) * 6;
-    if (y > 60) return [120 + n, 122 + n, 120 + n];
-    const k = 0.92 + 0.08 * Math.sin((y / h) * Math.PI * 2 * 14);
-    return [214 * k + n, 212 * k + n, 200 * k + n];
-  }), w, h, { alpha: false });
+  const s = 64, r = rng(261);
+  return encodePng(fill(s, s, (_x, y) => {
+    if (y >= s - 3) return [117, 117, 113];
+    const k = 0.94 + 0.07 * Math.cos((2 * Math.PI * 14 * y) / s) + (r() - 0.5) * 0.02;
+    return [209 * k, 207 * k, 196 * k];
+  }), s, s);
 }
 
-/** Barrier kinds along property lines, and the texture each one wears. */
+/** One window, 64 px: sky reflected at the top darkening downward, a hint of curtain each side. */
+export function windowTexture(): Uint8Array {
+  const s = 64, r = rng(271);
+  return encodePng(fill(s, s, (x, y) => {
+    const t = y / (s - 1);
+    const n = (r() - 0.5) * 5;
+    const glass = [152 - 92 * t + n, 167 - 96 * t + n, 182 - 96 * t + n];
+    const curtain = y < s - 9 && (x < 10 || x >= s - 9);
+    return curtain ? [glass[0] * 0.5 + 92, glass[1] * 0.5 + 88, glass[2] * 0.5 + 82] : glass;
+  }), s, s);
+}
+
+/** The garden barriers fences.ts can build; each has a 128 px texture covering 2 m x 2 m. */
 export const BARRIERS = ["colorbond", "paling", "brickwall", "hedge"] as const;
+export type Barrier = (typeof BARRIERS)[number];
 
-/**
- * Textures 2 m along by 2 m tall: a Colorbond fence (corrugated steel
- * panels between posts), timber palings, a garden wall of red brick with a
- * capping course, and a clipped hedge.
- */
-export function barrierTexture(kind: (typeof BARRIERS)[number]): Uint8Array {
-  const w = 128, h = 128;
-  const r = rng(201 + kind.length);
-  const leaf = kind === "hedge" ? valueNoise(w, h, 24, 77) : null;
-  return encodePng(fill(w, h, (x, y, i) => {
-    const n = (r() - 0.5) * 10;
-    if (kind === "colorbond") {
-      // Grey-green "Woodland Grey": corrugations every ~7 cm, a post every 2.4 m (here at the tile edge), top rail.
-      if (x < 3 || y < 4) return [70 + n, 72 + n, 66 + n];
-      const k = 0.88 + 0.12 * Math.sin((x / w) * Math.PI * 2 * 28);
-      return [96 * k + n, 99 * k + n, 90 * k + n];
-    }
-    if (kind === "paling") {
-      // 100 mm palings with gaps of shadow, weathered timber, a rail across.
-      const board = x % 6.4 < 0.8;
-      if (board) return [62 + n, 50 + n, 40 + n];
-      if (y > 30 && y < 36) return [96 + n, 80 + n, 62 + n];
-      const grain = ((x * 7 + Math.floor(y / 9) * 3) % 11) * 2;
-      return [150 + grain + n, 124 + grain + n, 94 + n];
-    }
-    if (kind === "brickwall") {
-      if (y < 6) return [182 + n, 176 + n, 166 + n]; // capping
-      const course = Math.floor(y / 5);
-      const mortar = y % 5 < 1 || (x + (course % 2) * 8) % 16 < 1;
-      if (mortar) return [196 + n, 188 + n, 172 + n];
-      const tone = ((course * 7 + Math.floor((x + (course % 2) * 8) / 16) * 13) % 5) * 6;
-      return [150 + tone + n, 78 + tone / 2 + n, 58 + n];
-    }
-    // Hedge: dense leaves, darker in the hollows.
-    const k = 0.55 + leaf![i] * 0.7;
-    return [36 * k + n / 2, 78 * k + n, 32 * k + n / 2];
-  }), w, h, { alpha: false });
+/** A barrier's texture (PNG). */
+export function barrierTexture(kind: Barrier): Uint8Array {
+  switch (kind) {
+    case "colorbond": return colorbondTexture();
+    case "paling": return palingTexture();
+    case "brickwall": return brickTexture();
+    case "hedge": return hedgeTexture();
+  }
 }
 
-/*
- * Detail-mapped materials (ksPerPixelMultiMap). How the game uses these, from
- * its shaders (CSP's recreation of the Kunos ones):
- *   diffuse = lerp(diffuse, detail * diffuse, 1 - diffuse.alpha)
- * so the detail texture multiplies the photo or seal texture wherever that
- * texture's alpha is 0, tiled detailUVMultiplier times across its UVs. It
- * is kept close to white so it adds grain without darkening the surface.
- * txMaps: R scales specular, G glossiness, B sun specular.
- */
-export type DetailKind = "asphalt" | "chipseal";
+const B = 128;
+
+function colorbondTexture(): Uint8Array {
+  const r = rng(301), stain = valueNoise(B, B, 4, 302);
+  return encodePng(fill(B, B, (x, y, i) => {
+    const k = 1 + 0.03 * (stain[i] - 0.5) + (r() - 0.5) * 0.04;
+    if (x < 3 || x >= B - 3) return [60 * k, 63 * k, 57 * k]; // post
+    if (y === 0) return [96 * k, 99 * k, 90 * k]; // lit top edge of the rail
+    if (y < 6) return [70 * k, 73 * k, 66 * k]; // top rail
+    const c = k * (1 + 0.13 * Math.sin((2 * Math.PI * x) / 4));
+    return [86 * c, 89 * c, 80 * c];
+  }), B, B);
+}
+
+function palingTexture(): Uint8Array {
+  const r = rng(311);
+  const grain = valueNoise(B, B * 4, 64, 312);
+  // Paling widths that add up to the tile, so it tiles across.
+  const edges: number[] = [0];
+  while (edges[edges.length - 1] < B - 14) edges.push(edges[edges.length - 1] + 9 + Math.floor(r() * 5));
+  edges.push(B);
+  const tones = edges.map(() => 0.86 + r() * 0.24);
+  return encodePng(fill(B, B, (x, y) => {
+    let p = 0;
+    while (edges[p + 1] <= x) p++;
+    if (x === edges[p]) return [52, 40, 28]; // shadow gap
+    if (x === edges[p] + 1) return [104, 84, 60];
+    if (y >= 29 && y <= 34) return y === 29 ? [84, 66, 44] : [102, 81, 56]; // rail
+    // Grain runs up the paling: noise stretched vertically.
+    const g = grain[((y * 4) % (B * 4)) * B + x] ?? 0.5;
+    const k = tones[p] * (1 + 0.14 * (g - 0.5) + (r() - 0.5) * 0.06);
+    return [158 * k, 132 * k, 93 * k];
+  }), B, B);
+}
+
+function brickTexture(): Uint8Array {
+  const r = rng(321);
+  const cap = 7, course = 6, brick = 16;
+  const tone = new Float32Array(64 * 32);
+  for (let i = 0; i < tone.length; i++) tone[i] = 0.84 + r() * 0.28;
+  return encodePng(fill(B, B, (x, y) => {
+    const n = (r() - 0.5) * 0.08;
+    if (y < cap - 1) return [178 * (1 + n), 172 * (1 + n), 162 * (1 + n)]; // capping course
+    const yy = y - (cap - 1);
+    const row = Math.floor(yy / course);
+    if (yy % course === 0) return [196, 190, 178]; // bed joint
+    const xx = x + (row % 2) * (brick / 2);
+    if (xx % brick === 0) return [196, 190, 178]; // perpend
+    const k = tone[(row % 32) * 64 + Math.floor(xx / brick) % 64] * (1 + n);
+    return [168 * k, 92 * k, 68 * k];
+  }), B, B);
+}
+
+function hedgeTexture(): Uint8Array {
+  const r = rng(331);
+  const a = valueNoise(B, B, 8, 332), b = valueNoise(B, B, 16, 333), c = valueNoise(B, B, 32, 334);
+  return encodePng(fill(B, B, (_x, _y, i) => {
+    const v = 0.5 * a[i] + 0.3 * b[i] + 0.2 * c[i];
+    const hollow = smoothstep(0.42, 0.3, v) * 0.2;
+    const k = (0.55 + 0.9 * v) * (1 - hollow) + (r() - 0.5) * 0.12;
+    return [36 * k, 78 * k, 32 * k];
+  }), B, B);
+}
+
+/* ---------------- detail and ground layers ---------------- */
 
 /**
- * A tileable 256 px close-up detail. Asphalt and chip seal are drawn
- * squashed 3:1 along v, because the road's UVs run 24 m along for about 8 m
- * across: on the road the stones come out round.
+ * A road detail texture for CSP's detail shaders, 256 px, near white: small stones a little darker
+ * or lighter than the binder (chipseal fewer and bigger), drawn 3:1 wide so they come out round on
+ * the road. Wraps.
  */
-export function detailTexture(kind: DetailKind): Uint8Array {
-  const w = 256, h = 256;
-  const r = rng(301 + kind.length * 7);
-  const base = valueNoise(w, h, 8, 302);
-  const px = new Float32Array(w * h).fill(1);
-  // Aggregate: stones, darker and lighter than the binder, round on the road.
-  const n = kind === "chipseal" ? 2600 : 5200, rx = kind === "chipseal" ? 4.5 : 2.4;
-  for (let i = 0; i < n; i++) {
-    const cx = r() * w, cy = r() * h, rad = rx * (0.6 + r() * 0.8), k = r() < 0.55 ? 0.72 + r() * 0.12 : 0.97 + r() * 0.03;
-    for (let dy = -Math.ceil(rad / 3); dy <= Math.ceil(rad / 3); dy++) {
-      for (let dx = -Math.ceil(rad); dx <= Math.ceil(rad); dx++) {
-        if ((dx / rad) ** 2 + ((dy * 3) / rad) ** 2 > 1) continue;
-        const x = (Math.floor(cx) + dx + w) % w, y = (Math.floor(cy) + dy + h) % h;
-        px[y * w + x] = Math.min(px[y * w + x], k);
+export function detailTexture(kind: SealKind): Uint8Array {
+  const s = 256, chip = kind === "chipseal";
+  const r = rng(chip ? 402 : 401);
+  const base = valueNoise(s, s, 8, chip ? 404 : 403);
+  const lum = new Float32Array(s * s);
+  for (let i = 0; i < lum.length; i++) lum[i] = 245 + 8 * (base[i] - 0.5);
+  const count = chip ? 1500 : 2900;
+  for (let k = 0; k < count; k++) {
+    const cx = r() * s, cy = r() * s;
+    const rx = chip ? 3 + r() * 5 : 1.5 + r() * 2.5, ry = Math.max(0.6, rx / 3);
+    const v = r() < 0.8 ? -(30 + r() * 35) : 7;
+    for (let dy = -Math.ceil(ry); dy <= Math.ceil(ry); dy++) {
+      for (let dx = -Math.ceil(rx); dx <= Math.ceil(rx); dx++) {
+        const fx = Math.round(cx) + dx - cx, fy = Math.round(cy) + dy - cy;
+        if ((fx / rx) ** 2 + (fy / ry) ** 2 > 1) continue;
+        const i = wrapIndex(Math.round(cy) + dy, s) * s + wrapIndex(Math.round(cx) + dx, s);
+        lum[i] = 245 + 8 * (base[i] - 0.5) + v;
       }
     }
   }
-  return encodePng(fill(w, h, (_x, _y, i) => {
-    const v = 255 * px[i] * (0.94 + base[i] * 0.06);
-    return [v, v, v];
-  }), w, h, { alpha: false });
+  return encodePng(fill(s, s, (_x, _y, i) => [lum[i], lum[i], lum[i]]), s, s);
 }
 
-/** A flat tangent-space normal map (no relief), for multimap materials that need one. */
+/** A flat tangent-space normal map, 4 x 4. */
 export function flatNormalTexture(): Uint8Array {
-  return encodePng(fill(4, 4, () => [128, 128, 255]), 4, 4, { alpha: false });
+  return encodePng(fill(4, 4, () => [128, 128, 255]), 4, 4);
 }
 
-/** A constant txMaps: specular, glossiness and sun-specular multipliers, 0..1. */
-export function mapsTexture(spec: number, gloss: number, sun: number): Uint8Array {
-  return encodePng(fill(4, 4, () => [spec * 255, gloss * 255, sun * 255]), 4, 4, { alpha: false });
+/** A txMaps texture, 4 x 4: specular (R), glossiness (G) and sun specular (B), each 0..1. */
+export function mapsTexture(specular: number, gloss: number, sun: number): Uint8Array {
+  return encodePng(fill(4, 4, () => [specular * 255, gloss * 255, sun * 255]), 4, 4);
 }
+
+export type GroundKind = "grass" | "dirt" | "plain";
+
+/** Metres one ground detail tile covers. */
+export const GROUND_TILE: Record<GroundKind, number> = { grass: 1.6, dirt: 2.4, plain: 2 };
 
 /**
- * What each pixel of an aerial photo shows, as ground-detail weights that
- * add to 1: grass (green lawns, and dry yellow grass in an Australian
- * summer), dirt (bare earth: brown and reddish, or pale sand) and plain
- * (roofs, roads, paving, water, shade). Softened over 3 px.
+ * How much of each aerial photo pixel is grass (green lawn, or dry summer grass: warm, not earthy)
+ * and dirt (warm and earthy: redder than dry grass); the rest is plain. Per pixel the two add to at
+ * most 1. Each is softened with a 3 x 3 box blur.
  */
-export function groundClasses(rgba: Uint8Array | Uint8ClampedArray, w: number, h: number): { grass: Float32Array; dirt: Float32Array } {
-  const grass0 = new Float32Array(w * h), dirt0 = new Float32Array(w * h);
-  for (let i = 0; i < w * h; i++) {
-    const r = rgba[i * 4] / 255, g = rgba[i * 4 + 1] / 255, b = rgba[i * 4 + 2] / 255;
-    const l = (r + g + b) / 3, mx = Math.max(r, g, b), mn = Math.min(r, g, b);
-    const sat = mx > 0 ? (mx - mn) / mx : 0;
-    const exg = (2 * g - r - b) / (r + g + b + 1e-4);
-    const green = l > 0.08 && l < 0.6 ? Math.min(1, Math.max(0, exg / 0.08)) : 0;
-    // Warm and earthy: yellow-brown to red-brown, not grey, not too dark or bright.
-    const warm = l > 0.16 && l < 0.7 && r > b * 1.12 && g > b * 1.02 && sat > 0.1 && sat < 0.6 ? 1 : 0;
-    // Earth is redder than dry grass: green falls behind red.
-    const earthy = Math.min(1, Math.max(0, (0.86 - g / Math.max(r, 1e-4)) / 0.08));
-    const dirt = warm * earthy;
-    grass0[i] = Math.max(green, warm * (1 - earthy));
-    dirt0[i] = Math.min(dirt, 1 - grass0[i]);
+export function groundClasses(rgba: Pixels, width: number, height: number): { grass: Float32Array; dirt: Float32Array } {
+  const n = width * height;
+  const grass = new Float32Array(n), dirt = new Float32Array(n);
+  for (let i = 0; i < n; i++) {
+    const o = i * 4;
+    if (rgba[o + 3] === 0) continue;
+    const r = rgba[o] / 255, g = rgba[o + 1] / 255, b = rgba[o + 2] / 255;
+    const hi = Math.max(r, g, b), lo = Math.min(r, g, b);
+    const lum = 0.3 * r + 0.59 * g + 0.11 * b;
+    // Grey (roads, roofs, paving), shade and water carry no class.
+    const coloured = smoothstep(0.04, 0.11, hi - lo) * smoothstep(0.06, 0.13, lum) * smoothstep(0.92, 0.8, lum);
+    if (coloured === 0) continue;
+    const green = smoothstep(-0.005, 0.035, g - r) * smoothstep(0.0, 0.05, g - b);
+    const warm = smoothstep(0.05, 0.13, Math.min(r, g) - b);
+    const dry = warm * smoothstep(0.045, 0.015, r - g) * smoothstep(-0.035, -0.005, g - r + 0.03);
+    const earthy = smoothstep(0.015, 0.06, r - g) * smoothstep(0.07, 0.15, r - b);
+    let gw = Math.max(green, dry) * coloured, dw = earthy * coloured;
+    const sum = gw + dw;
+    if (sum > 1) { gw /= sum; dw /= sum; }
+    grass[i] = gw;
+    dirt[i] = dw;
   }
-  const blur = (src: Float32Array) => {
-    const out = new Float32Array(w * h);
-    for (let y = 0; y < h; y++) {
-      for (let x = 0; x < w; x++) {
-        let s = 0, n = 0;
-        for (let dy = -1; dy <= 1; dy++) {
-          for (let dx = -1; dx <= 1; dx++) {
-            const xx = x + dx, yy = y + dy;
-            if (xx < 0 || yy < 0 || xx >= w || yy >= h) continue;
-            s += src[yy * w + xx];
-            n++;
-          }
+  return { grass: boxBlur3(grass, width, height), dirt: boxBlur3(dirt, width, height) };
+}
+
+function boxBlur3(src: Float32Array, w: number, h: number): Float32Array {
+  const out = new Float32Array(src.length);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      let sum = 0, cnt = 0;
+      for (let dy = -1; dy <= 1; dy++) {
+        const yy = y + dy;
+        if (yy < 0 || yy >= h) continue;
+        for (let dx = -1; dx <= 1; dx++) {
+          const xx = x + dx;
+          if (xx < 0 || xx >= w) continue;
+          sum += src[yy * w + xx];
+          cnt++;
         }
-        out[y * w + x] = s / n;
       }
+      out[y * w + x] = sum / cnt;
     }
-    return out;
-  };
-  return { grass: blur(grass0), dirt: blur(dirt0) };
+  }
+  return out;
 }
 
 /**
- * A ksMultilayer mask for a ground photo: R grass, G dirt, B plain (adding
- * to 255), A unused. Box-filtered down to at most `max` texels a side; the
- * patches it places are metres across, so a few tens of kilobytes per
- * photo instead of an alpha channel on it.
+ * The ground mask for a photo: its classes box-filtered down to at most 256 texels a side.
+ * R grass, G dirt, B plain (the three add to 255), A 255.
  */
-export function groundMask(rgba: Uint8Array | Uint8ClampedArray, w: number, h: number, max = 256): { rgba: Uint8Array; width: number; height: number } {
-  const { grass, dirt } = groundClasses(rgba, w, h);
-  const mw = Math.min(max, w), mh = Math.min(max, h);
+export function groundMask(rgba: Pixels, width: number, height: number): { rgba: Uint8Array; width: number; height: number } {
+  const { grass, dirt } = groundClasses(rgba, width, height);
+  const f = Math.max(1, Math.ceil(Math.max(width, height) / 256));
+  const mw = Math.max(1, Math.ceil(width / f)), mh = Math.max(1, Math.ceil(height / f));
   const out = new Uint8Array(mw * mh * 4);
-  for (let y = 0; y < mh; y++) {
-    const y0 = Math.floor((y * h) / mh), y1 = Math.max(y0 + 1, Math.floor(((y + 1) * h) / mh));
-    for (let x = 0; x < mw; x++) {
-      const x0 = Math.floor((x * w) / mw), x1 = Math.max(x0 + 1, Math.floor(((x + 1) * w) / mw));
-      let sg = 0, sd = 0;
-      for (let yy = y0; yy < y1; yy++) {
-        for (let xx = x0; xx < x1; xx++) {
-          sg += grass[yy * w + xx];
-          sd += dirt[yy * w + xx];
+  for (let my = 0; my < mh; my++) {
+    for (let mx = 0; mx < mw; mx++) {
+      let gs = 0, ds = 0, cnt = 0;
+      for (let y = my * f; y < Math.min(height, (my + 1) * f); y++) {
+        for (let x = mx * f; x < Math.min(width, (mx + 1) * f); x++) {
+          gs += grass[y * width + x];
+          ds += dirt[y * width + x];
+          cnt++;
         }
       }
-      const n = (y1 - y0) * (x1 - x0);
-      const g = Math.round((255 * sg) / n), d = Math.min(255 - g, Math.round((255 * sd) / n));
-      out.set([g, d, 255 - g - d, 255], (y * mw + x) * 4);
+      const R = Math.min(255, Math.round((gs / cnt) * 255));
+      const G = Math.min(255 - R, Math.round((ds / cnt) * 255));
+      const o = (my * mw + mx) * 4;
+      out[o] = R;
+      out[o + 1] = G;
+      out[o + 2] = 255 - R - G;
+      out[o + 3] = 255;
     }
   }
   return { rgba: out, width: mw, height: mh };
 }
 
-export type GroundKind = "grass" | "dirt" | "plain";
-
-/** How many metres one tile of each ground detail covers. */
-export const GROUND_TILE: Record<GroundKind, number> = { grass: 1.6, dirt: 2.4, plain: 2 };
+const GD = 512;
 
 /**
- * Tiling ground detail, 512 px, multiplied over the aerial photo by the
- * multilayer shader at double strength: mid grey on average (so the photo's
- * colour comes through unchanged from a distance) with strong fine detail
- * up close, which the photo (30 cm a pixel at best) can't have. Grass:
- * blades over shaded gaps. Dirt: clods, pebbles and a few cracks. Plain: a
- * faint grain for paving and the like.
+ * A ground detail texture, 512 px, tiling, mid grey on average (the shader doubles it, so the
+ * photo keeps its brightness from a distance). Returns RGBA pixels.
  */
 export function groundDetail(kind: GroundKind): Uint8Array {
-  const w = 512, h = 512;
-  const r = rng(kind === "grass" ? 411 : kind === "dirt" ? 412 : 413);
-  const lum = new Float32Array(w * h);
-  const tint = new Float32Array(w * h * 3).fill(1);
-  const wrapI = (x: number, y: number) => ((Math.floor(y) % h + h) % h) * w + ((Math.floor(x) % w + w) % w);
-  if (kind === "grass") {
-    const mottle = valueNoise(w, h, 8, 421), fine = valueNoise(w, h, 64, 422);
-    for (let i = 0; i < w * h; i++) lum[i] = 0.14 + 0.12 * mottle[i] + 0.06 * fine[i];
-    // Blades, back to front: each a short tapering stroke, lighter toward the tip.
-    for (let k = 0; k < 26000; k++) {
-      const x0 = r() * w, y0 = r() * h, a = r() * Math.PI * 2, len = 6 + r() * 16;
-      const base = 0.45 + r() * 0.35, dry = r() < 0.2;
-      for (let t = 0; t < len; t++) {
-        const f = t / len, v = base * (0.8 + 0.35 * f);
-        const x = x0 + Math.cos(a) * t, y = y0 + Math.sin(a) * t;
-        for (const [dx, dy] of f < 0.6 ? [[0, 0], [1, 0]] : [[0, 0]]) {
-          const i = wrapI(x + dx, y + dy);
-          lum[i] = v;
-          if (dry) tint.set([1.06, 1.02, 0.86], i * 3);
-          else tint.set([0.97, 1.02, 0.95], i * 3);
-        }
-      }
-    }
-  } else if (kind === "dirt") {
-    const n1 = valueNoise(w, h, 4, 431), n2 = valueNoise(w, h, 16, 432), n3 = valueNoise(w, h, 64, 433), n4 = valueNoise(w, h, 160, 434);
-    for (let i = 0; i < w * h; i++) lum[i] = Math.max(0.05, 0.5 + 1.6 * (0.26 * n1[i] + 0.3 * n2[i] + 0.22 * n3[i] + 0.16 * n4[i] - 0.47));
-    // Pebbles: small lit stones with a shadow on one side.
-    for (let k = 0; k < 700; k++) {
-      const cx = r() * w, cy = r() * h, rad = 1 + r() * r() * 4, v = 0.45 + r() * 0.35;
-      for (let dy = -Math.ceil(rad) - 1; dy <= Math.ceil(rad) + 1; dy++) {
-        for (let dx = -Math.ceil(rad) - 1; dx <= Math.ceil(rad) + 1; dx++) {
-          const d = Math.hypot(dx, dy * 1.2);
-          const i = wrapI(cx + dx, cy + dy);
-          if (d <= rad) lum[i] = v * (1 - 0.25 * (dx + dy) / (2 * rad));
-          else if (d <= rad + 1.2 && dx + dy > 0) lum[i] *= 0.65;
-        }
-      }
-    }
-    // Cracks: dark wandering lines.
-    for (let k = 0; k < 14; k++) {
-      let x = r() * w, y = r() * h, a = r() * Math.PI * 2;
-      for (let t = 0; t < 60 + r() * 120; t++) {
-        a += (r() - 0.5) * 0.6;
-        x += Math.cos(a);
-        y += Math.sin(a);
-        lum[wrapI(x, y)] *= 0.45;
-      }
-    }
-  } else {
-    const n1 = valueNoise(w, h, 32, 441), n2 = valueNoise(w, h, 128, 442);
-    for (let i = 0; i < w * h; i++) lum[i] = 0.46 + 0.04 * n1[i] + 0.04 * n2[i] + (r() - 0.5) * 0.04;
+  const px = kind === "grass" ? grassDetail() : kind === "dirt" ? dirtDetail() : plainDetail();
+  // Shift to a mean luminance of 127.5, keeping any tint.
+  let sum = 0;
+  const n = GD * GD;
+  for (let i = 0; i < n; i++) sum += 0.3 * px.r[i] + 0.59 * px.g[i] + 0.11 * px.b[i];
+  const shift = 127.5 - sum / n;
+  for (let i = 0; i < n; i++) px.add(i, shift);
+  return px.rgba();
+}
+
+function grassDetail(): Planes {
+  const r = rng(501);
+  const a = valueNoise(GD, GD, 16, 502), b = valueNoise(GD, GD, 64, 503);
+  const px = new Planes(GD, GD);
+  // A mottled dark base: soil and shadow between the blades.
+  for (let i = 0; i < GD * GD; i++) {
+    const v = 58 + 34 * (a[i] - 0.5) + 22 * (b[i] - 0.5);
+    px.set(i, [v * 0.96, v, v * 0.92]);
   }
-  // Mid grey on average, so double strength leaves the photo's brightness as it was.
-  let mean = 0;
-  for (let i = 0; i < w * h; i++) mean += lum[i];
-  const k = 0.5 / (mean / (w * h));
-  const out = new Uint8Array(w * h * 4);
-  for (let i = 0; i < w * h; i++) {
-    for (let c = 0; c < 3; c++) out[i * 4 + c] = Math.max(0, Math.min(255, Math.round(255 * lum[i] * k * tint[i * 3 + c])));
-    out[i * 4 + 3] = 255;
+  // Many short tapering blades, some dry.
+  for (let k = 0; k < 30000; k++) {
+    const dry = r() < 0.22;
+    const bright = 0.72 + r() * 0.5;
+    const c = dry ? [178 * bright, 170 * bright, 140 * bright] : [150 * bright, 164 * bright, 154 * bright];
+    const len = 6 + r() * 14, ang = r() * Math.PI * 2;
+    const dx = Math.cos(ang), dy = Math.sin(ang);
+    const x0 = r() * GD, y0 = r() * GD;
+    for (let s = 0; s < len; s += 0.7) {
+      const t = s / len, w = 1.6 * (1 - t) + 0.3;
+      const x = x0 + dx * s, y = y0 + dy * s;
+      const alpha = Math.min(1, w) * 0.9;
+      const i = wrapIndex(Math.round(y), GD) * GD + wrapIndex(Math.round(x), GD);
+      px.mix(i, c, alpha);
+      if (w > 1) px.mix(wrapIndex(Math.round(y - dx), GD) * GD + wrapIndex(Math.round(x + dy), GD), c, (w - 1) * 0.8);
+    }
+  }
+  return px;
+}
+
+function dirtDetail(): Planes {
+  const r = rng(511);
+  const a = valueNoise(GD, GD, 5, 512), b = valueNoise(GD, GD, 18, 513), c = valueNoise(GD, GD, 64, 514);
+  const lum = new Float32Array(GD * GD);
+  for (let i = 0; i < lum.length; i++) lum[i] = 0.5 + 0.4 * (a[i] - 0.5) + 0.48 * (b[i] - 0.5) + 0.22 * (c[i] - 0.5) + (r() - 0.5) * 0.2;
+  const at = (x: number, y: number) => wrapIndex(Math.round(y), GD) * GD + wrapIndex(Math.round(x), GD);
+  // A few cracks: thin dark meandering lines.
+  for (let k = 0; k < 7; k++) {
+    let x = r() * GD, y = r() * GD, h = r() * Math.PI * 2;
+    const len = 60 + r() * 160;
+    for (let s = 0; s < len; s++) {
+      lum[at(x, y)] *= 0.62;
+      h += (r() - 0.5) * 0.7;
+      x += Math.cos(h);
+      y += Math.sin(h);
+    }
+  }
+  // Pebbles lit from the upper left, each with a shadow to the lower right.
+  for (let k = 0; k < 700; k++) {
+    const cx = r() * GD, cy = r() * GD, rad = 1.2 + r() * 2.2, tone = 0.46 + r() * 0.16;
+    const R = Math.ceil(rad) + 2;
+    for (let dy = -R; dy <= R; dy++) for (let dx = -R; dx <= R; dx++) {
+      if (Math.hypot(dx - 1.2, dy - 1.2) <= rad) lum[at(cx + dx, cy + dy)] *= 0.8;
+    }
+    for (let dy = -R; dy <= R; dy++) for (let dx = -R; dx <= R; dx++) {
+      const d = Math.hypot(dx, dy);
+      if (d > rad) continue;
+      lum[at(cx + dx, cy + dy)] = tone + 0.1 * (-(dx + dy) / (rad * Math.SQRT2));
+    }
+  }
+  const px = new Planes(GD, GD);
+  for (let i = 0; i < lum.length; i++) { const v = lum[i] * 255; px.set(i, [v, v, v]); }
+  return px;
+}
+
+function plainDetail(): Planes {
+  const r = rng(521);
+  const a = valueNoise(GD, GD, 32, 522);
+  const px = new Planes(GD, GD);
+  for (let i = 0; i < GD * GD; i++) {
+    const v = 127.5 + 7 * (a[i] - 0.5) + (r() - 0.5) * 11;
+    px.set(i, [v, v, v]);
+  }
+  return px;
+}
+
+/**
+ * A tangent-space normal map from a texture's brightness taken as height (DirectX convention:
+ * green points down the image), wrapping at the edges. Dark cracks and edges come out as grooves.
+ */
+export function normalFromHeight(rgba: Pixels, width: number, height: number, strength: number): Uint8Array {
+  const h = new Float32Array(width * height);
+  for (let i = 0; i < h.length; i++) h[i] = (0.3 * rgba[i * 4] + 0.59 * rgba[i * 4 + 1] + 0.11 * rgba[i * 4 + 2]) / 255;
+  const out = new Uint8Array(width * height * 4);
+  for (let y = 0; y < height; y++) {
+    const up = wrapIndex(y - 1, height) * width, down = wrapIndex(y + 1, height) * width;
+    for (let x = 0; x < width; x++) {
+      const left = wrapIndex(x - 1, width), right = wrapIndex(x + 1, width);
+      const dx = (h[y * width + right] - h[y * width + left]) * 0.5 * strength;
+      const dy = (h[down + x] - h[up + x]) * 0.5 * strength;
+      // Normal = (-dh/dx, -dh/dy(down), 1), normalised; y stored as "down" for DirectX.
+      const len = Math.hypot(dx, dy, 1);
+      const o = (y * width + x) * 4;
+      out[o] = toByte(128 + (-dx / len) * 127 + 0.5);
+      out[o + 1] = toByte(128 + (-dy / len) * 127 + 0.5);
+      out[o + 2] = toByte(128 + (1 / len) * 127 + 0.5);
+      out[o + 3] = 255;
+    }
   }
   return out;
 }
 
-/**
- * Window glass: the sky reflected at the top, darker below, a hint of a
- * curtain behind. One window per texture.
- */
-export function windowTexture(): Uint8Array {
-  const w = 64, h = 64;
-  const r = rng(411);
-  return encodePng(fill(w, h, (x, y) => {
-    const t = y / h, n = (r() - 0.5) * 6;
-    const sky = [150 - t * 95, 165 - t * 100, 180 - t * 100];
-    const curtain = (x < 10 || x > 54) && t < 0.85 ? 0.35 : 0;
-    return [sky[0] + (214 - sky[0]) * curtain + n, sky[1] + (204 - sky[1]) * curtain + n, sky[2] + (184 - sky[2]) * curtain + n];
-  }), w, h, { alpha: false });
-}
+/* ---------------- raster ---------------- */
 
-/**
- * A tangent-space normal map from a texture's brightness taken as height:
- * on a road, cracks and the edges of patches are darker, so they come out
- * as grooves that catch the light. DirectX convention (green down), as the
- * game expects. `strength` is the slope per unit of brightness change per
- * pixel.
- */
-export function normalFromHeight(rgba: Uint8Array | Uint8ClampedArray, w: number, h: number, strength = 2): Uint8Array {
-  const height = new Float32Array(w * h);
-  for (let i = 0; i < w * h; i++) height[i] = (rgba[i * 4] + rgba[i * 4 + 1] + rgba[i * 4 + 2]) / (3 * 255);
-  const at = (x: number, y: number) => height[((y + h) % h) * w + ((x + w) % w)];
-  const out = new Uint8Array(w * h * 4);
-  for (let y = 0; y < h; y++) {
-    for (let x = 0; x < w; x++) {
-      const dx = (at(x + 1, y) - at(x - 1, y)) * strength, dy = (at(x, y + 1) - at(x, y - 1)) * strength;
-      const l = Math.hypot(dx, dy, 1);
-      const i = (y * w + x) * 4;
-      out[i] = Math.round((-dx / l * 0.5 + 0.5) * 255);
-      out[i + 1] = Math.round((dy / l * 0.5 + 0.5) * 255); // green down: +v is down the image
-      out[i + 2] = Math.round((1 / l * 0.5 + 0.5) * 255);
-      out[i + 3] = 255;
+/** A small RGBA canvas with anti-aliased thick polylines and dots, for map.png and the UI images. */
+export class Raster {
+  readonly rgba: Uint8Array;
+  constructor(readonly width: number, readonly height: number, background: Rgba | readonly number[] = [0, 0, 0, 0]) {
+    this.rgba = new Uint8Array(width * height * 4);
+    for (let i = 0; i < width * height; i++) for (let c = 0; c < 4; c++) this.rgba[i * 4 + c] = background[c] ?? 0;
+  }
+
+  /** A polyline `thickness` px wide; each pixel's coverage is the most any segment gives it, so joints don't double up. */
+  line(points: readonly (readonly [number, number] | readonly number[])[], thickness: number, colour: Rgba | readonly number[]): void {
+    if (points.length < 2) return;
+    const half = thickness / 2;
+    const cover = new Map<number, number>();
+    for (let k = 0; k + 1 < points.length; k++) {
+      const [ax, ay] = points[k], [bx, by] = points[k + 1];
+      const x0 = Math.max(0, Math.floor(Math.min(ax, bx) - half - 1)), x1 = Math.min(this.width - 1, Math.ceil(Math.max(ax, bx) + half + 1));
+      const y0 = Math.max(0, Math.floor(Math.min(ay, by) - half - 1)), y1 = Math.min(this.height - 1, Math.ceil(Math.max(ay, by) + half + 1));
+      const ex = bx - ax, ey = by - ay, len2 = ex * ex + ey * ey;
+      for (let y = y0; y <= y1; y++) {
+        for (let x = x0; x <= x1; x++) {
+          const px = x + 0.5, py = y + 0.5;
+          const t = len2 > 0 ? clamp01(((px - ax) * ex + (py - ay) * ey) / len2) : 0;
+          const d = Math.hypot(px - (ax + ex * t), py - (ay + ey * t));
+          const c = clamp01(half + 0.5 - d);
+          if (c <= 0) continue;
+          const i = y * this.width + x;
+          if (c > (cover.get(i) ?? 0)) cover.set(i, c);
+        }
+      }
+    }
+    for (const [i, c] of cover) this.blend(i, colour, c);
+  }
+
+  /** A filled circle. */
+  dot(x: number, y: number, radius: number, colour: Rgba | readonly number[]): void {
+    const x0 = Math.max(0, Math.floor(x - radius - 1)), x1 = Math.min(this.width - 1, Math.ceil(x + radius + 1));
+    const y0 = Math.max(0, Math.floor(y - radius - 1)), y1 = Math.min(this.height - 1, Math.ceil(y + radius + 1));
+    for (let py = y0; py <= y1; py++) {
+      for (let px = x0; px <= x1; px++) {
+        const c = clamp01(radius + 0.5 - Math.hypot(px + 0.5 - x, py + 0.5 - y));
+        if (c > 0) this.blend(py * this.width + px, colour, c);
+      }
     }
   }
-  return out;
+
+  png(): Uint8Array {
+    return encodePng(this.rgba, this.width, this.height);
+  }
+
+  /** Source-over compositing of `colour` at `coverage` onto pixel i. */
+  private blend(i: number, colour: Rgba | readonly number[], coverage: number): void {
+    const o = i * 4, d = this.rgba;
+    const sa = ((colour[3] ?? 255) / 255) * coverage, da = d[o + 3] / 255;
+    const oa = sa + da * (1 - sa);
+    if (oa <= 0) return;
+    for (let c = 0; c < 3; c++) d[o + c] = toByte((colour[c] * sa + d[o + c] * da * (1 - sa)) / oa + 0.5);
+    d[o + 3] = toByte(oa * 255 + 0.5);
+  }
 }
