@@ -56,7 +56,7 @@ import { ASPHALT, offAsphaltAt } from "./parkedCheck";
 import { clearParked, ROUTE_ROAD } from "./parkedClear";
 import { buildBayPads, placeParked, type BayQuad, type PhotoCar, type PlacedCar } from "./parkedPlacement";
 import { armcoNeeds, buildArmco } from "./armco";
-import { BARRIERS, barrierTexture, detailTexture, normalFromHeight, windowTexture, flatNormalTexture, GROUND_TILE, groundDetail, groundMask, type GroundKind, mapsTexture, paintTexture, sealTexture, type SealKind, garageTexture, grassTexture, concreteTexture, postTexture, railTexture, solidTexture, vergeTexture } from "./textures";
+import { BARRIERS, barrierTexture, detailTexture, normalFromHeight, windowTexture, flatNormalTexture, groundDetail, groundMask, mapsTexture, paintTexture, sealTexture, type SealKind, garageTexture, grassTexture, concreteTexture, postTexture, railTexture, solidTexture, vergeTexture } from "./textures";
 import {
   buildGuardRails, buildGuidePosts, buildTrees, treeTrunks, filterTrees, railNeeds, placeRandom, treeSpotsFromImagery, type TreeSpot,
 } from "./scenery";
@@ -66,7 +66,7 @@ import { facadeForLook, facadeForStyle } from "./houseLooks";
 import { buildSpecHouse, type HouseSpec } from "./specHouse";
 import { surfaceTexture } from "./surfaceTextures";
 import { GRAVEL_MATERIAL, gravelTexture, isUnsealed, unsealedSamples } from "./unsealed";
-import { material, nmMaterial } from "./materials";
+import { groundMaterial, material, multiMapMaterial, nmMaterial } from "./materials";
 export { material, nmMaterial };
 import { landmarkShots } from "./landmarkShots";
 import { camerasIni, placeCameras } from "./cameras";
@@ -375,92 +375,6 @@ export function trackObjects(plan: RoadPlan, opts: BuildOptions): Kn5GroupNode[]
     place("AC_AB_FINISH_R", finish, -finishHalf, 1);
   }
   return out;
-}
-
-/**
- * A detail-mapped material (ksPerPixelMultiMap): the diffuse texture, a
- * normal map, txMaps (specular, gloss, sun specular) and a tiling detail
- * texture multiplied in wherever the diffuse alpha is 0. Parameter names as
- * the game's shader declares them.
- */
-function multiMapMaterial(
-  name: string,
-  diffuse: string,
-  light: { ambient: number; diffuse: number; specular: number; exp: number },
-  maps: { normal: string; maps: string; detail: string; detailUV: number; sunSpecular?: number },
-): Kn5Material {
-  return {
-    name,
-    shader: "ksPerPixelMultiMap",
-    properties: [
-      { name: "ksAmbient", a: light.ambient },
-      { name: "ksDiffuse", a: light.diffuse },
-      { name: "ksSpecular", a: light.specular },
-      { name: "ksSpecularEXP", a: light.exp },
-      { name: "ksEmissive", c: [0, 0, 0] },
-      { name: "ksAlphaRef", a: 0 },
-      { name: "fresnelC", a: 0 },
-      { name: "fresnelEXP", a: 5 },
-      { name: "fresnelMaxLevel", a: 0 },
-      { name: "isAdditive", a: 0 },
-      { name: "useDetail", a: 1 },
-      { name: "detailUVMultiplier", a: maps.detailUV },
-      { name: "shadowBiasMult", a: 0 },
-      { name: "nmObjectSpace", a: 0 },
-      { name: "sunSpecular", a: maps.sunSpecular ?? 0 },
-      { name: "sunSpecularEXP", a: 40 },
-    ],
-    textures: { txDiffuse: diffuse, txNormal: maps.normal, txMaps: maps.maps, txDetail: maps.detail },
-  };
-}
-
-type Layer = { texture: string; metres: number };
-
-/**
- * A ksMultilayer material: the diffuse texture multiplied by four tiling
- * details, weighted by txMask's R, G, B and A, then by `magicMult`. The
- * details are projected from above in world metres (one tile every
- * `metres`), so they keep their scale on every chunk. Parameter names as
- * the game's shader declares them (multA is a float2).
- */
-function multilayerMaterial(
-  name: string,
-  diffuse: string,
-  mask: string,
-  light: { ambient: number; diffuse: number; specular: number; exp: number },
-  [r, g, b, a]: [Layer, Layer, Layer, Layer],
-  magicMult: number,
-): Kn5Material {
-  return {
-    name,
-    shader: "ksMultilayer",
-    properties: [
-      { name: "ksAmbient", a: light.ambient },
-      { name: "ksDiffuse", a: light.diffuse },
-      { name: "ksSpecular", a: light.specular },
-      { name: "ksSpecularEXP", a: light.exp },
-      { name: "ksEmissive", c: [0, 0, 0] },
-      { name: "ksAlphaRef", a: 0 },
-      { name: "multR", a: 1 / r.metres },
-      { name: "multG", a: 1 / g.metres },
-      { name: "multB", a: 1 / b.metres },
-      { name: "multA", b: [1 / a.metres, 1 / a.metres] },
-      { name: "magicMult", a: magicMult },
-    ],
-    textures: { txDiffuse: diffuse, txMask: mask, txDetailR: r.texture, txDetailG: g.texture, txDetailB: b.texture, txDetailA: a.texture },
-  };
-}
-
-const groundLayer = (k: GroundKind): Layer => ({ texture: `ground_${k}.dds`, metres: GROUND_TILE[k] });
-
-/**
- * Ground under a photo (or a plain grass or gravel texture): grass, dirt
- * and plain detail by the mask's R, G and B, each mid grey on average and
- * doubled, so from a distance the photo is unchanged and up close it has
- * blades, clods and grain. A is black: a DXT1 mask reads 1 there.
- */
-function groundMaterial(name: string, diffuse: string, mask: string, light: { ambient: number; diffuse: number; specular: number; exp: number }): Kn5Material {
-  return multilayerMaterial(name, diffuse, mask, light, [groundLayer("grass"), groundLayer("dirt"), groundLayer("plain"), { texture: "black.png", metres: 1 }], 2);
 }
 
 /**

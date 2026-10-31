@@ -1,84 +1,106 @@
-// Mesh accumulation in the local ENU frame (x east, y north, z up), with the
-// conversion to AC space (X east, Y up, Z south) at the end. The conversion
-// is a proper rotation, so counter-clockwise-from-above stays front-facing.
+// Mesh accumulator in the build's local ENU frame (x east, y north, z up), converted to an AC
+// mesh node (X east, Y up, Z south) at the end. Spec: docs/specs/mesh.md.
+//
+// The ENU -> AC map (x, y, z) -> (x, z, -y) is a proper rotation, so faces wound counter-clockwise
+// from the front in ENU stay front-facing in AC.
 
-import type { Kn5MeshNode } from "./kn5";
-import { MAX_MESH_VERTICES } from "./kn5";
+import { MAX_MESH_VERTICES, type Kn5MeshNode } from "./kn5";
 
-export type Vec3 = [number, number, number];
+export type Vec3 = [x: number, y: number, z: number];
 
+/** ENU to AC space. */
 export const toAc = (x: number, y: number, z: number): Vec3 => [x, z, -y];
 
 export class MeshBuilder {
-  readonly positions: number[] = [];
-  readonly uvs: number[] = [];
-  readonly indices: number[] = [];
-  /** Optional explicit normals (ENU). Computed from faces when absent. */
-  normals: number[] | null = null;
+  /** ENU positions, three numbers per vertex, in push order. */
+  readonly positions = [] as number[];
+  /** Two numbers per vertex. */
+  readonly uvs = [] as number[];
+  /** Triangle list. */
+  readonly indices = [] as number[];
+  /** Explicit ENU normals (three per vertex), or null to compute them from the faces. */
+  normals = null as number[] | null;
 
-  get vertexCount(): number {
+  get vertexCount() {
     return this.positions.length / 3;
   }
 
-  vertex(p: Vec3, u: number, v: number): number {
-    this.positions.push(p[0], p[1], p[2]);
+  /** Adds a vertex and returns its index. */
+  vertex([x, y, z]: Vec3, u: number, v: number) {
+    const added = this.vertexCount;
+    this.positions.push(x, y, z);
     this.uvs.push(u, v);
-    return this.vertexCount - 1;
+    return added;
   }
 
-  tri(a: number, b: number, c: number): void {
-    this.indices.push(a, b, c);
+  tri(i0: number, i1: number, i2: number) {
+    this.indices.push(i0, i1, i2);
   }
 
-  /** Quad a-b-c-d, counter-clockwise seen from its front. */
-  quad(a: number, b: number, c: number, d: number): void {
-    this.indices.push(a, b, c, a, c, d);
-  }
-
-  private faceNormals(): Float32Array {
-    const n = new Float32Array(this.positions.length);
-    const p = this.positions;
-    for (let i = 0; i < this.indices.length; i += 3) {
-      const a = this.indices[i] * 3, b = this.indices[i + 1] * 3, c = this.indices[i + 2] * 3;
-      const e1x = p[b] - p[a], e1y = p[b + 1] - p[a + 1], e1z = p[b + 2] - p[a + 2];
-      const e2x = p[c] - p[a], e2y = p[c + 1] - p[a + 1], e2z = p[c + 2] - p[a + 2];
-      const nx = e1y * e2z - e1z * e2y, ny = e1z * e2x - e1x * e2z, nz = e1x * e2y - e1y * e2x;
-      for (const v of [a, b, c]) {
-        n[v] += nx;
-        n[v + 1] += ny;
-        n[v + 2] += nz;
-      }
-    }
-    for (let i = 0; i < n.length; i += 3) {
-      const l = Math.hypot(n[i], n[i + 1], n[i + 2]) || 1;
-      n[i] /= l;
-      n[i + 1] /= l;
-      n[i + 2] /= l;
-    }
-    return n;
+  /** Two triangles; corners counter-clockwise seen from the front. */
+  quad(i0: number, i1: number, i2: number, i3: number) {
+    this.indices.push(i0, i1, i2, i0, i2, i3);
   }
 
   toKn5(name: string, material: string, extra: Partial<Kn5MeshNode> = {}): Kn5MeshNode {
-    if (this.vertexCount > MAX_MESH_VERTICES) throw new Error(`${name}: ${this.vertexCount} vertices exceeds kn5 limit`);
-    const enuNormals = this.normals ? Float32Array.from(this.normals) : this.faceNormals();
-    const count = this.vertexCount;
-    const positions = new Float32Array(count * 3);
-    const normals = new Float32Array(count * 3);
-    for (let i = 0; i < count; i++) {
-      const p = toAc(this.positions[i * 3], this.positions[i * 3 + 1], this.positions[i * 3 + 2]);
-      const nn = toAc(enuNormals[i * 3], enuNormals[i * 3 + 1], enuNormals[i * 3 + 2]);
-      positions.set(p, i * 3);
-      normals.set(nn, i * 3);
-    }
+    const vertices = this.vertexCount;
+    if (vertices > MAX_MESH_VERTICES) throw new Error(`${name}: ${vertices} vertices exceeds kn5 limit`);
+    this.check(name, vertices);
+    const enu = this.normals ?? this.computedNormals();
     return {
       kind: "mesh",
       name,
-      positions,
-      normals,
-      uvs: Float32Array.from(this.uvs),
-      indices: Uint16Array.from(this.indices),
+      positions: rotated(this.positions),
+      normals: rotated(enu),
+      uvs: new Float32Array(this.uvs),
+      indices: new Uint16Array(this.indices),
       material,
       ...extra,
     };
   }
+
+  /** Throws, naming the mesh, on input that would otherwise give NaN or wrapped indices. */
+  private check(name: string, vertices: number) {
+    const fail = (what: string) => {
+      throw new Error(`${name}: ${what}`);
+    };
+    if (this.uvs.length !== vertices * 2) fail(`${this.uvs.length} uv values for ${vertices} vertices`);
+    if (this.normals && this.normals.length !== vertices * 3) fail(`${this.normals.length} normal values for ${vertices} vertices`);
+    if (this.indices.length % 3) fail(`${this.indices.length} indices is not a whole number of triangles`);
+    const bad = this.indices.find((i) => !Number.isInteger(i) || i < 0 || i >= vertices);
+    if (bad !== undefined) fail(`index ${bad} out of range (${vertices} vertices)`);
+  }
+
+  /**
+   * Area-weighted vertex normals: each triangle's unnormalised cross product added to its three
+   * vertices (in a float32 accumulator), then normalised. A vertex in no triangle, or only in
+   * zero-area ones, gets (0, 0, 0); the kn5 writer copes with that.
+   */
+  private computedNormals(): Float32Array {
+    const pos = this.positions, tris = this.indices;
+    const sum = new Float32Array(pos.length);
+    for (let k = 0; k + 2 < tris.length; k += 3) {
+      const [i0, i1, i2] = [tris[k] * 3, tris[k + 1] * 3, tris[k + 2] * 3];
+      const e1 = [pos[i1] - pos[i0], pos[i1 + 1] - pos[i0 + 1], pos[i1 + 2] - pos[i0 + 2]];
+      const e2 = [pos[i2] - pos[i0], pos[i2 + 1] - pos[i0 + 1], pos[i2 + 2] - pos[i0 + 2]];
+      const cross = [e1[1] * e2[2] - e1[2] * e2[1], e1[2] * e2[0] - e1[0] * e2[2], e1[0] * e2[1] - e1[1] * e2[0]];
+      for (const at of [i0, i1, i2]) for (let c = 0; c < 3; c++) sum[at + c] += cross[c];
+    }
+    for (let at = 0; at < sum.length; at += 3) {
+      const length = Math.hypot(sum[at], sum[at + 1], sum[at + 2]) || 1;
+      for (let c = 0; c < 3; c++) sum[at + c] /= length;
+    }
+    return sum;
+  }
+}
+
+/** ENU triples to AC triples, as float32. */
+function rotated(enu: ArrayLike<number>): Float32Array {
+  const ac = new Float32Array(enu.length);
+  for (let at = 0; at < enu.length; at += 3) {
+    ac[at] = enu[at];
+    ac[at + 1] = enu[at + 2];
+    ac[at + 2] = -enu[at + 1];
+  }
+  return ac;
 }

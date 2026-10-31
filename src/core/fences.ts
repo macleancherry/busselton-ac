@@ -1,235 +1,184 @@
-// Fences, garden walls and hedges along property lines, where OpenStreetMap
-// maps them (barrier=fence|wall|hedge|retaining_wall). In an Australian
-// suburb that's mostly Colorbond panels and timber palings down the sides
-// and backs of lots, low brick walls and hedges along the front.
-//
-// They follow the ground, stand on it (a little below, so no gap shows),
-// and are solid. Nothing is built within reach of the route's asphalt,
-// verge or nature strip, or across a side street: a mapping error must never
-// put a wall on the racing line.
+// Property-line barriers from OSM (fences, garden walls, hedges, retaining walls) as solid slabs
+// that follow the ground, and post-and-wire farm fences. Nothing is built within reach of the
+// route's asphalt, verge or nature strip, or where `clear` says no (side streets, roundabouts).
+// Spec: docs/specs/fences.md. Geometry in ENU, via MeshBuilder.
 
-import type { HeightFn } from "./elevation";
-import type { Vec2 } from "./geo";
-import type { Kn5MeshNode } from "./kn5";
-import { MeshBuilder, type Vec3 } from "./mesh";
-import type { BuildOptions } from "./options";
-import type { SegmentIndex } from "./road";
-import { pad } from "./roadMesh";
-import { BARRIERS } from "./textures";
+import { type Vec2 } from "./geo";
+import { type HeightFn } from "./elevation";
+import { type Kn5MeshNode } from "./kn5";
+import { type BuildOptions } from "./options";
+import { type SegmentIndex } from "./road";
+import { type BARRIERS } from "./textures";
+import { MeshBuilder } from "./mesh";
+import { pad as threeDigits } from "./roadMesh";
 import { SINK } from "./sceneGround";
 
 export interface Barrier {
-  pts: Vec2[];
-  /** OSM barrier value. */
-  kind: "fence" | "wall" | "hedge" | "retaining_wall";
-  /** OSM fence_type, material, height where tagged. */
-  fenceType?: string;
-  material?: string;
-  height?: number;
+  pts: Vec2[]; // ENU metres
+  kind: "fence" | "wall" | "hedge" | "retaining_wall"; // OSM barrier=*
+  fenceType?: string; // OSM fence_type
+  material?: string; // OSM material
+  height?: number; // OSM height, metres
 }
 
 type Look = (typeof BARRIERS)[number];
+type Style = { look: Look; height: number; thick: number };
+type Where = (x: number, y: number) => boolean;
+type Measure = (x: number, y: number) => number;
 
-/** How a barrier looks, how tall and how thick it is. */
-export function barrierStyle(b: Barrier): { look: Look; height: number; thick: number } {
-  const tagged = b.height && b.height > 0.3 && b.height < 4 ? b.height : undefined;
+/** A new builder before one would pass this many vertices (kn5 allows 65535). */
+const MESH_VERTICES = 60000;
+/** Off-route margin beyond asphalt and verge, metres. Vine rows in farm.ts use 3 m: not a bug. */
+const MARGIN = 2.5;
+const PALING = /wood|paling|timber|picket/;
+const WIRE = /wire|barbed|electric|ranch|split_rail|post_and_rail/;
+
+const tagText = ({ fenceType = "", material = "" }: Barrier) => `${fenceType} ${material}`.toLowerCase();
+const at = (p: Vec2, q: Vec2, t: number): Vec2 => [p[0] + (q[0] - p[0]) * t, p[1] + (q[1] - p[1]) * t];
+const length = (p: Vec2, q: Vec2) => Math.hypot(q[0] - p[0], q[1] - p[1]);
+
+export function barrierStyle(b: Barrier): Style {
+  const h = b.height;
+  const tagged = h !== undefined && h > 0.3 && h < 4 ? h : undefined;
   if (b.kind === "hedge") return { look: "hedge", height: tagged ?? 1.5, thick: 0.8 };
-  if (b.kind === "wall" || b.kind === "retaining_wall") {
-    return { look: "brickwall", height: tagged ?? (b.kind === "retaining_wall" ? 0.8 : 1.2), thick: 0.23 };
+  if (b.kind === "wall" || b.kind === "retaining_wall") return { look: "brickwall", height: tagged ?? (b.kind === "wall" ? 1.2 : 0.8), thick: 0.23 };
+  return { look: PALING.test(tagText(b)) ? "paling" : "colorbond", height: tagged ?? 1.8, thick: 0.05 };
+}
+
+export const isWireFence = (b: Barrier): boolean => b.kind === "fence" && WIRE.test(tagText(b));
+
+/** True when (x, y) is clear of the route's asphalt, verge and nature strip. */
+const offRoute = (index: SegmentIndex, opts: BuildOptions): Where => (x, y) => {
+  const hit = index.nearest(x, y, 30);
+  return hit === null || hit.dist > index.at(hit).width / 2 + opts.vergeWidth + MARGIN;
+};
+
+/** Builders that split before the kn5 vertex limit, on the true vertex count of what comes next. */
+class Split {
+  private readonly builders = [new MeshBuilder()];
+  next(vertices: number): MeshBuilder {
+    const last = this.builders[this.builders.length - 1];
+    if (last.vertexCount + vertices <= MESH_VERTICES) return last;
+    const fresh = new MeshBuilder();
+    this.builders.push(fresh);
+    return fresh;
   }
-  const t = `${b.fenceType ?? ""} ${b.material ?? ""}`;
-  if (/wood|paling|timber|picket/.test(t)) return { look: "paling", height: tagged ?? 1.8, thick: 0.05 };
-  return { look: "colorbond", height: tagged ?? 1.8, thick: 0.05 };
+  nodes(prefix: string, material: string): Kn5MeshNode[] {
+    return this.builders.filter((mb) => mb.indices.length).map((mb, i) => mb.toKn5(`${prefix}_${threeDigits(i)}`, material));
+  }
 }
 
-const STEP = 2; // follow the ground every 2 m
+export function buildBarriers(list: Barrier[], index: SegmentIndex, opts: BuildOptions, ground: HeightFn, clear: Where, cover?: Measure): Kn5MeshNode[] {
+  const away = offRoute(index, opts);
+  const reach = opts.corridor - 2;
+  const inside: Where = cover ? (x, y) => cover(x, y) <= reach : (x, y) => index.nearest(x, y, reach) !== null;
+  const allowed = ([x, y]: Vec2) => clear(x, y) && away(x, y) && inside(x, y);
+  const looks = new Map<Look, Split>(); // in the order first built
 
-/**
- * Busselton fork: a farm fence (OSM fence_type wire, barbed_wire, electric, post_and_wire,
- * ranch...): timber posts and wire strands, not a solid panel. Built as one with the farm fences
- * (buildWireFences) when the build has farmland on.
- */
-export function isWireFence(b: Barrier): boolean {
-  return b.kind === "fence" && /wire|barbed|electric|ranch|split_rail|post_and_rail/.test(`${b.fenceType ?? ""} ${b.material ?? ""}`);
-}
-
-/**
- * Solid barriers, one mesh set per look. `clear` says a point is fine to
- * build on (off the road, its verges and other streets).
- */
-export function buildBarriers(
-  barriers: Barrier[],
-  index: SegmentIndex,
-  opts: BuildOptions,
-  ground: HeightFn,
-  clear: (x: number, y: number) => boolean,
-  cover?: (x: number, y: number) => number,
-): Kn5MeshNode[] {
-  const meshes = new Map<Look, MeshBuilder[]>();
-  const mesh = (look: Look, verts: number) => {
-    const list = meshes.get(look) ?? [];
-    if (!list.length || list[list.length - 1].vertexCount + verts > 60000) list.push(new MeshBuilder());
-    meshes.set(look, list);
-    return list[list.length - 1];
-  };
-  // Keep well back from the route: asphalt, verge, nature strip and a margin.
-  const offRoute = (x: number, y: number) => {
-    const n = index.nearest(x, y, 30);
-    return !n || n.dist > index.at(n).width / 2 + opts.vergeWidth + 2.5;
-  };
-  const near = (x: number, y: number) => (cover ? cover(x, y) <= opts.corridor - 2 : !!index.nearest(x, y, opts.corridor - 2));
-
-  for (const b of barriers) {
-    if (opts.farmland && isWireFence(b)) continue; // built by buildWireFences
-    const st = barrierStyle(b);
-    // Walk the line in short steps, building only the runs that are clear.
-    for (let k = 1; k < b.pts.length; k++) {
-      const a = b.pts[k - 1], c = b.pts[k];
-      const len = Math.hypot(c[0] - a[0], c[1] - a[1]);
-      if (len < 0.2) continue;
-      const n = Math.max(1, Math.ceil(len / STEP));
-      for (let j = 0; j < n; j++) {
-        const p = lerp(a, c, j / n), q = lerp(a, c, (j + 1) / n);
-        const mid = lerp(p, q, 0.5);
-        if (![p, q, mid].every(([x, y]) => clear(x, y) && offRoute(x, y) && near(x, y))) continue;
-        slab(mesh(st.look, 24), p, q, st.thick, st.height, ground, len, j / n, (j + 1) / n);
+  for (const barrier of list) {
+    if (opts.farmland && isWireFence(barrier)) continue; // the farm fences build it
+    const style = barrierStyle(barrier);
+    barrier.pts.forEach((p, s) => {
+      const q = barrier.pts[s + 1];
+      if (!q) return;
+      const segLen = length(p, q);
+      if (segLen < 0.2) return;
+      const steps = Math.max(1, Math.ceil(segLen / 2)); // follow the ground every 2 m or less
+      for (let step = 0; step < steps; step++) {
+        const t0 = step / steps, t1 = (step + 1) / steps;
+        const from = at(p, q, t0), to = at(p, q, t1);
+        if (![from, to, at(p, q, (t0 + t1) / 2)].every(allowed)) continue;
+        if (!looks.has(style.look)) looks.set(style.look, new Split());
+        const mb = looks.get(style.look)!.next(style.thick > 0.1 ? 12 : 8);
+        slab(mb, from, to, [(t0 * segLen) / 2, (t1 * segLen) / 2], style, ground);
       }
-    }
-  }
-  const out: Kn5MeshNode[] = [];
-  for (const [look, list] of meshes) {
-    list.forEach((mb, i) => {
-      if (mb.indices.length) out.push(mb.toKn5(`1WALL_FENCE_${look.toUpperCase()}_${pad(i)}`, `barrier_${look}`));
     });
   }
-  return out;
+  return [...looks].flatMap(([look, split]) => split.nodes(`1WALL_FENCE_${look.toUpperCase()}`, `barrier_${look}`));
 }
-
-function lerp(a: Vec2, b: Vec2, f: number): Vec2 {
-  return [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f];
-}
-
-/** One stretch of barrier: both faces and the top, following the ground at each end. */
-function slab(mb: MeshBuilder, p: Vec2, q: Vec2, thick: number, height: number, ground: HeightFn, segLen: number, f0: number, f1: number): void {
-  const dx = q[0] - p[0], dy = q[1] - p[1], l = Math.hypot(dx, dy) || 1;
-  const nx = (dy / l) * thick / 2, ny = (-dx / l) * thick / 2; // right of p->q
-  const zp = ground(p[0], p[1]), zq = ground(q[0], q[1]);
-  const u0 = (f0 * segLen) / 2, u1 = (f1 * segLen) / 2, vTop = 1 - height / 2; // texture: 2 m by 2 m, bottom at the ground
-  const quad = (c: Vec3[], uv: [number, number][]) => {
-    const i = mb.vertexCount;
-    c.forEach((v, k) => mb.vertex(v, uv[k][0], uv[k][1]));
-    mb.quad(i, i + 1, i + 2, i + 3);
-  };
-  const R = (v: Vec2, z: number): Vec3 => [v[0] + nx, v[1] + ny, z];
-  const L = (v: Vec2, z: number): Vec3 => [v[0] - nx, v[1] - ny, z];
-  // Right face (outward to the right of p->q), then the left face, then the top.
-  quad([R(p, zp - SINK), R(q, zq - SINK), R(q, zq + height), R(p, zp + height)], [[u0, 1.1], [u1, 1.1], [u1, vTop], [u0, vTop]]);
-  quad([L(q, zq - SINK), L(p, zp - SINK), L(p, zp + height), L(q, zq + height)], [[u1, 1.1], [u0, 1.1], [u0, vTop], [u1, vTop]]);
-  if (thick > 0.1) quad([R(p, zp + height), R(q, zq + height), L(q, zq + height), L(p, zp + height)], [[u0, 0], [u1, 0], [u1, 0.05], [u0, 0.05]]);
-}
-
-/** Busselton fork: a post-and-wire farm fence: posts this far apart, wires at these heights (m). */
-export const WIRE_FENCE = { postGap: 4, postHeight: 1.25, post: 0.1, wires: [0.4, 0.75, 1.1], wire: 0.025 };
 
 /**
- * Busselton fork: post-and-wire fences (paddock boundaries, OSM wire fences), timber posts every
- * 4 m and three strands. Same rules as the solid barriers: never within reach of the route's
- * asphalt, verge and a margin, never across a street, only in the corridor; and only within
- * `reach` m of the road (`cover`, or the route when there's none). Spans nearest the road are
- * kept first, up to `maxTriangles`. Lines that run over each other (two paddocks sharing a
- * boundary) are built once. Posts are timber, wires the shared "wire" material; both solid
- * (1WALL_), like the other fences.
+ * One step of wall from p to q: right and left faces, plus a top on thick barriers; no ends or
+ * bottom. Sunk SINK into the ground, `height` above it at each end. One 2 m tile, bottom at ground.
  */
+function slab(mb: MeshBuilder, p: Vec2, q: Vec2, [uP, uQ]: [number, number], { height, thick }: Style, ground: HeightFn) {
+  const run = length(p, q);
+  const side: Vec2 = [((q[1] - p[1]) / run) * (thick / 2), (-(q[0] - p[0]) / run) * (thick / 2)]; // to the right of p -> q
+  const gp = ground(p[0], p[1]), gq = ground(q[0], q[1]);
+  const vUp = 1 - height / 2;
+  const corner = (end: Vec2, sign: number, z: number, u: number, v: number) => mb.vertex([end[0] + side[0] * sign, end[1] + side[1] * sign, z], u, v);
+  const face = (k: number[]) => mb.quad(k[0], k[1], k[2], k[3]);
+  face([corner(p, 1, gp - SINK, uP, 1.1), corner(q, 1, gq - SINK, uQ, 1.1), corner(q, 1, gq + height, uQ, vUp), corner(p, 1, gp + height, uP, vUp)]);
+  face([corner(q, -1, gq - SINK, uQ, 1.1), corner(p, -1, gp - SINK, uP, 1.1), corner(p, -1, gp + height, uP, vUp), corner(q, -1, gq + height, uQ, vUp)]);
+  if (thick > 0.1) face([corner(p, 1, gp + height, uP, 0), corner(q, 1, gq + height, uQ, 0), corner(q, -1, gq + height, uQ, 0.05), corner(p, -1, gp + height, uP, 0.05)]);
+}
+
+export const WIRE_FENCE = { postGap: 4, postHeight: 1.25, post: 0.1, wires: [0.4, 0.75, 1.1], wire: 0.025 };
+
 export function buildWireFences(
-  lines: Vec2[][],
-  index: SegmentIndex,
-  opts: BuildOptions,
-  ground: HeightFn,
-  clear: (x: number, y: number) => boolean,
-  cover?: (x: number, y: number) => number,
-  reach = 40,
-  maxTriangles = 80000,
+  lines: Vec2[][], index: SegmentIndex, opts: BuildOptions, ground: HeightFn, clear: Where, cover?: Measure, reach = 40, maxTriangles = 80000,
 ): Kn5MeshNode[] {
-  const W = WIRE_FENCE;
-  const dist = (x: number, y: number) => cover ? cover(x, y) : (index.nearest(x, y, opts.corridor + 10)?.dist ?? Infinity);
-  const offRoute = (x: number, y: number) => {
-    const n = index.nearest(x, y, 30);
-    return !n || n.dist > index.at(n).width / 2 + opts.vergeWidth + 2.5;
-  };
+  const roadDist: Measure = cover ?? ((x, y) => index.nearest(x, y, opts.corridor + 10)?.dist ?? Infinity);
+  const away = offRoute(index, opts);
   const limit = Math.min(reach, opts.corridor - 2);
-  // Every span: a post at p, wires from p to q.
-  const spans: { p: Vec2; q: Vec2; d: number }[] = [];
-  const seen = new Map<string, Vec2[]>();
-  const dup = (m: Vec2) => {
+  const allowed = ([x, y]: Vec2) => clear(x, y) && away(x, y) && roadDist(x, y) <= limit;
+
+  // Accepted span midpoints on a 2 m grid: a span within 1.2 m of one is a repeat (shared boundaries).
+  const grid = new Map<string, Vec2[]>();
+  const cell = (cx: number, cy: number) => `${cx},${cy}`;
+  const repeats = (m: Vec2) => {
     const cx = Math.floor(m[0] / 2), cy = Math.floor(m[1] / 2);
-    for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) {
-      if ((seen.get(`${cx + i},${cy + j}`) ?? []).some((o) => Math.hypot(o[0] - m[0], o[1] - m[1]) < 1.2)) return true;
-    }
-    const k = `${cx},${cy}`;
-    seen.set(k, [...(seen.get(k) ?? []), m]);
-    return false;
+    return [-1, 0, 1].some((ox) => [-1, 0, 1].some((oy) => (grid.get(cell(cx + ox, cy + oy)) ?? []).some((o) => length(o, m) < 1.2)));
   };
+  const spans: { p: Vec2; q: Vec2; d: number }[] = [];
   for (const pts of lines) {
-    for (let k = 1; k < pts.length; k++) {
-      const a = pts[k - 1], c = pts[k];
-      const len = Math.hypot(c[0] - a[0], c[1] - a[1]);
-      if (len < 0.5) continue;
-      const n = Math.max(1, Math.round(len / W.postGap));
-      for (let j = 0; j < n; j++) {
-        const p = lerp(a, c, j / n), q = lerp(a, c, (j + 1) / n), mid = lerp(p, q, 0.5);
-        if (![p, q, mid].every(([x, y]) => clear(x, y) && offRoute(x, y) && dist(x, y) <= limit)) continue;
-        if (dup(mid)) continue;
-        spans.push({ p, q, d: dist(mid[0], mid[1]) });
+    pts.forEach((a, s) => {
+      const c = pts[s + 1];
+      if (!c || length(a, c) < 0.5) return;
+      const parts = Math.max(1, Math.round(length(a, c) / WIRE_FENCE.postGap));
+      for (let j = 0; j < parts; j++) {
+        const p = at(a, c, j / parts), q = at(a, c, (j + 1) / parts), mid = at(a, c, (j + 0.5) / parts);
+        if (!allowed(p) || !allowed(q) || !allowed(mid) || repeats(mid)) continue;
+        const key = cell(Math.floor(mid[0] / 2), Math.floor(mid[1] / 2));
+        grid.set(key, [...(grid.get(key) ?? []), mid]);
+        spans.push({ p, q, d: roadDist(mid[0], mid[1]) });
       }
-    }
+    });
   }
-  // Nearest the road first, within the triangle budget (8 per post, 4 per strand per span).
-  const perSpan = 8 + W.wires.length * 4;
-  spans.sort((s, t) => s.d - t.d);
-  const kept = spans.slice(0, Math.floor(maxTriangles / perSpan));
-  const posts: MeshBuilder[] = [], wires: MeshBuilder[] = [];
-  const next = (list: MeshBuilder[], verts: number) => {
-    if (!list.length || list[list.length - 1].vertexCount + verts > 60000) list.push(new MeshBuilder());
-    return list[list.length - 1];
-  };
-  // Posts at both ends of each run: a post at every span's p, and at q where no span starts there.
-  const starts = new Set(kept.map((s) => `${s.p[0].toFixed(1)},${s.p[1].toFixed(1)}`));
-  for (const s of kept) {
-    box(next(posts, 16), s.p, W.post, -SINK, W.postHeight, ground);
-    if (!starts.has(`${s.q[0].toFixed(1)},${s.q[1].toFixed(1)}`)) box(next(posts, 16), s.q, W.post, -SINK, W.postHeight, ground);
-    const zp = ground(s.p[0], s.p[1]), zq = ground(s.q[0], s.q[1]);
-    for (const h of W.wires) ribbon(next(wires, 8), s.p, s.q, zp + h, zq + h, W.wire);
+  // Nearest the road first, within the triangle budget. The budget counts one post per span, so
+  // the extra end posts can take it slightly over: it is approximate.
+  const trianglesPerSpan = 8 + 4 * WIRE_FENCE.wires.length;
+  const kept = spans.sort((x, y) => x.d - y.d).slice(0, Math.floor(maxTriangles / trianglesPerSpan));
+
+  const posts = new Split(), wires = new Split();
+  const spot = ([x, y]: Vec2) => `${x.toFixed(1)},${y.toFixed(1)}`;
+  const spanStarts = new Set(kept.map((span) => spot(span.p)));
+  const post = (where: Vec2) => box(posts.next(16), where, WIRE_FENCE.post, -SINK, WIRE_FENCE.postHeight, ground);
+  for (const { p, q } of kept) {
+    post(p);
+    if (!spanStarts.has(spot(q))) post(q);
+    const zp = ground(p[0], p[1]), zq = ground(q[0], q[1]);
+    WIRE_FENCE.wires.forEach((w) => ribbon(wires.next(8), p, q, zp + w, zq + w, WIRE_FENCE.wire));
   }
-  return [
-    ...posts.filter((m) => m.indices.length).map((m, i) => m.toKn5(`1WALL_FENCE_WIREPOST_${pad(i)}`, "timber")),
-    ...wires.filter((m) => m.indices.length).map((m, i) => m.toKn5(`1WALL_FENCE_WIRE_${pad(i)}`, "wire")),
-  ];
+  return posts.nodes("1WALL_FENCE_WIREPOST", "timber").concat(wires.nodes("1WALL_FENCE_WIRE", "wire"));
 }
 
-/** A square post `size` wide at `at`, from `z0` to `z1` above the ground: four sides, no top. */
-export function box(mb: MeshBuilder, at: Vec2, size: number, z0: number, z1: number, ground: HeightFn): void {
-  const g = ground(at[0], at[1]), h = size / 2;
-  const c: Vec2[] = [[at[0] - h, at[1] - h], [at[0] + h, at[1] - h], [at[0] + h, at[1] + h], [at[0] - h, at[1] + h]];
-  for (let k = 0; k < 4; k++) {
-    const a = c[k], b = c[(k + 1) % 4], i = mb.vertexCount;
-    mb.vertex([a[0], a[1], g + z0], 0, 1);
-    mb.vertex([b[0], b[1], g + z0], 1, 1);
-    mb.vertex([b[0], b[1], g + z1], 1, 0);
-    mb.vertex([a[0], a[1], g + z1], 0, 0);
-    mb.quad(i, i + 1, i + 2, i + 3);
-  }
+/** A square post `size` wide centred on `centre`, from ground + z0 to ground + z1; four outward sides. */
+export function box(mb: MeshBuilder, centre: Vec2, size: number, z0: number, z1: number, ground: HeightFn): void {
+  const r = size / 2, g = ground(centre[0], centre[1]);
+  const ring: Vec2[] = [[-r, -r], [r, -r], [r, r], [-r, r]].map(([dx, dy]) => [centre[0] + dx, centre[1] + dy]);
+  ring.forEach((c0, i) => {
+    const c1 = ring[(i + 1) % ring.length];
+    const k = [mb.vertex([c0[0], c0[1], g + z0], 0, 1), mb.vertex([c1[0], c1[1], g + z0], 1, 1), mb.vertex([c1[0], c1[1], g + z1], 1, 0), mb.vertex([c0[0], c0[1], g + z1], 0, 0)];
+    mb.quad(k[0], k[1], k[2], k[3]);
+  });
 }
 
-/** A thin vertical strip from p (centre height zp) to q (zq), `h` tall, seen from both sides. */
+/** A vertical strip `h` tall centred on zp at p and zq at q, with a face to each side. */
 export function ribbon(mb: MeshBuilder, p: Vec2, q: Vec2, zp: number, zq: number, h: number): void {
-  // Each face its own vertices, so the computed normals don't cancel out.
-  for (const back of [false, true]) {
-    const i = mb.vertexCount;
-    mb.vertex([p[0], p[1], zp - h / 2], 0, 1);
-    mb.vertex([q[0], q[1], zq - h / 2], 1, 1);
-    mb.vertex([q[0], q[1], zq + h / 2], 1, 0);
-    mb.vertex([p[0], p[1], zp + h / 2], 0, 0);
-    if (back) mb.quad(i + 3, i + 2, i + 1, i);
-    else mb.quad(i, i + 1, i + 2, i + 3);
-  }
+  const strip = () => [mb.vertex([p[0], p[1], zp - h / 2], 0, 1), mb.vertex([q[0], q[1], zq - h / 2], 1, 1), mb.vertex([q[0], q[1], zq + h / 2], 1, 0), mb.vertex([p[0], p[1], zp + h / 2], 0, 0)];
+  const front = strip();
+  mb.quad(front[0], front[1], front[2], front[3]);
+  const back = strip();
+  mb.quad(back[3], back[2], back[1], back[0]);
 }

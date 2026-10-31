@@ -42,3 +42,19 @@ export function placeSeed(x: number, y: number, salt = 0): number {
 export function placeRandom(x: number, y: number, salt = 0): number {
   return placeSeed(x, y, salt) / 4294967296;
 }
+
+/**
+ * Mulberry32 (Tommy Ettinger, public domain): a second, older generator kept only so the photo
+ * road surface's grain (photoSurface.ts) stays byte-identical to builds made before the rewrite.
+ * New code uses rng().
+ */
+export function mulberry32(seed: number): () => number {
+  let state = seed >>> 0;
+  return () => {
+    state = (state + 0x6d2b79f5) >>> 0;
+    let t = state;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
