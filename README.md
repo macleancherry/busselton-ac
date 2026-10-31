@@ -2,7 +2,7 @@
 
 Busselton and Vasse in Assetto Corsa, built from real data. Real road lines, real heights from LiDAR, Landgate aerial photos, Australian road surfaces and markings.
 
-This is a fork of [honestjams/ac-track-builder](https://github.com/honestjams/ac-track-builder), which turns any real road into an AC track in the browser. This fork adds WA data and the bits needed to build Busselton tracks without clicking through the UI.
+This is a fork of [honestjams/ac-track-builder](https://github.com/honestjams/ac-track-builder), which turns any real road into an AC track in the browser. This fork adds WA data and builds Busselton tracks from route files, with no browser app: the upstream map UI is gone.
 
 ## Tracks
 
@@ -20,7 +20,7 @@ v0.7: driven in game, tested by an AI driver on the workstation. To install, dra
 On top of upstream's builder (roads, roundabouts, building types, ground detail, signs, race-day dressing):
 
 - **WA data.** Landgate's free Locate mosaic for imagery anywhere in WA, and Geoscience Australia's 5 m bare-earth DEM from Busselton to Ludlow, shipped in `public/dem/wa`.
-- **Headless builds.** `scripts/headless/build-track.mjs` builds a track from a route file in headless Chromium: the same code as the UI, no clicking. It retries map data and stops if any is still missing ("MISSING DATA"), so a build never comes out quietly different. Downloads are cached in `out/cache` (14 days; `NO_CACHE=1` for fresh data), so a rebuild takes about half the time.
+- **Headless builds.** `scripts/headless/build-track.mjs` builds a track from a route file: it runs a bare build page (`index.html`, `src/ui/main.ts`) in headless Chromium, so every download goes through its cache. It retries map data and stops if any is still missing ("MISSING DATA"), so a build never comes out quietly different. Downloads are cached in `out/cache` (14 days; `NO_CACHE=1` for fresh data), so a rebuild takes about half the time.
 - **Checks on every build.** Road over the aerial photo and heights against the DEM (`check_build.py`), bumps, tilt and edge steps (`surface_check.py`), traffic lanes (`traffic_check.py`, including no parked car in a lane) and a performance budget for the RTX 4060 (`budget.ts`). The checks work on long tracks (16 km and up).
 - **Renders.** `SHOTS=0.1,0.5` (lap fractions, `lng:lat:lookLng:lookLat:height`, or `car0`..`car9` to look at parked cars) saves views from the preview. `scripts/check/render_diff.py <slug>` compares them with the last saved set (`--save`), before and after.
 - **Smooth town roads.** No banking, kerbs at the right height, flat roundabouts, and options for flat ground (`terrainUnderRoad`, a finer `terrainStep`). Roundabouts the route goes straight over are found from the mapped rings, not just the routing, and each island shows its own aerial photo.
@@ -82,7 +82,7 @@ Builds land in `out/`: the zip, a stats file, and an overlay image of the road o
 
 If you're on a network that strips CORS headers from the routing and map APIs, run the build with `CORS_SHIM=1`.
 
-You can still use the browser version: `npm run dev`, then open http://localhost:5173.
+There's no browser app any more: `npm run dev` only serves the build page the headless script drives.
 
 ### Route files
 
@@ -100,8 +100,8 @@ Put routes you don't want public (anything starting at home) in `routes/private/
 
 - **pins** are `[lng, lat]`. The route follows the real road network between them.
 - **loop** closes the route back to the first pin.
-- **options** take any setting from the UI by its element id (`imagery`, `trees`, `buildings`, and so on).
-- **build** takes build settings the UI doesn't have, such as `noTrace` zones (`{ "at": [lng, lat], "radius": metres }`) where the road keeps the OSM line instead of the photo trace. Use these on wide main streets where the trace locks onto parking bays.
+- **options** take two settings: `imagery` (`ultra`, `high`, `standard` or `off`) and `banking` (true or false). Anything else fails the build.
+- **build** takes any build setting (`src/core/options.ts`), and wins over **options**: for example `noTrace` zones (`{ "at": [lng, lat], "radius": metres }`) where the road keeps the OSM line instead of the photo trace. Use these on wide main streets where the trace locks onto parking bays.
 
 If a pin snaps onto a car park or side street, nudge it onto the road you want.
 

@@ -91,7 +91,7 @@ honestjams/ac-track-builder is a source of ideas, not a partner: its owner has m
 - `src/services/tiles.ts`: imagery sources (`IMAGERY`, WA = Landgate Locate ImageServer by bbox) and elevation (`STATE_DEMS`, WA = static Terrarium tiles in `public/dem/wa/15`).
 - `src/services/osm.ts`: OSRM routing (reports `uturns`), Overpass, geocoding.
 - `src/services/pipeline.ts`: the build from fetching data to files, run in a Web Worker (`src/ui/buildWorker.ts`). Data sources the fork adds (coast, paths, house looks, shop signs, missing-data warnings) go here, not in main.ts; anything from the page reaches it through the `BuildJob`.
-- `src/ui/main.ts`: the browser UI. In dev mode it exposes `window.__app` (addPin, result, preview, dataWarnings), which the headless script uses.
+- `src/ui/main.ts`: the headless build page (no browser app; docs/specs/headless-page.md). It exposes `window.__app`: `route({ pins, loop, ways })`, `build({ name, options, build, token, houseLooks, landmarks })`, `progress()`, `result()`, `preview()`, `dataWarnings()`, `zip()`, `shot(eye, target)`, which build-track.mjs drives. `src/ui/headlessOptions.ts` holds the fixed options every build gets and the route checks; `src/ui/preview.ts` renders `ui/preview.png` and the SHOTS.
 - `src/core/buildingStyles.ts` (upstream): facades, roofs and building types. `src/core/houseLooks.ts` (fork) maps house looks and `houseStyle` onto them.
 - `scripts/dem/make_wa_tiles.py`: regenerates the DEM tiles from GA's 5 m mosaic. The box must match `STATE_DEMS.wa.box`.
 - Tests: `npx vitest run`. Type-check: `npx tsc --noEmit`. Run both before committing.

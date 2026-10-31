@@ -11,17 +11,13 @@ src/core/roundabout.ts
 src/core/sideStreets.ts
 src/core/sponsors.ts
 src/core/track.ts
-src/ui/buildWorker.ts
 src/ui/main.ts
 src/ui/preview.ts
-src/ui/session.ts
-src/ui/style.css
 test/gates.test.ts
 test/kangaroo.test.ts
 test/origin.test.ts
 test/raceDress.test.ts
 test/roundabout.test.ts
-test/session.test.ts
 test/streets.test.ts
 test/track.test.ts
 test/wa-imagery.test.ts

@@ -1,7 +1,7 @@
 // Mapillary map features: traffic signs, poles, street lights, traffic lights and painted road
 // marks detected in street photos, read from Mapillary's z14 vector tiles over a box
 // (docs/specs/mapillary.md). Everything that interprets them is in the core (furniture.ts,
-// utilities.ts, track.ts). Also remembers the user's own token in the browser.
+// utilities.ts, track.ts).
 //
 // Mapillary data is CC BY-SA: tracks containing it are never published.
 
@@ -9,7 +9,6 @@ import { VectorTile } from "@mapbox/vector-tile";
 import { PbfReader } from "pbf";
 import { lngLatToPixel, pixelToLngLat, type LngLat } from "../core/geo";
 
-const TOKEN_KEY = "mapillary_token";
 const Z = 14;
 /** More tiles than this (about 800 km² at Busselton) and nothing is fetched. */
 export const MAX_SEEN_TILES = 200;
@@ -21,33 +20,6 @@ const TILE_SETS = [
 
 /** Only the kinds the build can place. */
 const WANTED = /^(object--support--utility-pole|object--street-light|object--traffic-light|regulatory--|warning--|complementary--chevron|marking--discrete--(stop-line|crosswalk-zebra|give-way|arrow--|text--|symbol--bicycle))/;
-
-type KeyStore = Pick<Storage, "getItem" | "setItem" | "removeItem">;
-
-function storage(given?: KeyStore): KeyStore | undefined {
-  return given ?? (globalThis as { localStorage?: KeyStore }).localStorage;
-}
-
-/** The remembered token, or "" (none, or no storage). */
-export function savedToken(store?: KeyStore): string {
-  try {
-    return storage(store)?.getItem(TOKEN_KEY) ?? "";
-  } catch {
-    return "";
-  }
-}
-
-/** Remembers the token (an empty one forgets it). Storage errors are ignored. */
-export function saveToken(token: string, store?: KeyStore): void {
-  try {
-    const s = storage(store);
-    if (!s) return;
-    if (token) s.setItem(TOKEN_KEY, token);
-    else s.removeItem(TOKEN_KEY);
-  } catch {
-    // not remembered
-  }
-}
 
 export interface SeenOptions {
   /** fetch-compatible function (tests). */

@@ -1,5 +1,5 @@
-// Build a track without clicking: runs the real app in headless Chromium, drops
-// the pins, presses Build and saves the zip. Same code path as the browser UI.
+// Build a track: runs the headless build page (index.html, src/ui/main.ts) in headless Chromium,
+// routes the pins, builds and saves the zip. docs/specs/headless-page.md has the page's API.
 //
 //   node scripts/headless/build-track.mjs routes/foreshore.json
 //
@@ -8,8 +8,8 @@
 //     "name": "Busselton Foreshore",
 //     "loop": true,
 //     "pins": [[115.33054, -33.65499], [115.33056, -33.65034], ...],   // lng, lat
-//     "options": { "imagery": "high", "trees": "normal" },              // optional: ids of <select>s/<input>s in the UI
-//     "build": { "noTrace": [{ "at": [115.3445, -33.6500], "radius": 150 }] }  // optional: BuildOptions with no UI control
+//     "options": { "imagery": "high", "banking": false },               // optional: imagery (ultra/high/standard/off) and banking only
+//     "build": { "noTrace": [{ "at": [115.3445, -33.6500], "radius": 150 }] }  // optional: any BuildOptions (wins over options)
 //     "ways": [89374807, 733256017], "reverse": false   // optional: route along these OSM ways (through the pins) instead of OSRM
 //   }
 //
@@ -59,7 +59,7 @@ const TIMEOUT = Number(process.env.BUILD_TIMEOUT_MIN ?? 30) * 60_000;
 
 const log = (...a) => console.log(`[${new Date().toISOString().slice(11, 19)}]`, ...a);
 
-// Vite dev server: the build reads public/dem through it, and the dev-only test hook (__app) exists there.
+// Vite dev server: serves the build page (window.__app) and public/dem.
 const vite = spawn(process.execPath, [join(root, "node_modules/vite/bin/vite.js"), "--port", String(PORT), "--strictPort"], {
   cwd: root,
   stdio: ["ignore", "pipe", "pipe"],
@@ -164,26 +164,9 @@ try {
   await page.goto(`http://localhost:${PORT}/`, { waitUntil: "load" });
   await page.waitForFunction(() => window.__app);
 
-  // Options first, so routing and naming see them.
-  await page.fill("#name", spec.name);
-  if (spec.loop) await page.check("#loop");
-  // Set controls directly: some sit in collapsed sections and aren't clickable.
   // The Mapillary token comes from the environment (or a gitignored .env.local), never a route file:
   // the routes are public.
-  const options = { ...(spec.options ?? {}) };
-  if (process.env.MAPILLARY_TOKEN) options.mapillaryToken = process.env.MAPILLARY_TOKEN;
-  for (const [id, value] of Object.entries(options)) {
-    const ok = await page.evaluate(([id, value]) => {
-      const el = document.getElementById(id);
-      if (!el) return false;
-      if (el.type === "checkbox") el.checked = !!value;
-      else el.value = String(value);
-      el.dispatchEvent(new Event("input", { bubbles: true }));
-      el.dispatchEvent(new Event("change", { bubbles: true }));
-      return true;
-    }, [id, value]);
-    if (!ok) throw new Error(`no control #${id} in the UI`);
-  }
+  const token = process.env.MAPILLARY_TOKEN ?? "";
   // What houses look like: HOUSE_LOOKS=out/<slug>.looks.json (from house_looks.py), and/or hand-set looks
   // ({at, facade?, colour?, front?, hedgeHeight?, trees?, specFile?} each), comma-separated.
   // Several files, comma-separated: later ones win (e.g. photo looks, then hand-set ones).
@@ -193,18 +176,19 @@ try {
   // their spots, and scripts/polish/landmarks.ts builds each as its own layer (lm_<slug>.kn5) and adds
   // it to the zip at the end, the same as a polish-only update does (ROADMAP.md, generate-freeze-polish).
   let landmarks = [];
+  let houseLooks;
   if (lookFiles.length) {
     const looks = lookFiles.flatMap((f) => {
       const l = JSON.parse(readFileSync(resolve(root, f.trim()), "utf8"));
       return l.houses ?? l;
     });
     landmarks = looks.filter((h) => h.specFile).map((h) => ({ name: h.name ?? basename(h.specFile, ".json"), at: h.at }));
-    await page.evaluate(([l, lm]) => { window.__houseLooks = l; window.__landmarks = lm; }, [looks.filter((h) => !h.specFile), landmarks]);
+    houseLooks = looks.filter((h) => !h.specFile);
   }
   const polish = (more) => execFileSync("npx", ["tsx", "scripts/polish/landmarks.ts", routeFile, ...more], { cwd: root, env: process.env, encoding: "utf8" });
   const landmarkClears = landmarks.length ? JSON.parse(polish(["--clears"])) : [];
   if (landmarks.length) log(`landmarks (built as layers): ${landmarks.map((l) => l.name).join(", ")}`);
-  // Build options with no UI control (e.g. noTrace zones) go straight to the build.
+  // The route's "build" (any BuildOptions, e.g. noTrace zones) goes straight to the build, over its "options".
   // Hand-made layers (the route's "layers" folders, and LAYERS=dir,dir): each <name>.kn5 goes into the
   // track over the generated one (models.ini), and its <name>.json sidecar ({ "replaces": [{ "at":
   // [lng, lat], "radius": m, "trees"?: false }] }) clears the generated houses and trees it stands on.
@@ -225,21 +209,22 @@ try {
   // "layout") can add "traffic": "kids" for calmer traffic on that layout.
   const mainLayout = spec.layouts?.length ? { id: spec.layout?.id ?? "main", name: spec.layout?.name ?? spec.name } : null;
   if (mainLayout) buildOpts = { ...(buildOpts ?? {}), layout: mainLayout.id };
-  if (buildOpts) await page.evaluate((b) => { window.__buildOptions = b; }, buildOpts);
   // "ways": [OSM way ids] takes the centreline from those ways instead of OSRM, through the pins in
   // order ("reverse": true drives it the other way): circuits and tracks OSRM's car profile won't route.
-  if (spec.ways) await page.evaluate((w) => { window.__routeWays = w; }, { ids: spec.ways, reverse: !!spec.reverse });
-  for (const p of spec.pins) await page.evaluate((pt) => window.__app.addPin(pt), p);
-  await page.fill("#name", spec.name);
-
+  const ways = spec.ways ? { ids: spec.ways, reverse: !!spec.reverse } : undefined;
   log("routing", spec.pins.length, "pins", spec.ways ? `along OSM ways ${spec.ways.join(", ")}` : "");
-  // Routed, or a routing error shown (Overpass retries for ways can take a few minutes).
-  await page.waitForSelector("#build:not([disabled]), #route-error:not([hidden])", { timeout: spec.ways ? 240_000 : 60_000 });
-  const routeErr = await page.locator("#route-error").evaluate((e) => (e.hidden ? "" : e.textContent));
-  if (routeErr) throw new Error(routeErr);
-  log("route", await page.textContent("#route-length"), await page.textContent("#route-kind"));
+  // Overpass retries for ways can take a few minutes.
+  const routeTimeout = spec.ways ? 240_000 : 60_000;
+  let routeTimer;
+  const routed = await Promise.race([
+    page.evaluate((i) => window.__app.route(i), { pins: spec.pins, loop: !!spec.loop, ways }),
+    new Promise((_, fail) => { routeTimer = setTimeout(() => fail(new Error(`routing took longer than ${routeTimeout / 1000} s`)), routeTimeout); }),
+  ]).finally(() => clearTimeout(routeTimer));
+  if (routed.error) throw new Error(routed.error);
+  if (routed.note) log(routed.note);
+  log("route", routed.lengthText, routed.kind);
 
-  await page.click("#build");
+  const buildInput = { name: spec.name, options: { ...(spec.options ?? {}) }, build: buildOpts, token, houseLooks, landmarks };
   let last = "", changed = Date.now();
   // A build that shows no progress for this long has hung (seen once: a download that never finished
   // or failed); stop it so a retry loop can build again.
@@ -247,7 +232,7 @@ try {
   let stalled = () => {};
   const stall = new Promise((_, fail) => { stalled = fail; });
   const progress = setInterval(async () => {
-    const t = await page.textContent("#progress-text").catch(() => "");
+    const t = await page.evaluate(() => window.__app.progress()).catch(() => "");
     if (t && t !== last) {
       log(" ", (last = t));
       changed = Date.now();
@@ -255,20 +240,17 @@ try {
       stalled(new Error(`build stalled: no progress for ${STALL / 60_000} min at "${last}"`));
     }
   }, 2000);
+  let buildTimer;
   try {
     await Promise.race([
-      page.waitForFunction(
-        () => !document.getElementById("result").hidden || !document.getElementById("build-error").hidden,
-        undefined,
-        { timeout: TIMEOUT, polling: 1000 },
-      ),
+      page.evaluate((i) => window.__app.build(i), buildInput),
       stall,
+      new Promise((_, fail) => { buildTimer = setTimeout(() => fail(new Error(`build took longer than ${TIMEOUT / 60_000} min`)), TIMEOUT); }),
     ]);
   } finally {
     clearInterval(progress);
+    clearTimeout(buildTimer);
   }
-  const buildErr = await page.locator("#build-error").evaluate((e) => (e.hidden ? "" : e.textContent));
-  if (buildErr) throw new Error(buildErr);
   // Data that never arrived (after retries) makes a quietly different track: stop, unless asked not to.
   const missing = await page.evaluate(() => window.__app.dataWarnings());
   if (missing.length) {
@@ -277,9 +259,8 @@ try {
   }
 
   // The zip comes out of the page in pieces: one base64 string of a few hundred MB crashes it.
-  const zipLength = await page.evaluate(async () => {
-    const a = document.getElementById("download");
-    window.__zipBuf = new Uint8Array(await (await fetch(a.href)).arrayBuffer());
+  const zipLength = await page.evaluate(() => {
+    window.__zipBuf = window.__app.zip();
     return window.__zipBuf.length;
   });
   const CHUNK = 16 * 1024 * 1024;
@@ -295,15 +276,14 @@ try {
   }
   await page.evaluate(() => { window.__zipBuf = null; });
   let zipBytes = Buffer.concat(parts);
-  const { slug, stats, table, centreline, sampleKeys, houses } = await page.evaluate(async () => {
+  const { slug, stats, centreline, sampleKeys, houses } = await page.evaluate(async () => {
     const r = window.__app.result();
-    const table = [...document.querySelectorAll("#result-stats div")].map((d) => [d.querySelector("dt")?.textContent, d.querySelector("dd")?.textContent]);
     // The built centreline in lng/lat with its height and width, for checking against the photo and the DEM.
     const centreline = r.plan.samples.map((s) => {
       const [lng, lat] = r.proj.toLngLat(s.pos);
       return [+lng.toFixed(7), +lat.toFixed(7), +s.h.toFixed(3), +(s.width ?? NaN)];
     });
-    return { slug: r.slug, stats: r.stats, table, centreline, sampleKeys: Object.keys(r.plan.samples[0] ?? {}), houses: r.houses };
+    return { slug: r.slug, stats: r.stats, centreline, sampleKeys: Object.keys(r.plan.samples[0] ?? {}), houses: r.houses };
   });
   mkdirSync(join(root, "out"), { recursive: true });
   writeFileSync(join(root, "out", `${slug}.centreline.json`), JSON.stringify({ sampleKeys, centreline }));
@@ -317,7 +297,7 @@ try {
   mkdirSync(out, { recursive: true });
   if (mainLayout) {
     log("layouts:", [mainLayout.id, ...spec.layouts.map((l) => l.id)].join(", "));
-    const extra = await page.evaluate(async ({ layouts, options, mainId, mainTraffic, name }) => {
+    const extra = await page.evaluate(async ({ layouts, options, mainId, mainTraffic, name, landmarks }) => {
       const { route, routeWays } = await import("/src/services/osm.ts");
       const { layoutFiles } = await import("/src/core/layouts.ts");
       const { trackObjects } = await import("/src/core/track.ts");
@@ -335,7 +315,7 @@ try {
         bays: r.bayBoxes,
         lines: ti ? ti.roads.map((rd) => rd.pts) : undefined, speeds: ti ? ti.roads.map((rd) => rd.speed) : undefined, rings: ti ? ti.roundabouts.map((rb) => ({ c: rb.c, rOut: rb.rOut })) : undefined,
         // Landmarks (looks built from a spec): the automatic test photographs them.
-        landmarks: (window.__landmarks ?? []).map((h) => ({ name: h.name, at: r.proj.toLocal(h.at) })),
+        landmarks: landmarks.map((h) => ({ name: h.name, at: r.proj.toLocal(h.at) })),
       };
       for (const l of layouts) {
         // A layout's own "ways" (and "reverse") route it along OSM ways, as the main drive's do.
@@ -359,7 +339,7 @@ try {
       const mainSrc = r.files[`${r.slug}/${mainId}/data/traffic.json`];
       if (mainSrc && mainTraffic) files[`${r.slug}/${mainId}/data/traffic.json`] = b64(new TextEncoder().encode(trafficForSetting(new TextDecoder().decode(mainSrc), mainTraffic)));
       return files;
-    }, { layouts: spec.layouts, options: { ...(spec.build ?? {}) }, mainId: mainLayout.id, mainTraffic: spec.layout?.traffic, name: spec.name });
+    }, { layouts: spec.layouts, options: { ...(spec.build ?? {}) }, mainId: mainLayout.id, mainTraffic: spec.layout?.traffic, name: spec.name, landmarks });
     const files = unzipSync(new Uint8Array(zipBytes));
     for (const [k, v] of Object.entries(extra)) files[k] = new Uint8Array(Buffer.from(v, "base64"));
     zipBytes = Buffer.from(zipSync(files, { level: 6 }));
@@ -393,7 +373,7 @@ try {
   for (const h of used.values()) hostCount[h] = (hostCount[h] ?? 0) + 1;
   writeFileSync(join(out, `${slug}.inputs.json`), JSON.stringify({ route: basename(routeFile), built: new Date().toISOString(), snapshot: snapshot ? basename(snapshot) : null, hosts: hostCount, keys: [...used.keys()].sort() }, null, 1));
   if (snapshot && snapMissing) log(`WARNING: ${snapMissing} downloads weren't in the snapshot (refresh it with SNAPSHOT_FILL=1 if that's intended)`);
-  writeFileSync(join(out, `${slug}.stats.json`), JSON.stringify({ route: basename(routeFile), stats, table }, null, 2));
+  writeFileSync(join(out, `${slug}.stats.json`), JSON.stringify({ route: basename(routeFile), stats }, null, 2));
   if (process.env.SHOTS) {
     // Each shot is a lap fraction, or "lng:lat:lookLng:lookLat:height" for a fixed view.
     // SHOTS=auto: the same views on every build of a track, for before/after comparisons
@@ -406,7 +386,7 @@ try {
     for (const f of readdirSync(out)) if (f.startsWith(`${slug}.shot`) && f.endsWith(".png")) rmSync(join(out, f));
     for (const [n, f] of fracs.entries()) {
       const png = await page.evaluate((f) => {
-        const r = window.__app.result(), pv = window.__app.preview();
+        const r = window.__app.result(), shot = window.__app.shot;
         if (f.startsWith("car")) {
           // car<N>: from 10 m beside and 4 m above the Nth parked car (spread over the list), looking at it.
           const cars = r.parked ?? [];
@@ -414,32 +394,29 @@ try {
           const c = cars[Math.floor((Number(f.slice(3)) / 10) * cars.length) % cars.length];
           const g = r.plan.samples[0].h;
           const e = [c.at[0] - c.dir[1] * 10 + c.dir[0] * 4, c.at[1] + c.dir[0] * 10 + c.dir[1] * 4];
-          pv.view([e[0], g + 4, -e[1]], [c.at[0], g, -c.at[1]]);
-          return document.getElementById("preview-canvas").toDataURL("image/png").split(",")[1];
+          return shot([e[0], g + 4, -e[1]], [c.at[0], g, -c.at[1]]);
         }
         if (f.startsWith("L:")) {
           // Local metres (x east, y north): L:x:y:lookX:lookY:height[:lookHeight].
           const [x, y, lx, ly, h, lh] = f.slice(2).split(":").map(Number);
-          pv.view([x, h, -y], [lx, Number.isFinite(lh) ? lh : h * 0.6, -ly]);
-          return document.getElementById("preview-canvas").toDataURL("image/png").split(",")[1];
+          return shot([x, h, -y], [lx, Number.isFinite(lh) ? lh : h * 0.6, -ly]);
         }
         if (f.includes(":")) {
           const [x, y, lx, ly, h] = f.split(":").map(Number);
           const e = r.proj.toLocal([x, y]), t = r.proj.toLocal([lx, ly]);
-          pv.view([e[0], h, -e[1]], [t[0], h * 0.6, -t[1]]);
-          return document.getElementById("preview-canvas").toDataURL("image/png").split(",")[1];
+          return shot([e[0], h, -e[1]], [t[0], h * 0.6, -t[1]]);
         }
         const ss = r.plan.samples, i = Math.floor(Number(f) * ss.length) % ss.length, s = ss[i], a = ss[(i + 15) % ss.length];
         // AC space: x east, y up, z south.
-        pv.view([s.pos[0], s.h + 1.2, -s.pos[1]], [a.pos[0], a.h + 1.0, -a.pos[1]]);
-        return document.getElementById("preview-canvas").toDataURL("image/png").split(",")[1];
+        return shot([s.pos[0], s.h + 1.2, -s.pos[1]], [a.pos[0], a.h + 1.0, -a.pos[1]]);
       }, f);
       if (png) writeFileSync(join(out, `${slug}.shot${n}.png`), Buffer.from(png, "base64"));
     }
     log(`wrote ${fracs.length} shots`);
   }
   log(`wrote out/${slug}.zip (${(zipBytes.length / 1e6).toFixed(1)} MB); downloads: ${hits} from the cache, ${misses} fetched`);
-  for (const [k, v] of table) log(`  ${k}: ${v}`);
+  const km = (m) => `${(m / 1000).toFixed(2)} km`;
+  log(`  ${km(stats.length)} (timed ${km(stats.timedLength)}), ${stats.closed ? "circuit" : "A to B"}; elevation ${Math.round(stats.minElevation)}-${Math.round(stats.maxElevation)} m; ${stats.triangles} triangles; ${stats.trees} trees, ${stats.buildings} buildings; ${Math.round(stats.traced * 100)}% traced`);
 } finally {
   await browser.close();
   vite.kill();
