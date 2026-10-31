@@ -17,6 +17,11 @@ export interface NetWay {
   lanes?: number;
   layer?: number;
   name?: string;
+  /** A divided road (dual.ts): the median's width; `width` is kerb to kerb across both carriageways. */
+  median?: number;
+  /** OSM service=* and surface=*, carried to the edge (streets.ts). */
+  service?: string;
+  surface?: string;
 }
 
 export interface NetEdge {
@@ -34,6 +39,10 @@ export interface NetEdge {
   name?: string;
   /** Internal to a roundabout (a splitter-island one-way leg): no ribbon of its own. */
   internal?: boolean;
+  /** A divided road: the median's width (dual.ts). */
+  median?: number;
+  service?: string;
+  surface?: string;
 }
 
 export interface Roundabout {
@@ -72,7 +81,7 @@ export const classRank = (cls: string): number => RANK[cls.replace(/_link$/, "")
 
 const WIDTH: Record<number, number> = { 7: 11, 6: 9, 5: 7.5, 4: 7, 3: 6.5, 2: 6, 1: 4, 0: 3.5 };
 export function defaultWidth(w: NetWay): number {
-  if (w.width && w.width > 2 && w.width < 30) return w.width;
+  if (w.width && w.width > 2 && w.width < (w.median !== undefined ? 60 : 30)) return w.width;
   if (w.lanes && w.lanes > 0) return Math.max(3.5, w.lanes * 3.4);
   if (w.oneway && !w.roundabout) return 4.5;
   return WIDTH[classRank(w.cls)] ?? 6;
@@ -166,7 +175,7 @@ export function buildGraph(ways: NetWay[], o: GraphOptions = {}): Graph {
     const [i, j] = at.get(nk)!;
     if (i === j) return false;
     const a = ways[kept[i].way], b = ways[kept[j].way];
-    return (a.layer ?? 0) === (b.layer ?? 0) && !!a.oneway === !!b.oneway;
+    return (a.layer ?? 0) === (b.layer ?? 0) && !!a.oneway === !!b.oneway && (a.median === undefined) === (b.median === undefined) && a.service === b.service && a.surface === b.surface;
   };
   const used = new Set<number>();
   const graph: Graph = { nodes: [], edges: [] };
@@ -221,6 +230,8 @@ export function buildGraph(ways: NetWay[], o: GraphOptions = {}): Graph {
       width: widths.reduce((s, x) => s + x, 0) / widths.length,
       ...(oneway ? { oneway } : {}), ...(top.lanes ? { lanes: top.lanes } : {}),
       layer: w0.layer ?? 0, ...(top.name ? { name: top.name } : {}),
+      ...(top.service ? { service: top.service } : {}), ...(top.surface ? { surface: top.surface } : {}),
+      ...(w0.median !== undefined ? { median: parts.reduce((s, w) => s + (w.median ?? 0), 0) / parts.length } : {}),
     };
     graph.edges.push(edge);
     graph.nodes[a].legs.push({ edge: edge.id, start: true });

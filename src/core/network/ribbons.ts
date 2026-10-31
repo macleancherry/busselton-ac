@@ -36,6 +36,10 @@ export interface StreetRibbon {
   joins: number[];
   cls: string;
   oneway?: 1 | -1;
+  /** Phase 2: the graph edge the street is built from (streets.ts); legs then match by edge. */
+  edge?: number;
+  /** A divided road's median width. */
+  median?: number;
 }
 
 export interface RingIn {
@@ -205,6 +209,27 @@ export interface MatchOptions {
  */
 export function matchJunctions(g: Graph, route: RouteRibbon | null, streets: StreetRibbon[], rings: RingIn[], o: MatchOptions = {}): { junctions: RJunction[]; failures: Failure[] } {
   const grid = new StreetGrid(streets);
+  // Phase 2 streets know their graph edge: a leg's street is one built from that edge, the piece nearest.
+  const byEdge = new Map<number, number[]>();
+  streets.forEach((st, si) => { if (st.edge !== undefined) { if (!byEdge.has(st.edge)) byEdge.set(st.edge, []); byEdge.get(st.edge)!.push(si); } });
+  const graphStreets = byEdge.size > 0;
+  const medOff = (e: { median?: number; width: number }) => (e.median !== undefined ? e.median / 2 + (e.width - e.median) / 4 : 0);
+  const streetOfEdge = (edge: number, p: P2, max: number, halfOnly = false): { street: number; seg: number; f: number; d: number; sd: P2 } | null => {
+    let best: { street: number; seg: number; f: number; d: number; sd: P2 } | null = null;
+    for (const si of byEdge.get(edge) ?? []) {
+      if (halfOnly && !(streets[si] as StreetRibbon & { half?: number }).half) continue;
+      const pts = streets[si].pts;
+      for (let k = 1; k < pts.length; k++) {
+        const a = pts[k - 1], b = pts[k];
+        const ab = sub(b, a), L2 = dot(ab, ab);
+        if (L2 < 1e-8) continue;
+        const f = Math.max(0, Math.min(1, dot(sub(p, a), ab) / L2));
+        const d = dist(p, add(a, mul(ab, f)));
+        if (d <= max && (!best || d < best.d)) best = { street: si, seg: k - 1, f, d, sd: unit(ab) };
+      }
+    }
+    return best;
+  };
   const S = route?.samples ?? [];
   const n = S.length;
   const total = route ? (route.closed ? route.length : S[n - 1].s) : 0;
@@ -248,11 +273,12 @@ export function matchJunctions(g: Graph, route: RouteRibbon | null, streets: Str
     if (route) {
       if (ring) onRoute = S.some((s) => dist(s.pos, ring!.c) < ring!.rOut + 0.5);
       else {
-        const nr = route.nearest(node.p[0], node.p[1], 12);
-        if (nr && nr.dist < S[nr.seg].width / 2 + 2) {
+        const extra = Math.max(0, ...node.legs.map((l) => medOff(g.edges[l.edge])));
+        const nr = route.nearest(node.p[0], node.p[1], 12 + extra);
+        if (nr && nr.dist < S[nr.seg].width / 2 + 2 + extra) {
           onRoute = true;
           centre = routePoint(nr.seg, nr.frac);
-          leg0Reach = S[nr.seg].width / 2 + 3;
+          leg0Reach = S[nr.seg].width / 2 + 3 + 2 * extra;
         }
       }
     }
@@ -271,14 +297,27 @@ export function matchJunctions(g: Graph, route: RouteRibbon | null, streets: Str
       const otherJ = g.nodes[otherEnd].kind === "junction" || g.nodes[otherEnd].kind === "roundabout";
       const edgeLimit = Math.max(0.5, otherJ ? len * 0.45 : len - 1);
       let leg: RLeg | string | null = null;
+      let half: RLeg | null = null;
       if (onRoute && route) {
-        const nr = route.nearest(q.p[0], q.p[1], 8);
-        if (nr && nr.dist < S[nr.seg].width / 2 + 1.5 && Math.abs(dot(q.d, S[nr.seg].tan)) > 0.8) {
+        const nr = route.nearest(q.p[0], q.p[1], 8 + medOff(e));
+        if (nr && nr.dist < S[nr.seg].width / 2 + 1.5 + medOff(e) && Math.abs(dot(q.d, S[nr.seg].tan)) > 0.8) {
           leg = routeLeg(l.edge, e.rank, dot(q.d, S[nr.seg].tan) > 0 ? 1 : -1, routeArc(nr.seg, nr.frac), edgeLimit);
+          // A divided road the route runs along one carriageway of: its other carriageway is a leg too.
+          if (typeof leg !== "string" && e.median !== undefined && graphStreets) {
+            const ns = streetOfEdge(l.edge, q.p, 6 + medOff(e), true);
+            if (ns) {
+              const h = streetLeg(l.edge, e.rank, ns.street, dot(q.d, ns.sd) > 0 ? 1 : -1, ns.seg, ns.f, edgeLimit, osm[0]);
+              if (typeof h !== "string") {
+                const st = streets[ns.street];
+                if (st.oneway) h.inbound = st.oneway === -h.dir;
+                half = h;
+              }
+            }
+          }
         }
       }
       if (!leg) {
-        const ns = grid.nearest(q.p, 4, q.d, 0.75);
+        const ns = graphStreets ? streetOfEdge(l.edge, q.p, 6) : grid.nearest(q.p, 4, q.d, 0.75);
         if (ns) leg = streetLeg(l.edge, e.rank, ns.street, dot(q.d, ns.sd) > 0 ? 1 : -1, ns.seg, ns.f, edgeLimit, osm[0]);
       }
       // No ribbon reaches the junction along this leg (a bridge, a stub the build left out, a road
@@ -289,11 +328,12 @@ export function matchJunctions(g: Graph, route: RouteRibbon | null, streets: Str
       const ow = e.oneway;
       if (ow) leg.inbound = l.start ? ow === -1 : ow === 1;
       legs.push(leg);
+      if (half) legs.push(half);
     }
     if (legs.length < (ring ? 1 : 3)) return "too few legs";
     for (let i = 0; i < legs.length; i++) for (let j = i + 1; j < legs.length; j++) {
       const a = legs[i], b = legs[j];
-      if (a.kind === b.kind && a.street === b.street && a.dir === b.dir && Math.abs(a.nodeAt - b.nodeAt) < 30) return "two legs on one ribbon end";
+      if (a.kind === b.kind && a.street === b.street && a.dir === b.dir && Math.abs(a.nodeAt - b.nodeAt) < 30) return `two legs on one ribbon end (street ${a.street}, edges ${a.edge} and ${b.edge})`;
     }
     const routeLegs = legs.filter((l) => l.kind === "route");
     if (onRoute && routeLegs.length < 2) return "route passes but has fewer than two legs";
@@ -314,7 +354,7 @@ export function matchJunctions(g: Graph, route: RouteRibbon | null, streets: Str
         const nr = route.nearest(mid.p[0], mid.p[1], 6);
         if (nr && nr.dist < S[nr.seg].width / 2 + 1) return true;
       }
-      return !!grid.nearest(mid.p, 4, mid.d, 0.7);
+      return graphStreets ? !!streetOfEdge(id, mid.p, 6) : !!grid.nearest(mid.p, 4, mid.d, 0.7);
     });
     for (const id of inner) {
       const e = g.edges[id];
@@ -417,7 +457,7 @@ export function matchJunctions(g: Graph, route: RouteRibbon | null, streets: Str
           if (dist(p, ring.c) <= ring.rOut) break;
         }
       } else {
-        const nr = route!.nearest(node.p[0], node.p[1], 12)!;
+        const nr = route!.nearest(node.p[0], node.p[1], 30)!;
         nodeArc = routeArc(nr.seg, nr.frac);
       }
       const start = pointAt(nodeArc);
