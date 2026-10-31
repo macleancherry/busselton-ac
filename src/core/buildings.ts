@@ -422,20 +422,16 @@ export function buildBuildings(list: Building[], ground: HeightFn, sinkFor?: (b:
     const sink = sinkFor?.(b) ?? SINK;
     const walls = wallsOf(ring);
     const cornerZ = ring.map(([x, y]) => g(x, y));
+    // The walls' base: the lowest ground along them, every half metre (the ground check's own step).
+    // Not the middle: a hollow inside the footprint (rain hollows) sank every wall under the ground round it.
     let lowest = Math.min(...cornerZ);
     for (const w of walls) {
-      const steps = Math.max(1, Math.ceil(w.len / 2));
+      const steps = Math.max(2, Math.ceil(w.len / 0.5));
       for (let s = 1; s < steps; s++) {
         const p = lerp2(w.a, w.b, s / steps);
         lowest = Math.min(lowest, g(p[0], p[1]));
       }
-      if (steps === 1) {
-        const m = lerp2(w.a, w.b, 0.5);
-        lowest = Math.min(lowest, g(m[0], m[1]));
-      }
     }
-    const mid = centroid(ring);
-    lowest = Math.min(lowest, g(mid[0], mid[1]));
     const floor = Math.min(...cornerZ);
     const top = Math.max(...cornerZ) + Math.max(0.5, b.height);
     const ctx: Ctx = { b, g, sink, ring, walls, floor, base: lowest - sink, top, out };

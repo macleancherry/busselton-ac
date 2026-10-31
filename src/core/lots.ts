@@ -141,9 +141,33 @@ export function buildLots(houses: Building[], ground: HeightFn, opts: LotOptions
 }
 
 /** Points every `step` metres (at most) from a to b, both ends included. */
-function stepsAlong(a: Vec2, b: Vec2, step = GROUND_STEP): Vec2[] {
+export function stepsAlong(a: Vec2, b: Vec2, step = GROUND_STEP): Vec2[] {
   const n = Math.max(1, Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / step));
   return Array.from({ length: n + 1 }, (_, k): Vec2 => [a[0] + ((b[0] - a[0]) * k) / n, a[1] + ((b[1] - a[1]) * k) / n]);
+}
+
+/**
+ * A bottom that follows the ground from a to b: sampled every half metre, SINK into it, then only
+ * the points the line needs (a straight stretch of ground within 1 cm needs just its ends). On flat
+ * blocks a 2.4 m panel is one quad instead of five.
+ */
+export function footAlong(a: Vec2, b: Vec2, ground: HeightFn, tol = 0.01): { pts: Vec2[]; foot: number[] } {
+  const all = stepsAlong(a, b);
+  const z = all.map(([x, y]) => ground(x, y) - SINK);
+  const keep = new Array<boolean>(all.length).fill(false);
+  keep[0] = keep[all.length - 1] = true;
+  const split = (i: number, j: number) => {
+    let worst = -1, at = -1;
+    for (let k = i + 1; k < j; k++) {
+      const d = Math.abs(z[k] - (z[i] + ((z[j] - z[i]) * (k - i)) / (j - i)));
+      if (d > worst) { worst = d; at = k; }
+    }
+    if (at >= 0 && worst > tol) { keep[at] = true; split(i, at); split(at, j); }
+  };
+  split(0, all.length - 1);
+  const pts: Vec2[] = [], foot: number[] = [];
+  all.forEach((p, k) => { if (keep[k]) { pts.push(p); foot.push(z[k]); } });
+  return { pts, foot };
 }
 
 /**
@@ -159,8 +183,7 @@ function fence(cm: ChunkedMesh, [a, b]: [Vec2, Vec2], ground: HeightFn, ok: (p: 
     const q: Vec2 = [a[0] + ((b[0] - a[0]) * (k + 1)) / n, a[1] + ((b[1] - a[1]) * (k + 1)) / n];
     const m: Vec2 = [(p[0] + q[0]) / 2, (p[1] + q[1]) / 2];
     if (!ok(p) || !ok(q) || !ok(m)) continue;
-    const pts = stepsAlong(p, q);
-    const foot = pts.map(([x, y]) => ground(x, y) - SINK);
+    const { pts, foot } = footAlong(p, q, ground);
     const lo = Math.min(...foot), hi = Math.max(...foot);
     // The top as it always was (the lowest ground plus the fence), and never under half a metre over the ground.
     const top = Math.max(lo + FENCE_HEIGHT, hi + 0.5);
@@ -170,7 +193,7 @@ function fence(cm: ChunkedMesh, [a, b]: [Vec2, Vec2], ground: HeightFn, ok: (p: 
       const nrm: Vec3 = [(dy / l) * side, (-dx / l) * side, 0];
       const i = mb.vertexCount;
       pts.forEach(([x, y], j) => {
-        const u = j / (pts.length - 1);
+        const u = Math.hypot(x - p[0], y - p[1]) / l;
         mb.vertex([x, y, foot[j]], u, (top - foot[j]) / (top - lo));
         mb.vertex([x, y, top], u, 0);
         mb.normals!.push(...nrm, ...nrm);
@@ -193,8 +216,9 @@ function wallBox(cm: ChunkedMesh, a: Vec2, c: Vec2, depth: number, ground: Heigh
   const nx = dy / l * depth / 2, ny = -dx / l * depth / 2;
   const corners: Vec2[] = [[a[0] + nx, a[1] + ny], [c[0] + nx, c[1] + ny], [c[0] - nx, c[1] - ny], [a[0] - nx, a[1] - ny]];
   // Corners run counter-clockwise from above, so each edge's outside is to its right.
-  const faces = corners.map((p, k) => stepsAlong(p, corners[(k + 1) % 4]));
-  const feet = faces.map((pts) => pts.map(([x, y]) => ground(x, y) - SINK));
+  const runs = corners.map((p, k) => footAlong(p, corners[(k + 1) % 4], ground));
+  const faces = runs.map((r) => r.pts);
+  const feet = runs.map((r) => r.foot);
   const hi = Math.max(...feet.flat()) + SINK;
   const z1 = Math.max(Math.max(ground(a[0], a[1]), ground(c[0], c[1])) + h, hi + 0.2);
   const mb = cm.next(faces.reduce((n, f) => n + f.length * 2, 0) + 4);
@@ -204,7 +228,7 @@ function wallBox(cm: ChunkedMesh, a: Vec2, c: Vec2, depth: number, ground: Heigh
     const n: Vec3 = [ey / el, -ex / el, 0];
     const i = mb.vertexCount;
     pts.forEach(([x, y], j) => {
-      const u = (el * j) / (pts.length - 1) / FRONT_WALL_REPEAT;
+      const u = Math.hypot(x - p[0], y - p[1]) / FRONT_WALL_REPEAT;
       mb.vertex([x, y, feet[k][j]], u, z1 - feet[k][j]);
       mb.vertex([x, y, z1], u, 0);
       mb.normals!.push(...n, ...n);

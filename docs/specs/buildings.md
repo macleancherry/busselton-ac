@@ -66,7 +66,7 @@ The pipeline adds more filters (rings near roundabouts, detected roofs on street
 ### Heights
 
 - Make the ring counter-clockwise.
-- Sample `ground` at every corner, every edge midpoint and the centroid. Floor = the lowest corner; base of the walls = the lowest of all samples minus SINK. (The old version used corners only and a fixed 0.4 m skirt; sampling the edges as well covers a dip under a long wall without a deep skirt.)
+- Sample `ground` at every corner and every 0.5 m along each wall (not the centroid: a hollow inside the footprint sank the walls under the ground round them). Floor = the lowest corner; base of the walls = the lowest of all samples minus SINK. (The old version used corners only and a fixed 0.4 m skirt; sampling the edges as well covers a dip under a long wall without a deep skirt.)
 - Wall top = highest corner + wall height. Parapets add on top for flat roofs.
 - Pitched roofs only on four-cornered footprints; anything else gets flat.
 
