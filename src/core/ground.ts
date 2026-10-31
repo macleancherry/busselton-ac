@@ -12,9 +12,6 @@
 export const GROUND_LAYERS = ["lawn", "rough", "sand", "litter"] as const;
 export type GroundLayer = (typeof GROUND_LAYERS)[number];
 
-/** Metres one repeat of each detail texture covers. */
-export const GROUND_TILE_METRES: Record<GroundLayer, number> = { lawn: 1.6, rough: 2.2, sand: 2.5, litter: 3 };
-
 export interface GroundDetail {
   rgba: Uint8Array | Uint8ClampedArray;
   width: number;

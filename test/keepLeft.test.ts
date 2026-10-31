@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildAiLine } from "../src/core/aiLine";
-import { keepLeftOffsets, keepLeftShare, laneOffset, lateralPlace, ringSweeps } from "../src/core/keepLeft";
+import { keepLeftOffsets, keepLeftShare, laneOffset, lateralPlace } from "../src/core/keepLeft";
 import { withDefaults } from "../src/core/options";
 import { planRoad, type RoadPlan } from "../src/core/road";
 import type { Roundabout } from "../src/core/roundabout";
@@ -59,24 +59,6 @@ describe("keep left", () => {
     expect(at(100)).toBeCloseTo(1.75);
     expect(at(500)).toBeCloseTo(1.75);
     for (let k = 1; k < off.length; k++) expect(Math.abs(off[k] - off[k - 1])).toBeLessThan(0.35);
-  });
-
-  it("tells which way a route goes round a roundabout (Australia: clockwise, negative)", () => {
-    const ring = (dir: 1 | -1): RoadPlan => {
-      const pts: Vec2[] = [[-60, 0], [-12, 0]];
-      // In from the west, three quarters of the way round, out to the north or south.
-      for (let k = 0; k <= 24; k++) {
-        const a = Math.PI + dir * (k / 24) * (1.5 * Math.PI);
-        pts.push([12 * Math.cos(a), 12 * Math.sin(a)]);
-      }
-      const e = pts[pts.length - 1];
-      pts.push([e[0], e[1] + Math.sign(e[1]) * 60]);
-      const plan = planRoad(pts, withDefaults({ defaultWidth: 7, banking: false, lineSmoothing: 0 }));
-      plan.roundabouts = [{ c: [0, 0], r: 12, w: 7, lanes: 1, hc: 0, sIn: 0, sOut: 0, crossings: [] } as unknown as Roundabout];
-      return plan;
-    };
-    expect(ringSweeps(ring(-1))[0]).toBeLessThan(-Math.PI);
-    expect(ringSweeps(ring(1))[0]).toBeGreaterThan(Math.PI);
   });
 
   it("measures where a point sits across the road surface", () => {

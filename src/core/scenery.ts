@@ -78,11 +78,6 @@ export const crownRadius = (variant: number): number => cardFor(variant).crown;
 /** Trunk width at scale 1 for a tree's variant, metres. */
 export const trunkWidth = (variant: number): number => cardFor(variant).trunk ?? DEFAULT_TRUNK;
 
-/** Crown radius per card, metres at scale 1. */
-export const CROWN_RADIUS: number[] = TREE_SPECIES.map((sp) => sp.crown);
-/** Trunk width per card, metres at scale 1. */
-export const TRUNK: number[] = TREE_SPECIES.map((sp) => sp.trunk ?? DEFAULT_TRUNK);
-
 /* ================================================================== trees: from the photo */
 
 /** Cell size by density, metres. */

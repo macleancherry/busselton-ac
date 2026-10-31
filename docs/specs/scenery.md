@@ -167,7 +167,7 @@ Found while writing the new module from the call sites, the tree modules and the
 
 - `TreeSpot` is `{ x, y, scale, variant, model?, coastal? }`. `variant` is normally a card index into `TREE_SPECIES` (0 peppermint, 1 she-oak, 2 Norfolk pine, 3 tuart, 4 palm). `model` (optional) is a CSP tree model index into `treeModels.ts` `MODEL_NAMES` (`peppermint, sheoak, norfolk, tuart, palm, karri, marri`); the first five are in the same order as the cards.
 - **With landscape zones and CSP trees both on, `variant` can be a model index of 5 (karri) or 6 (marri)**: `ZoneMap.tree` picks from `MODEL_NAMES` and writes the pick into `variant`. Those models have no card. For crown size (filtering) and trunk width they use the card that stands in for them, the tuart's (`treeZones.ts` `CARD_FOR`: karri, marri and jarrah use 3). So the size lookup is: a card index uses that card; a model index past the cards uses the tuart card; anything else (negative, past the models) falls back to card 0. Sprite meshes are only built for these trees when CSP trees are off, in which case `variant` is always a card, but the same lookup applies.
-- Export the per-variant lookups (crown radius, trunk width, card) so other modules use the same numbers; `CROWN_RADIUS` (per card, from `TREE_SPECIES`) stays exported.
+- Export the per-variant lookups (crown radius, trunk width, card) so other modules use the same numbers. (`CROWN_RADIUS` and `TRUNK`, the per-card tables nothing read, were deleted on 31 Oct.)
 
 ### Mesh helpers
 
