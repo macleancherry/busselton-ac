@@ -25,7 +25,7 @@ import { withDefaults, type BuildOptions } from "./options";
 import { planRoad, type RoadPlan } from "./road";
 import type { LngLat, LocalProjection } from "./geo";
 import { simplify } from "./polyline";
-import { junctionsOn, type GridAvoid } from "./gridSlots";
+import { clearAiPoint, junctionsOn, type GridAvoid } from "./gridSlots";
 
 type Vec2 = [number, number];
 const enc = new TextEncoder();
@@ -112,7 +112,8 @@ export interface LayoutSpec {
   /**
    * Free roam: where cars start, [lng, lat] and heading in degrees clockwise from north. With
    * `coords` as well, those are the free roam's own AI loop (for AI Flood) instead of the main
-   * layout's line.
+   * layout's line. The first is the player's start; the others are AI starts only where they sit on
+   * the AI line (spawnsOnLine), and the rest of the boxes go on its straights (floodPits).
    */
   spawns?: { at: LngLat; heading: number }[];
   /** Busselton fork: hand-picked checkpoints for the Busselton Challenges app (challenges.ts). */
@@ -291,11 +292,13 @@ export function worldAvoid(world: World, road: Vec2[]): GridAvoid {
 
 /**
  * Pit boxes for AI Flood (CSP, Track Day): `n` spots spread evenly round the AI line, each on the
- * line and facing along it, so every AI car starts on its line and drives straight off (there is no
- * pit lane). Kept off tight corners and roundabouts (radius under 80 m) and 25 m clear of `avoid`
- * (the free roam's own spawns, local metres) and of each other. Positions in AC space, on the line.
+ * line (in its lane: the line keeps left) and facing along it, so every AI car starts on its line
+ * and drives straight off (there is no pit lane). On straights (radius GRID_MIN_RADIUS and up),
+ * clear of `clear`'s roundabouts and junctions; where a stretch has no such spot, any spot off a
+ * tight corner (radius under 80 m) will do. 25 m clear of `avoid` (spots already taken, local
+ * metres) and of each other. Positions in AC space, on the line.
  */
-export function floodPits(ai: AiPoint[], n: number, avoid: Vec2[] = []): { pos: [number, number, number]; fwd: [number, number, number] }[] {
+export function floodPits(ai: AiPoint[], n: number, avoid: Vec2[] = [], clear: GridAvoid = {}): { pos: [number, number, number]; fwd: [number, number, number] }[] {
   if (n <= 0 || ai.length < 2) return [];
   const total = ai[ai.length - 1].distance + ai[ai.length - 1].length;
   const step = total / n;
@@ -305,19 +308,48 @@ export function floodPits(ai: AiPoint[], n: number, avoid: Vec2[] = []): { pos: 
   for (let k = 0; k < n; k++) {
     const target = (k + 0.5) * step;
     while (i < ai.length - 1 && ai[i].distance < target) i++;
-    // Forward from there, up to most of a step, to the first good spot.
-    for (let j = i; j < ai.length && ai[j].distance < target + step * 0.8; j++) {
-      const p = ai[j];
-      const xy: Vec2 = [p.position[0], -p.position[2]];
-      if (p.radius < 80) continue;
-      if (taken.some((t) => Math.hypot(t[0] - xy[0], t[1] - xy[1]) < 25)) continue;
-      const f = Math.hypot(p.forward[0], p.forward[2]) || 1;
-      out.push({ pos: [p.position[0], p.position[1], p.position[2]], fwd: [p.forward[0] / f, 0, p.forward[2] / f] });
-      taken.push(xy);
-      break;
+    // Forward from there, up to most of a step, to the first good spot: a clear straight first.
+    for (const good of [(p: AiPoint) => clearAiPoint(p, clear), (p: AiPoint) => p.radius >= 80]) {
+      let found = false;
+      for (let j = i; j < ai.length && ai[j].distance < target + step * 0.8; j++) {
+        const p = ai[j];
+        const xy: Vec2 = [p.position[0], -p.position[2]];
+        if (!good(p)) continue;
+        if (taken.some((t) => Math.hypot(t[0] - xy[0], t[1] - xy[1]) < 25)) continue;
+        const f = Math.hypot(p.forward[0], p.forward[2]) || 1;
+        out.push({ pos: [p.position[0], p.position[1], p.position[2]], fwd: [p.forward[0] / f, 0, p.forward[2] / f] });
+        taken.push(xy);
+        found = true;
+        break;
+      }
+      if (found) break;
     }
   }
   return out;
+}
+
+/** Hand-placed spawns further than this from the AI line (metres) aren't AI starts. */
+export const SPAWN_ON_LINE = 3;
+
+/**
+ * Which hand-placed free roam spawns can be AI starts: on the AI line (within SPAWN_ON_LINE) and
+ * facing along it. The first spawn is the player's and always stays; an AI car started in a car
+ * park off the line never finds its way onto it (retest 3: ten of fifteen didn't move).
+ */
+export function spawnsOnLine(spots: { x: number; y: number; fwd: Vec2 }[], ai: AiPoint[]): boolean[] {
+  return spots.map((s, k) => {
+    if (k === 0) return true;
+    let best = Infinity, dot = 0;
+    for (let i = 0; i < ai.length; i++) {
+      const p = ai[i], q = ai[(i + 1) % ai.length];
+      const ax = p.position[0], ay = -p.position[2], bx = q.position[0] - ax, by = -q.position[2] - ay;
+      const L2 = bx * bx + by * by;
+      const t = L2 > 0 ? Math.max(0, Math.min(1, ((s.x - ax) * bx + (s.y - ay) * by) / L2)) : 0;
+      const d = Math.hypot(s.x - ax - bx * t, s.y - ay - by * t);
+      if (d < best) { best = d; dot = s.fwd[0] * p.forward[0] - s.fwd[1] * p.forward[2]; }
+    }
+    return best <= SPAWN_ON_LINE && dot > Math.cos(Math.PI / 6);
+  });
 }
 
 /** A layout's own files (dummies kn5, AI line, data, ui), on the world's road surface. */
@@ -339,11 +371,6 @@ export function layoutFiles(world: World, layout: LayoutSpec, trackObjects: (pla
       return { x, y, fwd, h: height(x, y) };
     });
     const dummies: Kn5GroupNode[] = [];
-    spots.forEach((s, k) => {
-      const h = (s.h ?? 0) + 0.5;
-      const pos: [number, number, number] = [s.x, h, -s.y], fwd: [number, number, number] = [s.fwd[0], 0, -s.fwd[1]];
-      dummies.push(dummy(`AC_START_${k}`, pos, fwd), dummy(`AC_PIT_${k}`, pos, fwd));
-    });
     // The AI line: the free roam's own loop if it has one (pins), else the main layout's, with its
     // speed limits either way (AI Flood's cars are town traffic, not racers).
     let ai: AiPoint[] = [];
@@ -363,15 +390,24 @@ export function layoutFiles(world: World, layout: LayoutSpec, trackObjects: (pla
       const gap = Math.hypot(last.position[0] - ai[0].position[0], last.position[2] - ai[0].position[2]);
       closed = gap < 50;
     }
-    // More pit boxes on the AI line, for Track Day's AI cars (one box each).
-    const extra = floodPits(ai, (layout.aiPits ?? FLOOD_PITS) - spots.length, spots.map((s) => [s.x, s.y] as Vec2));
+    // The player's spawn, and the other hand-placed spawns that are on the AI line; the rest of the
+    // boxes on the AI line's straights, for Track Day's AI cars (one box each).
+    const keep = ai.length > 1 ? spawnsOnLine(spots, ai) : spots.map(() => true);
+    const starts = spots.filter((_, k) => keep[k]);
+    starts.forEach((s, k) => {
+      const h = (s.h ?? 0) + 0.5;
+      const pos: [number, number, number] = [s.x, h, -s.y], fwd: [number, number, number] = [s.fwd[0], 0, -s.fwd[1]];
+      dummies.push(dummy(`AC_START_${k}`, pos, fwd), dummy(`AC_PIT_${k}`, pos, fwd));
+    });
+    const clear = worldAvoid(world, ai.map((p) => [p.position[0], -p.position[2]] as Vec2));
+    const extra = floodPits(ai, (layout.aiPits ?? FLOOD_PITS) - starts.length, starts.map((s) => [s.x, s.y] as Vec2), clear);
     extra.forEach((p, j) => {
-      const k = spots.length + j;
+      const k = starts.length + j;
       const h = (height(p.pos[0], -p.pos[2]) ?? p.pos[1]) + 0.5;
       const pos: [number, number, number] = [p.pos[0], h, p.pos[2]];
       dummies.push(dummy(`AC_START_${k}`, pos, p.fwd), dummy(`AC_PIT_${k}`, pos, p.fwd));
     });
-    pitboxes = spots.length + extra.length;
+    pitboxes = starts.length + extra.length;
     // A timing line 15 m ahead of the first spot, so sessions that want one have it.
     const s0 = spots[0], ahead: Vec2 = [s0.x + s0.fwd[0] * 15, s0.y + s0.fwd[1] * 15], left: Vec2 = [-s0.fwd[1], s0.fwd[0]];
     const h0 = (height(ahead[0], ahead[1]) ?? s0.h ?? 0) + 1;

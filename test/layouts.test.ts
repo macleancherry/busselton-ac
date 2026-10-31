@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildTrack, trackObjects, type DataSources } from "../src/core/track";
-import { floodPits, layoutFiles, snapToLines, surfaceHeight } from "../src/core/layouts";
+import { floodPits, layoutFiles, snapToLines, spawnsOnLine, surfaceHeight, SPAWN_ON_LINE } from "../src/core/layouts";
 import { readFastLaneAi, type AiPoint } from "../src/core/aiSpline";
 import { DemGrid } from "../src/core/elevation";
 import { readKn5 } from "../src/core/kn5";
@@ -58,9 +58,15 @@ describe("layouts", () => {
     const ui = JSON.parse(new TextDecoder().decode(roam[`${slug}/ui/roam/ui_track.json`]));
     expect(Number(ui.pitboxes)).toBe(pits.length);
     expect(Number(ui.length)).toBeGreaterThan(700);
+    const roamAi = readFastLaneAi(world2.mainAi);
     for (const c of readKn5(roam[`${slug}/layout_roam.kn5`]).root.children.filter((c) => c.name.startsWith("AC_PIT_"))) {
       const m = (c as { transform: number[] }).transform;
       expect(height(m[12], -m[14])).not.toBeNull();
+      // Every box but the player's (the first spawn) is an AI start, so it's on the AI line, facing along it.
+      if (c.name === "AC_PIT_0") continue;
+      const near = roamAi.reduce((b, p) => (Math.hypot(p.position[0] - m[12], p.position[2] - m[14]) < Math.hypot(b.position[0] - m[12], b.position[2] - m[14]) ? p : b));
+      expect(Math.hypot(near.position[0] - m[12], near.position[2] - m[14])).toBeLessThan(SPAWN_ON_LINE);
+      expect(near.forward[0] * m[8] + near.forward[2] * m[10]).toBeGreaterThan(0.9);
     }
 
     // Free roam with its own AI loop (pins): its own line and speed hints.
@@ -86,6 +92,28 @@ describe("layouts", () => {
     }
     for (let i = 1; i < pits.length; i++) expect(pits[i].pos[0] - pits[i - 1].pos[0]).toBeGreaterThanOrEqual(25);
     expect(floodPits(ai, 0)).toEqual([]);
+
+    // Clear of a roundabout and a junction where the stretch has room, still 10 boxes.
+    const clear = floodPits(ai, 10, [], { rings: [{ c: [50, 0], rOut: 12 }], junctions: [[650, 0]] });
+    expect(clear).toHaveLength(10);
+    for (const p of clear) {
+      expect(Math.abs(p.pos[0] - 50)).toBeGreaterThanOrEqual(12 + 15);
+      expect(Math.abs(p.pos[0] - 650)).toBeGreaterThanOrEqual(15);
+    }
+  });
+
+  it("keeps hand-placed spawns as AI starts only on the AI line and facing along it", () => {
+    const ai = Array.from({ length: 200 }, (_, i): AiPoint => ({
+      position: [i * 2, 0, 0], distance: i * 2, speed: 14, gas: 0, brake: 0, radius: 1000,
+      sideLeft: 3, sideRight: 3, camber: 0, direction: 1, normal: [0, 1, 0], length: 2, forward: [1, 0, 0], grade: 0,
+    }));
+    const keep = spawnsOnLine([
+      { x: 0, y: 80, fwd: [0, 1] }, // the player's, in a car park: kept
+      { x: 100, y: 1, fwd: [1, 0] }, // on the line
+      { x: 150, y: 40, fwd: [1, 0] }, // in a car park 40 m off
+      { x: 200, y: 0, fwd: [-1, 0] }, // on the line, facing the wrong way
+    ], ai);
+    expect(keep).toEqual([true, true, false, false]);
   });
 
   it("pulls a route onto the built street, but not round a roundabout or far away", () => {
