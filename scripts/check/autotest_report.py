@@ -310,8 +310,9 @@ def dark_stretches(samples, dark=DARK, relative=RELATIVE):
 # ---------- several cars ----------
 
 def roundabouts(surface):
-    """Roundabout rings from the build's 1ROAD_RB<k> meshes: [(x, z, radius)]."""
-    out = []
+    """Roundabout rings from the build's 1ROAD_RB<k> meshes: [(x, z, radius)]. A networkCore build
+    builds them as junction surfaces instead, and dump_surface.ts lists them under "roundabouts"."""
+    out = [(float(r["x"]), float(r["z"]), float(r["r"])) for r in surface.get("roundabouts", [])]
     for m in surface.get("meshes", []):
         if re.match(r"^1ROAD_RB\d+$", m.get("name", "")):
             p = np.array(m["p"], dtype=float).reshape(-1, 3)

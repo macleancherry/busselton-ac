@@ -68,7 +68,7 @@ export function buildNetwork(ways: NetWay[], height: HeightAt, o: NetworkOptions
 
 /** Ways for the network from the build's street lines (exact OSM geometry) and roundabout rings. */
 export function waysFromStreets(
-  lines: { pts: P2[]; cls: string; oneway?: 1 | -1; brunnel?: string }[],
+  lines: { pts: P2[]; cls: string; oneway?: 1 | -1; brunnel?: string; service?: string; surface?: string }[],
   rings: { pts: P2[]; lanes?: number }[],
 ): NetWay[] {
   const ringKeys = new Set<string>();
@@ -81,7 +81,10 @@ export function waysFromStreets(
     // A street line that runs along a ring is the ring itself.
     const onRing = l.pts.length > 1 && ringKeys.has(key(l.pts[0]) + "|" + key(l.pts[1]));
     if (onRing) continue;
-    out.push({ pts: l.pts, cls: l.cls, ...(l.oneway ? { oneway: l.oneway } : {}), ...(l.brunnel === "bridge" ? { layer: 1 } : l.brunnel === "tunnel" ? { layer: -1 } : {}) });
+    out.push({
+      pts: l.pts, cls: l.cls, ...(l.oneway ? { oneway: l.oneway } : {}), ...(l.brunnel === "bridge" ? { layer: 1 } : l.brunnel === "tunnel" ? { layer: -1 } : {}),
+      ...(l.service ? { service: l.service } : {}), ...(l.surface ? { surface: l.surface } : {}),
+    });
   }
   for (const r of rings) out.push({ pts: r.pts, cls: "tertiary", roundabout: true, oneway: 1, ...(r.lanes ? { lanes: r.lanes } : {}) });
   return out;

@@ -219,6 +219,16 @@ describe("networkCore phase 1: a roundabout", () => {
     const inner = pj.field.fall([rIn + 0.01, 0.01]), outer = pj.field.fall([R + W / 2, 0.01]);
     expect(inner - outer).toBeCloseTo(0.02 * W, 2);
   });
+
+  it("gives the lanes its surface: heights inside it, none outside, the ring's height on its lane", () => {
+    const pj = net.junctions[0];
+    expect(net.surfaceAt([R, 0.3])).toBeCloseTo(pj.field.h([R, 0.3]), 6);
+    expect(net.surfaceAt([0, 0])).toBeNull(); // the island
+    expect(net.surfaceAt([60, 30])).toBeNull();
+    const round = ([[R, 0], [0, R], [-R, 0], [0, -R]] as P2[]).reduce((t, p) => t + pj.field.h(p) / 4, 0);
+    expect(net.ringHeight(0)).toBeCloseTo(round, 2);
+    expect(net.ringHeight(1)).toBeNull();
+  });
 });
 
 describe("junction surface", () => {

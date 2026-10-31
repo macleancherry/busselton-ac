@@ -11,7 +11,8 @@ import { MeshBuilder } from "../mesh";
 import { capField, type CapField } from "./capField";
 import { dressJunction, KERB } from "./dress";
 import { dist, dot, lengths, smoothstep, sub, type P2 } from "./geom";
-import { buildGraph } from "./graph";
+import { buildGraph, type Graph } from "./graph";
+import { collapseDuals, type DualInfo, type DualOptions } from "./dual";
 import { planeAt, type HeightAt } from "./heights";
 import { waysFromStreets } from "./index";
 import { junctionOutline, junctionSurface, type Outline, type SurfaceMesh } from "./outline";
@@ -19,7 +20,7 @@ import { insertStreetCaps, matchJunctions, type Failure, type RingIn, type RJunc
 
 export interface JunctionCoreInput {
   /** Street lines (local metres, exact OSM geometry inside the area) and OSM roundabout rings. */
-  lines: { pts: P2[]; cls: string; oneway?: 1 | -1; brunnel?: string }[];
+  lines: { pts: P2[]; cls: string; oneway?: 1 | -1; brunnel?: string; service?: string; surface?: string }[];
   rings: { pts: P2[]; lanes?: number }[];
   route: RouteRibbon | null;
   /** The build's side streets: cap points are inserted, and joins inside junctions dropped. */
@@ -34,6 +35,8 @@ export interface JunctionCoreInput {
   outlineStep?: number;
   /** Junctions joined by a shorter edge merge into one, metres. */
   mergeMax?: number;
+  /** Phase 2: the graph already built (networkGraph, with divided roads as one), and `streets` planned from it. */
+  graph?: Graph;
 }
 
 export interface PlannedJunction {
@@ -51,6 +54,8 @@ export interface JunctionDressInput {
   markings: boolean;
   /** Road material for a junction (by its centre). */
   roadMaterial: (pj: PlannedJunction) => string;
+  /** Phase 2: streets with kerbs (streetMesh.ts); their corners at a junction are kerbed too. */
+  streetKerbed?: (si: number) => boolean;
 }
 
 export interface JunctionMeshes {
@@ -81,8 +86,30 @@ export interface JunctionCore {
   streetGround: (base: HeightAt) => HeightAt;
   /** buildKerbs' noRamp keys: the route kerb ends square at a junction's cap. */
   noRamp: Set<string>;
+  /** Signed distance to the nearest junction taken (negative inside), Infinity beyond 4 m. */
+  sdfAt: (p: P2) => number;
+  /** Room from a point to the asphalt of the nearest street not in `skip` (not counting parts inside junctions). */
+  streetClear: (p: P2, skip: Set<number>) => number;
+  nearestJunction: (p: P2, max: number) => { pj: PlannedJunction; d: number } | null;
+  /** The built junction surface's height at a point inside a junction taken, else null. */
+  surfaceAt: (p: P2) => number | null;
+  /** A taken roundabout's surface height on its circulating lane's centre (the mean round the ring), by build ring index. */
+  ringHeight: (k: number) => number | null;
   build: (o: JunctionDressInput) => JunctionMeshes;
   json: () => unknown;
+}
+
+/**
+ * The network's graph from the build's street lines and rings (phase 2): divided roads collapsed to one
+ * road with a median first (dual.ts), unless `duals` is false.
+ */
+export function networkGraph(
+  lines: JunctionCoreInput["lines"], rings: JunctionCoreInput["rings"],
+  o: { duals?: boolean; mergeMax?: number } & DualOptions = {},
+): { graph: Graph; duals: DualInfo[] } {
+  const ways = waysFromStreets(lines, rings);
+  const { ways: w2, duals } = o.duals === false ? { ways, duals: [] } : collapseDuals(ways, o);
+  return { graph: buildGraph(w2, o.mergeMax ? { mergeMax: o.mergeMax } : {}), duals };
 }
 
 const STREET_LIFT = 0.1;
@@ -93,7 +120,8 @@ export function planJunctionCore(input: JunctionCoreInput): JunctionCore {
   const t0 = Date.now();
   // Junctions closer than mergeMax become one (the spec's step 7; the graph's 15 m by default: at
   // 25 m twice as many Busselton junctions were refused, mostly by ribbons running into them).
-  const graph = buildGraph(waysFromStreets(input.lines, input.rings), input.mergeMax ? { mergeMax: input.mergeMax } : {});
+  const graphMode = !!input.graph;
+  const graph = input.graph ?? buildGraph(waysFromStreets(input.lines, input.rings), input.mergeMax ? { mergeMax: input.mergeMax } : {});
   const route = input.route;
   const { junctions: matched, failures } = matchJunctions(graph, route, input.streets, input.builtRings, {
     inArea: input.inArea, routeRowOk: input.routeRowOk, streetOk: input.streetOk,
@@ -106,7 +134,9 @@ export function planJunctionCore(input: JunctionCoreInput): JunctionCore {
     const inBox = (p: P2) => p[0] >= x0 - 6 && p[0] <= x1 + 6 && p[1] >= y0 - 6 && p[1] <= y1 + 6;
     // A ribbon edge inside the junction, or (not a leg) meeting its edge within 30 cm: a seam the junction can't own.
     const hits = (c: P2, left: P2, hw: number, near = -0.05) => [0, 0.9, -0.9, 1, -1].some((t) => j.sdf([c[0] + left[0] * t * hw, c[1] + left[1] * t * hw]) < near);
-    for (const [si, st] of input.streets.entries()) {
+    // Phase 2: a street that isn't a leg is clipped at the junction's outline and eased to its field
+    // (streetMesh.ts), so only the route (built by the old core) still refuses a junction.
+    if (!graphMode) for (const [si, st] of input.streets.entries()) {
       if (!st.pts.some(inBox)) continue;
       const cut = j.legs.filter((l) => l.kind === "street" && l.street === si).map((l) => [Math.min(l.nodeAt, l.at), Math.max(l.nodeAt, l.at)]);
       const cum = lengths(st.pts);
@@ -140,7 +170,18 @@ export function planJunctionCore(input: JunctionCoreInput): JunctionCore {
   const n = route?.samples.length ?? 0;
   for (const j of matched) {
     const fail = (reason: string) => failures.push({ node: j.node, at: j.centre, reason });
-    const outline = junctionOutline(j, j.legs.map((l) => l.cap), input.outlineStep ?? 0.4);
+    let outline = junctionOutline(j, j.legs.map((l) => l.cap), input.outlineStep ?? 0.4);
+    // A cap the outline can't splice (it cuts a neighbouring leg's fillet): move it out, up to 8 m.
+    for (let tries = 0; typeof outline === "string" && tries < 4; tries++) {
+      const m = /^cap (\d+) /.exec(outline);
+      if (!m || !j.retrim?.(Number(m[1]), 2)) break;
+      outline = junctionOutline(j, j.legs.map((l) => l.cap), input.outlineStep ?? 0.4);
+    }
+    // A cap whose outward strip meets another leg further out: only the outline near the cap is its own.
+    if (typeof outline === "string" && /cuts the outline twice/.test(outline)) {
+      const o2 = junctionOutline(j, j.legs.map((l) => l.cap), input.outlineStep ?? 0.4, 0.02, 3);
+      if (typeof o2 !== "string") outline = o2;
+    }
     if (typeof outline === "string") { fail(outline); continue; }
     const why = foreignOverlap(j);
     if (why) { fail(why); continue; }
@@ -174,6 +215,8 @@ export function planJunctionCore(input: JunctionCoreInput): JunctionCore {
     for (const o of others) if (o.dir === -c.dir) { const d = (o.at - c.at) * c.dir; if (d > -0.5) room = Math.min(room, Math.max(0, d)); }
     if (room >= lenOf(si) - 0.01 && room > 30) return true;
     const L = Math.min(EASE, room / 2);
+    // Phase 2's streets ease within any room a street has (two eases on a short one add up).
+    if (graphMode) return room >= 1 && (1.5 * Math.abs(c.delta)) / Math.max(0.5, L) <= 0.15;
     return room >= 4 && (1.5 * Math.abs(c.delta)) / L <= 0.1;
   };
   for (const pj of planned) {
@@ -213,6 +256,46 @@ export function planJunctionCore(input: JunctionCoreInput): JunctionCore {
     // Refined where the field curves (a roundabout's fall, route legs blending in) to 3 mm; a plane needs none.
     pj.surface = junctionSurface(pj.outline, pj.field.planar && !pj.j.ring ? undefined : pj.field.h);
   }
+  // Junctions by 20 m cell, for the nearest one to a point.
+  const NEAR = 3;
+  const jGrid = new Map<string, number[]>();
+  kept.forEach((pj, k) => {
+    const [x0, y0, x1, y1] = pj.j.box;
+    for (let x = Math.floor((x0 - 5) / 20); x <= Math.floor((x1 + 5) / 20); x++)
+      for (let y = Math.floor((y0 - 5) / 20); y <= Math.floor((y1 + 5) / 20); y++) {
+        const key = `${x},${y}`;
+        if (!jGrid.has(key)) jGrid.set(key, []);
+        jGrid.get(key)!.push(k);
+      }
+  });
+  function nearestJunction(p: P2, max: number): { pj: PlannedJunction; d: number } | null {
+    let best: { pj: PlannedJunction; d: number } | null = null;
+    for (const k of jGrid.get(`${Math.floor(p[0] / 20)},${Math.floor(p[1] / 20)}`) ?? []) {
+      const pj = kept[k];
+      const [x0, y0, x1, y1] = pj.j.box;
+      if (p[0] < x0 - max || p[0] > x1 + max || p[1] < y0 - max || p[1] > y1 + max) continue;
+      const d = pj.j.sdf(p);
+      if (d < max && (!best || d < best.d)) best = { pj, d };
+    }
+    return best;
+  }
+  // Street segments by 10 m cell (8 m margin), for streetClear (made when first asked, after the caps go in).
+  let segGridMade: Map<string, [number, number][]> | null = null;
+  const makeSegGrid = () => {
+  const segGrid = new Map<string, [number, number][]>();
+  input.streets.forEach((st, si) => {
+    for (let k = 1; k < st.pts.length; k++) {
+      const a = st.pts[k - 1], b = st.pts[k];
+      for (let x = Math.floor((Math.min(a[0], b[0]) - 8) / 10); x <= Math.floor((Math.max(a[0], b[0]) + 8) / 10); x++)
+        for (let y = Math.floor((Math.min(a[1], b[1]) - 8) / 10); y <= Math.floor((Math.max(a[1], b[1]) + 8) / 10); y++) {
+          const key = `${x},${y}`;
+          if (!segGrid.has(key)) segGrid.set(key, []);
+          segGrid.get(key)!.push([si, k - 1]);
+        }
+    }
+  });
+  return segGrid;
+  };
   // Route rows.
   const inside = new Uint8Array(Math.max(1, n)), covered = new Uint8Array(Math.max(1, n)), quad = new Uint8Array(Math.max(1, n));
   const noRamp = new Set<string>();
@@ -349,11 +432,31 @@ export function planJunctionCore(input: JunctionCoreInput): JunctionCore {
     streetGround: (base) => (x, y) => {
       const t = base(x, y);
       const ws = easeWeights([x, y]);
-      if (!ws.length) return t;
       let h = t;
       for (const { e, w } of ws) h += w * (e.target([x, y]) - STREET_LIFT - t);
+      // Phase 2: anything within 3 m of a junction (a street clipped at its edge) meets its field.
+      if (graphMode) {
+        const nj = nearestJunction([x, y], NEAR);
+        if (nj) {
+          const w = nj.d <= 0 ? 1 : 1 - smoothstep(nj.d / NEAR);
+          h += w * (nj.pj.field.h([x, y]) - STREET_LIFT - h);
+        }
+      }
       return h;
     },
+    sdfAt: (p) => nearestJunction(p, 4)?.d ?? Infinity,
+    surfaceAt: (p) => { const nj = nearestJunction(p, 0.01); return nj ? nj.pj.field.h(p) : null; },
+    ringHeight: (k) => {
+      const pj = kept.find((q) => q.j.ring?.k === k);
+      if (!pj) return null;
+      const { c, rIn, rOut } = pj.j.ring!;
+      const r = (rIn + rOut) / 2;
+      let t = 0;
+      for (let a = 0; a < 16; a++) t += pj.field.h([c[0] + r * Math.cos((a / 16) * 2 * Math.PI), c[1] + r * Math.sin((a / 16) * 2 * Math.PI)]);
+      return t / 16;
+    },
+    streetClear,
+    nearestJunction,
     noRamp,
     build: (o) => buildMeshes(o),
     json: () => ({
@@ -362,10 +465,30 @@ export function planJunctionCore(input: JunctionCoreInput): JunctionCore {
         id: pj.id, node: pj.j.node, kind: pj.j.kind, onRoute: pj.j.onRoute, at: pj.j.centre.map((v) => Math.round(v * 100) / 100),
         legs: pj.j.legs.map((l) => ({ kind: l.kind, edge: l.edge, trim: Math.round(l.trim * 100) / 100, hw: Math.round(l.hw * 100) / 100, inbound: l.inbound })),
         planar: pj.field.planar, spans: pj.j.spans, triangles: pj.surface.tris.length / 3,
+        ...(pj.j.ring ? { ring: { c: pj.j.ring.c.map((v) => Math.round(v * 100) / 100), rIn: Math.round(pj.j.ring.rIn * 100) / 100, rOut: Math.round(pj.j.ring.rOut * 100) / 100 } } : {}),
       })),
       failures: failures.map((f) => ({ ...f, at: f.at.map((v) => Math.round(v * 10) / 10) })),
     }),
   };
+
+  // Room from a point to the asphalt of the nearest street not in `skip` (phase 2's dress).
+  function streetClear(p: P2, skip: Set<number>): number {
+    let best = Infinity;
+    segGridMade ??= makeSegGrid();
+    for (const [si, k] of segGridMade.get(`${Math.floor(p[0] / 10)},${Math.floor(p[1] / 10)}`) ?? []) {
+      if (skip.has(si)) continue;
+      const st = input.streets[si];
+      const a = st.pts[k], b = st.pts[k + 1];
+      const ab = sub(b, a), L2 = dot(ab, ab) || 1e-12;
+      const f = Math.max(0, Math.min(1, dot(sub(p, a), ab) / L2));
+      const w = st.widths ? st.widths[k] + (st.widths[k + 1] - st.widths[k]) * f : st.width;
+      // Not where the street is clipped away inside a junction.
+      const q: P2 = [a[0] + ab[0] * f, a[1] + ab[1] * f];
+      const d = Math.hypot(p[0] - q[0], p[1] - q[1]) - w / 2;
+      if (d < best && (nearestJunction(q, 0)?.d ?? 1) > -0.5) best = d;
+    }
+    return best;
+  }
 
   function buildMeshes(o: JunctionDressInput): JunctionMeshes {
     // One mesh per kind, material and 300 m cell (and 60k vertices), so draw calls stay few.
@@ -399,7 +522,13 @@ export function planJunctionCore(input: JunctionCoreInput): JunctionCore {
         island: sinkFor("1GRASS_ISLAND_J", "grass", cell, est),
         islandTop: sinkFor("1KERB_JS", "concrete", cell, est),
         paint: sinkFor("MARKINGS_J", "paint", cell, est, { castShadows: false }),
-      }, { routeKerb: o.routeKerb, stripOut: o.stripOut, vergeWidth: o.vergeWidth, ringKerbed: !!(pj.j.ring && input.builtRings[pj.j.ring.k]?.kerbed !== false), markings: o.markings });
+      }, {
+        routeKerb: o.routeKerb, stripOut: o.stripOut, vergeWidth: o.vergeWidth, ringKerbed: !!(pj.j.ring && input.builtRings[pj.j.ring.k]?.kerbed !== false), markings: o.markings,
+        ...(graphMode ? {
+          clear: (p: P2) => streetClear(p, new Set(pj.j.legs.filter((l) => l.kind === "street").map((l) => l.street))),
+          streetKerb: (li: number) => (o.streetKerbed?.(pj.j.legs[li].street) ? 1 : 0),
+        } : {}),
+      });
     }
     const road: Kn5MeshNode[] = [], dress: Kn5MeshNode[] = [], markings: Kn5MeshNode[] = [];
     let idx = 0;

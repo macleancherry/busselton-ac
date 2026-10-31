@@ -31,5 +31,13 @@ for (const f of Object.keys(files)) {
   const m = f.match(/^[^/]+\/([^/]+)\/ai\/fast_lane\.ai$/);
   if (m) layouts[m[1]] = line(f);
 }
-writeFileSync(outPath, JSON.stringify({ meshes, ai, layouts }));
+// networkCore builds: roundabouts are junction surfaces (1ROAD_J / 1STREET_J, grouped), not 1ROAD_RB<k>
+// rings, so their circles come from network/junctions.json, in AC coordinates (x, z = -local y).
+const netName = Object.keys(files).find((f) => /^[^/]+\/network\/junctions\.json$/.test(f));
+const roundabouts: { x: number; z: number; r: number }[] = [];
+if (netName) {
+  const info = JSON.parse(new TextDecoder().decode(files[netName])) as { junctions?: { kind: string; ring?: { c: [number, number]; rOut: number } }[] };
+  for (const j of info.junctions ?? []) if (j.kind === "roundabout" && j.ring) roundabouts.push({ x: j.ring.c[0], z: -j.ring.c[1], r: j.ring.rOut });
+}
+writeFileSync(outPath, JSON.stringify({ meshes, ai, layouts, ...(netName ? { roundabouts } : {}) }));
 console.log(`${meshes.length} drivable meshes, ${ai.length} AI points${Object.keys(layouts).length ? `, layouts ${Object.keys(layouts).join(", ")}` : ""} -> ${outPath}`);

@@ -7,106 +7,36 @@
 // Return fills and kerb returns (photo-driven) aren't in the old side, so the old numbers are a floor.
 //
 //   npx tsx scripts/network/phase1.ts <overpass.json> [--route routes/busselton.json]
-//     [--centreline out/busselton.centreline.json] [--out out/network/phase1] [--png n]
+//     [--centreline out/busselton.centreline.json] [--out out/network/phase1] [--png n] [--phase 2]
 // Writes <out>/phase1.json (per junction, old and new), and with --png, top-down plots of the n worst
 // old junctions (old | new: route blue, streets green, junctions orange, overlaps red, steps magenta).
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { createCanvas } from "@napi-rs/canvas";
-import { LocalProjection, type LngLat } from "../../src/core/geo";
-import { withDefaults } from "../../src/core/options";
-import { SegmentIndex, type RoadPlan, type RoadSample } from "../../src/core/road";
+import type { LngLat } from "../../src/core/geo";
 import { buildRoadMeshes } from "../../src/core/roadMesh";
-import { buildRingMeshes, fitCircle, type Roundabout } from "../../src/core/roundabout";
-import { buildSideStreets, planSideStreets, type SideStreet, type StreetLine } from "../../src/core/sideStreets";
-import { makeTerrainFn } from "../../src/core/terrain";
-import { Area } from "../../src/core/area";
-import { joinWays } from "../../src/services/osm";
+import { buildRingMeshes } from "../../src/core/roundabout";
+import { buildSideStreets, type SideStreet } from "../../src/core/sideStreets";
 import type { Kn5MeshNode } from "../../src/core/kn5";
-import { planJunctionCore } from "../../src/core/network/phase1";
-import { demTiles } from "../polish/demTiles";
+import { networkGraph, planJunctionCore } from "../../src/core/network/phase1";
+import { isKerbedStreet, planGraphStreets } from "../../src/core/network/streets";
+import { buildStreetMeshes, tuckedJoin } from "../../src/core/network/streetMesh";
+import { surfaceHeight } from "../../src/core/road";
 import { isDrivable, sampler, surfaceSteps, type RawMesh, type Sampler } from "../check/benchmarkLib";
+import { loadTown } from "./setup";
 
 const args = process.argv.slice(2);
 const opt = (k: string, d?: string) => { const i = args.indexOf(k); return i >= 0 ? args[i + 1] : d; };
 const osmPath = args.find((a, i) => !a.startsWith("--") && !args[i - 1]?.startsWith("--"))!;
-const route = JSON.parse(readFileSync(opt("--route", "routes/busselton.json")!, "utf8"));
-const cl = JSON.parse(readFileSync(opt("--centreline", "out/busselton.centreline.json")!, "utf8")).centreline as number[][];
 const outDir = opt("--out", "out/network/phase1")!;
 const nPng = Number(opt("--png", "0"));
+// --phase 2: the graph with divided roads as one, the streets planned from it (phase 2); else phase 1.
+const phase = Number(opt("--phase", "1"));
 mkdirSync(outDir, { recursive: true });
-
-const opts = withDefaults({ ...route.options, ...route.build, networkCore: true });
-const proj = new LocalProjection(route.build.origin as LngLat);
-const area = new Area((route.build.area as LngLat[][]).map((r) => r.map((p) => proj.toLocal(p))));
-
-// The route as built.
-const pos = cl.map((c) => proj.toLocal([c[0], c[1]]));
-const closed = !!route.loop;
-const n = pos.length;
-const samples: RoadSample[] = [];
-let s = 0;
-for (let i = 0; i < n; i++) {
-  if (i) s += Math.hypot(pos[i][0] - pos[i - 1][0], pos[i][1] - pos[i - 1][1]);
-  const a = pos[closed ? (i - 1 + n) % n : Math.max(0, i - 1)], b = pos[closed ? (i + 1) % n : Math.min(n - 1, i + 1)];
-  const L = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;
-  const tan: [number, number] = [(b[0] - a[0]) / L, (b[1] - a[1]) / L];
-  samples.push({ pos: pos[i], tan, left: [-tan[1], tan[0]], curvature: 0, s, width: cl[i][3], h: cl[i][2], bank: 0 } as RoadSample);
-}
-const length = closed ? s + Math.hypot(pos[0][0] - pos[n - 1][0], pos[0][1] - pos[n - 1][1]) : s;
-
-// Overpass: street lines (as osm.ts), rings.
-const TILE_CLASS: Record<string, string> = {
-  motorway: "motorway", trunk: "trunk", primary: "primary", primary_link: "primary", secondary: "secondary", secondary_link: "secondary",
-  tertiary: "tertiary", tertiary_link: "tertiary", residential: "minor", unclassified: "minor", living_street: "minor", road: "minor",
-  service: "service", track: "track",
-};
-const osm = JSON.parse(readFileSync(osmPath, "utf8"));
-const roads: StreetLine[] = [];
-const ringWays: { pts: LngLat[]; lanes?: number }[] = [];
-for (const e of osm.elements ?? []) {
-  const t = e.tags ?? {};
-  if (e.type !== "way" || !e.geometry) continue;
-  const pts = e.geometry.map((g: { lon: number; lat: number }) => [g.lon, g.lat] as LngLat);
-  if (t.junction === "roundabout" || t.junction === "circular") { ringWays.push({ pts, ...(+t.lanes > 0 ? { lanes: +t.lanes } : {}) }); continue; }
-  const cls = TILE_CLASS[t.highway];
-  if (!cls || t.area === "yes" || t.access === "no" || t.access === "private") continue;
-  const oneway = t.oneway === "yes" || t.oneway === "1" ? 1 : t.oneway === "-1" ? -1 : undefined;
-  const brunnel = t.bridge && t.bridge !== "no" ? "bridge" : t.tunnel && t.tunnel !== "no" ? "tunnel" : undefined;
-  roads.push({ pts, cls, ...(brunnel ? { brunnel } : {}), ...(oneway ? { oneway } : {}), ...(t.service ? { service: t.service } : {}) });
-}
-const lines = joinWays(roads);
-
-// Rings as the build makes them for an area (track.ts): grouped OSM ring ways, fitted.
-const rbs: Roundabout[] = [];
-{
-  const ways = ringWays.map((r) => ({ pts: r.pts.map((p) => proj.toLocal(p)), lanes: r.lanes })).map((w) => ({ ...w, f: fitCircle(w.pts) }))
-    .filter((w) => w.f && w.f.r >= 4 && w.f.r <= 40 && w.f.rms < 2.5);
-  const groups: (typeof ways)[] = [];
-  for (const w of ways) {
-    const g = groups.find((gr) => gr.some((o) => Math.hypot(o.f!.c[0] - w.f!.c[0], o.f!.c[1] - w.f!.c[1]) < 8));
-    if (g) g.push(w); else groups.push([w]);
-  }
-  for (const g of groups) {
-    const fit = fitCircle(g.flatMap((w) => w.pts)) ?? g[0].f!;
-    if (!area.inside(fit.c[0], fit.c[1])) continue;
-    const lanes = Math.max(1, ...g.map((w) => w.lanes ?? 1));
-    rbs.push({ c: fit.c, r: fit.r, w: Math.max(7, lanes >= 2 ? lanes * 4.6 : 0), lanes, hc: 0, sIn: NaN, sOut: NaN, crossings: [], kerbed: true });
-  }
-}
-const plan: RoadPlan = { closed, samples, length, roundabouts: rbs };
-const index = new SegmentIndex(plan);
-const lngLats = [...cl.map((c) => [c[0], c[1]] as LngLat), ...lines.flatMap((l) => l.pts)];
-const step = Math.max(1, Math.floor(lngLats.length / 600));
-const demAt = await demTiles("public/dem/wa", lngLats.filter((_, i) => i % step === 0));
-const dem = (x: number, y: number) => demAt(proj.toLngLat([x, y])) ?? 0;
-for (const rb of rbs) rb.hc = dem(rb.c[0], rb.c[1]);
-const terrainAt = makeTerrainFn(plan, index, dem, opts);
-const terrain = (x: number, y: number) => terrainAt(x, y).h;
-
-const plan0 = planSideStreets(lines, [], plan, index, opts, proj, area);
-const clone = (sts: SideStreet[]) => sts.map((st) => ({ ...st, pts: st.pts.map((p) => [p[0], p[1]] as [number, number]), joins: st.joins.slice(), ...(st.widths ? { widths: st.widths.slice() } : {}) }));
-const oldStreets = clone(plan0.streets), newStreets = clone(plan0.streets);
+const T = await loadTown(osmPath, opt("--route", "routes/busselton.json")!, opt("--centreline", "out/busselton.centreline.json")!);
+const { opts, proj, area, plan, index, rbs, terrain, plan0, clone } = T;
+const n = plan.samples.length;
+const oldStreets = clone(plan0.streets);
 const mouth = (side: 1 | -1, sd: number) => plan0.junctions.some((j) => j.side === side && Math.abs(j.s - sd) < j.width / 2 + 1.5);
 
 // Old.
@@ -119,23 +49,41 @@ const old: Kn5MeshNode[] = [];
 }
 // New.
 const t0 = Date.now();
+const p2 = phase >= 2 ? networkGraph(T.localLines, T.rings) : null;
+const gs = p2 ? planGraphStreets(p2.graph, {
+  route: T.ribbon, rings: rbs, inArea: ([x, y]) => area.signed(x, y) < -3, corridor: opts.corridor, vergeWidth: opts.vergeWidth,
+}) : null;
+const newStreets: SideStreet[] = gs ? (gs.streets as unknown as SideStreet[]) : clone(plan0.streets);
+const mouths = gs ? gs.mouths : plan0.junctions;
 const net = planJunctionCore({
-  lines: lines.map((l) => ({ ...l, pts: l.pts.map((p) => proj.toLocal(p)) })),
-  rings: ringWays.map((r) => ({ pts: r.pts.map((p) => proj.toLocal(p)), lanes: r.lanes })),
-  route: { samples, closed, length, crown: opts.crown, nearest: (x, y, max) => index.nearest(x, y, max) },
+  lines: T.localLines, rings: T.rings, route: T.ribbon,
   streets: newStreets, builtRings: rbs, terrain, inArea: ([x, y]) => area.signed(x, y) < -5,
+  ...(p2 ? { graph: p2.graph } : {}),
 });
 const planMs = Date.now() - t0;
 const nu: Kn5MeshNode[] = [];
-let meshMs = 0, junctionTris = 0, dressNodes: Kn5MeshNode[] = [];
+let meshMs = 0, junctionTris = 0, dressNodes: Kn5MeshNode[] = [], streetDress: Kn5MeshNode[] = [];
 {
   const t1 = Date.now();
-  const nMouth = (side: 1 | -1, sd: number) => plan0.junctions.some((j) => !net.coversRouteRow(j.seg) && j.side === side && Math.abs(j.s - sd) < j.width / 2 + 1.5) || net.routeSInside(sd);
+  const nMouth = (side: 1 | -1, sd: number) => mouths.some((j) => !net.coversRouteRow(j.seg) && j.side === side && Math.abs(j.s - sd) < j.width / 2 + 1.5) || net.routeSInside(sd);
   const rm = buildRoadMeshes(plan, opts, () => "road", (i, side) => nMouth(side, plan.samples[i % n].s), undefined, { quad: net.routeQuadSkip, ring: net.handlesRing });
   nu.push(...rm.road);
   rbs.forEach((rb, k) => { if (net.handlesRing(k)) return; const m = buildRingMeshes(rb, k, opts, "road"); nu.push(m.road, ...m.kerb); });
-  nu.push(...buildSideStreets(newStreets, plan, index, opts, net.streetGround(terrain), () => "road", net.streetSkip));
-  const jm = net.build({ routeKerb: () => 1, stripOut: opts.vergeWidth + 1.5, vergeWidth: opts.vergeWidth, markings: true, roadMaterial: () => "road" });
+  let kerbedStreets = new Set<number>();
+  if (phase >= 2) {
+    const routeClear = (p: [number, number]) => { const nr = index.nearest(p[0], p[1], 30); return nr ? nr.dist - index.at(nr).width / 2 : Infinity; };
+    const sm = buildStreetMeshes(newStreets, {
+      ground: net.streetGround(terrain), lift: 0.1, skip: net.streetSkip,
+      joinZ: ([x, y]) => { const nr = index.nearest(x, y, 40); if (!nr) return null; const at = index.at(nr); return tuckedJoin(surfaceHeight({ ...plan.samples[nr.seg], h: at.h, bank: at.bank, width: at.width }, nr.t, opts.crown), at.width / 2 - nr.dist); },
+      joinGap: ([x, y]) => { const nr = index.nearest(x, y, 10); return nr ? nr.dist - index.at(nr).width / 2 : Infinity; }, junctionDist: net.sdfAt,
+      clear: (p, si) => Math.min(net.streetClear(p, new Set([si])), routeClear(p)),
+      kerbed: (si) => isKerbedStreet(newStreets[si]), markings: true, material: () => "road",
+    });
+    nu.push(...sm.road);
+    streetDress = [...sm.dress, ...sm.markings];
+    kerbedStreets = sm.kerbed;
+  } else nu.push(...buildSideStreets(newStreets, plan, index, opts, net.streetGround(terrain), () => "road", net.streetSkip));
+  const jm = net.build({ routeKerb: () => 1, stripOut: opts.vergeWidth + 1.5, vergeWidth: opts.vergeWidth, markings: true, roadMaterial: () => "road", streetKerbed: (si) => kerbedStreets.has(si) });
   nu.push(...jm.road);
   dressNodes = jm.dress;
   junctionTris = jm.triangles;
@@ -191,20 +139,22 @@ const per = net.junctions.map((pj) => {
 });
 const sum = (f: (x: (typeof per)[number]) => number) => per.reduce((t, x) => t + f(x), 0);
 const views = JSON.parse(readFileSync("benchmarks/views.json", "utf8")).sites.flatMap((st: { views: { name: string; focus: LngLat; radius: number }[] }) => st.views)
-  .filter((v: { name: string }) => /^(roundabout|t_junction)/.test(v.name))
+  .filter((v: { name: string }) => /^(roundabout|t_junction|signals|side_street)/.test(v.name))
   .map((v: { name: string; focus: LngLat; radius: number }) => {
     const c = proj.toLocal(v.focus);
     const a = surfaceSteps(sOld, c, v.radius), b = surfaceSteps(sNew, c, v.radius);
-    return { view: v.name, radius: v.radius, old: { steps: a.steps, maxStep: +a.maxStep.toFixed(3), lips: a.stacked, overlap: overlapAny(sOld, c, v.radius) }, new: { steps: b.steps, maxStep: +b.maxStep.toFixed(3), lips: b.stacked, overlap: overlapAny(sNew, c, v.radius) } };
+    return { view: v.name, radius: v.radius, old: { steps: a.steps, maxStep: +a.maxStep.toFixed(3), lips: a.stacked, overlap: overlapAny(sOld, c, v.radius) }, new: { steps: b.steps, maxStep: +b.maxStep.toFixed(3), lips: b.stacked, overlap: overlapAny(sNew, c, v.radius), ...(b.maxStepAt ? { maxStepAt: proj.toLngLat(b.maxStepAt as [number, number]).map((x) => +x.toFixed(6)) } : {}) } };
   });
 const reasons: Record<string, number> = {};
 for (const f of net.failures) { const k = f.reason.replace(/\d+(\.\d+)?/g, "#"); reasons[k] = (reasons[k] ?? 0) + 1; }
 const triCount = (ms: Kn5MeshNode[]) => ms.filter((m) => isDrivable(m.name)).reduce((t, m) => t + m.indices.length / 3, 0);
 const summary = {
+  phase, graphJunctions: (p2?.graph ?? null) && p2!.graph.nodes.filter((nd) => (nd.kind === "junction" || nd.kind === "roundabout") && area.signed(nd.p[0], nd.p[1]) < -5).length,
+  duals: p2?.duals.length ?? 0, streets: newStreets.length,
   planMs, meshMs, handled: per.length, roundabouts: per.filter((p) => p.kind === "roundabout").length, onRoute: per.filter((p) => p.onRoute).length,
   failures: net.failures.length, reasons,
   old: { steps: sum((x) => x.old.steps), lips: sum((x) => x.old.lips), overlap: sum((x) => x.old.overlap), junctionsWithSteps: per.filter((x) => x.old.steps).length, drivableTriangles: triCount(old) },
-  new: { steps: sum((x) => x.new.steps), lips: sum((x) => x.new.lips), overlap: sum((x) => x.new.overlap), junctionsWithSteps: per.filter((x) => x.new.steps).length, drivableTriangles: triCount(nu), junctionTriangles: junctionTris, dressTriangles: dressNodes.reduce((t, m) => t + m.indices.length / 3, 0) },
+  new: { steps: sum((x) => x.new.steps), lips: sum((x) => x.new.lips), overlap: sum((x) => x.new.overlap), junctionsWithSteps: per.filter((x) => x.new.steps).length, drivableTriangles: triCount(nu), junctionTriangles: junctionTris, dressTriangles: dressNodes.reduce((t, m) => t + m.indices.length / 3, 0), streetDressTriangles: streetDress.reduce((t, m) => t + m.indices.length / 3, 0) },
   views,
 };
 console.log(JSON.stringify(summary, null, 1));
@@ -254,12 +204,12 @@ if (process.env.JNODE) {
   const { matchJunctions } = await import("../../src/core/network/ribbons");
   const { contourRings } = await import("../../src/core/network/mesh");
   const { ringArea } = await import("../../src/core/network/geom");
-  const g = buildGraph(waysFromStreets(lines.map((l) => ({ ...l, pts: l.pts.map((p) => proj.toLocal(p)) })), ringWays.map((r) => ({ pts: r.pts.map((p) => proj.toLocal(p)), lanes: r.lanes }))));
+  const g = p2 ? p2.graph : buildGraph(waysFromStreets(T.localLines, T.rings));
   console.log("graph nodes", g.nodes.length);
   const node = g.nodes[Number(process.env.JNODE)];
   console.log("node", node.kind, node.p.map((v) => v.toFixed(1)), "legs", node.legs.map((l) => `${l.edge}:${g.edges[l.edge].cls}${g.edges[l.edge].oneway ? "(1w)" : ""}`), "inner", node.inner, "splitters", node.roundabout?.splitters.length);
   const one = { ...g, nodes: g.nodes.map((nd) => (nd.id === node.id ? nd : { ...nd, kind: "mid" as const })) };
-  const m = matchJunctions(one, { samples, closed, length, crown: opts.crown, nearest: (x, y, max) => index.nearest(x, y, max) }, clone(plan0.streets), rbs, {});
+  const m = matchJunctions(one, T.ribbon, gs ? (clone(gs.streets as unknown as SideStreet[])) : clone(plan0.streets), rbs, {});
   console.log("failures", m.failures);
   for (const j of m.junctions) {
     for (const l of j.legs) console.log(` leg ${l.edge} ${l.kind} ${l.street} dir ${l.dir} trim ${l.trim.toFixed(1)} hw ${l.hw.toFixed(1)} cap ${l.cap.c.map((v) => v.toFixed(1))}`);
@@ -326,4 +276,71 @@ if (process.env.PROBE) {
       console.log(`  t ${t.toFixed(1)}: ${row.join(" ")}`);
     }
   }
+}
+// Debug plot: PLOT=lng,lat[,radius] draws the new drivable surface there (route blue, streets green,
+// junctions orange, overlaps red), the graph's edges (white, medians dashed), the streets' numbers,
+// the route rows' numbers every 10, and the junctions left to the old core (red cross, reason).
+if (process.env.PLOT) {
+  const [lng, lat, rr] = process.env.PLOT.split(",").map(Number);
+  const c = proj.toLocal([lng, lat] as LngLat);
+  const R = rr || 60, PX = 6, W = Math.ceil(2 * R * PX);
+  const cv = createCanvas(W, W);
+  const g = cv.getContext("2d");
+  const img = g.createImageData(W, W);
+  const tops = new Float32Array(W * W).fill(NaN);
+  for (let py = 0; py < W; py++) for (let px = 0; px < W; px++) {
+    const x = c[0] - R + (px + 0.5) / PX, y = c[1] + R - (py + 0.5) / PX;
+    const hits = sNew(x, y);
+    const k = (py * W + px) * 4;
+    img.data[k + 3] = 255;
+    if (!hits.length) { img.data[k] = img.data[k + 1] = img.data[k + 2] = 34; continue; }
+    tops[py * W + px] = hits[0].h;
+    const nm = hits[0].name;
+    // Overlaps: red where the two are 1 to 25 cm apart (a lip), dark red where they're within 1 cm.
+    const lip = hits.length >= 2 && hits.slice(1).some((h) => hits[0].h - h.h > 0.01 && hits[0].h - h.h < 0.25);
+    const col = hits.length >= 2 ? (lip ? [230, 40, 40] : [130, 30, 30]) : /_J/.test(nm) ? [235, 150, 40] : /^1STREET/.test(nm) ? [60, 150, 80] : [60, 110, 220];
+    [img.data[k], img.data[k + 1], img.data[k + 2]] = col;
+  }
+  // Steps over 3 cm (25 cm apart, as the benchmark): magenta.
+  const st = Math.round(PX * 0.25);
+  for (let py = 0; py < W - st; py++) for (let px = 0; px < W - st; px++) {
+    const a = tops[py * W + px], b = tops[py * W + px + st], d = tops[(py + st) * W + px];
+    if (Math.abs(a - b) > 0.03 || Math.abs(a - d) > 0.03) { const k = (py * W + px) * 4; img.data[k] = 255; img.data[k + 1] = 0; img.data[k + 2] = 255; }
+  }
+  g.putImageData(img, 0, 0);
+  const to = (p: [number, number]) => [(p[0] - c[0] + R) * PX, (c[1] + R - p[1]) * PX] as const;
+  const gr = p2?.graph;
+  g.font = "13px sans-serif";
+  if (gr) for (const e of gr.edges) {
+    if (!e.pts.some((p) => Math.abs(p[0] - c[0]) < R + 20 && Math.abs(p[1] - c[1]) < R + 20)) continue;
+    g.strokeStyle = e.internal ? "#888" : "#fff"; g.lineWidth = 1; g.setLineDash(e.median !== undefined ? [6, 4] : []);
+    g.beginPath(); e.pts.forEach((p, i) => { const [x, y] = to(p as [number, number]); if (i) g.lineTo(x, y); else g.moveTo(x, y); }); g.stroke();
+    const m = e.pts[Math.floor(e.pts.length / 2)] as [number, number];
+    g.fillStyle = "#ccc"; g.fillText(`e${e.id}`, ...to(m));
+  }
+  g.setLineDash([]);
+  newStreets.forEach((st, si) => {
+    const near = st.pts.filter((p) => Math.abs(p[0] - c[0]) < R && Math.abs(p[1] - c[1]) < R);
+    if (!near.length) return;
+    g.fillStyle = "#9f9"; g.fillText(`s${si}`, ...to(near[Math.floor(near.length / 2)] as [number, number]));
+  });
+  plan.samples.forEach((smp, i) => {
+    if (i % 10 || Math.abs(smp.pos[0] - c[0]) > R || Math.abs(smp.pos[1] - c[1]) > R) return;
+    g.fillStyle = "#9cf"; g.fillText(`r${i}`, ...to(smp.pos as [number, number]));
+  });
+  for (const pj of net.junctions) {
+    if (Math.abs(pj.j.centre[0] - c[0]) > R || Math.abs(pj.j.centre[1] - c[1]) > R) continue;
+    g.fillStyle = "#fc6"; g.fillText(`J${pj.id} n${pj.j.node}`, ...to(pj.j.centre as [number, number]));
+  }
+  let fy = 16;
+  for (const f of net.failures) {
+    if (Math.abs(f.at[0] - c[0]) > R || Math.abs(f.at[1] - c[1]) > R) continue;
+    const [x, y] = to(f.at as [number, number]);
+    g.strokeStyle = "#f33"; g.lineWidth = 3; g.beginPath(); g.moveTo(x - 8, y - 8); g.lineTo(x + 8, y + 8); g.moveTo(x + 8, y - 8); g.lineTo(x - 8, y + 8); g.stroke();
+    g.fillStyle = "#f66"; g.fillText(`n${f.node}`, x + 10, y);
+    g.fillText(`n${f.node}: ${f.reason}`, 6, fy); fy += 16;
+  }
+  const file = join(outDir, `plot_${lng.toFixed(5)}_${lat.toFixed(5)}.png`);
+  writeFileSync(file, cv.toBuffer("image/png"));
+  console.log("plot", file);
 }

@@ -158,6 +158,8 @@ async function run(zipPath: string | undefined) {
 function surfaceKind(name: string): string {
   if (/^\dROAD_PATH/.test(name)) return "path";
   if (/^\dROAD_RB/.test(name)) return "roundabout";
+  // networkCore: junctions and roundabouts as one surface each (1ROAD_J / 1STREET_J, and their gutters).
+  if (/^\d(ROAD|STREET)_(GUTTER_)?J\d/.test(name)) return "junction";
   if (/^\dROAD/.test(name)) return "route road";
   if (/^\dSTREET/.test(name)) return "street";
   return name.replace(/^\d/, "").split("_")[0].toLowerCase();

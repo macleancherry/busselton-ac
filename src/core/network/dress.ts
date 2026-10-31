@@ -13,7 +13,7 @@ import type { RJunction } from "./ribbons";
 // The route kerb's profile (kerbs.ts): gutter 0.3 m with a 3 cm dip, a 5 cm face run, 15 cm top,
 // 15 cm high, the strip 2 cm above the kerb top, an 80 cm skirt; the verge drops 20 cm.
 import { KERB_PROFILE as KERB } from "../kerbs"; export { KERB };
-const KERB_BACK = KERB.gutter + KERB.faceRun + KERB.top;
+export const KERB_BACK = KERB.gutter + KERB.faceRun + KERB.top;
 const RAMP = 1.5;
 export const PAINT_LIFT = 0.015;
 
@@ -43,11 +43,16 @@ export interface DressOptions {
   ringKerbed: boolean;
   /** Paint give-way lines. */
   markings: boolean;
+  /** Phase 2: room from a point on the outline to the asphalt of a street that isn't one of the legs (a
+   * street clipped at the junction): kerbs and verges stop short of it. */
+  clear?: (p: P2) => number;
+  /** Phase 2: a street leg's corner is kerbed (the street is). */
+  streetKerb?: (leg: number) => number;
 }
 
 type V3 = [number, number, number];
 
-function orientedQuad(b: Builder, p: V3[], uv: [number, number][], want: V3) {
+export function orientedQuad(b: Builder, p: V3[], uv: [number, number][], want: V3) {
   const ids = p.map((q, i) => b.vertex(q, uv[i][0], uv[i][1]));
   const tri = (i: number, j: number, k: number) => {
     const A = p[i], B = p[j], C = p[k];
@@ -63,7 +68,7 @@ function orientedQuad(b: Builder, p: V3[], uv: [number, number][], want: V3) {
 }
 
 /** Outward normals (away from the road) along an open run, mitred; the ends given. */
-function runNormals(run: P2[], n0: P2, n1: P2): P2[] {
+export function runNormals(run: P2[], n0: P2, n1: P2): P2[] {
   return run.map((p, m) => {
     if (m === 0) return n0;
     if (m === run.length - 1) return n1;
@@ -88,7 +93,7 @@ function room(run: P2[]): number[] {
 }
 
 /** A band along a run: profile points (t from the road edge, z above the road) per vertex, outside to road. */
-function band(sinks: Builder[], run: P2[], normals: P2[], z: number[], prof: (m: number) => [number, number][], arc: number[]) {
+export function band(sinks: Builder[], run: P2[], normals: P2[], z: number[], prof: (m: number) => [number, number][], arc: number[]) {
   const rows = run.map((p, m) => prof(m).map(([t, dz]) => [p[0] + normals[m][0] * t, p[1] + normals[m][1] * t, z[m] + dz] as V3));
   const nSeg = rows[0].length - 1;
   for (let g = 0; g < nSeg; g++) {
@@ -105,7 +110,7 @@ function band(sinks: Builder[], run: P2[], normals: P2[], z: number[], prof: (m:
   }
 }
 
-const kerbProfile = (k: number, tOut: number, drop: number): [number, number][] => {
+export const kerbProfile = (k: number, tOut: number, drop: number): [number, number][] => {
   const top = KERB.height * k, inv = -KERB.dip * k;
   const zOut = top + KERB.stripRise * k - drop * (1 - k);
   return [
@@ -134,7 +139,7 @@ export function dressJunction(dj: DressJunction, sinks: DressSinks, o: DressOpti
   // Kerb amount at a leg's corner: its left corner (end of its cap) or right corner (start).
   const cornerKerb = (li: number, leftCorner: boolean): number => {
     const l = legs[li];
-    if (l.kind !== "route") return 0;
+    if (l.kind !== "route") return o.streetKerb?.(li) ?? 0;
     const side: 1 | -1 = (leftCorner ? l.dir : -l.dir) as 1 | -1;
     return o.routeKerb(l.at, side);
   };
@@ -174,13 +179,21 @@ export function dressJunction(dj: DressJunction, sinks: DressSinks, o: DressOpti
         return k;
       };
       const drop = anyRoute ? KERB.vergeDrop : KERB.vergeDrop;
+      const cl = run.map((p) => o.clear?.(p) ?? Infinity);
       band([sinks.strip, sinks.strip, sinks.kerb, sinks.kerb, sinks.gutter], run, normals, z,
-        (q) => kerbProfile(kAt(q), Math.min(o.stripOut, Math.max(KERB_BACK + 0.2, 0.8 * rm[q])), drop), arc);
+        (q) => {
+          const room0 = Math.min(o.stripOut, Math.max(KERB_BACK + 0.2, 0.8 * rm[q]));
+          // Short of another street's asphalt: the strip narrows, and the kerb goes where there's no room.
+          if (cl[q] >= room0 + 0.1) return kerbProfile(kAt(q), room0, drop);
+          const k = cl[q] < KERB_BACK + 0.15 ? 0 : kAt(q);
+          return kerbProfile(k, Math.max(0.02, Math.min(room0, cl[q] - 0.1)), drop);
+        }, arc);
     } else if (anyRoute && o.vergeWidth > 0) {
       vergeRuns++;
       const rm = room(run);
+      const cl = run.map((p) => o.clear?.(p) ?? Infinity);
       band([sinks.verge, sinks.verge], run, normals, z, (q) => {
-        const w = Math.min(o.vergeWidth, Math.max(0.3, 0.8 * rm[q]));
+        const w = Math.max(0.02, Math.min(o.vergeWidth, Math.max(0.3, 0.8 * rm[q]), cl[q] - 0.1));
         return [[w, -KERB.vergeDrop - KERB.skirt], [w, -KERB.vergeDrop], [0, 0]];
       }, arc);
     }
