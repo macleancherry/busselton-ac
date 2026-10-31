@@ -19,7 +19,9 @@ import { buildRingMeshes } from "../../src/core/roundabout";
 import { buildSideStreets, type SideStreet } from "../../src/core/sideStreets";
 import type { Kn5MeshNode } from "../../src/core/kn5";
 import { networkGraph, planJunctionCore } from "../../src/core/network/phase1";
-import { planGraphStreets } from "../../src/core/network/streets";
+import { isKerbedStreet, planGraphStreets } from "../../src/core/network/streets";
+import { buildStreetMeshes } from "../../src/core/network/streetMesh";
+import { surfaceHeight } from "../../src/core/road";
 import { isDrivable, sampler, surfaceSteps, type RawMesh, type Sampler } from "../check/benchmarkLib";
 import { loadTown } from "./setup";
 
@@ -60,15 +62,27 @@ const net = planJunctionCore({
 });
 const planMs = Date.now() - t0;
 const nu: Kn5MeshNode[] = [];
-let meshMs = 0, junctionTris = 0, dressNodes: Kn5MeshNode[] = [];
+let meshMs = 0, junctionTris = 0, dressNodes: Kn5MeshNode[] = [], streetDress: Kn5MeshNode[] = [];
 {
   const t1 = Date.now();
   const nMouth = (side: 1 | -1, sd: number) => mouths.some((j) => !net.coversRouteRow(j.seg) && j.side === side && Math.abs(j.s - sd) < j.width / 2 + 1.5) || net.routeSInside(sd);
   const rm = buildRoadMeshes(plan, opts, () => "road", (i, side) => nMouth(side, plan.samples[i % n].s), undefined, { quad: net.routeQuadSkip, ring: net.handlesRing });
   nu.push(...rm.road);
   rbs.forEach((rb, k) => { if (net.handlesRing(k)) return; const m = buildRingMeshes(rb, k, opts, "road"); nu.push(m.road, ...m.kerb); });
-  nu.push(...buildSideStreets(newStreets, plan, index, opts, net.streetGround(terrain), () => "road", net.streetSkip));
-  const jm = net.build({ routeKerb: () => 1, stripOut: opts.vergeWidth + 1.5, vergeWidth: opts.vergeWidth, markings: true, roadMaterial: () => "road" });
+  let kerbedStreets = new Set<number>();
+  if (phase >= 2) {
+    const routeClear = (p: [number, number]) => { const nr = index.nearest(p[0], p[1], 30); return nr ? nr.dist - index.at(nr).width / 2 : Infinity; };
+    const sm = buildStreetMeshes(newStreets, {
+      ground: net.streetGround(terrain), lift: 0.1, skip: net.streetSkip,
+      joinZ: ([x, y]) => { const nr = index.nearest(x, y, 40); return nr ? surfaceHeight(plan.samples[nr.seg], nr.t, opts.crown) : null; },
+      clear: (p, si) => Math.min(net.streetClear(p, new Set([si])), routeClear(p)),
+      kerbed: (si) => isKerbedStreet(newStreets[si]), markings: true, material: () => "road",
+    });
+    nu.push(...sm.road);
+    streetDress = [...sm.dress, ...sm.markings];
+    kerbedStreets = sm.kerbed;
+  } else nu.push(...buildSideStreets(newStreets, plan, index, opts, net.streetGround(terrain), () => "road", net.streetSkip));
+  const jm = net.build({ routeKerb: () => 1, stripOut: opts.vergeWidth + 1.5, vergeWidth: opts.vergeWidth, markings: true, roadMaterial: () => "road", streetKerbed: (si) => kerbedStreets.has(si) });
   nu.push(...jm.road);
   dressNodes = jm.dress;
   junctionTris = jm.triangles;
@@ -139,7 +153,7 @@ const summary = {
   planMs, meshMs, handled: per.length, roundabouts: per.filter((p) => p.kind === "roundabout").length, onRoute: per.filter((p) => p.onRoute).length,
   failures: net.failures.length, reasons,
   old: { steps: sum((x) => x.old.steps), lips: sum((x) => x.old.lips), overlap: sum((x) => x.old.overlap), junctionsWithSteps: per.filter((x) => x.old.steps).length, drivableTriangles: triCount(old) },
-  new: { steps: sum((x) => x.new.steps), lips: sum((x) => x.new.lips), overlap: sum((x) => x.new.overlap), junctionsWithSteps: per.filter((x) => x.new.steps).length, drivableTriangles: triCount(nu), junctionTriangles: junctionTris, dressTriangles: dressNodes.reduce((t, m) => t + m.indices.length / 3, 0) },
+  new: { steps: sum((x) => x.new.steps), lips: sum((x) => x.new.lips), overlap: sum((x) => x.new.overlap), junctionsWithSteps: per.filter((x) => x.new.steps).length, drivableTriangles: triCount(nu), junctionTriangles: junctionTris, dressTriangles: dressNodes.reduce((t, m) => t + m.indices.length / 3, 0), streetDressTriangles: streetDress.reduce((t, m) => t + m.indices.length / 3, 0) },
   views,
 };
 console.log(JSON.stringify(summary, null, 1));

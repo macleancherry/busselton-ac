@@ -204,6 +204,13 @@ export function planGraphStreets(g: Graph, o: GraphStreetOptions): { streets: Gr
   return { streets, mouths: merged };
 }
 
+/** Streets that get a kerb and gutter (streetMesh.ts): sealed town streets, not lanes or service roads. */
+export function isKerbedStreet(st: { cls: string; service?: string; surface?: string; width: number; median?: number }): boolean {
+  if (!/^(primary|secondary|tertiary|minor|residential|unclassified|living_street)(_link)?$/.test(st.cls)) return false;
+  if (st.surface && /unpaved|gravel|dirt|ground|compacted|sand|grass/.test(st.surface)) return false;
+  return st.width >= 5 || st.median !== undefined;
+}
+
 /** Rank of a street's class (for kerbs and markings). */
 export const streetRank = (st: { cls: string }) => classRank(st.cls);
 

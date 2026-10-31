@@ -88,6 +88,8 @@ export interface JunctionCore {
   noRamp: Set<string>;
   /** Signed distance to the nearest junction taken (negative inside), Infinity beyond 4 m. */
   sdfAt: (p: P2) => number;
+  /** Room from a point to the asphalt of the nearest street not in `skip` (not counting parts inside junctions). */
+  streetClear: (p: P2, skip: Set<number>) => number;
   nearestJunction: (p: P2, max: number) => { pj: PlannedJunction; d: number } | null;
   build: (o: JunctionDressInput) => JunctionMeshes;
   json: () => unknown;
@@ -439,6 +441,7 @@ export function planJunctionCore(input: JunctionCoreInput): JunctionCore {
       return h;
     },
     sdfAt: (p) => nearestJunction(p, 4)?.d ?? Infinity,
+    streetClear,
     nearestJunction,
     noRamp,
     build: (o) => buildMeshes(o),
