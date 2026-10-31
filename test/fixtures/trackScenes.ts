@@ -31,6 +31,9 @@ export interface Scene {
   sources: () => DataSources;
 }
 
+/** A colour a little warmer (the display variant of a raster). */
+const warm = (c: [number, number, number]): [number, number, number] => [Math.min(1, c[0] * 1.06 + 0.01), c[1], c[2] * 0.95];
+
 /** Position hash in 0..1. */
 const hash = (x: number, y: number, salt = 0) => {
   let h = Math.imul(Math.floor(x) | 0, 73856093) ^ Math.imul(Math.floor(y) | 0, 19349663) ^ Math.imul(salt, 83492791);
@@ -174,7 +177,8 @@ function loopSources(withImagery: boolean, withSea: boolean, extra: boolean): Da
       }
       return { data: encodePng(rgba, size, size), ext: "png", rgba };
     };
-    src.raster = async () => Object.assign((x: number, y: number) => scene(x, y), { display: (x: number, y: number) => scene(x, y) });
+    // The display variant is warmer, so a texture taken from the wrong one shows up in the hashes.
+    src.raster = async () => Object.assign((x: number, y: number) => scene(x, y), { display: (x: number, y: number) => warm(scene(x, y)) });
     src.imageryCredit = () => "Synthetic imagery";
   }
   if (extra) {
@@ -302,7 +306,7 @@ function countrySources(): DataSources {
       }
       return { data: encodePng(rgba, size, size), ext: "png", rgba };
     },
-    raster: async () => Object.assign((x: number, y: number) => countryColour(x, y)),
+    raster: async () => Object.assign((x: number, y: number) => countryColour(x, y), { display: (x: number, y: number) => warm(countryColour(x, y)) }),
     streets: {
       lines: [
         { pts: llAll([[400, wind(400)], [410, 140], [420, 260]]), cls: "track", surface: "gravel" },

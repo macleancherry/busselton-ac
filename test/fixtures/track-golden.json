@@ -284,7 +284,7 @@
  },
  "c": {
   "files": {
-   "golden_coast/golden_coast.kn5": "243b2fe2dd369e734d316add969850e7dd3ca7b8e76e8280c80794ba4f3a4e60",
+   "golden_coast/golden_coast.kn5": "99045ad59f8991e425dac541d56b2635e59ba966e998c2fa498dc885de48553e",
    "golden_coast/main/ai/fast_lane.ai": "419d3d18f96a1c50965214554766aaced3d81fa04ee637d49d237e4440dc3dd6",
    "golden_coast/main/data/ideal_line.ai": "419d3d18f96a1c50965214554766aaced3d81fa04ee637d49d237e4440dc3dd6",
    "golden_coast/main/data/ai_hints.ini": "2cc44112dab64d8ee37bf1e5a54343701ca3e88378739344c33f46bc40827bcc",
@@ -386,7 +386,7 @@
  },
  "d": {
   "files": {
-   "golden_town/golden_town.kn5": "792980606937d11330ed43bc2d98e8384387d5a0ec6282edb7a1574fdfb6bfdb",
+   "golden_town/golden_town.kn5": "65371a539b9d22dabba4a4da1603aa1312552f2d10b9463734dbc965ed20a570",
    "golden_town/main/ai/fast_lane.ai": "ed41733bc603c0a063d307646530b593784cb3533ac42dc2f0b9d9f5250ae0d5",
    "golden_town/main/data/ideal_line.ai": "ed41733bc603c0a063d307646530b593784cb3533ac42dc2f0b9d9f5250ae0d5",
    "golden_town/main/data/ai_hints.ini": "b977bd51673f438955c2ba2f958a598211697585813f2af82e972b9e0c3f0844",
