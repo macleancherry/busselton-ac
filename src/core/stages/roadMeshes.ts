@@ -105,7 +105,6 @@ export function buildRoadSurfaces(
     if (!nxt) return null;
     const d0x = nxt[0] - s.pts[k0][0], d0y = nxt[1] - s.pts[k0][1], l0 = Math.hypot(d0x, d0y) || 1;
     const sideSt = Math.sign(smp.tan[0] * c * (-d0y / l0) + smp.tan[1] * c * (d0x / l0)) || 1;
-    const w = s.width / 2;
     const out: StreetEdgePoint[] = [];
     let along = 0;
     for (let k = k0; k >= 0 && k < s.pts.length; k += dirStep) {
@@ -115,6 +114,7 @@ export function buildRoadSurfaces(
       const a = s.pts[Math.max(0, k - 1)], b = s.pts[Math.min(s.pts.length - 1, k + 1)];
       const dl = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;
       const n: Vec2 = [(-(b[1] - a[1]) / dl) * sideSt, ((b[0] - a[0]) / dl) * sideSt];
+      const w = (s.widths?.[k] ?? s.width) / 2;
       const pos: Vec2 = [s.pts[k][0] + n[0] * w, s.pts[k][1] + n[1] * w];
       if (along > R + 4) {
         const nr = index.nearest(pos[0], pos[1], 40);

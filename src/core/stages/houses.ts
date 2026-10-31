@@ -55,7 +55,8 @@ export function buildHouses(ctx: BuildContext, g: Ground, bp: BuildingPlan, gm: 
   const roadGap = bp.roadEdge;
   const finishes = bp.finishes;
 
-  const shown = opts.horizon > 0 ? [...bp.kept] : bp.kept.filter((b) => b.ring.every(([x, y]) => g.inCover(x, y, 1)));
+  // With a horizon, shown is kept itself: what looks place and clears remove changes kept too (B2).
+  const shown = opts.horizon > 0 ? bp.kept : bp.kept.filter((b) => b.ring.every(([x, y]) => g.inCover(x, y, 1)));
   const homes = shown.filter((b) => b.ring.length === 4 && b.roof !== "flat" && b.height <= 7.5);
   if (opts.houseStyle) {
     for (const b of homes) {
@@ -195,10 +196,14 @@ export function buildHouses(ctx: BuildContext, g: Ground, bp: BuildingPlan, gm: 
     if (look.trees && best.front) {
       const [a, c] = best.front;
       const mid: Vec2 = [(a[0] + c[0]) / 2, (a[1] + c[1]) / 2];
-      const out = toRoadAt(mid[0], mid[1]);
+      const [cx, cy] = centroid(best.ring);
+      const ex = c[0] - a[0], ey = c[1] - a[1], el = Math.hypot(ex, ey) || 1;
+      let out: Vec2 = [ey / el, -ex / el];
+      if (out[0] * (mid[0] - cx) + out[1] * (mid[1] - cy) < 0) out = [-out[0], -out[1]];
       const half = (best.setback ?? roadGap(mid[0], mid[1])) / 2;
       for (let t = 0; t < look.trees; t++) {
-        const f = (t + 1) / (look.trees + 1);
+        // Across the middle 60% of the front.
+        const f = 0.2 + (0.6 * (t + 0.5)) / look.trees;
         houseTrees.push({ x: a[0] + (c[0] - a[0]) * f + out[0] * half, y: a[1] + (c[1] - a[1]) * f + out[1] * half, scale: 0.85, variant: 0 });
       }
       applied = true;

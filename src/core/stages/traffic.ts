@@ -43,16 +43,11 @@ export function routeRuns(widths: number[], closed: boolean, spacing: number): {
   });
   const runs: number[][] = [[0]];
   for (let i = 1; i < n; i++) {
-    const run = runs[runs.length - 1];
-    run.push(i);
-    if (wide[i] !== wide[i - 1]) runs.push([i]);
+    if (wide[i] !== wide[i - 1]) runs.push([i - 1]);
+    runs[runs.length - 1].push(i);
   }
-  const single = runs.length === 1;
-  if (closed && !single) {
-    const last = runs.pop()!;
-    runs[0] = [...last, ...runs[0]];
-  }
-  return { runs: runs.filter((r) => r.length >= 2), wrapped: closed && single };
+  // (A loop's last run joins its first when the roads are made: trafficFor.)
+  return { runs: runs.filter((r) => r.length >= 2), wrapped: closed && runs.length === 1 };
 }
 
 export function trafficFor(ctx: BuildContext, rp: RoutePlan, g: Ground, st: Streets, sf: Surfaces, rn: Rings, sc: Scenery, net: JunctionCore | null): Traffic {
@@ -69,6 +64,14 @@ export function trafficFor(ctx: BuildContext, rp: RoutePlan, g: Ground, st: Stre
       ...(wrapped ? { closed: true } : {}),
     };
   });
+  // A loop in several runs: the last joins the first (the first's first point dropped, B24; its width and speed kept).
+  if (plan.closed && routeRoads.length > 1) {
+    const last = routeRoads.pop()!, first = routeRoads[0];
+    routeRoads[0] = {
+      ...first, pts: [...last.pts, ...first.pts.slice(1)], h: [...last.h, ...first.h.slice(1)],
+      ...(first.speeds && last.speeds ? { speeds: [...last.speeds, ...first.speeds.slice(1)] } : {}),
+    };
+  }
   // No traffic up car park aisles and driveways. networkCore's lanes on its surfaces.
   const netGround = net?.streetGround((x, y) => g.terrainAt(x, y).h);
   const laneZ = (p: Vec2, fallback: number) => net?.surfaceAt(p) ?? fallback;

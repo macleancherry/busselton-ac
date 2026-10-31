@@ -136,7 +136,7 @@ export function diffKn5(aBytes, bBytes) {
     if (!sameBytes(na.vertices, nb.vertices)) {
       const at = firstByte(na.vertices, nb.vertices), v = Math.floor(at / 44), f = Math.floor((at % 44) / 4);
       const part = f < 3 ? "position" : f < 6 ? "normal" : f < 8 ? "uv" : "tangent";
-      const vert = (m) => Array.from(new Float32Array(m.vertices.slice(v * 44, v * 44 + 44).buffer)).map((x) => +x.toFixed(4));
+      const vert = (m) => Array.from(new Float32Array(m.vertices.slice(v * 44, v * 44 + 44).buffer)).map((x) => +x.toPrecision(9));
       return `mesh ${here}: vertex ${v} of ${na.vertexCount} differs (${part})\n  a: ${show(vert(na))}\n  b: ${show(vert(nb))}`;
     }
     if (na.indexCount !== nb.indexCount) return `mesh ${here}: ${na.indexCount} vs ${nb.indexCount} indices`;
@@ -152,7 +152,12 @@ function diffOther(name, a, b) {
   if (/\.(ini|json|txt|lua|ai\.txt)$/i.test(name)) {
     const la = new TextDecoder().decode(a).split("\n"), lb = new TextDecoder().decode(b).split("\n");
     for (let i = 0; i < Math.max(la.length, lb.length); i++) {
-      if (la[i] !== lb[i]) return `line ${i + 1}\n  a: ${(la[i] ?? "(none)").slice(0, 300)}\n  b: ${(lb[i] ?? "(none)").slice(0, 300)}`;
+      if (la[i] === lb[i]) continue;
+      const x = la[i] ?? "(none)", y = lb[i] ?? "(none)";
+      let c = 0;
+      while (c < x.length && x[c] === y[c]) c++;
+      const from = Math.max(0, c - 120);
+      return `line ${i + 1}, column ${c + 1}\n  a: ${from ? "..." : ""}${x.slice(from, c + 180)}\n  b: ${from ? "..." : ""}${y.slice(from, c + 180)}`;
     }
   }
   return `${a.length} vs ${b.length} bytes, first difference at byte ${firstByte(a, b)}`;
