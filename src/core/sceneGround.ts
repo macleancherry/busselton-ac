@@ -108,8 +108,19 @@ export interface SceneGround {
   mesh: SurfaceFn;
   /** The lowest surface under a set of points (a footprint's corners): where a base goes so none of it floats. */
   under(pts: Vec2[]): number;
-  /** The lowest surface along a closed ring's edges, every `step` metres and at its corners. */
+  /**
+   * The lowest surface along a closed ring's edges, every `step` metres and at its corners: the
+   * meshes' lowest where they cover any of it (the fallback, the analytic terrain, can be well under
+   * the terrain mesh past its edge), else the fallback's.
+   */
   underRing(ring: Vec2[], step?: number): number;
+  /**
+   * The ground for something standing across a ring (a building's footprint): the mesh where it
+   * covers a point; where it doesn't, the fallback but never under the mesh's lowest along the ring.
+   * A house straddling the terrain mesh's edge took the fallback for its uncovered corner and sank
+   * 20 to 40 cm into the mesh under the rest of it.
+   */
+  forRing(ring: Vec2[], step?: number): HeightFn;
 }
 
 /**
@@ -129,7 +140,23 @@ export function groundOver(mesh: SurfaceFn, fallback: HeightFn): SceneGround {
     for (const [x, y] of pts) lo = Math.min(lo, fn(x, y));
     return lo;
   };
-  fn.underRing = (ring, step = 0.5) => fn.under(alongRing(ring, step));
+  const meshUnder = (ring: Vec2[], step: number) => {
+    let lo = Infinity;
+    for (const [x, y] of alongRing(ring, step)) {
+      const h = mesh(x, y);
+      if (h !== null && h < lo) lo = h;
+    }
+    return lo;
+  };
+  fn.underRing = (ring, step = 0.5) => {
+    const lo = meshUnder(ring, step);
+    return lo < Infinity ? lo : fn.under(alongRing(ring, step));
+  };
+  fn.forRing = (ring, step = 0.5) => {
+    const lo = meshUnder(ring, step);
+    if (lo === Infinity) return fn;
+    return (x, y) => mesh(x, y) ?? Math.max(lo, fallback(x, y));
+  };
   return fn;
 }
 
