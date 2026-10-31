@@ -114,6 +114,11 @@ class Cars(unittest.TestCase):
         self.assertAlmostEqual(z, 0, delta=0.5)
         self.assertAlmostEqual(r, 15, delta=0.5)
 
+    def test_roundabouts_network_core(self):
+        # A networkCore build has no 1ROAD_RB meshes; dump_surface.ts lists the rings instead.
+        rbs = rep.roundabouts({"meshes": [{"name": "1ROAD_J000", "p": [0, 0, 0]}], "roundabouts": [{"x": 5, "z": -7, "r": 12}]})
+        self.assertEqual(rbs, [(5.0, -7.0, 12.0)])
+
     def test_contacts_dedup(self):
         pairs = [p for _, p in rep.contacts(self.rows)]
         # Both cars log each touch (one event); 1-2 again at 64 s is a new touch (4 s after the last).

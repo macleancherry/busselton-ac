@@ -451,6 +451,7 @@ export function planJunctionCore(input: JunctionCoreInput): JunctionCore {
         id: pj.id, node: pj.j.node, kind: pj.j.kind, onRoute: pj.j.onRoute, at: pj.j.centre.map((v) => Math.round(v * 100) / 100),
         legs: pj.j.legs.map((l) => ({ kind: l.kind, edge: l.edge, trim: Math.round(l.trim * 100) / 100, hw: Math.round(l.hw * 100) / 100, inbound: l.inbound })),
         planar: pj.field.planar, spans: pj.j.spans, triangles: pj.surface.tris.length / 3,
+        ...(pj.j.ring ? { ring: { c: pj.j.ring.c.map((v) => Math.round(v * 100) / 100), rIn: Math.round(pj.j.ring.rIn * 100) / 100, rOut: Math.round(pj.j.ring.rOut * 100) / 100 } } : {}),
       })),
       failures: failures.map((f) => ({ ...f, at: f.at.map((v) => Math.round(v * 10) / 10) })),
     }),
