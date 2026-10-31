@@ -55,8 +55,10 @@ function surface(key: string, friction: number, damping: number, wav: string, di
  * The physics surfaces, keyed by mesh name (`1ROAD_...`, `1STREET_...`). Traffic turns on CSP's
  * extended physics and track scripting; `streetsValid` makes leaving the route onto a street keep
  * the lap; `at` gives CSP's WeatherFX the track's position; `unsealed` adds the gravel surfaces.
+ * `trackScripts` turns on extended physics and track scripting alone (no tools or new modes), which
+ * the automatic test's track script (autotest.lua) needs to hand the car to the AI in any build.
  */
-export function surfacesIni(traffic = false, streetsValid = false, at?: LngLat, unsealed = false): string {
+export function surfacesIni(traffic = false, streetsValid = false, at?: LngLat, unsealed = false, trackScripts = false): string {
   const list: Surface[] = [
     surface("ROAD", 0.99, 0, "", 0, 1, 0, 0, 0, 0),
     surface("STREET", 0.99, 0, "", 0, streetsValid ? 1 : 0, 0, 0, 0, 0),
@@ -64,11 +66,12 @@ export function surfacesIni(traffic = false, streetsValid = false, at?: LngLat, 
     surface("KERB", 0.92, 0, "", 0, 1, 0, 0, 0.3, 0.2),
     surface("WALL", 0.3, 0, "", 0, 0, 0, 0, 0, 0),
   ];
-  if (traffic) list[0].WAV_PITCH = "extended-0";
+  if (traffic || trackScripts) list[0].WAV_PITCH = "extended-0";
   if (unsealed) list.push(...unsealedSurfaces(streetsValid));
   let text = list.map((s, i) => [`[SURFACE_${i}]`, ...Object.entries(s).map(([k, v]) => `${k}=${v}`)].join("\n")).join("\n\n") + "\n";
   const section = (lines: string[]) => { text += "\n" + lines.map((l) => l + "\n").join(""); };
   if (traffic) section(["[_SCRIPTING_PHYSICS]", "ALLOW_TOOLS=1", "ALLOW_TRACK_SCRIPTS=1", "ALLOW_NEW_MODE_SCRIPTS=1"]);
+  else if (trackScripts) section(["[_SCRIPTING_PHYSICS]", "ALLOW_TRACK_SCRIPTS=1"]);
   if (at) {
     const zone = timezoneOf(at);
     section(["[WEATHER_FX]", `LATITUDE=${at[1].toFixed(5)}`, `LONGITUDE=${at[0].toFixed(5)}`, ...(zone ? [`TIMEZONE_ID=${zone}`] : [])]);

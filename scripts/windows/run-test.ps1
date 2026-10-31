@@ -13,8 +13,8 @@
   .\scripts\windows\run-test.ps1 busselton -Layout town -Rain
 
 .NOTES
-  Runs code from the repo, never edits it (see CLAUDE.md). Needs the build to have traffic on (the
-  test script ships with it) and CSP installed.
+  Runs code from the repo, never edits it (see CLAUDE.md). Needs CSP installed. Every build ships the
+  test script (extension\autotest.lua), traffic or not.
   The track is a slug (its zip is <share>\builds\<slug>.zip) or a zip's path. Results go to
   <share>\tests\<date>_<time>-<slug>-<layout> and a zip of it (share.ps1 has the share's layout).
   The car is an everyday hatch (the Abarth 500 that comes with AC) driven at AI level 75, so the
@@ -91,7 +91,8 @@ if (-not $AcPath) {
   $AcPath = Join-Path $steam "steamapps\common\assettocorsa"
 }
 if (-not (Test-Path (Join-Path $AcPath "content\tracks\$slug\extension\autotest.lua"))) {
-  throw "This build has no test script (extension\autotest.lua). Builds need traffic on."
+  # Every build since 31 Oct 2026 ships it, traffic or not.
+  throw "This build has no test script (extension\autotest.lua): it's older than the test script. Rebuild it on the laptop."
 }
 $layouts = @(Get-ChildItem (Join-Path $AcPath "content\tracks\$slug") -Filter "models_*.ini" -ErrorAction SilentlyContinue | ForEach-Object { $_.BaseName.Substring(7) })
 if (-not $Layout -and $layouts.Count) { $Layout = $layouts[0] }

@@ -415,14 +415,14 @@ Before layout wrapping, keyed `${slug}/…`, in this insertion order (zip order 
 | `<slug>.kn5` | always | the model |
 | `ai/fast_lane.ai` | always | `writeFastLaneAi(aiPoints)` |
 | `data/ai_hints.ini` | always | `aiHintsIni(aiPoints, d => speedAt(round(d/total·(nS−1))), !closed)` |
-| `data/surfaces.ini` | always | `surfacesIni(traffic, streetsValid ?? !!area, centre, anyUnsealed)` |
+| `data/surfaces.ini` | always | `surfacesIni(traffic, streetsValid ?? !!area, centre, anyUnsealed, true)` (track scripts always allowed, for the autotest) |
 | `data/traffic.json` | traffic | trafficText |
 | `data/map.ini` | always | `trackMap(outline2d).ini` |
 | challenge files | per challengeFiles | `challengeFiles(slug, opts, {plan, dummies: trackObjects, nearest, toLocal, ground: terrainH, pois, routeNames, junctions, streets, parked: final car points, buildings: shown rings})` |
 | cruise files | per cruiseFiles | `cruiseFiles(slug, name, {ai, closed, landmarks, streets, route: {pts, names, limits per sample}, sideLimit: builtUp ? 50 : undefined, limitAt})` |
 | `data/cameras_1.ini` | always | `camerasIni(placeCameras(plan, opts, terrainH, in a kept building))` |
-| `data/autotest.ini` | traffic | `[AUTOTEST]\nCLOSED=<bool>\nLIMITS=<100 values>\n` + `SHOTS=<list>\n` when shots |
-| `extension/autotest.lua` | traffic | the lua with `__CLOSED__` and `__LIMITS__` (", "-joined) replaced |
+| `data/autotest.ini` | always | `[AUTOTEST]\nCLOSED=<bool>\nLIMITS=<100 values>\n` + `SHOTS=<list>\n` when shots |
+| `extension/autotest.lua` | always | the lua with `__CLOSED__` and `__LIMITS__` (", "-joined) replaced |
 | CSP tree files | cspTrees | S19.5 |
 | `extension/jetty_train.lua` | precinct has a train && jettyTrain !== false | `jettyTrainLua(script, train)` |
 | `baked_shadow_params.ini` | always | `bakedShadowParams()` |
@@ -436,7 +436,7 @@ Before layout wrapping, keyed `${slug}/…`, in this insertion order (zip order 
 
 - `LIMITS` = `speedAt(min(nS−1, round((k + .5)/100·(nS−1))))` for k = 0..99 (computed twice; B14).
 - `outline2d = simplify(sample positions, 0.5)` with y flipped; loops repeat the first point.
-- ext_config options: lights = utilities.lights + carPark.lights + jettyLamps.lights; `autotest: traffic`, `flags: wavingFlags !== false`, `jettyTrain`, `drySummer` (centre lng in (112, 119.5) and lat in (−36, −30)), `sea: ocean.length > 0`, `photoSea`, `trees: "trees/trees.txt"` when CSP tree files exist, `vines: !!farm.vineMetres`, `hollows` (rainHollows: `trackHollows(model.root)`, after parked groups are in), `sounds`, `soundMode`, `builtUp` (more than half the samples town ≥ 1), `radiusKm` (max distance of outline points from the first / 2000; B18), `pure` (pureTuning !== false: `{at: centre, albedo: groundAlbedo(photos), coast, photoLight}`).
+- ext_config options: lights = utilities.lights + carPark.lights + jettyLamps.lights; `autotest: true`, `flags: wavingFlags !== false`, `jettyTrain`, `drySummer` (centre lng in (112, 119.5) and lat in (−36, −30)), `sea: ocean.length > 0`, `photoSea`, `trees: "trees/trees.txt"` when CSP tree files exist, `vines: !!farm.vineMetres`, `hollows` (rainHollows: `trackHollows(model.root)`, after parked groups are in), `sounds`, `soundMode`, `builtUp` (more than half the samples town ≥ 1), `radiusKm` (max distance of outline points from the first / 2000; B18), `pure` (pureTuning !== false: `{at: centre, albedo: groundAlbedo(photos), coast, photoLight}`).
 - Sounds (`soundMode(opts.trackSounds)` truthy): `surfEmitters(ocean, so)` + `birdEmitters(treesKept with bush = variant is tuart, so)`, `so = {roads: [route, ...streets], ground: terrainH}`.
 - README mapillary flag: `seen` non-empty, or any look without a spec.
 - Credits are read **at this point** (`imageryCredit` / `elevationCredit` may be functions; they're only right after fetching).

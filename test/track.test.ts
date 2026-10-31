@@ -58,10 +58,12 @@ describe("buildTrack (synthetic terrain)", async () => {
       "test_hairpin/ai/fast_lane.ai",
       "test_hairpin/baked_shadow_params.ini",
       "test_hairpin/data/ai_hints.ini",
+      "test_hairpin/data/autotest.ini",
       "test_hairpin/data/cameras_1.ini",
       "test_hairpin/data/challenges.ini",
       "test_hairpin/data/map.ini",
       "test_hairpin/data/surfaces.ini",
+      "test_hairpin/extension/autotest.lua",
       "test_hairpin/extension/drift_zones.ini",
       "test_hairpin/extension/ext_config.ini",
       "test_hairpin/extension/street_map.ini",
@@ -81,6 +83,18 @@ describe("buildTrack (synthetic terrain)", async () => {
     expect(result.plan.closed).toBe(false);
     expect(ch).toMatch(/\[TT_START\]\nNAME = Start\nPOSITION = [-\d.]+, [-\d.]+, [-\d.]+\nDIRECTION = [-\d.]+, [-\d.]+\nWIDTH = \d/);
     expect(ch).toContain("[TT_FINISH]");
+  });
+
+  it("ships the automatic test's track script without traffic, with the physics it needs", () => {
+    const dec = (k: string) => new TextDecoder().decode(result.files[`test_hairpin/${k}`]);
+    const lua = dec("extension/autotest.lua");
+    expect(lua).toContain("local CLOSED = false");
+    expect(lua).not.toContain("__LIMITS__");
+    expect(dec("extension/ext_config.ini")).toContain("[SCRIPT_0]\r\nSCRIPT = autotest.lua");
+    const surf = dec("data/surfaces.ini");
+    expect(surf).toContain("WAV_PITCH=extended-0");
+    expect(surf).toContain("\n[_SCRIPTING_PHYSICS]\nALLOW_TRACK_SCRIPTS=1\n");
+    expect(surf).not.toContain("ALLOW_NEW_MODE_SCRIPTS");
   });
 
   it("writes a CSP config with Grass FX that keeps grass off the road", () => {

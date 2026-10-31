@@ -1952,7 +1952,7 @@ export async function buildTrack(
       const last = aiPoints[aiPoints.length - 1], total = last.distance + last.length;
       return speedAt(Math.min(nS - 1, Math.max(0, Math.round((d / total) * (nS - 1)))));
     }, !plan.closed)),
-    [`${slug}/data/surfaces.ini`]: enc.encode(surfacesIni(opts.traffic, opts.streetsValid ?? !!area, centre, anyUnsealed)),
+    [`${slug}/data/surfaces.ini`]: enc.encode(surfacesIni(opts.traffic, opts.streetsValid ?? !!area, centre, anyUnsealed, true)),
     ...(opts.traffic ? { [`${slug}/data/traffic.json`]: enc.encode(trafficText) } : {}),
     [`${slug}/data/map.ini`]: enc.encode(map.ini),
     // Busselton fork: checkpoints, time trial and drift spots for the Busselton Challenges app (challengeFiles.ts).
@@ -1970,20 +1970,20 @@ export async function buildTrack(
     }),
     [`${slug}/data/cameras_1.ini`]: enc.encode(camerasIni(cameras)),
     // The automatic test run (scripts/windows/run-test.ps1): a track script that only wakes up for a
-    // driver named "Busselton Test". Track scripts need the scripting physics traffic turns on.
-    // The same values as a data file, per layout (autotest.lua reads it when it's there).
-    ...(opts.traffic ? { [`${slug}/data/autotest.ini`]: enc.encode(`[AUTOTEST]\nCLOSED=${plan.closed}\nLIMITS=${Array.from({ length: 100 }, (_, k) => speedAt(Math.min(nS - 1, Math.round(((k + 0.5) / 100) * (nS - 1))))).join(",")}\n${landmarkLine}`) } : {}),
-    ...(opts.traffic ? { [`${slug}/extension/autotest.lua`]: enc.encode(autotestLua
+    // driver named "Busselton Test", in every build (surfaces.ini allows track scripts' physics even
+    // without traffic). The same values as a data file, per layout (autotest.lua reads it when it's there).
+    [`${slug}/data/autotest.ini`]: enc.encode(`[AUTOTEST]\nCLOSED=${plan.closed}\nLIMITS=${Array.from({ length: 100 }, (_, k) => speedAt(Math.min(nS - 1, Math.round(((k + 0.5) / 100) * (nS - 1))))).join(",")}\n${landmarkLine}`),
+    [`${slug}/extension/autotest.lua`]: enc.encode(autotestLua
       .replace("__CLOSED__", plan.closed ? "true" : "false")
       // The speed limit at each 1% of the lap, km/h, so the test drives at the limit.
-      .replace("__LIMITS__", Array.from({ length: 100 }, (_, k) => speedAt(Math.min(nS - 1, Math.round(((k + 0.5) / 100) * (nS - 1))))).join(", "))) } : {}),
+      .replace("__LIMITS__", Array.from({ length: 100 }, (_, k) => speedAt(Math.min(nS - 1, Math.round(((k + 0.5) / 100) * (nS - 1))))).join(", "))),
     ...cspTreeFiles,
     // Busselton fork: the jetty train's track script (jettyTrain.ts), which runs it along the jetty.
     ...(jettyPrecinct.train && opts.jettyTrain !== false ? { [`${slug}/extension/jetty_train.lua`]: enc.encode(jettyTrainLua(jettyTrainScript, jettyPrecinct.train)) } : {}),
     // Busselton fork: the AO bakery's settings, next to the models_*.ini it bakes (bake-vao.ps1).
     [`${slug}/baked_shadow_params.ini`]: enc.encode(bakedShadowParams()),
     [`${slug}/extension/ext_config.ini`]: enc.encode(extConfig([...utilities.lights, ...carPark.lights, ...jettyLamps.lights], {
-      autotest: opts.traffic,
+      autotest: true,
       // Busselton fork: flags in the wind (landmark layers laid over later need it too), the jetty train.
       flags: opts.wavingFlags !== false,
       jettyTrain: !!jettyPrecinct.train && opts.jettyTrain !== false,

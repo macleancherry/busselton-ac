@@ -100,6 +100,7 @@ Fork changes, applied in this order:
   ALLOW_NEW_MODE_SCRIPTS=1
   ```
   each line ending `\n`. (CSP's traffic planner tool needs ALLOW_TOOLS; track scripts such as `autotest.lua` need ALLOW_TRACK_SCRIPTS; CSP's Traffic mode, a new-mode script, needs ALLOW_NEW_MODE_SCRIPTS. A track with these won't pass an online server's checksum against the Kunos-style original, but LAN between machines with the same build is fine.) Tests match this exact four-line block.
+- **Fork, `trackScripts` without traffic** (every build passes it, for the automatic test's `autotest.lua`): `WAV_PITCH=extended-0` on ROAD as with traffic, then a blank line and `[_SCRIPTING_PHYSICS]` with only `ALLOW_TRACK_SCRIPTS=1`. With traffic too, only the traffic block above.
 - **Fork, when `at` is given:** then a blank line and
   ```
   [WEATHER_FX]

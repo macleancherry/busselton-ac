@@ -23,4 +23,16 @@ describe("CSP Traffic mode readiness", () => {
     expect(off).not.toContain("_SCRIPTING_PHYSICS");
     expect(off).not.toContain("ALLOW_NEW_MODE_SCRIPTS");
   });
+
+  it("allows only track scripts (the automatic test) without traffic", () => {
+    const t = surfacesIni(false, false, undefined, false, true);
+    expect(t).toContain("WAV_PITCH=extended-0");
+    expect(t).toMatch(/\n\[_SCRIPTING_PHYSICS\]\nALLOW_TRACK_SCRIPTS=1\n/);
+    expect(t).not.toContain("ALLOW_TOOLS");
+    expect(t).not.toContain("ALLOW_NEW_MODE_SCRIPTS");
+    // With traffic too, one section, the full one.
+    const both = surfacesIni(true, false, undefined, false, true);
+    expect(both.match(/_SCRIPTING_PHYSICS/g)).toHaveLength(1);
+    expect(both).toContain("ALLOW_NEW_MODE_SCRIPTS=1");
+  });
 });
