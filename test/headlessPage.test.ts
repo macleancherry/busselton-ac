@@ -5,7 +5,6 @@ import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { LocalProjection, type LngLat } from "../src/core/geo";
 import type { Vec3 } from "../src/core/mesh";
-import { DEFAULT_SPONSORS } from "../src/core/sponsors";
 import { headlessOptions, lengthText, routeSummary } from "../src/ui/headlessOptions";
 import { chooseTexture, liftEye, MAX_POLAR, placeEye, startView, toAc } from "../src/ui/previewMath";
 import { ReplyState, restoreOutcome, stageText, transferBuffers, type WorkerOutcome } from "../src/ui/workerProtocol";
@@ -38,8 +37,6 @@ const TABLE = {
   kerbs: true,
   detailShaders: true,
   roadSurface: "auto",
-  raceDress: false,
-  sponsors: DEFAULT_SPONSORS,
   noTrace: [],
 };
 

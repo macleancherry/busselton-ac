@@ -80,29 +80,6 @@ function smoothOffsets(plan: RoadPlan): number[] {
 }
 
 /**
- * Which way the route goes round each roundabout: the angle swept round its centre while on it,
- * radians, positive anticlockwise (seen from above). Australia's rings go clockwise (negative).
- */
-export function ringSweeps(plan: RoadPlan): number[] {
-  return plan.roundabouts.map((rb) => {
-    let sweep = 0, prev: number | null = null;
-    for (const p of plan.samples) {
-      const dx = p.pos[0] - rb.c[0], dy = p.pos[1] - rb.c[1];
-      if (Math.hypot(dx, dy) > outerRadius(rb) + 1) { prev = null; continue; }
-      const a = Math.atan2(dy, dx);
-      if (prev !== null) {
-        let d = a - prev;
-        while (d > Math.PI) d -= 2 * Math.PI;
-        while (d < -Math.PI) d += 2 * Math.PI;
-        sweep += d;
-      }
-      prev = a;
-    }
-    return sweep;
-  });
-}
-
-/**
  * Where an AI line point sits across the drivable surface under it: how far it is from the
  * surface's edge on its left and on its right, metres, along the ground perpendicular to its
  * direction (AC coordinates: X east, Y up, Z south; `height(x, y)` takes local x east, y north and

@@ -24,8 +24,8 @@ import { PHYSICS_GROUND, topSurface, type SurfaceFn } from "./sceneGround";
 export const SURFACE_GROUPS = new Set(["ROAD", "SIDESTREETS", "VERGE", "KERBS", "ROUNDABOUTS", "TERRAIN", "CARPARKS"]);
 /** Groups of placed things, checked whole. */
 export const PLACED_GROUPS = new Set(["FURNITURE", "TRAFFICLIGHTS", "TREES", "BUILDINGS", "SHOPS", "FENCES", "FARM", "FARMROAD", "PATHS", "LOTS", "RAILS", "GUIDEPOSTS", "PARKED_CARS"]);
-/** Placed things inside ground groups: the island trees and the car park islands' shrubs. */
-export const PLACED_MESHES = /^(ISLANDTREES|ISLAND_SHRUBS)/;
+/** Placed things inside ground groups: the roundabout island trees. */
+export const PLACED_MESHES = /^ISLANDTREES/;
 /**
  * Never judged: paint, a path's edge skirt and rail beams (they go down into the ground on purpose:
  * buried ends, skirts), and invisible walls.

@@ -3,7 +3,6 @@
 
 import type { LngLat } from "../core/geo";
 import type { BuildOptions } from "../core/options";
-import { DEFAULT_SPONSORS } from "../core/sponsors";
 
 /** Imagery choice (route option "imagery") to zoom and terrain texture size. */
 const IMAGERY_LEVELS: Record<string, { imageryZoom: number; textureSize: number }> = {
@@ -44,8 +43,6 @@ export function headlessOptions(name: string, options: Record<string, unknown> =
     kerbs: true,
     detailShaders: true,
     roadSurface: "auto",
-    raceDress: false,
-    sponsors: DEFAULT_SPONSORS,
     noTrace: [],
   };
   for (const [key, value] of Object.entries(options)) {

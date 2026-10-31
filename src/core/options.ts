@@ -12,7 +12,6 @@
 
 import type { ChallengesOption } from "./challenges";
 import type { LngLat } from "./geo";
-import { DEFAULT_SPONSORS } from "./sponsors";
 
 export interface BuildOptions {
   // Road shape and size
@@ -129,9 +128,6 @@ export interface BuildOptions {
   trackSounds?: boolean | "lua" | "fmod";
   /** On unless false. */
   poleClear?: boolean;
-  raceDress: boolean;
-  /** Comma-separated sponsor names. */
-  sponsors: string;
 
   // Road surface, markings, kerbs, parking
   roadSurface: "auto" | "asphalt" | "chipseal" | "photo";
@@ -142,8 +138,6 @@ export interface BuildOptions {
   /** On unless false (only with kerbside bays). */
   laneBayClear?: boolean;
   carParks: boolean;
-  /** Experimental car park islands. */
-  carParkIslands: boolean;
   parkedCars: boolean;
   /** On unless false. */
   parkedBays?: boolean;
@@ -225,14 +219,11 @@ const defaults: RequiredFields<BuildOptions> = {
   sideStreets: true,
   guardRails: true,
   guidePosts: true,
-  raceDress: false,
-  sponsors: DEFAULT_SPONSORS,
 
   roadSurface: "auto",
   markings: true,
   kerbs: true,
   carParks: true,
-  carParkIslands: false,
   parkedCars: true,
 
   traffic: false,

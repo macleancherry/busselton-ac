@@ -62,7 +62,7 @@ const SOAKING_MATERIALS = [...ROAD_PHOTO, "concrete", "path_?"];
 const ROUGH_MATERIALS = [GROUND_PHOTO[0], BACKDROP, ...GROUND_PHOTO.slice(1), "trees", "barrier_hedge", "hedge", "mulch", "shrubs", "frontwall_?", "jetty_?"];
 const SMOOTH_MATERIALS = ["window", "glass", "signart", "steel", "lamp"];
 const LINES_MATERIALS = ["paint", "paint_yellow"];
-const THIN_TWO_SIDED = ["barrier_colorbond", "barrier_paling", "signart", "trees", "fence_?", "shrubs", "race_fence", "race_crowd", "race_spectators"];
+const THIN_TWO_SIDED = ["barrier_colorbond", "barrier_paling", "signart", "trees", "fence_?", "shrubs"];
 const BOUNCE_MATERIALS = ["road_?", "concrete", "path_?", "terrain_?", "paint?"];
 const DRY_SEASON_MATERIALS = [...GROUND_PHOTO, BACKDROP];
 

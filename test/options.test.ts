@@ -2,7 +2,6 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { DEFAULT_OPTIONS, OPTIONAL_OPTION_KEYS, unknownOptionKeys, withDefaults, type BuildOptions } from "../src/core/options";
-import { DEFAULT_SPONSORS } from "../src/core/sponsors";
 // @ts-expect-error plain .mjs module without types
 import { PRESETS } from "../scripts/headless/presets.mjs";
 
@@ -10,7 +9,6 @@ const REQUIRED: Record<string, unknown> = {
   banking: true,
   buildingRadius: 250,
   buildings: true,
-  carParkIslands: false,
   carParks: true,
   chunkSize: 200,
   corridor: 90,
@@ -36,14 +34,12 @@ const REQUIRED: Record<string, unknown> = {
   parkedCars: true,
   paths: true,
   pitCount: 8,
-  raceDress: false,
   roadSurface: "auto",
   runOff: 150,
   runUp: 60,
   sea: true,
   sideStreets: true,
   spacing: 2,
-  sponsors: DEFAULT_SPONSORS,
   streetSigns: true,
   terrainBlend: 20,
   terrainLod: true,
@@ -72,8 +68,8 @@ const OPTIONAL = [
 const KNOWN = new Set([...Object.keys(REQUIRED), ...OPTIONAL]);
 
 describe("build options", () => {
-  it("has exactly the required fields (groundDetail deleted)", () => {
-    expect(Object.keys(REQUIRED)).toHaveLength(53);
+  it("has exactly the required fields (groundDetail, raceDress, sponsors and carParkIslands deleted)", () => {
+    expect(Object.keys(REQUIRED)).toHaveLength(50);
     expect(Object.keys(DEFAULT_OPTIONS).sort()).toEqual(Object.keys(REQUIRED).sort());
   });
 

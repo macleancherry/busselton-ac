@@ -4,7 +4,7 @@ Status: spec for a clean rewrite ("Owning the code", ROADMAP.md). Write both new
 
 ## What the modules are for
 
-Every sign with text or a printed face (street name blades, shop and attraction signs, traffic signs, timing-gate signs, race-day banners and flags) is drawn into **one texture atlas**, `signart.png`, used by one alpha-tested material `signart`. Drawing text needs fonts, which the build core (`src/core`, no DOM, runs in Node tests) doesn't have. So the work is split:
+Every sign with text or a printed face (street name blades, shop and attraction signs, traffic signs, timing-gate signs) is drawn into **one texture atlas**, `signart.png`, used by one alpha-tested material `signart`. Drawing text needs fonts, which the build core (`src/core`, no DOM, runs in Node tests) doesn't have. So the work is split:
 
 - **`src/core/art.ts`** (core, no DOM): the types, and a list that collects what the build needs, deduplicated by key. The core never draws.
 - **`src/services/art.ts`** (browser worker): `renderArt`, which draws every requested piece with a 2D canvas (`OffscreenCanvas`), packs them into one atlas, and returns the PNG plus where each piece landed (UVs) and its shape (aspect).
@@ -18,9 +18,9 @@ The build passes `renderArt` to `buildTrack` as `DataSources.renderArt`; without
 ```ts
 type ArtKind =
   | "street" | "poi" | "tourist" | "speed" | "stop" | "giveway" | "warning" | "chevron"
-  | "noentry" | "keepleft" | "bus" | "info" | "back" | "gate" | "banner" | "feather" | "lights" | "flag";
+  | "noentry" | "keepleft" | "bus" | "back" | "gate";
 
-interface ArtRequest { key: string; kind: ArtKind; text?: string; colour?: string; ink?: string; }
+interface ArtRequest { key: string; kind: ArtKind; text?: string; colour?: string; }
 interface ArtCell { u0: number; v0: number; u1: number; v1: number; aspect: number; }
 interface ArtAtlas { data: Uint8Array; cells: Record<string, ArtCell>; }
 type ArtRenderer = (items: ArtRequest[]) => Promise<ArtAtlas>;
@@ -34,7 +34,7 @@ const streetKey: (name: string) => string;   // `street:${name}`
 ```
 
 Field meanings:
-- `ArtRequest.key`: unique identity of a piece of art; pieces of geometry refer to art by this key. `text` is what the art shows (or a hint, per kind below). `colour`: CSS colour, the panel colour for `poi` and the background for `banner`/`feather`. `ink`: CSS colour of sponsor lettering (`banner`, `feather`).
+- `ArtRequest.key`: unique identity of a piece of art; pieces of geometry refer to art by this key. `text` is what the art shows (or a hint, per kind below). `colour`: CSS colour, the panel colour for `poi`.
 - `ArtCell`: UVs of the piece in the atlas, **v = 0 at the top of the image**, `u0 < u1`, `v0 < v1`, all in [0, 1]; `aspect` = width / height of the artwork in pixels (geometry uses `width = height_m * aspect`, so aspect sets the real proportions of every sign in game).
 - `ArtAtlas.data`: a PNG file with alpha (sign shapes are cut out; the material is alpha-tested).
 
@@ -46,10 +46,9 @@ Field meanings:
 
 ### Callers (grep, 31 Oct 2026)
 
-- `src/core/track.ts`: `new ArtList()` (line ~1486), passes it to furniture/race dressing; if `sources.renderArt` and `art.list.length > 0`, calls `renderArt(art.list)`, pushes texture `signart.png` = `atlas.data` and material `signart` (ksPerPixelAT, alpha-tested; ambient 0.55, diffuse 0.45, specular 0.15, exp 20), then `buildPieces(pieces, atlas)`. `DataSources.renderArt?: ArtRenderer`.
+- `src/core/track.ts`: `new ArtList()` (line ~1486), passes it to furniture; if `sources.renderArt` and `art.list.length > 0`, calls `renderArt(art.list)`, pushes texture `signart.png` = `atlas.data` and material `signart` (ksPerPixelAT, alpha-tested; ambient 0.55, diffuse 0.45, specular 0.15, exp 20), then `buildPieces(pieces, atlas)`. `DataSources.renderArt?: ArtRenderer`.
 - `src/core/furniture.ts`: imports `streetKey`, `ArtAtlas`, `ArtCell`, `ArtList`. `buildPieces` looks up `atlas.cells[key]`; a piece whose key has no cell is skipped. Faces that aren't two-sided use cell `"back"` mirrored on the back (u1 and u0 swapped).
-- `src/core/raceDress.ts`: `ArtList` (banners, feathers, flags, gate, lights).
-- Tests: `streets`, `kangaroo`, `raceDress`, `poleSpot`, `flags`, `furniture`, `gates`, `sceneGround` (fake renderers returning 4 x 4 PNGs and full-atlas cells).
+- Tests: `streets`, `kangaroo`, `poleSpot`, `flags`, `furniture`, `gates`, `sceneGround` (fake renderers returning 4 x 4 PNGs and full-atlas cells).
 
 ### What gets requested today (key, kind, text)
 
@@ -66,12 +65,7 @@ Field meanings:
 | | `warning:<slug>` | warning | slug from `/^warning--(.+?)(?:--\|$)/` of the Mapillary value, e.g. `curve-left` |
 | furniture kangaroo signs (country) | `warning:kangaroo` | warning | "kangaroo" |
 | furniture `gateSigns` (point to point) | `gate-START`, `gate-FINISH` | gate | "START" / "FINISH" |
-| raceDress (only with `raceDress`, off by default) | `banner:<k>`, `feather:<k>` | banner, feather | sponsor name, colour = bg, ink |
-| raceDress | `flag:yellow`, `flag:chequered` | flag | "yellow" / "chequered" |
-| raceDress | `lights` | lights | |
-| raceDress | `gate-FINISH` | gate | "FINISH" |
 
-**Never requested:** kind `info`; flag texts `green` and `blue`. See "Could be deleted".
 
 ## Service module: `src/services/art.ts`
 
@@ -112,17 +106,12 @@ The old function also attached the canvas to the result (`{ ...atlas, canvas }`)
 | noentry | 160 x 160 |
 | keepleft | 128 x 160 |
 | bus | 128 x 160 |
-| info | 160 x 160 |
 | gate | 480 x 150 |
-| banner | 768 x 128 (6:1) |
-| feather | 128 x 448 |
-| lights | 320 x 128 |
-| flag | 160 x 112 |
 | back | 32 x 32 |
 
 ### Text rules
 
-- Sign font stack: `"Arial Narrow", "Helvetica Neue", Arial, sans-serif`. Weight `bold` (sponsors: `italic bold`).
+- Sign font stack: `"Arial Narrow", "Helvetica Neue", Arial, sans-serif`. Weight `bold`.
 - **Fit rule** (used wherever text must fit a width): start at the kind's base size; while the measured width exceeds the max width and size > 10, reduce by 2 px. Text is centred (`textAlign = center`, `textBaseline = middle`) unless stated. If it still doesn't fit at the floor, the old code let it overflow; better: at the floor, squeeze horizontally (scale x by maxW / width) so nothing spills outside its box.
 - **Two-line rule** (poi, tourist): if the text is longer than 16 characters and contains a space, split it at the space nearest the middle (`length / 2`; on a tie, the first such space) into two lines. Base size 52 for two lines, 64 for one; max width `w - 48`; both lines use the smaller of the two fitted sizes; line centres at `y + h/2 + (i - (n-1)/2) * size * 1.05`.
 
@@ -149,12 +138,7 @@ Australian-style signs (AS 1742). Pixel-identical output isn't required; keep ea
 - **noentry**: red `#c8102e` disc (radius 76) with a white horizontal bar (104 x 24) across the middle.
 - **keepleft**: white rounded plate (radius 10) with a 4 px black outline; a thick (14 px) black arrow pointing down-left (Australian R2-3).
 - **bus**: white box with a blue `#1c3f94` panel 6 px in; "BUS" (bold 40) above "STOP" (bold 30) in white.
-- **info**: blue `#1c3f94` rounded square (radius 12); `text` (or "i" when empty) in white bold, base 60, fitted to 140.
 - **gate**: text "START": green `#1d7a3a` panel; "FINISH": black `#111` panel with a chequered band (20 px squares, two rows, `#111` / `#f4f4f4`) along the top and the bottom. Both: a 6 px `#f4f4f4` border 3 px in; the word in `#f4f4f4` bold, base 90 (START) or 60 (FINISH), fitted to 420, centred.
-- **banner**: band of `colour` (default `#c8102e`); two 4 px stripes of `ink` (default `#fff`) near the top and bottom edges; the name UPPERCASED in `ink`, italic bold, base 88, fitted to `w - 60`.
-- **feather**: feather-flag shape in `colour` (default `#c8102e`): straight pole edge on the left, rounded top, the free edge tapering down the right; the name UPPERCASED in `ink` (default `#fff`), italic bold, base 56, fitted to `h - 120`, running up the flag (rotated -90°).
-- **lights**: black `#111` rounded panel (radius 10); two rows of five lamps (radius 22, 60 px apart): top row lit red `#e0261b`, bottom row dark `#3a0d0b`.
-- **flag**: `"chequered"`: 8 x 6 squares `#111` / `#f4f4f4` filling the box; otherwise a flat flag: yellow `#f4d000` (also the fallback for unknown text), green `#1f9a3a`, blue `#1f4fbf` (blue gets a yellow diagonal stripe).
 - **back**: flat grey `#9a9ea3` square.
 
 ## Bugs and weak spots (fix, don't copy)
@@ -165,12 +149,6 @@ Australian-style signs (AS 1742). Pixel-identical output isn't required; keep ea
 4. **Draw state leaks between boxes**: wrap each box's drawing in save/restore (the old code did) so line width, caps and fonts never carry over.
 5. **No height limit.** Hundreds of distinct street names could make a very tall atlas. Not seen in practice (Busselton is well under 2048 x 2048). Add a guard: if `H > 8192`, throw a clear error naming the count of requests (a silent giant texture is worse).
 6. Duplicate drawing code: `src/services/signs.ts` (fork) draws shop signs with its own canvas text code. The rewrite may share a small text helper with it, but don't merge the modules.
-
-## Could be deleted (lead checks with Mac)
-
-- **Kind `info`**: nothing requests it. Delete from `ArtKind` and the renderer.
-- **Flag texts `green` and `blue`**: race dressing only asks for `yellow` and `chequered`. Keep the chequered and yellow flags; drop green and blue.
-- **Race-day kinds** (`banner`, `feather`, `lights`, `flag`, and the FINISH gate's use by raceDress): only used when `raceDress` is on, which is off by default (ROADMAP: race dressing is "rewrite or delete, Mac's call"). If race dressing goes, these kinds go with it. `gate` stays (point-to-point timing gates use it).
 
 ## Tests to write
 
@@ -192,11 +170,12 @@ Browser (headless Chromium via the existing Playwright setup, or skip when unava
 11. `renderArt` on one request of every kind returns a PNG that decodes (`decodeOwnPng` if it's our encoder, or the browser's) to W x H; every cell's centre pixel is opaque; pixels in the gap between two boxes are transparent; the corners of the stop, giveway, warning and noentry boxes are transparent.
 12. Same items twice give identical bytes (with the bundled font).
 
-Integration (existing tests keep passing): furniture, gates, kangaroo, streets, raceDress, poleSpot, flags, sceneGround.
+Integration (existing tests keep passing): furniture, gates, kangaroo, streets, poleSpot, flags, sceneGround.
 
 ## Rewrite notes (31 Oct 2026)
 
 - `src/services/art.ts` exports the pure `layoutArt(items, measure)`, `boxSize`, `splitLines`, `fitSize` (Node-tested) and `renderArt`, which encodes with our own `encodePng`.
 - Fixed: squeeze at the size floor, save/restore and a clip per box, no returned canvas, 8192 px height guard. A key requested twice gets the later request's cell (cells are assigned in request order).
 - Kept for now (Mac's call): kind `info`, green and blue flags, race-day kinds.
+- Later on 31 Oct: race dressing deleted, and with it the kinds `banner`, `feather`, `lights` and `flag` (green and blue flags included) and the `ink` field; kind `info` (never requested) deleted.
 - **Later:** text is still measured and drawn with the system font stack (Bugs 1). Bundle an open-licence condensed font and load it with `FontFace` so blade widths are the same on every machine; then add browser tests 11 and 12.

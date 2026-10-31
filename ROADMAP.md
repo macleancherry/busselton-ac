@@ -188,7 +188,7 @@ How: a behaviour spec in `docs/specs/` first, then a fresh module from the spec 
 | Sat 7 Nov | 16% | In flight now: markings, paint lines, kerbs; clearance, extend, trace, spurs; mesh, materials, photo surface, fences (about 3,100 lines) |
 | Sat 14 Nov | 11% | The road core takes over: road, roundabout, side streets, road mesh, network/geom, AI line, options; imagery art, raster, Mapillary |
 | Sat 21 Nov | 6% | Services: tiles, OSM, vector tiles, pipeline; the UI deleted (main, session, style), leaving a minimal headless page and the preview renderer |
-| Sat 28 Nov | 1% | track.ts (split into stages as it's rewritten) and its tests; race dressing (rewrite or delete, Mac's call) |
+| Sat 28 Nov | 1% | track.ts (split into stages as it's rewritten) and its tests (race dressing already deleted, 31 Oct) |
 | Sat 5 Dec | 0% | Leftovers: config files, small tests; settle the provenance rule for lines a spec forces (API signatures, ini text AC needs) |
 
 Each week: lead merges the week's rewrites only after a full Busselton build passes every check (and a country route for anything touching ground or roads), then reruns provenance and updates this table.

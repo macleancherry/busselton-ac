@@ -24,7 +24,7 @@ describe("kangaroo signs", async () => {
       };
     },
   };
-  await buildTrack(route, { name: "Roos", imageryZoom: 0, corridor: 40, horizon: 0, trees: 0, buildings: false, raceDress: false }, sources);
+  await buildTrack(route, { name: "Roos", imageryZoom: 0, corridor: 40, horizon: 0, trees: 0, buildings: false }, sources);
 
   it("puts kangaroo warning signs on a country road", () => {
     expect(asked.some((r) => r.key === "warning:kangaroo" && r.kind === "warning")).toBe(true);

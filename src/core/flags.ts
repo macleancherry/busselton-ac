@@ -20,17 +20,10 @@
 //    as they move. For AC without CSP the back is a second mesh (FLAGBACK_...), which CSP hides.
 //  - enough vertices along and across for the wave to bend (a grid, not one quad).
 //
-// Used by the landmark specs' feather flags (specHouse.ts) and the race-day marshal flags
-// (raceDress.ts pieces); the sponsor feather flags in race dressing are drawn in the sign atlas,
-// which can't hold a flag's u = 0 edge, so they stay still.
+// Used by the landmark specs' feather flags (specHouse.ts) and landmark layers (landmarkLayer.ts).
 
-import type { Kn5Material, Kn5MeshNode } from "./kn5";
-import type { Piece } from "./furniture";
+import type { Kn5Material } from "./kn5";
 import { MeshBuilder, type Vec3 } from "./mesh";
-import { encodePng } from "./png";
-import { fill } from "./textures";
-
-type Vec2 = [number, number];
 
 export const FLAG_SHADER = "ksFlags";
 /** Prefix of the vanilla back faces, which CSP hides (it draws the front from both sides). */
@@ -94,83 +87,6 @@ export function cloth(front: MeshBuilder, back: MeshBuilder | null, at: (u: numb
 
 const sub = (a: Vec3, b: Vec3): Vec3 => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 const cross = (a: Vec3, b: Vec3): Vec3 => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
-
-/* ---------------- race-day marshal flags ---------------- */
-
-/** The marshal flags, one per row of the race flag texture. */
-export const RACE_FLAGS = ["yellow", "green", "blue", "chequered"] as const;
-export type RaceFlag = (typeof RACE_FLAGS)[number];
-export const RACE_FLAG_MATERIAL = "flag_race";
-
-/** One row per flag, each the full width (so every flag's u = 0 edge is the texture's left edge). */
-export function raceFlagTexture(): Uint8Array {
-  const w = 64, rowH = 32, h = rowH * RACE_FLAGS.length;
-  return encodePng(fill(w, h, (x, y) => {
-    const flag = RACE_FLAGS[Math.floor(y / rowH)], yy = y % rowH;
-    if (flag === "yellow") return [250, 204, 20];
-    if (flag === "green") return [24, 150, 60];
-    if (flag === "blue") return [30, 80, 200];
-    return ((x >> 3) + (yy >> 3)) % 2 ? [20, 20, 22] : [240, 240, 236];
-  }), w, h, { alpha: false });
-}
-
-export interface FlagSpot {
-  /** Bottom of the pole edge (local metres), and the way the cloth flies off it (unit, horizontal). */
-  pole: Vec2;
-  dir: Vec2;
-  z0: number;
-  height: number;
-  width: number;
-  flag: RaceFlag;
-}
-
-/** Marshal flags are 3:2. */
-const RACE_FLAG_ASPECT = 1.5;
-
-/**
- * Takes the marshal flags ("flag:<colour>" sign faces) out of a list of pieces, to be built as
- * cloth here instead of printed faces. The pole is the thin post nearest each flag (raceDress puts
- * one next to every flag); the cloth hangs off the end of the face nearest it.
- */
-export function takeRaceFlags(pieces: Piece[]): { rest: Piece[]; flags: FlagSpot[] } {
-  const rest: Piece[] = [], flags: FlagSpot[] = [];
-  const posts = pieces.filter((p): p is Extract<Piece, { kind: "box" }> => p.kind === "box" && p.length <= 0.2 && p.depth <= 0.2);
-  for (const p of pieces) {
-    const m = p.kind === "face" ? /^flag:(\w+)$/.exec(p.art) : null;
-    const flag = m && (RACE_FLAGS as readonly string[]).includes(m[1]) ? (m[1] as RaceFlag) : null;
-    if (!flag || p.kind !== "face") {
-      rest.push(p);
-      continue;
-    }
-    const width = p.height * RACE_FLAG_ASPECT;
-    const r: Vec2 = [-p.normal[1], p.normal[0]];
-    const ends: Vec2[] = [[p.at[0] - r[0] * width / 2, p.at[1] - r[1] * width / 2], [p.at[0] + r[0] * width / 2, p.at[1] + r[1] * width / 2]];
-    let post: Vec2 | null = null, bd = width;
-    for (const b of posts) {
-      const d = Math.hypot(b.at[0] - p.at[0], b.at[1] - p.at[1]);
-      if (d < bd) [bd, post] = [d, b.at];
-    }
-    const near = post ? (Math.hypot(ends[0][0] - post[0], ends[0][1] - post[1]) <= Math.hypot(ends[1][0] - post[0], ends[1][1] - post[1]) ? 0 : 1) : 0;
-    const pole = ends[near], free = ends[1 - near];
-    const l = Math.hypot(free[0] - pole[0], free[1] - pole[1]) || 1;
-    flags.push({ pole, dir: [(free[0] - pole[0]) / l, (free[1] - pole[1]) / l], z0: p.z0, height: p.height, width, flag });
-  }
-  return { rest, flags };
-}
-
-/** The marshal flags as cloth: one mesh for the fronts, one for the vanilla backs. */
-export function buildRaceFlags(flags: FlagSpot[]): Kn5MeshNode[] {
-  if (!flags.length) return [];
-  const front = new MeshBuilder(), back = new MeshBuilder();
-  front.normals = []; back.normals = [];
-  const rows = RACE_FLAGS.length, inset = 0.02;
-  for (const f of flags) {
-    const row = RACE_FLAGS.indexOf(f.flag);
-    cloth(front, back, (u, v) => [f.pole[0] + f.dir[0] * f.width * u, f.pole[1] + f.dir[1] * f.width * u, f.z0 + f.height * (1 - v)], 6, 3,
-      (u, v) => [u, (row + inset + v * (1 - 2 * inset)) / rows]);
-  }
-  return [front.toKn5("RACE_FLAGS", RACE_FLAG_MATERIAL), back.toKn5(`${FLAG_BACK_PREFIX}RACE_FLAGS`, RACE_FLAG_MATERIAL, { castShadows: false })];
-}
 
 /* ---------------- CSP config ---------------- */
 

@@ -21,8 +21,8 @@ const sources: DataSources = {
 };
 
 describe("timing gate signs", async () => {
-  // The plain signs; with race-day dressing a gantry replaces them (raceDress.test.ts).
-  const result = await buildTrack(route, { name: "Gates", imageryZoom: 0, corridor: 40, horizon: 0, trees: 0, buildings: false, raceDress: false }, sources);
+  // The plain START and FINISH signs.
+  const result = await buildTrack(route, { name: "Gates", imageryZoom: 0, corridor: 40, horizon: 0, trees: 0, buildings: false }, sources);
   const plan = result.plan;
   const art = (() => {
     const pts: [number, number, number][] = [];

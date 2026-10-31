@@ -1,17 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
-import { buildRaceFlags, cloth, FLAG_BACK_PREFIX, flagCspLines, flagMaterial, raceFlagTexture, takeRaceFlags } from "../src/core/flags";
+import { cloth, FLAG_BACK_PREFIX, flagCspLines, flagMaterial } from "../src/core/flags";
 import { extConfig } from "../src/core/cspConfig";
 import { buildSpecHouse, type HouseSpec } from "../src/core/specHouse";
 import { landmarkModel } from "../src/core/landmarkLayer";
 import { MeshBuilder } from "../src/core/mesh";
-import { decodeOwnPng } from "../src/core/png";
-import type { Piece } from "../src/core/furniture";
-import { ArtList } from "../src/core/art";
-import { withDefaults } from "../src/core/options";
-import { raceDressing } from "../src/core/raceDress";
-import { planRoad } from "../src/core/road";
-import type { Vec2 } from "../src/core/geo";
 
 describe("waving flags", () => {
   it("makes a cloth grid with u = 0 along the pole, and a back facing the other way", () => {
@@ -64,49 +57,6 @@ describe("waving flags", () => {
     // The landmark layer gives it the flag shader.
     const lm = landmarkModel(spec, { centre: [0, 0], toRoad: [0, -1], z: 0 }, "f", () => 0);
     expect(lm.model.materials.find((m) => m.name === flag.name)?.shader).toBe("ksFlags");
-  });
-
-  it("takes the marshal flags out of the race pieces and hangs each off its pole", () => {
-    const pieces: Piece[] = [
-      { kind: "box", at: [10, 0], along: [1, 0], length: 0.06, depth: 0.06, z0: 0, z1: 3, material: "steel" },
-      // The flag 0.42 m east of its pole, facing south.
-      { kind: "face", at: [10.42, 0], normal: [0, -1], z0: 2.35, height: 0.6, art: "flag:yellow", twoSided: true },
-      { kind: "face", at: [50, 0], normal: [0, -1], z0: 2, height: 1, art: "banner:x" },
-    ];
-    const { rest, flags } = takeRaceFlags(pieces);
-    expect(rest.map((p) => p.kind === "face" ? p.art : p.kind)).toEqual(["box", "banner:x"]);
-    expect(flags).toHaveLength(1);
-    const f = flags[0];
-    expect(f.flag).toBe("yellow");
-    expect(f.pole[0]).toBeCloseTo(10.42 - 0.45);
-    expect(f.dir[0]).toBeCloseTo(1);
-    const nodes = buildRaceFlags(flags);
-    expect(nodes.map((n) => n.name)).toEqual(["RACE_FLAGS", `${FLAG_BACK_PREFIX}RACE_FLAGS`]);
-    expect(nodes.every((n) => n.material === "flag_race")).toBe(true);
-    // The yellow row is the texture's top quarter; u spans the whole width.
-    const uv = nodes[0].uvs;
-    for (let i = 0; i < uv.length; i += 2) expect(uv[i + 1]).toBeLessThan(0.25);
-    expect(Math.min(...uv.filter((_, i) => i % 2 === 0))).toBe(0);
-    expect(Math.max(...uv.filter((_, i) => i % 2 === 0))).toBe(1);
-    const tex = decodeOwnPng(raceFlagTexture());
-    expect([tex.rgba[0], tex.rgba[1], tex.rgba[2]]).toEqual([250, 204, 20]);
-  });
-
-  it("finds every marshal flag in real race dressing, each hanging off its own pole", () => {
-    // 300 m east, a tight left of radius 25 m, 200 m north (as raceDress.test.ts).
-    const pts: Vec2[] = [];
-    for (let x = 0; x <= 300; x += 5) pts.push([x, 0]);
-    for (let a = 5; a <= 90; a += 5) pts.push([300 + 25 * Math.sin((a * Math.PI) / 180), 25 - 25 * Math.cos((a * Math.PI) / 180)]);
-    for (let y = 30; y <= 225; y += 5) pts.push([325, y]);
-    const opts = withDefaults({ widthOverride: 8 });
-    const race = raceDressing(planRoad(pts, opts), opts, new ArtList(), { ground: () => 0, blocked: () => false }, "Repco");
-    const printed = race.pieces.filter((p) => p.kind === "face" && p.art.startsWith("flag:")).length;
-    const { rest, flags } = takeRaceFlags(race.pieces);
-    expect(printed).toBeGreaterThanOrEqual(2); // a yellow at the corner, the chequered at the line
-    expect(flags).toHaveLength(printed);
-    expect(rest.some((p) => p.kind === "face" && p.art.startsWith("flag:"))).toBe(false);
-    const posts = race.pieces.filter((p): p is Extract<Piece, { kind: "box" }> => p.kind === "box" && p.material === "steel" && p.length < 0.1);
-    for (const f of flags) expect(Math.min(...posts.map((b) => Math.hypot(b.at[0] - f.pole[0], b.at[1] - f.pole[1])))).toBeLessThan(0.06);
   });
 
   it("writes CSP's dynamic flags, double-sided cloth and hidden vanilla backs into ext_config", () => {

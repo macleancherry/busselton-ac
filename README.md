@@ -17,7 +17,7 @@ v0.7: driven in game, tested by an AI driver on the workstation. To install, dra
 
 ## What this fork adds
 
-On top of upstream's builder (roads, roundabouts, building types, ground detail, signs, race-day dressing):
+On top of upstream's builder (roads, roundabouts, building types, ground detail, signs):
 
 - **WA data.** Landgate's free Locate mosaic for imagery anywhere in WA, and Geoscience Australia's 5 m bare-earth DEM from Busselton to Ludlow, shipped in `public/dem/wa`.
 - **Headless builds.** `scripts/headless/build-track.mjs` builds a track from a route file: it runs a bare build page (`index.html`, `src/ui/main.ts`) in headless Chromium, so every download goes through its cache. It retries map data and stops if any is still missing ("MISSING DATA"), so a build never comes out quietly different. Downloads are cached in `out/cache` (14 days; `NO_CACHE=1` for fresh data), so a rebuild takes about half the time.
@@ -128,7 +128,6 @@ If you change the box, update `STATE_DEMS.wa.box` in `src/services/tiles.ts` to 
 | Aerial photos (fallback) | Esri World Imagery | Personal use |
 | Roads, buildings, names | OpenStreetMap, via OpenFreeMap | ODbL |
 | Signs and poles (optional) | Mapillary | CC BY-SA, don't publish tracks with it |
-| Ground detail textures | ambientCG | CC0 |
 
 Fine for racing with your mates. Don't publish or sell tracks built with the aerial photos or Mapillary data. For a version you could share publicly, set imagery to Off and leave Mapillary out.
 

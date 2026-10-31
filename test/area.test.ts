@@ -16,7 +16,7 @@ const sources: DataSources = {
   widthAt: () => 7,
   streets: { lines: [far], names: [] },
 };
-const opts = { name: "Area", imageryZoom: 0, corridor: 30, horizon: 0, trees: 0, buildings: false, raceDress: false, origin: ll(300, 0) as [number, number] };
+const opts = { name: "Area", imageryZoom: 0, corridor: 30, horizon: 0, trees: 0, buildings: false, origin: ll(300, 0) as [number, number] };
 const surfaces = (r: Awaited<ReturnType<typeof buildTrack>>) =>
   new TextDecoder().decode(Object.entries(r.files).find(([k]) => k.endsWith("data/surfaces.ini"))![1] as Uint8Array);
 

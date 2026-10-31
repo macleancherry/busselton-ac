@@ -298,7 +298,7 @@ CAST_SHADOWS = 0
 ```
 The mesh rules, from track makers ([assettocorsamods.net, "Dynamic Flags issue"](https://assettocorsamods.net/goto/post?id=20936)): UVs inside 0..1 with the texture's left edge (u = 0) on the pole, which CSP holds still; one single-sided cloth drawn from both sides (two coincident sides cut through each other as they wave); a grid of vertices, not one quad. Without CSP, `ksFlags` waves the whole cloth gently by its `frequency` and `distortion` (0.3 and 0.05, the values in CSP's pfc_chayka config), and a back-face copy (`FLAGBACK_...`) shows the other side; CSP hides it. **[to check in game]**: the flags move with the wind, the pole edge stays put, nothing flickers.
 
-Which flags: the landmark specs' feather flags and the race-day marshal flags (yellow, chequered). The race sponsor feathers are printed in the sign atlas, which can't give each flag its own u = 0 edge, so they stay still.
+Which flags: the landmark specs' feather flags.
 
 ### Animated objects and track scripts (the jetty train)
 Two ways CSP moves things on a track ([Animated objects wiki page](https://github.com/ac-custom-shaders-patch/acc-extension-config/wiki/Tracks-%E2%80%93-Animated-objects)): `[ANIMATED_...]` sections (windmills, weather vanes, clocks, keyframes, and a "train" that follows a hidden strip mesh, `MOVE_ALONG`, with `TICK_TOCK_MODE` for out and back), or a Lua track script (`[SCRIPT_...] SCRIPT = file.lua`, API in `ac_track_script.lua` of [acc-lua-sdk](https://github.com/ac-custom-shaders-patch/acc-lua-sdk)). Either way only nodes move: "meshes can't be moved unless they are within their own nodes" (wiki), so each car is a node of its own in our kn5.

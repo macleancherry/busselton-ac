@@ -12,7 +12,7 @@ const ll = (x: number, y: number): LngLat => [lng0 + x / mx, lat0 + y / 111_320]
 const route: LngLat[] = [];
 for (let x = 0; x <= 800; x += 20) route.push(ll(x, 0));
 const sources: DataSources = { dem: async (proj, bounds, z) => DemGrid.fromFunction(proj, z, bounds, () => 10).sample, widthAt: () => 7 };
-const opts = { name: "Layouts", imageryZoom: 0, corridor: 30, horizon: 0, trees: 0, buildings: false, raceDress: false, origin: ll(400, 0) as [number, number] };
+const opts = { name: "Layouts", imageryZoom: 0, corridor: 30, horizon: 0, trees: 0, buildings: false, origin: ll(400, 0) as [number, number] };
 
 const dummyNames = (kn5: Uint8Array) => readKn5(kn5).root.children.map((c) => c.name);
 

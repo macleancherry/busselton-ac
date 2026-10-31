@@ -1,5 +1,0 @@
-Made from ambientCG textures (https://ambientcg.com), CC0 1.0 Universal:
-  lawn.jpg  <- Grass004
-  rough.jpg  <- Grass007
-  sand.jpg  <- Ground054
-  litter.jpg  <- Ground106

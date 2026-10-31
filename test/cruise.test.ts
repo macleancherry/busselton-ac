@@ -125,7 +125,7 @@ describe("cruise files in a build", () => {
     const route: [number, number][] = [];
     for (let x = 0; x <= 600; x += 20) route.push(ll(x, 0));
     const r = await buildTrack(route, {
-      name: "Cruise", imageryZoom: 0, corridor: 30, horizon: 0, trees: 0, buildings: false, raceDress: false, origin: ll(300, 0), layout: "town",
+      name: "Cruise", imageryZoom: 0, corridor: 30, horizon: 0, trees: 0, buildings: false, origin: ll(300, 0), layout: "town",
     }, {
       dem: async (proj, bounds, z) => DemGrid.fromFunction(proj, z, bounds, () => 10).sample, widthAt: () => 7,
       landmarks: [{ name: "The Goose", at: ll(200, 20) }, { name: "Far Hall", at: ll(300, 500) }],

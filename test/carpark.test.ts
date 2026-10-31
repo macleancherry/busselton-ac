@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildIslands, findIslands, paintOutCars } from "../src/core/carpark";
+import { paintOutCars } from "../src/core/carpark";
 
 const size = 200; // 0.2 m a pixel: a 40 m square
 const mpp = 0.2;
@@ -24,22 +24,6 @@ describe("car parks", () => {
     for (let k = 0; k < 3; k++) expect(Math.abs(c[k] - asphalt[k])).toBeLessThan(12);
     expect(at(rgba, 20.05, 7)[0]).toBeGreaterThan(200);
     expect(at(rgba, 29, 27)[1]).toBe(110);
-  });
-
-  it("finds the island and raises it behind a kerb, facing up", () => {
-    const chunk = { key: "t0", minX: 0, minY: -40, maxX: 40, maxY: 0 };
-    const rings = findIslands(lot, size, chunk);
-    expect(rings).toHaveLength(1);
-    const xs = rings[0].map((p) => p[0]), ys = rings[0].map((p) => p[1]);
-    expect(Math.min(...xs)).toBeCloseTo(25, 0);
-    expect(Math.max(...xs)).toBeCloseTo(33, 0);
-    // Image y runs down from the chunk's top edge (maxY = 0): 25..29 m down is y -25..-29.
-    expect(Math.max(...ys)).toBeCloseTo(-25, 0);
-    const [top, kerb] = buildIslands(rings, () => 2, chunk, "terrain_t0", "t0");
-    expect(top.name).toMatch(/^1GRASS_/);
-    expect(kerb.name).toMatch(/^1KERB_/);
-    for (let i = 1; i < top.positions.length; i += 3) expect(top.positions[i]).toBeCloseTo(2.15, 3);
-    for (let i = 1; i < top.normals.length; i += 3) expect(top.normals[i]).toBeGreaterThan(0.99);
   });
 
   it("paints out a car between bay lines and keeps the lines", () => {
