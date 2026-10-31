@@ -67,7 +67,8 @@ function bitsOf(m: Extract<Kn5Node, { kind: "mesh" }>): Bit[] {
 export function checkPoles(root: Kn5Node, opts: { ground?: SurfaceFn; road?: SurfaceFn; tolerance?: number } = {}): PoleReport {
   const tol = opts.tolerance ?? 0.05;
   const groups = groupsOf(root);
-  const surfaceNodes = [...groups].filter(([k]) => SURFACE_GROUPS.has(k)).flatMap(([, v]) => v);
+  // The network core's junctions (JUNCTIONS) are drivable streets too.
+  const surfaceNodes = [...groups].filter(([k]) => SURFACE_GROUPS.has(k) || k === "JUNCTIONS").flatMap(([, v]) => v);
   const ground = opts.ground ?? topSurface(surfaceNodes, PHYSICS_GROUND);
   const road = opts.road ?? topSurface(surfaceNodes, ROAD_SURFACE);
   // Which mesh a road hit came from, for the report: the names of the drivable meshes, tried in turn.
