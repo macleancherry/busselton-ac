@@ -50,6 +50,8 @@ export interface BuildOptions {
   area?: LngLat[] | LngLat[][];
   /** Layout id when the route has layouts; absent = a single-layout track. */
   layout?: string;
+  /** Other layouts' drives along OSM ways, built into the world too (layoutDrives.ts; build-track.mjs sets it); absent = none. */
+  layoutDrives?: { coords: LngLat[]; raceway?: boolean }[];
   /** The whole route is gravel; absent = OSM decides. */
   unsealed?: boolean;
   /** Gravel on unsealed roads; on unless false. */
@@ -174,7 +176,7 @@ export interface BuildOptions {
 
 /** Fields with no default (their readers decide what absent means). */
 export const OPTIONAL_OPTION_KEYS: readonly (keyof BuildOptions)[] = Object.freeze([
-  "origin", "area", "layout", "unsealed", "gravelRoads", "networkCore",
+  "origin", "area", "layout", "layoutDrives", "unsealed", "gravelRoads", "networkCore",
   "terrainLodFarTol", "photoSea", "zones", "pureTuning", "rainHollows",
   "cspTrees", "houseStyle", "clears", "armco", "farmland", "farmRoadsides", "wavingFlags",
   "jettyTrain", "swimJetties", "jettyKinds", "trackSounds", "poleClear", "raceway", "treeMips", "shoreClear",

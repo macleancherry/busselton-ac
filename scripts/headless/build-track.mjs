@@ -223,6 +223,23 @@ try {
   if (routed.error) throw new Error(routed.error);
   if (routed.note) log(routed.note);
   log("route", routed.lengthText, routed.kind);
+  // Busselton fork: layouts along OSM ways (a circuit's short layout) are built into the world too,
+  // where they leave the main drive (src/core/layoutDrives.ts).
+  const wayLayouts = (spec.layouts ?? []).filter((l) => l.ways && l.pins?.length >= 2);
+  if (wayLayouts.length) {
+    const drives = await page.evaluate(async (ls) => {
+      const { routeWays } = await import("/src/services/osm.ts");
+      const out = [];
+      for (const l of ls) {
+        const through = l.loop ? [...l.pins, l.pins[0]] : l.pins;
+        const r = await routeWays(l.ways, through, { reverse: !!l.reverse, loop: !!l.loop });
+        out.push({ coords: r.coords, ...(r.raceway ? { raceway: true } : {}) });
+      }
+      return out;
+    }, wayLayouts);
+    buildOpts = { ...(buildOpts ?? {}), layoutDrives: [...(buildOpts?.layoutDrives ?? []), ...drives] };
+    log("layout drives built into the world:", wayLayouts.map((l) => l.id).join(", "));
+  }
 
   const buildInput = { name: spec.name, options: { ...(spec.options ?? {}) }, build: buildOpts, token, houseLooks, landmarks };
   let last = "", changed = Date.now();

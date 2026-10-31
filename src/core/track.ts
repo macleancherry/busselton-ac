@@ -16,6 +16,7 @@ import { buildGroynes, buildPiers, pierDeckZ, SEA_LEVEL, buildSea, jettyLights, 
 import { BeachLook, buildPhotoSea, buildShoreFoam, foamMaterial, foamTexture, sandDetailTexture, seaSurfaceMaterial, seaSurfaceTexture, withSandDetail, type SeaPhoto } from "./photoSea";
 import { aiHintsIni, buildAiLine } from "./aiLine";
 import { Area, areaRings, makeCover } from "./area";
+import { layoutDriveLines, layoutDriveRings } from "./layoutDrives";
 import { buildJettyPrecinct, JETTY_MATERIALS, type JettyFeatures } from "./jetty";
 import { buildSwimJetties, classifyPiers, deckZByKind, type PierKind } from "./swimJetty";
 import jettyTrainScript from "./lua/jetty_train.lua?raw";
@@ -469,7 +470,9 @@ export async function buildTrack(
   const cleared = (x: number, y: number, trees = false) => clears.some((k) => (!trees || k.trees) && Math.hypot(x - k.c[0], y - k.c[1]) < k.r);
   // Busselton fork: an area build also builds everything inside this polygon (see area.ts).
   const rings = areaRings(opts.area);
-  const area = rings.length ? new Area(rings.map((r) => r.map((p) => proj.toLocal(p)))) : null;
+  // Busselton fork: and round every layout's drive, so a layout leaving the main drive has its road (layoutDrives.ts).
+  const driveAreas = layoutDriveRings(opts.layoutDrives, (p) => proj.toLocal(p), opts.corridor);
+  const area = rings.length || driveAreas.length ? new Area([...rings.map((r) => r.map((p) => proj.toLocal(p))), ...driveAreas]) : null;
   const areaPts: Vec2[] = area ? area.ring : [];
   const widthFn = sources.widthAt ? (x: number, y: number) => sources.widthAt!(proj.toLngLat([x, y])) : undefined;
   const hinted = resolveRoundabouts(sources.roundabouts ?? [], sources.osm?.roundaboutRings ?? [], proj);
@@ -783,7 +786,7 @@ export async function buildTrack(
 
   // Other streets: planned now so buildings, trees and verges can keep clear.
   const streetPlan = planSideStreets(
-    opts.sideStreets ? sources.streets?.lines ?? [] : [], sources.streets?.names ?? [], plan, index, opts, proj, area,
+    [...(opts.sideStreets ? (sources.streets?.lines ?? []).filter((l) => l.cls !== "raceway") : []), ...layoutDriveLines(opts.layoutDrives)], sources.streets?.names ?? [], plan, index, opts, proj, area,
   );
   // Busselton fork: networkCore phase 2 (network/phase2.ts): in an area build the streets and their
   // mouths come from the network's graph (divided roads as one road with a median) instead.

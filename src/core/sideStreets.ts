@@ -41,6 +41,8 @@ export interface StreetName {
 /** Asphalt width by road class for streets that aren't the route. */
 const SIDE_WIDTH: Record<string, number> = {
   primary: 7.5, secondary: 7, tertiary: 6.5, minor: 6, service: 4, track: 3.5,
+  // Busselton fork: a layout's raceway where it leaves the main drive (layoutDrives.ts).
+  raceway: 10,
 };
 
 export interface Junction {
