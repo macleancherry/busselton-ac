@@ -10,6 +10,7 @@ import { type Vec2 } from "./geo";
 import { type Kn5MeshNode } from "./kn5";
 import { type MeshBuilder, type Vec3 } from "./mesh";
 import { box, ChunkedMesh } from "./meshKit";
+import { frontEdgeIndex, frontSpans } from "./frontDoor";
 import { type BuildOptions } from "./options";
 import { placeSeed, rng } from "./random";
 import { type SegmentIndex } from "./road";
@@ -447,22 +448,10 @@ export function buildBuildings(list: Building[], ground: HeightFn, sinkFor?: (b:
   return out.nodes();
 }
 
-/** The ring edge that is the building's front wall, if it has one. */
+/** The ring edge that is the building's front wall, if it has one (frontDoor.ts, shared with lots.ts). */
 function frontWall(ctx: Ctx): Wall | null {
-  const f = ctx.b.front;
-  if (!f) return null;
-  const d = (p: Vec2, q: Vec2) => Math.hypot(p[0] - q[0], p[1] - q[1]);
-  const fm = lerp2(f[0], f[1], 0.5);
-  let best: Wall | null = null, bestD = Infinity;
-  for (const w of ctx.walls) {
-    const ends = Math.min(d(w.a, f[0]) + d(w.b, f[1]), d(w.a, f[1]) + d(w.b, f[0]));
-    const score = ends < 1 ? ends : 1 + d(lerp2(w.a, w.b, 0.5), fm);
-    if (score < bestD) {
-      bestD = score;
-      best = w;
-    }
-  }
-  return best && best.len > 0 ? best : null;
+  const k = frontEdgeIndex(ctx.ring, ctx.b.front);
+  return k < 0 ? null : ctx.walls[k];
 }
 
 /** A point on a wall: `s` along it, `t` out from it. */
@@ -505,14 +494,13 @@ function doors(ctx: Ctx, w: Wall): Span[] {
     return spans;
   }
   if (b.type !== "house" && b.type !== "townhouse") return spans;
-  if (b.garage && w.len >= 6) {
-    put("GARAGE", 0.6, 3.2, 2.1);
-    const d0 = Math.max(3.6, Math.min(4.2, w.len - 1.4 - 0.85));
-    if (d0 + 0.85 <= w.len - 0.3) put("DOOR", d0, d0 + 0.85, 2.05);
-    if (spans[0]?.s0 === 0.6) driveway(ctx, w);
-  } else {
-    const mid = w.len / 3;
-    put("DOOR", mid - 0.425, mid + 0.425, 2.05);
+  const at = frontSpans(w.len, b.garage);
+  if (at.garage) {
+    put("GARAGE", at.garage[0], at.garage[1], 2.1);
+    if (at.door) put("DOOR", at.door[0], at.door[1], 2.05);
+    if (spans[0]?.s0 === at.garage[0]) driveway(ctx, w);
+  } else if (at.door) {
+    put("DOOR", at.door[0], at.door[1], 2.05);
   }
   return spans;
 }
