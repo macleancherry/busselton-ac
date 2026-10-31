@@ -91,6 +91,10 @@ export interface JunctionCore {
   /** Room from a point to the asphalt of the nearest street not in `skip` (not counting parts inside junctions). */
   streetClear: (p: P2, skip: Set<number>) => number;
   nearestJunction: (p: P2, max: number) => { pj: PlannedJunction; d: number } | null;
+  /** The built junction surface's height at a point inside a junction taken, else null. */
+  surfaceAt: (p: P2) => number | null;
+  /** A taken roundabout's surface height on its circulating lane's centre (the mean round the ring), by build ring index. */
+  ringHeight: (k: number) => number | null;
   build: (o: JunctionDressInput) => JunctionMeshes;
   json: () => unknown;
 }
@@ -441,6 +445,16 @@ export function planJunctionCore(input: JunctionCoreInput): JunctionCore {
       return h;
     },
     sdfAt: (p) => nearestJunction(p, 4)?.d ?? Infinity,
+    surfaceAt: (p) => { const nj = nearestJunction(p, 0.01); return nj ? nj.pj.field.h(p) : null; },
+    ringHeight: (k) => {
+      const pj = kept.find((q) => q.j.ring?.k === k);
+      if (!pj) return null;
+      const { c, rIn, rOut } = pj.j.ring!;
+      const r = (rIn + rOut) / 2;
+      let t = 0;
+      for (let a = 0; a < 16; a++) t += pj.field.h([c[0] + r * Math.cos((a / 16) * 2 * Math.PI), c[1] + r * Math.sin((a / 16) * 2 * Math.PI)]);
+      return t / 16;
+    },
     streetClear,
     nearestJunction,
     noRamp,

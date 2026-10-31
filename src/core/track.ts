@@ -1988,7 +1988,7 @@ export async function buildTrack(
         const ws = run.map((i) => plan.samples[i].width).sort((a, b) => a - b);
         const speeds = run.map(speedAt).sort((a, b) => a - b);
         routeRoads.push({
-          pts: run.map((i) => plan.samples[i].pos), h: run.map((i) => plan.samples[i].h),
+          pts: run.map((i) => plan.samples[i].pos), h: run.map((i) => net?.surfaceAt(plan.samples[i].pos) ?? plan.samples[i].h),
           width: ws[ws.length >> 1], speed: speeds[speeds.length >> 1],
           ...(opts.trafficZones ? { speeds: run.map(speedAt) } : {}),
         });
@@ -2011,12 +2011,15 @@ export async function buildTrack(
     }
     // Busselton fork: no traffic up car park aisles and driveways (with OSM's own streets in an area
     // build there are dozens, and their junctions merged into one 170 m polygon at the foreshore).
+    // Busselton fork: networkCore's lanes on its surfaces: the junction fields, and the ground the streets are eased to.
+    const netGround = net?.streetGround((x, y) => terrainAt(x, y).h);
+    const laneZ = (p: Vec2, fallback: number) => net?.surfaceAt(p) ?? fallback;
     const streetRoads: (TrafficRoad & { cls?: string })[] = streetPlan.streets.filter((st) => !/^(parking_aisle|driveway|drive-through)$/.test(st.service ?? "")).map((st) => ({
-      pts: st.pts, h: st.pts.map(([x, y]) => terrainAt(x, y).h + 0.1), width: st.width, speed: 50,
+      pts: st.pts, h: st.pts.map(([x, y]) => laneZ([x, y], (netGround ? netGround(x, y) : terrainAt(x, y).h) + 0.1)), width: st.width, speed: 50,
       ...(st.oneway ? { oneway: st.oneway } : {}),
       cls: st.cls,
     }));
-    const rbs = plan.roundabouts.map((rb) => ({ c: rb.c, h: rb.hc, rIn: innerRadius(rb), rOut: outerRadius(rb) }));
+    const rbs = plan.roundabouts.map((rb, k) => ({ c: rb.c, h: net?.ringHeight(k) ?? rb.hc, rIn: innerRadius(rb), rOut: outerRadius(rb) }));
     // Busselton fork: density zones, from the road class (the route's per point) and the town centre (trafficZones.ts).
     const roads: TrafficRoad[] = opts.trafficZones
       ? zoneRoads([...routeRoads.map((r) => ({ ...r, cls: r.pts.map((p) => sources.roadClassAt?.(proj.toLngLat(p))) })), ...streetRoads],
@@ -2117,6 +2120,8 @@ export async function buildTrack(
   await progress("Writing track files");
   const kn5 = writeKn5(model);
   const aiPoints = buildAiLine(plan, { keepLeft: opts.aiKeepLeft, bays: bayBoxes.filter((b) => b.street === 0) });
+  // Busselton fork: networkCore: through a junction the AI line sits on the junction's surface.
+  if (net) for (const p of aiPoints) { const z = net.surfaceAt([p.position[0], -p.position[2]]); if (z !== null) p.position = [p.position[0], z, p.position[2]]; }
   // Busselton fork: the automatic test photographs each landmark it passes.
   const landmarkList = [
     ...(sources.landmarks ?? []),
