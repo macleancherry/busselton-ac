@@ -19,22 +19,26 @@ const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
 export async function traceRoute(ctx: BuildContext, rp: RoutePlan, progress: Progress): Promise<Traced> {
   const { opts, sources, proj } = ctx;
   const plan = rp.plan;
-  let raster: RasterSampler | null = null;
-  let trace: TraceResult | null = null;
-  if (!(opts.traceRoads && sources.raster)) return { raster, trace };
+  const none: Traced = { raster: null, trace: null };
+  if (!opts.traceRoads || !sources.raster) return none;
   await progress("Tracing the road in the aerial photos");
-  const reach = Math.max(16, 1.5 * Math.max(...plan.samples.map((s) => s.width)));
-  raster = await sources.raster(proj, plan.samples.map((s) => s.pos), reach);
-  if (!raster) return { raster, trace };
-  trace = traceRoad(plan, raster, undefined, opts.traceGuard);
+  const samples = plan.samples;
+  const widest = samples.reduce((w, s) => Math.max(w, s.width), -Infinity);
+  const photo = await sources.raster(proj, samples.map((s) => s.pos), Math.max(16, 1.5 * widest));
+  if (!photo) return none;
+  const result = traceRoad(plan, photo, undefined, opts.traceGuard);
+  // Fade the trace out near each noTrace place: nothing inside it, all of it 30 m past its edge.
   const zones = opts.noTrace.map((z) => ({ c: ctx.toLocal(z.at), r: z.radius }));
   if (zones.length) {
-    plan.samples.forEach((s, i) => {
-      const keep = Math.min(1, ...zones.map((z) => clamp01((Math.hypot(s.pos[0] - z.c[0], s.pos[1] - z.c[1]) - z.r) / 30)));
-      trace!.offset[i] *= keep;
-      trace!.conf[i] *= keep;
-    });
+    for (let i = 0; i < samples.length; i++) {
+      const [x, y] = samples[i].pos;
+      const keep = Math.min(1, ...zones.map((z) => clamp01((Math.hypot(x - z.c[0], y - z.c[1]) - z.r) / 30)));
+      result.offset[i] *= keep;
+      result.conf[i] *= keep;
+    }
   }
-  applyTrace(plan, trace, (i) => !!inRoundabout(plan, plan.samples[i].pos[0], plan.samples[i].pos[1], 0.5));
-  return { raster, trace };
+  // (applyTrace may move the samples while it asks: read them live.)
+  const onRing = (i: number) => inRoundabout(plan, plan.samples[i].pos[0], plan.samples[i].pos[1], 0.5) !== undefined;
+  applyTrace(plan, result, onRing);
+  return { raster: photo, trace: result };
 }

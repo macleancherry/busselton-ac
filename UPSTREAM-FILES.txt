@@ -8,7 +8,7 @@ src/core/road.ts
 src/core/roadMesh.ts
 src/core/roundabout.ts
 src/core/sideStreets.ts
-src/core/track.ts
+src/core/stages/types.ts
 src/ui/main.ts
 src/ui/preview.ts
 test/gates.test.ts
