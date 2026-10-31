@@ -128,3 +128,13 @@ Use small strips (`W = 32`, `H = 256`) for speed, with synthetic samplers like `
 ### Golden fixtures
 
 Before deleting the old module, capture its output for two fixed inputs (the `test/trace.test.ts` synthetic plan and sampler at full `PHOTO_W x PHOTO_H`, plus a small `32 x 256` strip with untrusted rows) as PNGs in `test/fixtures/photoSurface/`. If the new module keeps mulberry32, compare byte for byte. With the shared `rng`, the masking, fill and toning are still deterministic, so compare 16 x 16 block means (the grain averages out): every block within 3 levels per channel, and no single pixel more than 27 levels apart (each grain is within plus or minus 0.05 x 255, about 13 levels, and is not scaled by the gain, so two independent grains differ by at most about 26, plus truncation).
+
+## Rewrite notes (31 Oct 2026)
+
+Rewritten from this page, byte-identical to the old module:
+
+- **Randomness:** kept mulberry32, now `mulberry32` in `src/core/random.ts`. Moving to the shared `rng` changes every photo road texture, so do it with a base upgrade.
+- **Open-road assert:** in (`b >= n` on an open road throws). No caller passes that.
+- **Metres across from sample `a` only:** kept for now. Later, with a base upgrade: use the chunk's mean width for the grow and blur radii.
+- `boxBlur` is exported for tests. Reference smoothing uses the same running-sum line blur as the box blur.
+- Goldens: sha256 of the full `PHOTO_W x PHOTO_H` strip from the `test/trace.test.ts` inputs, plus four 32 x 256 strips (untrusted rows, a `null` gap, all untrusted, a closed loop's wrapping chunk) as hashes and PNGs in `test/fixtures/golden/`.

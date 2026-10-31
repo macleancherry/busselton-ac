@@ -135,3 +135,12 @@ Dependencies: `SegmentIndex` from `road.ts` (`nearest(x, y, maxDist)` returns th
 ### Golden fixtures
 
 Before deleting the old module, capture JSON (names, materials, float32 positions, uvs, indices, and the computed normals from `toKn5`) for: `buildBarriers` on the `test/fences.test.ts` street with one barrier of each look on sloping ground, `buildWireFences` on the `test/farm.test.ts` inputs, and one `box` and one `ribbon`, in `test/fixtures/fences/`. The new module must match byte for byte, except where a fix above deliberately changes output (list those in the test). The lead's full-build comparison of the accepted Busselton base is the final check: the `FENCES` group should be unchanged.
+
+## Rewrite notes (31 Oct 2026)
+
+Rewritten from this page. Matches the goldens (`test/fixtures/golden/fences.json`, checked by `test/golden.test.ts`) byte for byte, with these choices:
+
+- **Splitting on the true vertex count** (8 or 12 per slab, 16 per post, 8 per strand): applied. A safety fix; it only changes output where a look's run passes about 60000 vertices (the split comes later, so the first mesh holds more slabs). No golden is that big.
+- **Case-insensitive tag matching:** applied. OSM values are lowercase, so current data builds the same.
+- **Triangle budget:** documented as approximate (end posts not counted); unchanged.
+- **Later, with a base upgrade** (change output, not applied): dedupe end posts by their 0.1 m key (two runs meeting head on get two posts at the same spot today).

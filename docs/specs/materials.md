@@ -118,3 +118,7 @@ None that change output. Keep the property orders exactly as tabled: the kn5 byt
 ### Golden fixtures
 
 Before deleting the old code, save the JSON of `material("g", "g.png", {0.45, 0.4, 0, 1})`, `nmMaterial("b", "b.png", "b_nm.png", {0.45, 0.45, 0.1, 15})`, and (from track.ts, via a temporary export or by reading them out of a test build's kn5 with `readKn5`) one `road_asphalt_*`, one `road_gravel_*` and one `terrain_*` material, under `test/fixtures/materials/`. The new builders must deep-equal them, property order included. The kn5 round-trip of the accepted build (docs/specs/kn5.md test 20) plus a full rebuild comparison by the lead is the final check.
+
+## Rewrite notes (31 Oct 2026)
+
+Rewritten from this page. `multiMapMaterial`, `multilayerMaterial` and `groundMaterial` moved here from `track.ts` (which imports them), with `Light`, `DetailMaps` and `Layer` exported as types. Goldens: `test/fixtures/golden/materials.json` (the two plain builders, one asphalt, one gravel and one terrain material), compared with property and texture key order by `test/golden.test.ts`.
