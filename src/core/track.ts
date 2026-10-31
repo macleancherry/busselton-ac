@@ -92,6 +92,7 @@ import { networkPreview } from "./network/preview";
 import { planJunctionCore, type JunctionCore } from "./network/phase1";
 import { treeAtlasTexture } from "./treeAtlasMips";
 import { ShoreMask } from "./shoreClear";
+import { softenKerbFaces } from "./kerbAo";
 
 /** Progress callback; a returned promise is awaited, which lets a UI repaint. */
 export type Progress = (stage: string, fraction?: number) => void | Promise<void>;
@@ -1757,10 +1758,11 @@ export async function buildTrack(
         group("JUNCTIONS", netNodes),
         group("FURNITURE", furniture),
         group("WIRES", utilities.wires),
-        group("ROUNDABOUTS", [...ringsClear.nodes, ...shrubs, ...ringWalls]),
+        group("ROUNDABOUTS", [...softenKerbFaces(ringsClear.nodes), ...shrubs, ...ringWalls]),
         group("MARKINGS", markings),
         group("VERGE", roadMeshes.verge),
-        group("KERBS", kerbsClear.nodes),
+        // Busselton fork: kerb faces lean their normals up so the AO bake doesn't blacken them (kerbAo.ts).
+        group("KERBS", softenKerbFaces(kerbsClear.nodes)),
         group("TREES", [...trees, ...(houseTrees.length && !opts.cspTrees ? buildTrees(houseTrees, ground, "HOUSETREES") : [])]),
         group("RAILS", [...railsClear.nodes, ...rails.posts]),
         group("GUIDEPOSTS", posts),
