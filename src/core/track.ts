@@ -51,7 +51,7 @@ import { buildMarkings, type DiscreteMark } from "./markings";
 import { kerbsideForTrack, type KerbTags } from "./kerbside";
 import { withBayBands, type BayBox } from "./bayLanes";
 import { buildTerrainChunk, isStreetNode, makeTerrainFn, meshTop, planTerrainChunks, streetCeiling, underStreets, type TerrainChunk } from "./terrain";
-import { PHYSICS_GROUND, ROAD_SURFACE, sceneGround, SINK, topSurface } from "./sceneGround";
+import { PHYSICS_GROUND, ringTouches, ROAD_SURFACE, sceneGround, SINK, topSurface } from "./sceneGround";
 import { footOnRoad, onRoadFrom } from "./poleSpot";
 import { clearBays, feetNear } from "./padClear";
 import { BAY_ASPHALT, bayHeight } from "./bayGround";
@@ -1515,7 +1515,10 @@ export async function buildTrack(
   // base's ground carries on past its meshes as the analytic terrain), else the horizon. Point by
   // point, a house straddling the detailed terrain's edge took the horizon mesh, held 3 m under the
   // terrain there (backdrop.ts), for its lowest corner and sank 4 to 5 m.
-  const onBaseRing = (ring: Vec2[]) => ring.some(([x, y]) => onBase(x, y)) || onBase(...centroid(ring));
+  // Busselton fork: or an edge crossing the mesh with every corner past it (ringTouches).
+  const onBaseRing = (ring: Vec2[]) => ring.some(([x, y]) => onBase(x, y)) || onBase(...centroid(ring)) || ringTouches(ground.mesh, ring);
+  // The ground a building stands on: buildBuildings' and its shop front's (shops.ts) alike.
+  const groundForBuilding = (b: Building) => (onBaseRing(b.ring) ? ground.forRing(b.ring) : horizonGround);
   // The jetty, its lamps and precinct, and the sea wall keep their own rule (the analytic terrain) for now.
   const shoreGround = (x: number, y: number) => (inCover(x, y, 1) ? terrainH(x, y) : horizonGround(x, y));
   // Power poles, wires and street lights: seen, mapped, or (lights, in town) at a typical spacing.
@@ -1730,7 +1733,7 @@ export async function buildTrack(
   const homeSet = new Set(homes);
   // Not on a building a hand-made layer replaces (cleared below): its verandah was left in the air.
   const shopfronts = opts.buildings ? findShopfronts(
-    shown.filter((b) => !clears.length || !cleared(...centroid(b.ring))), (sources.pois ?? []).map((p) => ({ ...p, at: proj.toLocal(p.at) })), roadGap, buildingGround, (b) => homeSet.has(b),
+    shown.filter((b) => !clears.length || !cleared(...centroid(b.ring))), (sources.pois ?? []).map((p) => ({ ...p, at: proj.toLocal(p.at) })), roadGap, buildingGround, (b) => homeSet.has(b), groundForBuilding,
   ) : [];
   const shopMeshes = buildShopfronts(shopfronts, buildingGround);
   if (shopMeshes.length) {
@@ -1792,7 +1795,7 @@ export async function buildTrack(
   // One ground per building (onBaseRing): 2 cm into the base's ground, or out on the horizon mesh, sunk 40 cm as before.
   // The base's ground for a footprint is the mesh's (ground.forRing): a corner past the terrain mesh's
   // edge doesn't take the analytic terrain under it.
-  const houses = buildBuildings(shown, buildingGround, (b) => (onBaseRing(b.ring) ? SINK : 0.4), (b) => (onBaseRing(b.ring) ? ground.forRing(b.ring) : horizonGround));
+  const houses = buildBuildings(shown, buildingGround, (b) => (onBaseRing(b.ring) ? SINK : 0.4), groundForBuilding);
   const lots = opts.buildings ? buildLots(homes.filter((b) => b.ring.every(([x, y]) => inCover(x, y, 1))), buildingGround, { roadGap }) : [];
 
   const group = (name: string, children: Kn5Node[]): Kn5GroupNode => ({ kind: "node", name, transform: IDENTITY, children });
@@ -1898,6 +1901,8 @@ export async function buildTrack(
     const streetRoads: (TrafficRoad & { cls?: string })[] = streetPlan.streets.filter((st) => !/^(parking_aisle|driveway|drive-through)$/.test(st.service ?? "")).map((st) => ({
       pts: st.pts, h: st.pts.map(([x, y]) => laneZ([x, y], (netGround ? netGround(x, y) : terrainAt(x, y).h) + 0.1)), width: st.width, speed: 50,
       ...(st.oneway ? { oneway: st.oneway } : {}),
+      // Busselton fork: a traced street's own widths, the ones its bays were painted for (traffic.ts).
+      ...(st.widths && st.widths.length === st.pts.length ? { widths: st.widths } : {}),
       cls: st.cls,
     }));
     const rbs = plan.roundabouts.map((rb, k) => ({ c: rb.c, h: net?.ringHeight(k) ?? rb.hc, rIn: innerRadius(rb), rOut: outerRadius(rb) }));

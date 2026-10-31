@@ -171,12 +171,15 @@ export function clearOffsets(offs: number[], lo: number | null, hi: number | nul
   return out;
 }
 
-/** Each road with its bay band (`bayLo`/`bayHi`) where bays lie along it. */
-export function withBayBands<R extends { pts: Vec2[]; width: number; closed?: boolean }>(roads: R[], boxes: BayBox[]): (R & { bayLo?: (number | null)[]; bayHi?: (number | null)[] })[] {
+/**
+ * Each road with its bay band (`bayLo`/`bayHi`) where bays lie along it. A road's `widths` (a
+ * traced street's asphalt per point) count where wider than its `width`: its bays were painted for them.
+ */
+export function withBayBands<R extends { pts: Vec2[]; width: number; widths?: number[]; closed?: boolean }>(roads: R[], boxes: BayBox[]): (R & { bayLo?: (number | null)[]; bayHi?: (number | null)[] })[] {
   if (!boxes.length) return roads;
   const grid = new BoxGrid(boxes);
   return roads.map((r) => {
-    const band = bayBand(r.pts, r.width, boxes, !!r.closed, grid);
+    const band = bayBand(r.pts, r.widths ? r.widths.map((w) => Math.max(w, r.width)) : r.width, boxes, !!r.closed, grid);
     return band ? { ...r, bayLo: band.lo, bayHi: band.hi } : r;
   });
 }

@@ -160,6 +160,15 @@ export function groundOver(mesh: SurfaceFn, fallback: HeightFn): SceneGround {
   return fn;
 }
 
+/**
+ * Does any of a ring's outline lie over the mesh: a corner, or a point along an edge every `step`
+ * metres? A house whose corners were all just past the terrain mesh's edge, with an edge crossing
+ * it, was put on the horizon mesh, 3 m under the terrain, and sank there (Dunsborough).
+ */
+export function ringTouches(mesh: SurfaceFn, ring: Vec2[], step = 0.5): boolean {
+  return alongRing(ring, step).some(([x, y]) => mesh(x, y) !== null);
+}
+
 /** Points round a closed ring: its corners and every `step` metres along each edge. */
 export function alongRing(ring: Vec2[], step = 0.5): Vec2[] {
   const out: Vec2[] = [];

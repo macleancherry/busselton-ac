@@ -46,6 +46,13 @@ export interface TrafficRoad {
    */
   bayLo?: (number | null)[];
   bayHi?: (number | null)[];
+  /**
+   * Busselton fork: the asphalt's width at each point, where it isn't `width` all along (a street
+   * traced from the photo, the route). The room lanes have to move over in, round the bays: a street
+   * mapped 6 m and traced 9 m had its bays painted for 9 m, and the lanes, held inside 6 m, couldn't
+   * clear them (Margaret River). Never less room than `width` gives.
+   */
+  widths?: number[];
 }
 
 export interface TrafficRoundabout {
@@ -179,6 +186,7 @@ export function trafficGraph(roadsIn: TrafficRoad[], roundabouts: TrafficRoundab
         ...(r.zone ? { zone: at.map((i) => r.zone![i]) } : {}),
         ...(r.speeds ? { speeds: at.map((i) => r.speeds![i]) } : {}),
         ...(r.bayLo && r.bayHi ? { bayLo: at.map((i) => r.bayLo![i]), bayHi: at.map((i) => r.bayHi![i]) } : {}),
+        ...(r.widths ? { widths: at.map((i) => r.widths![i]) } : {}),
       });
     }
   }
@@ -271,7 +279,7 @@ export function trafficGraph(roadsIn: TrafficRoad[], roundabouts: TrafficRoundab
       for (const dir of one ? [one] : [1, -1]) base.push(one ? off : off * dir);
     }
     // Busselton fork: clear of painted kerbside bays (bayLanes.ts), point by point.
-    const perPoint = r.bayLo && r.bayHi ? r.pts.map((_, i) => clearOffsets(base, r.bayLo![i], r.bayHi![i], r.width / 2, !!one)) : null;
+    const perPoint = r.bayLo && r.bayHi ? r.pts.map((_, i) => clearOffsets(base, r.bayLo![i], r.bayHi![i], Math.max(r.width, r.widths?.[i] ?? 0) / 2, !!one)) : null;
     let which = 0;
     for (let k = 0; k < perDir; k++) {
       for (const dir of one ? [one] : [1, -1]) {
