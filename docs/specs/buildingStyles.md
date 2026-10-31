@@ -141,3 +141,18 @@ The pipeline keeps a garage flag the building already had if the dress doesn't s
 
 - **Glass towers and the curtain layout** (towers need 30 m of mapped height, or an 18 m office). Probably nothing in the South West qualifies. Cheap to keep; delete if Mac wants a smaller module.
 - **Fibro facades** are real in old WA towns; keep.
+
+## Additions from the call sites (rewrite session, 31 Oct 2026)
+
+Found while writing the new module from the call sites and the commit messages (the old file stayed closed). They override anything above that disagrees.
+
+- `Facade` is `{ name, wall, colour, trim, layout, sign? }`; `layout` is a layout **name** (`specHouse.ts` builds its own facades with `layout: "blank"` and passes them to `facadeTexture`, so the texture works for facades not in `FACADES`, seeded by name and colour). `WallKind` is the eight kinds above.
+- `FACADES` is an array, `FACADE_INDEX` a `Map<name, index>`. `houseLooks.ts` groups facades by name prefix (`brick_`, `wb_`, `render_`, `fibro_`, `clad_`) and `brick_cream` by name: keep the prefixes.
+- `ROOF_COLOURS` entries are `{ name, rgb, kind }`. track.ts still takes the shop verandah texture as `ROOF_COLOURS[1]`, so `shalegrey` stays second (track.ts should look it up by name; follow-up there). `PITCHED` is a list of indices.
+- Kinds: `terracotta` and `terracotta_aged` are `tile`; every `tile_` finish is `ctile`.
+- `facadeTexture(facade)` and `roofTexture(finish)` return PNG bytes (opaque, RGB).
+- `LAYOUTS` is keyed by layout name.
+- `dressBuilding(info)`: `info` is `{ height?, kind?, area, poi?, photoRoof?, rectangle, fronted, seed }` (`photoRoof` an index into `ROOF_COLOURS`); it returns `Dress` (`type`, `facade`, `groundFacade?`, `roof`, `roofColour`, `pitch`, `height`, `verandah?`, `awning?`, `parapet?`, `garage?`). Types: `house`, `townhouse`, `flats`, `apartments`, `office`, `tower`, `shop`, `warehouse`, `shed`, `hall` (track.ts tests `type === "house"` for the area's facade mix).
+- Shop-like POIs: shop, grocery, clothing_store, cafe, restaurant, fast_food, bar, pub (the same list track.ts prefers when several POIs are inside).
+- Lists are picked from by name: "the first six metals" is `surfmist, shalegrey, windspray, woodland, monument, cream`; the tiles are `terracotta, terracotta_aged` and the `tile_` finishes. A "metal photo roof" uses the photo finish only when it's metal, otherwise draws from the metals. Flat roofs with no named finish are membrane two times in three, otherwise gravel. Warehouses: each shed facade weight 1, `tiltup` weight 2.
+- The random draws use the shared `rng` (`random.ts`), so dress picks differ from the old ones for the same seed: the first build after the rewrite differs from the accepted base.

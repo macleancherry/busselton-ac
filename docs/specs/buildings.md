@@ -145,3 +145,32 @@ Helpers (ring area, point in ring, centroid, rectangle) are general geometry: pu
 
 - **Warehouse roller door** is cheap; keep.
 - **Photo roof detection** stays: it's most of the houses (564 of 715 buildings in the Busselton base).
+
+## Additions from the call sites (rewrite session, 31 Oct 2026)
+
+Found while writing the new module from the call sites and the commit messages (the old file stayed closed). They override anything above that disagrees.
+
+### Signatures the callers rely on
+
+- `Building`: `ring`, `source` (`osm` | `detected` | `frontage`), and the dress fields `type`, `facade` (index into `FACADES`), `roof` (`flat` | `hip` | `gable` | `skillion`), `roofColour` (index into `ROOF_COLOURS`), `pitch` (degrees), `height` (wall height above the floor) are required; `groundFacade`, `verandah`, `awning`, `parapet`, `garage`, `tags`, `front` (`[Vec2, Vec2]`), `setback`, `frontKind` (`none` | `limestone` | `brick` | `hedge`, set by house looks, read by `lots.ts`) and `hedgeHeight` are optional. Tests and `shops.ts` build records by hand with only the required fields. The ground-floor facade field is `groundFacade` (nothing outside this module and buildingStyles reads it).
+- `fromOsm(ring, tags, index?)`: track.ts still passes the list index third; it's ignored (seed from the centroid). A repeated closing point is dropped and the ring made counter-clockwise.
+- `detectBuildings(rgba, size, chunk)`: `chunk` is the terrain chunk's local bounds (`minX..maxX`, `minY..maxY`), the image `size` pixels square, pixel row 0 the chunk's north edge (`maxY`). track.ts also calls it on the car-paint pass just for the rings.
+- `filterBuildings(buildings, index, opts, maxDist)`: `index` is the route's `SegmentIndex` (`nearest(x, y, r)`, road width from `index.at(nearest).width`); uses `opts.vergeWidth`. Keeps the input order.
+- `buildBuildings(buildings, ground, sinkFor?, groundFor?)` returns `Kn5MeshNode[]`. **One ground per building:** `groundFor(b)` is the height function for every sample of that building (track.ts passes the base's scene ground when any corner or the centroid is on the base, the horizon mesh otherwise), defaulting to `ground`; `sinkFor(b)` is how far the wall base goes under the lowest sample (track.ts: `SINK` on the base, 0.4 m on the horizon), defaulting to `SINK`. A house straddling the detailed terrain's edge once took the horizon mesh (held 3 m under the terrain there) for one corner and sank 4 to 5 m; never mix two grounds in one building. Doors, driveways and verandah posts use the same building's ground and sink.
+- `usedFinishes(buildings)` returns `{ facades: Set<number>, roofs: Set<number> }` (indices); track.ts adds to both sets later (spec houses, house looks).
+- `plainHouse(roof, roofColour, height)`: the facade is `brick_red` looked up by name (it's first in the list, index 0, so the old "facade 0" still holds).
+- `houseRoof(rand)` takes a random function (`() => number`), so callers decide the seed.
+- `nearestRoofColour(rgb)` takes 0..255 RGB (frontage.ts scales its 0..1 photo colours up).
+- Helpers `centroid`, `pointInRing`, `ringArea`, `isRectangle` stay importable from `buildings.ts` (re-exported from the geometry module).
+
+### Behaviour the commits added
+
+- **Window sills above the ground** (d14ecb8): a big building's floor is its lowest ground, so on a slope its shop windows ran 40 cm into the ground on the high side. Each pane's bottom is kept at least 8 cm over the ground just outside the wall (sampled 0.3 m out at both ends of the pane, the higher of the two); a pane left under 0.3 m tall goes.
+- **Wall names** (eb2839b): the surface-key substitution in the facade part of `1WALL_BLD_` names. The material keeps the real facade name (`facade_render_sand`). Nothing in the CSP config matches `1WALL_BLD_` today (lit windows match the material `window`; `docs/verification.md` refers to `1WALL_BLD_*`), but keep the prefix: it's how checks and people find building walls.
+- **Shopfronts on replaced buildings** (6781975): track.ts skips `findShopfronts` on buildings inside a hand-made layer's cleared circles. Not this module's job; noted so nobody moves it here.
+
+### Determinism
+
+- Every random choice is seeded from a position (`placeSeed` in `random.ts`): `fromOsm` and `detectBuildings` from the building's centroid or patch centre, with a salt per draw. No list index anywhere.
+- Facades and finishes are looked up by name, never by list position.
+- The new generator and seeds mean the first build after this rewrite differs from the accepted base (roof shapes and finishes of OSM and detected houses, facade picks); accept a new base deliberately.
