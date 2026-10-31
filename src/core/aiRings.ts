@@ -156,3 +156,46 @@ export function retimeAi(ai: AiPoint[], closed: boolean, rings: WorldRing[] = []
   });
   return ai;
 }
+
+/** A street corner tighter than this (metres, the line's own radius) gets TIGHT_HINT... */
+export const TIGHT_RADIUS = 10;
+/** ...from TIGHT_HINT_BEFORE metres before it to RING_HINT_AFTER after. */
+export const TIGHT_HINT = 0.4;
+const TIGHT_HINT_BEFORE = 30;
+
+/** Lowers `out` to `value` over each run of `flag`, from `before` metres ahead of the run to `after` past it. */
+function markRuns(ai: AiPoint[], flag: boolean[], before: number, after: number, value: number, closed: boolean, out: number[]): void {
+  const n = ai.length;
+  const total = ai[n - 1].distance + ai[n - 1].length;
+  if (closed && flag.every(Boolean)) { out.fill(Math.min(value, ...out)); return; }
+  for (let i = 0; i < n; i++) {
+    // The first point of each run.
+    if (!flag[i] || (flag[(i - 1 + n) % n] && (closed || i > 0))) continue;
+    let j = i;
+    while (closed ? flag[(j + 1) % n] : j + 1 < n && flag[j + 1]) j = closed ? (j + 1) % n : j + 1;
+    const s0 = ai[i].distance - before;
+    const s1 = ai[j].distance + (closed && j < i ? total : 0) + after;
+    ai.forEach((p, m) => {
+      const inside = closed && total > 0
+        ? ((p.distance - s0) % total + total) % total <= s1 - s0
+        : p.distance >= s0 && p.distance <= s1;
+      if (inside && value < out[m]) out[m] = value;
+    });
+  }
+}
+
+/**
+ * Each point's hint for aiHintsIni's `extra` (1 for none): RING_HINT on a ring and from
+ * RING_HINT_BEFORE metres before it to RING_HINT_AFTER past it; TIGHT_HINT round a street corner
+ * tighter than TIGHT_RADIUS (a square junction turn) from TIGHT_HINT_BEFORE before it. Radii are
+ * the line's own (retimeAi first).
+ */
+export function ringHintValues(ai: AiPoint[], rings: WorldRing[], closed: boolean): number[] {
+  const n = ai.length;
+  const out = ai.map(() => 1);
+  if (!n) return out;
+  const on = ai.map((p) => onRing(xy(p), rings));
+  if (rings.length) markRuns(ai, on, RING_HINT_BEFORE, RING_HINT_AFTER, RING_HINT, closed, out);
+  markRuns(ai, ai.map((p, i) => !on[i] && p.radius < TIGHT_RADIUS), TIGHT_HINT_BEFORE, RING_HINT_AFTER, TIGHT_HINT, closed, out);
+  return out;
+}

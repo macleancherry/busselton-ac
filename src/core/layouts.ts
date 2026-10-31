@@ -26,8 +26,8 @@ import { planRoad, type RoadPlan } from "./road";
 import type { LngLat, LocalProjection } from "./geo";
 import { simplify } from "./polyline";
 import { pitLaneFiles } from "./pitLane";
-import { clearAiPoint, junctionsOn, type GridAvoid } from "./gridSlots";
-import { retimeAi, ringCircles, smoothKinks, type WorldRing } from "./aiRings";
+import { clearAiPoint, GRID_CLEAR_AHEAD, junctionsOn, type GridAvoid } from "./gridSlots";
+import { retimeAi, ringCircles, ringHintValues, smoothKinks, type WorldRing } from "./aiRings";
 
 type Vec2 = [number, number];
 const enc = new TextEncoder();
@@ -290,12 +290,12 @@ function routeAi(world: World, coords: LngLat[], opts: BuildOptions, height: (x:
     const total = ai.length ? ai[ai.length - 1].distance + ai[ai.length - 1].length : 1;
     limitAt = (d) => lim[Math.max(0, Math.min(lim.length - 1, Math.round((d / total) * (lim.length - 1))))];
   }
-  return { plan, hs, ai, limitAt, hints: aiHintsIni(ai, limitAt, !plan.closed) };
+  return { plan, hs, ai, limitAt, hints: aiHintsIni(ai, limitAt, !plan.closed, ringHintValues(ai, rings, plan.closed)) };
 }
 
 /** What a layout's grid and boxes keep clear of: the world's roundabouts and the streets meeting `road` (local metres). */
 export function worldAvoid(world: World, road: Vec2[]): GridAvoid {
-  return { rings: world.rings ?? [], junctions: world.lines?.length ? junctionsOn(road, world.lines) : [] };
+  return { rings: world.rings ?? [], junctions: world.lines?.length ? junctionsOn(road, world.lines) : [], clearAhead: GRID_CLEAR_AHEAD };
 }
 
 /**

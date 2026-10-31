@@ -50,6 +50,7 @@
   "traceGuard": false,
   "traffic": true,
   "aiKeepLeft": true,
+  "aiRings": true,
   "origin": [
    115.3403,
    -33.6506

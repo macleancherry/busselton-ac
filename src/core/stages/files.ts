@@ -23,6 +23,8 @@ import { toAc } from "../mesh";
 import { networkPreview } from "../network/preview";
 import type { JunctionCore } from "../network/phase1";
 import { pitLaneFiles } from "../pitLane";
+import { retimeAi, ringHintValues } from "../aiRings";
+import { innerRadius, outerRadius } from "../roundabout";
 import { simplify } from "../polyline";
 import { groundAlbedo } from "../pureConfig";
 import { trackHollows } from "../rainHollows";
@@ -94,6 +96,9 @@ export function writeFiles(ctx: BuildContext, model: Kn5Model, a: FilesInput, me
   const aiPoints = buildAiLine(plan, { keepLeft: opts.aiKeepLeft, bays: rn.bayBoxes.filter((b) => b.street === 0) });
   // networkCore: through a junction the AI line sits on the junction's surface.
   if (net) for (const p of aiPoints) { const z = net.surfaceAt([p.position[0], -p.position[2]]); if (z !== null) p.position = [p.position[0], z, p.position[2]]; }
+  // aiRings: radii and speeds from the line itself, slow on the roundabouts, with their own hint.
+  const aiRingList = opts.aiRings ? plan.roundabouts.map((rb) => ({ c: rb.c, rOut: outerRadius(rb), rIn: innerRadius(rb) })) : [];
+  if (opts.aiRings) retimeAi(aiPoints, plan.closed, aiRingList);
   // The automatic test photographs each landmark it passes.
   const landmarkList = [
     ...(sources.landmarks ?? []).map((l) => ({ name: l.name, at: ctx.toLocal(l.at) as [number, number] })),
@@ -131,7 +136,7 @@ export function writeFiles(ctx: BuildContext, model: Kn5Model, a: FilesInput, me
     [`${slug}/ai/fast_lane.ai`]: ai,
     // A pit lane past the grid's boxes, and the ideal line (pitLane.ts).
     ...pitLaneFiles(slug, aiPoints, ai, dummies, plan.closed),
-    [`${slug}/data/ai_hints.ini`]: enc.encode(aiHintsIni(aiPoints, limitAt, !plan.closed)),
+    [`${slug}/data/ai_hints.ini`]: enc.encode(aiHintsIni(aiPoints, limitAt, !plan.closed, opts.aiRings ? ringHintValues(aiPoints, aiRingList, plan.closed) : undefined)),
     [`${slug}/data/surfaces.ini`]: enc.encode(surfacesIni(opts.traffic, opts.streetsValid ?? !!area, centre, sf.anyUnsealed(), true)),
     ...(tf ? { [`${slug}/data/traffic.json`]: enc.encode(tf.trafficText) } : {}),
     [`${slug}/data/map.ini`]: enc.encode(map.ini),

@@ -1,10 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { retimeAi, ringCircles, smoothKinks, RING_SPEED } from "../src/core/aiRings";
+import { retimeAi, ringCircles, ringHintValues, smoothKinks, RING_HINT, RING_HINT_BEFORE, RING_SPEED, TIGHT_HINT } from "../src/core/aiRings";
+import { aiHintsIni } from "../src/core/aiLine";
 import { readFastLaneAi, type AiPoint } from "../src/core/aiSpline";
 import { layoutFiles, type World } from "../src/core/layouts";
+import { gridFront, GRID_GAP, RING_CLEAR } from "../src/core/gridSlots";
 import { trackObjects } from "../src/core/stages/routePlan";
 import { LocalProjection, type LngLat } from "../src/core/geo";
 import { IDENTITY, type Kn5Model } from "../src/core/kn5";
+import { frames } from "../src/core/polyline";
+import type { RoadPlan } from "../src/core/road";
+import type { Roundabout } from "../src/core/roundabout";
 
 type Vec2 = [number, number];
 
@@ -35,7 +40,7 @@ const flatWorld = (): Kn5Model => ({
 });
 
 describe("AI line through roundabouts (retest 4)", () => {
-  it("snaps a layout's route round the world's rings: no flick out of the ring, slow on it", () => {
+  it("snaps a layout's route round the world's rings: no flick out of the ring, slow on it, hinted before it", () => {
     // A street running south through a ring (centre (0, 0), island 4 m, outer edge 11 m) at the
     // origin, the router's geometry going round its east side (left-hand traffic: clockwise).
     const origin: LngLat = [115.34, -33.65];
@@ -64,6 +69,13 @@ describe("AI line through roundabouts (retest 4)", () => {
     for (const p of near) expect(p.speed).toBeLessThanOrEqual(RING_SPEED + 1e-6);
     const before = ai.find((p) => p.position[2] < 0 && Math.hypot(p.position[0], p.position[2]) > 11 + 25)!;
     expect(before.speed).toBeLessThan(15);
+    // The hint: RING_HINT from 40 m before the ring.
+    const hints = new TextDecoder().decode(f["t/run/data/ai_hints.ini"]);
+    expect(hints).toContain(`VALUE=${RING_HINT}`);
+    const total = ai[ai.length - 1].distance + ai[ai.length - 1].length;
+    const first = ai.findIndex((p) => Math.hypot(p.position[0], p.position[2]) < 11);
+    const start = Number(/START=([\d.]+)\nEND=[\d.]+\nVALUE=0.35/.exec(hints)![1]) * total;
+    expect(start).toBeCloseTo(ai[first].distance - RING_HINT_BEFORE, -1);
   });
 
   it("uses the ring's middle for the circle, or 3.5 m in from its outer edge without an island size", () => {
@@ -102,5 +114,57 @@ describe("AI line through roundabouts (retest 4)", () => {
     expect(at(290 - 20)).toBeLessThanOrEqual(Math.sqrt(RING_SPEED ** 2 + 2 * 3 * 20) + 0.5);
     expect(line[line.length - 1].length).toBe(0);
     expect(line[100].distance).toBeCloseTo(200, 6);
+  });
+
+  it("hints each ring and each square corner, across the start line on a loop", () => {
+    // A loop of 400 points 2 m apart (a circle of radius ~127 m), a ring over its first and last few points.
+    const n = 400, R = 800 / (2 * Math.PI);
+    const loop = Array.from({ length: n }, (_, i) => { const a = (i / n) * 2 * Math.PI; return pt(R * Math.cos(a), R * Math.sin(a)); });
+    retimeAi(loop, true);
+    const rings = [{ c: [R, 0] as Vec2, rOut: 8 }];
+    const v = ringHintValues(loop, rings, true);
+    // On the ring (points either side of 0) and 40 m before it (from about point 400 - 4 - 20).
+    expect(v[0]).toBe(RING_HINT);
+    expect(v[n - 3]).toBe(RING_HINT);
+    expect(v[n - 22]).toBe(RING_HINT);
+    expect(v[n - 30]).toBe(1);
+    expect(v[200]).toBe(1);
+    const ini = aiHintsIni(loop, undefined, false, v);
+    expect(ini).toContain("START=0.00000");
+    expect(ini).toContain("END=1.00000");
+    // A square corner (radius ~5 m) on an open line: TIGHT_HINT from 30 m before it.
+    const corner: AiPoint[] = [];
+    for (let x = -100; x < -5; x += 2) corner.push(pt(x, 0));
+    for (let k = 0; k <= 4; k++) { const a = -Math.PI / 2 + (k / 4) * (Math.PI / 2); corner.push(pt(-5 + 5 * Math.cos(a), 5 + 5 * Math.sin(a))); }
+    for (let y = 7; y < 100; y += 2) corner.push(pt(0, y));
+    retimeAi(corner, false);
+    const cv = ringHintValues(corner, [], false);
+    const firstTight = corner.findIndex((p) => p.radius < 10);
+    expect(firstTight).toBeGreaterThan(0);
+    expect(cv[firstTight]).toBe(TIGHT_HINT);
+    expect(cv[corner.findIndex((p) => p.position[0] >= corner[firstTight].position[0] - 25)]).toBe(TIGHT_HINT);
+    expect(cv[0]).toBe(1);
+  });
+});
+
+describe("grid clear of rings ahead", () => {
+  it("puts a layout's grid with road ahead clear of a ring when there's room, else as before", () => {
+    // A straight 1 km closed out and back is awkward; an open 1 km road east, the line at 900 m, a
+    // ring at 860 m: the front must sit so 150 m ahead of it has no ring.
+    const pts: Vec2[] = Array.from({ length: 501 }, (_, i) => [i * 2, 0]);
+    const fr = frames(pts, false);
+    const samples = fr.map((f) => ({ ...f, width: 7, h: 0, bank: 0 }));
+    const rb = { c: [860, 0] as Vec2, r: 8, w: 6, lanes: 1, hc: 0, sIn: 852, sOut: 868 } as unknown as Roundabout;
+    const plan: RoadPlan = { closed: false, samples, length: 1000, roundabouts: [rb] };
+    const near = gridFront(plan, 8, 900);
+    const far = gridFront(plan, 8, 900, { clearAhead: 150 });
+    expect(near).not.toBeNull();
+    expect(far).not.toBeNull();
+    // Without: just behind the ring's clearance. With: 150 m of ring-free road ahead of the front.
+    expect(near!).toBeGreaterThan(860 - 11 - RING_CLEAR - 10);
+    expect(far!).toBeLessThanOrEqual(860 - 11 - RING_CLEAR - 150 + 4);
+    expect(far! - 7 * GRID_GAP).toBeGreaterThan(0);
+    // No room for it: the grid as without.
+    expect(gridFront(plan, 8, 900, { clearAhead: 5000 })).toBe(near);
   });
 });

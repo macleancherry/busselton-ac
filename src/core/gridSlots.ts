@@ -17,7 +17,16 @@ export interface GridAvoid {
   rings?: { c: Vec2; rOut: number }[];
   /** Points where a side street meets or crosses the road. */
   junctions?: Vec2[];
+  /**
+   * Busselton fork: metres of road ahead of the front of the grid with no roundabout on it, where
+   * there's such a place (else as near the line as fits without it). Retest 4: the town grid was 70 m
+   * short of a ring, and all six cars of a race arrived at it together and piled up 17 s in.
+   */
+  clearAhead?: number;
 }
+
+/** What worldAvoid (layouts.ts) asks of a layout's grid: this much road ahead without a ring. */
+export const GRID_CLEAR_AHEAD = 150;
 
 /** Nose to tail spacing, metres (a car is about 4 m). */
 export const GRID_GAP = 8;
@@ -28,13 +37,13 @@ export const RING_CLEAR = 15;
 /** Clear of a junction by this, metres. */
 export const JUNCTION_CLEAR = 15;
 
-const clearOf = (p: Vec2, avoid: Required<GridAvoid>) =>
+const clearOf = (p: Vec2, avoid: Required<Pick<GridAvoid, "rings" | "junctions">>) =>
   !avoid.rings.some((r) => Math.hypot(p[0] - r.c[0], p[1] - r.c[1]) < r.rOut + RING_CLEAR)
   && !avoid.junctions.some((j) => Math.hypot(p[0] - j[0], p[1] - j[1]) < JUNCTION_CLEAR);
 
 /** Each sample: on a straight, clear of roundabouts (the plan's and `avoid`'s) and junctions. */
 export function clearSamples(plan: RoadPlan, avoid: GridAvoid = {}): boolean[] {
-  const all: Required<GridAvoid> = {
+  const all: Required<Pick<GridAvoid, "rings" | "junctions">> = {
     rings: [...plan.roundabouts.map((rb) => ({ c: rb.c, rOut: outerRadius(rb) })), ...(avoid.rings ?? [])],
     junctions: avoid.junctions ?? [],
   };
@@ -48,18 +57,32 @@ export function clearSamples(plan: RoadPlan, avoid: GridAvoid = {}): boolean[] {
  * means before s = 0); point to point, between the road's start and the line. Null when nowhere fits.
  */
 export function gridFront(plan: RoadPlan, n: number, line: number, avoid: GridAvoid = {}): number | null {
+  const ahead = avoid.clearAhead ?? 0;
+  if (ahead > 0) {
+    const r = gridFrontAhead(plan, n, line, avoid, ahead);
+    if (r !== null) return r;
+  }
+  return gridFrontAhead(plan, n, line, avoid, 0);
+}
+
+function gridFrontAhead(plan: RoadPlan, n: number, line: number, avoid: GridAvoid, ahead: number): number | null {
   const ok = clearSamples(plan, avoid);
+  const rings = [...plan.roundabouts.map((rb) => ({ c: rb.c, rOut: outerRadius(rb) })), ...(avoid.rings ?? [])];
+  const ringFree = plan.samples.map((smp) => !rings.some((r) => Math.hypot(smp.pos[0] - r.c[0], smp.pos[1] - r.c[1]) < r.rOut + RING_CLEAR));
   const ns = plan.samples.length, L = plan.length;
   if (ns < 2 || n <= 0) return null;
   const step = L / (plan.closed ? ns : ns - 1);
-  const at = (s: number) => {
+  const lookup = (flags: boolean[], s: number, pastEnd: boolean) => {
     if (plan.closed) s = ((s % L) + L) % L;
-    else if (s < 0 || s > plan.samples[ns - 1].s) return false;
-    return ok[Math.max(0, Math.min(ns - 1, Math.round(s / step)))];
+    else if (s < 0 || s > plan.samples[ns - 1].s) return pastEnd && s > 0;
+    return flags[Math.max(0, Math.min(ns - 1, Math.round(s / step)))];
   };
+  const at = (s: number) => lookup(ok, s, false);
   const depth = (n - 1) * GRID_GAP;
   const fits = (front: number) => {
     for (let s = front + 4; s >= front - depth - 4; s -= Math.min(2, step)) if (!at(s)) return false;
+    // Past the end of a point to point road counts as clear.
+    for (let s = front + 4; s <= front + ahead; s += Math.min(2, step)) if (!lookup(ringFree, s, true)) return false;
     return true;
   };
   const first = line - GRID_GAP;

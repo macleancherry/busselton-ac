@@ -146,6 +146,7 @@ Layouts: `layouts.ts` builds each extra layout with `withDefaults({ ...route.bui
 | `trafficZones` | boolean | `true` | | | track.ts:1870, 1898 |
 | `trafficSetting` | `"normal" \| "kids"` | `"normal"` | (a layout's `"traffic": "kids"` is applied after the build by build-track.mjs, not through this field) | | track.ts:1906 |
 | `aiKeepLeft` | boolean | — | C `true`, T `true` | off | track.ts:1996; layouts.ts:273 |
+| `aiRings` | boolean | — | route `build.aiRings` | off (the main drive's line only; extra layouts' lines always get it) | stages/files.ts (aiRings.ts) |
 | `streetsValid` | boolean | — | route `build.streetsValid` | `true` when there's an `area`, else `false` | track.ts:2028 |
 | `challenges` | `ChallengesOption` (from `./challenges`) | — | route `build.challenges` | generated checkpoints | challengeFiles.ts:110 |
 | `timeTrialSectors` | number | — | | 3 (clamped 1..8 in timeTrial.ts) | challengeFiles.ts:112; layouts.ts:402 |
