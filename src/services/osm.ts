@@ -10,7 +10,7 @@ import type { RoundaboutHint } from "../core/roundabout";
 import { trimSpurs } from "../core/spurs";
 import type { OsmFeatures } from "../core/track";
 import { isUnsealed } from "../core/unsealed";
-import { routeAlongWays, type OsmWayGeom, type WayRouteOptions } from "../core/wayRoute";
+import { allRaceway, routeAlongWays, type OsmWayGeom, type WayRouteOptions } from "../core/wayRoute";
 import { warnMissing } from "./dataWarnings";
 import { JETTY_SNAPSHOT, JETTY_SNAPSHOT_BOX } from "./jettySnapshot";
 import { nearestLine } from "./nearestLine";
@@ -85,7 +85,7 @@ const geomOf = (e: Element): LngLat[] => (e.geometry ?? []).filter((g): g is { l
 
 /* ---------------- routing ---------------- */
 
-export interface Route { coords: LngLat[]; distance: number; roundabouts: RoundaboutHint[]; uturns: LngLat[]; trimmed: LngLat[] }
+export interface Route { coords: LngLat[]; distance: number; roundabouts: RoundaboutHint[]; uturns: LngLat[]; trimmed: LngLat[]; /** Every way it follows is OSM highway=raceway (routeWays). */ raceway?: boolean }
 
 interface OsrmStep { maneuver: { type: string; modifier?: string; location: LngLat }; geometry?: { coordinates: LngLat[] } }
 interface OsrmBody { code?: string; message?: string; routes?: { distance: number; geometry: { coordinates: LngLat[] }; legs: { steps: OsrmStep[] }[] }[] }
@@ -153,10 +153,15 @@ export async function fetchWayGeoms(ids: number[]): Promise<OsmWayGeom[]> {
     throw new Error(`couldn't fetch OSM ways ${ids.join(",")} from Overpass (every mirror failed 3 times: ${errorText(e)}); build again`);
   }
   const byId = new Map<number, LngLat[]>();
-  for (const e of elements) if (e.type === "way" && e.geometry && e.id !== undefined) byId.set(e.id, geomOf(e));
+  const highway = new Map<number, string>();
+  for (const e of elements) {
+    if (e.type !== "way" || !e.geometry || e.id === undefined) continue;
+    byId.set(e.id, geomOf(e));
+    if (e.tags?.highway) highway.set(e.id, e.tags.highway);
+  }
   const absent = ids.filter((id) => !byId.has(id));
   if (absent.length) throw new Error(`OSM way${absent.length > 1 ? "s" : ""} ${absent.join(", ")} not found (deleted, or a wrong id)`);
-  return ids.map((id) => ({ id, pts: byId.get(id)! }));
+  return ids.map((id) => ({ id, pts: byId.get(id)!, ...(highway.has(id) ? { highway: highway.get(id) } : {}) }));
 }
 
 const wayGeoms = new Map<string, Promise<OsmWayGeom[]>>();
@@ -170,8 +175,9 @@ export async function routeWays(ids: number[], through: LngLat[], opts?: WayRout
     wayGeoms.set(key, geoms);
     geoms.catch(() => wayGeoms.delete(key));
   }
-  const r = routeAlongWays(await geoms, through, opts);
-  return { coords: r.coords, distance: r.distance, roundabouts: [], uturns: [], trimmed: [] };
+  const g = await geoms;
+  const r = routeAlongWays(g, through, opts);
+  return { coords: r.coords, distance: r.distance, roundabouts: [], uturns: [], trimmed: [], ...(allRaceway(g) ? { raceway: true } : {}) };
 }
 
 /* ---------------- place search and naming ---------------- */

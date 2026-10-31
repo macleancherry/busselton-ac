@@ -219,6 +219,25 @@ describe("buildMarkings", () => {
     for (const v of wide) expect(v.x).toBeLessThan(299.5);
   });
 
+  it("paints a raceway with edge lines and start/finish only", () => {
+    const plan = straight(600);
+    const n = plan.samples.length;
+    const lines: ImageLine[] = [{ i0: 0, i1: n - 1, t: new Array(n).fill(0), kind: "dash", phase: 0, colour: "white" }];
+    const ms = buildMarkings(plan, { ...opts, raceway: true }, undefined, undefined, { lines, covered: () => true }, [
+      { s: 100, t: 0, kind: "start" },
+      { s: 300, t: 1.5, kind: "arrow", shape: "straight" },
+    ]);
+    expect(ms.some((m) => m.name.startsWith("RRPM"))).toBe(false);
+    const ps = allPieces(ms);
+    // Edge lines (photo lines ignored, so the generated ones are drawn), nothing along the middle.
+    expect(ps.some((p) => p.x1 - p.x0 > 100 && Math.abs(p.nMid - 3.3) < 0.01)).toBe(true);
+    expect(ps.some((p) => p.x1 - p.x0 > 100 && Math.abs(p.nMid + 3.3) < 0.01)).toBe(true);
+    expect(ps.filter((p) => Math.abs(p.nMid) < 0.5 && p.x1 - p.x0 > 0.5)).toEqual([]);
+    // The start band is there; the arrow isn't.
+    expect(ps.some((p) => Math.abs(p.x0 - 99.8) < 0.01 && p.n1 - p.n0 > 6)).toBe(true);
+    expect(ps.some((p) => p.x0 > 290 && p.x1 < 310)).toBe(false);
+  });
+
   it("drops glyphs it can't draw", () => {
     expect(arrowGlyph("u-turn")).toBeNull();
     expect(symbolGlyph("pedestrian")).toBeNull();

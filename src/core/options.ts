@@ -132,6 +132,8 @@ export interface BuildOptions {
   // Road surface, markings, kerbs, parking
   roadSurface: "auto" | "asphalt" | "chipseal" | "photo";
   markings: boolean;
+  /** A circuit (OSM highway=raceway): edge lines and start/finish only, no dividing line, RRPMs or photo-read lines. Off when absent; set from the route's raceway ways. */
+  raceway?: boolean;
   kerbs: boolean;
   /** Kerbside bays and bike lanes; off when absent (needs markings). */
   kerbside?: boolean;

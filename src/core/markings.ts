@@ -342,6 +342,13 @@ export function buildMarkings(
 ): Kn5MeshNode[] {
   const n = plan.samples.length;
   if (n === 0) return [];
+  // Busselton fork: a circuit isn't a public road: edge lines and the start/finish only. No dividing
+  // line or studs, no lines read off the aerial (they're often kerbs or rubber), no street-level marks.
+  const raceway = !!opts.raceway;
+  if (raceway) {
+    image = undefined;
+    discrete = discrete.filter((d) => d.kind === "start" || d.kind === "finish");
+  }
   const al = new Along(plan);
   const crown = opts.crown ?? 0.02;
   const white = new ChunkedMesh(), yellow = new ChunkedMesh(), studs = new ChunkedMesh(20);
@@ -441,7 +448,7 @@ export function buildMarkings(
   }
 
   // Dividing line.
-  const anyTwoLane = plan.samples.some((_, i) => twoLane(i));
+  const anyTwoLane = !raceway && plan.samples.some((_, i) => twoLane(i));
   if (anyTwoLane) {
     const { barrierFwd, barrierBack } = planCentreLine(plan);
     const cls = (i: number) => (twoLane(i) ? (barrierFwd[i] ? 2 : 0) + (barrierBack[i] ? 1 : 0) : -1);
@@ -564,7 +571,7 @@ export function buildMarkings(
   }
 
   // Raised reflective pavement markers on the dividing line.
-  for (let d = RRPM_EVERY; d < al.end - CYCLE; d += RRPM_EVERY) {
+  for (let d = RRPM_EVERY; !raceway && d < al.end - CYCLE; d += RRPM_EVERY) {
     const smp = al.sample(d);
     if (smp.width < MIN_TWO_LANE || !generated(al.index(d)) || skip(d)) continue;
     stud(studs.next(20), smp, crown);

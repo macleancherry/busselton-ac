@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import type { LngLat } from "../src/core/geo";
-import { routeAlongWays, type OsmWayGeom } from "../src/core/wayRoute";
+import { allRaceway, routeAlongWays, type OsmWayGeom } from "../src/core/wayRoute";
 
 // Collie Motorplex from OSM: the 1.63 km loop (way 89374807, drawn anticlockwise) and the 1.31 km
 // southern extension (way 733256017) that leaves and rejoins it, for the 2.55 km long layout.
@@ -98,5 +98,15 @@ describe("routing along OSM ways", () => {
   it("refuses a drive that turns back on itself at a pin", () => {
     const w: OsmWayGeom = { id: 1, pts: [[115, -33], [115.005, -33], [115.01, -33]] };
     expect(() => routeAlongWays([w], [[115, -33], [115.008, -33], [115.002, -33]])).toThrow(/turns back on itself at pin 2/);
+  });
+});
+
+describe("allRaceway", () => {
+  it("is true only when every way is highway=raceway", () => {
+    const w = (highway?: string): OsmWayGeom => ({ id: 1, pts: [], ...(highway ? { highway } : {}) });
+    expect(allRaceway([w("raceway"), w("raceway")])).toBe(true);
+    expect(allRaceway([w("raceway"), w("track")])).toBe(false);
+    expect(allRaceway([w()])).toBe(false);
+    expect(allRaceway([])).toBe(false);
   });
 });
