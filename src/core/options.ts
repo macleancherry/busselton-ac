@@ -1,305 +1,186 @@
-// Everything a build can be tuned by. Defaults aim at a two-lane mountain
-// road; the UI exposes the ones people actually change.
+// Everything a build can be tuned by (BuildOptions), the defaults, and withDefaults to fill a
+// partial record. No logic beyond that: the list of fields and their defaults is the behaviour
+// (docs/specs/options.md).
+//
+// The defaults are the original ones, aimed at a hilly two-lane country road (6% banking, a 3 m
+// terrain grid, ground 0.6 m under the road). Busselton is flat, so the town preset
+// (scripts/headless/presets.mjs) and the Busselton routes override the terrain and banking
+// settings; the defaults stay as they are because changing them would change every build.
+//
+// Optional fields (`?`) deliberately have no default: whoever reads them decides what "absent"
+// means (several are "on unless false").
 
+import type { ChallengesOption } from "./challenges";
+import type { LngLat } from "./geo";
 import { DEFAULT_SPONSORS } from "./sponsors";
 
 export interface BuildOptions {
-  /** Track name shown in Content Manager. */
+  // Road shape and size
+  /** Track name (slug, ui_track.json). */
   name: string;
-  /** Road width when OSM has no width/lanes tag, metres. */
+  /** Road width in metres when OSM has none. */
   defaultWidth: number;
-  /** Override every road width, metres (0 = use OSM). */
+  /** Fixed road width in metres; 0 = from OSM. */
   widthOverride: number;
-  /** Centreline sample spacing, metres. */
+  /** Centreline sample spacing, m. */
   spacing: number;
-  /** Horizontal smoothing of the OSM line, metres (Gaussian sigma). */
+  /** Gaussian sigma for the centreline, m. */
   lineSmoothing: number;
-  /** Vertical smoothing of the elevation profile, metres (Gaussian sigma). */
+  /** Gaussian sigma for the road's heights, m. */
   elevationSmoothing: number;
-  /** Gravel/grass strip each side of the asphalt, metres. */
+  /** Verge width either side of the road, m. */
   vergeWidth: number;
-  /** Terrain kept each side of the road, metres. */
-  corridor: number;
-  /** Terrain grid spacing, metres. */
-  terrainStep: number;
-  /**
-   * How far the terrain under the road is dropped below it, metres, so it
-   * never pokes through. It rises back over the two grid cells nearest the
-   * edge, so the ground beyond the verge or kerb isn't dragged down.
-   */
-  terrainUnderRoad: number;
-  /** Distance over which terrain blends from the road level to the real ground, metres. */
-  terrainBlend: number;
-  /** Terrain / texture chunk size, metres. */
-  chunkSize: number;
-  /** Invisible wall distance from the road edge, metres (0 = no walls). */
-  wallOffset: number;
-  /** Superelevation in corners. */
   banking: boolean;
-  /** Maximum cross-slope from banking (0.06 = 6%). */
+  /** Most banking on bends (0.06 = 6%). */
   maxBank: number;
-  /** Crown: fall from the centre to each edge (0.02 = 2%). */
+  /** Road crown (0.02 = 2%). */
   crown: number;
-  /** Number of pit boxes / grid slots. */
   pitCount: number;
-  /**
-   * Point to point roads: metres of run-up added before the grid (for a
-   * flying hotlap) and of run-off after the finish line, along the real
-   * streets. The timed section is exactly the road between the pins.
-   */
+  /** Road before the start, m. */
   runUp: number;
+  /** Road after the finish, m. */
   runOff: number;
-  /** Aerial imagery zoom level for terrain textures (0 = no imagery). */
-  imageryZoom: number;
-  /** Texture size per terrain chunk, pixels. */
-  textureSize: number;
-  /** Elevation tile zoom level. */
-  demZoom: number;
-  /** Non-drivable horizon terrain out to this distance from the road, metres (0 = none). */
-  horizon: number;
-  /** Water surface over the sea, and piers and jetties. */
-  sea: boolean;
-  /** Aerial imagery zoom for the horizon terrain. */
-  horizonZoom: number;
-  /** Trees from aerial imagery: 0 off, 1 normal, 2 dense. */
-  trees: number;
-  /**
-   * Terrain uses ksMultilayer: the aerial photo for colour, times tiled detail
-   * textures (lawn, rough grass, sand, leaf litter) masked from the photo, so the
-   * ground stays sharp at eye height. Needs DataSources.groundDetails.
-   */
-  groundDetail: boolean;
-  /** Footpaths and shared paths from OpenStreetMap (red asphalt where bikes share them, concrete otherwise). */
-  paths: boolean;
-  /** Upper bound on tree count, for frame rate. */
-  maxTrees: number;
-  /** Guard rails at drop-offs and where OSM maps them. */
-  guardRails: boolean;
-  /** White guide posts along the verges. */
-  guidePosts: boolean;
-  /**
-   * Busselton fork: W-beam (Armco) guard rail where Australian country roads have it (armco.ts): the
-   * outside of bends well under the speed limit, embankments, bridges and culverts, on top of guardRails'
-   * drop-offs and OSM rails; with posts, blockouts, buried ends and a separate collision wall. Needs guardRails.
-   */
-  armco?: boolean;
-  /** Buildings from OSM footprints. */
-  buildings: boolean;
-  /** Placeholder buildings where the aerial imagery shows a roof. */
-  detectBuildings: boolean;
-  /** Buildings are placed up to this far from the road, metres. */
-  buildingRadius: number;
-  /**
-   * Road surface: by road class and surroundings, one kind everywhere, or
-   * the aerial photo of the road itself where it was traced.
-   */
-  roadSurface: "auto" | "asphalt" | "chipseal" | "photo";
-  /** Edge lines, dividing lines and raised markers. */
-  markings: boolean;
-  /** Draw the other streets near the route. */
-  sideStreets: boolean;
-  /** Street name signs where named streets meet the route. */
-  streetSigns: boolean;
-  /** Signs, bus stops and servo canopies from OSM points of interest. */
-  landmarks: boolean;
-  /** Move the road to where the aerial photos show it, at their width. */
+  /** Trace the road edges from the aerial photos. */
   traceRoads: boolean;
-  /**
-   * Places where the photo trace is ignored and the road keeps the OSM line
-   * (wide main streets with angled parking can pull the trace onto the
-   * parking bays): centre [lng, lat] and radius in metres. Fades out over 30 m.
-   */
-  noTrace: { at: [number, number]; radius: number }[];
-  /** Reject photo-trace rows that run out of view or are far wider than the mapped street (see traceRoad). */
+  /** Places where the trace isn't used (faded out over 30 m). */
+  noTrace: { at: LngLat; radius: number }[];
   traceGuard: boolean;
-  /** Coarser terrain blocks away from the road where the ground is flat enough (see buildTerrainChunk). */
-  terrainLod: boolean;
-  /** Write data/traffic.json for CSP's traffic planner (turns on extended track physics, see surfacesIni). */
-  traffic: boolean;
-  /**
-   * Busselton fork: traffic density zones (trafficZones.ts): busy main roads and the town centre
-   * against quiet residential streets, from OSM road class and landuse.
-   */
-  trafficZones: boolean;
-  /** Busselton fork: "kids" for calmer traffic (lower limits, fewer cars suggested). A layout can set its own ("traffic" in the route's layouts). */
-  trafficSetting: "normal" | "kids";
-  /** Paint parked cars out of the ground photo (carpark.ts). */
-  carParks: boolean;
-  /** Low-poly cars where the photo had parked cars (needs carParks). */
-  parkedCars: boolean;
-  /**
-   * Busselton fork: parked cars only in real bays (parkedPlacement.ts): car park bays along mapped
-   * aisles, on an asphalt pad, and kerbside bays kerbside.ts painted; never two overlapping. On unless
-   * false; false puts them back where the photo had them, as before.
-   */
-  parkedBays?: boolean;
-  /**
-   * Busselton fork: kerbside parking bays and bike lanes painted on town streets, from OSM parking and
-   * cycleway tags, and bays where the photo shows cars parked along the kerb (kerbside.ts; needs markings).
-   */
-  kerbside?: boolean;
-  /**
-   * Busselton fork: traffic lanes and the keep-left AI line move in to keep half a lane clear of the
-   * painted kerbside bays (bayLanes.ts), so cars parked in them stay. On unless false.
-   */
-  laneBayClear?: boolean;
-  /**
-   * The look of houses in this area, when it isn't the usual mix: weights per facade, by name
-   * from buildingStyles.ts (e.g. a weatherboard estate: { wb_white: 3, wb_grey: 2, wb_blue: 1 }).
-   * Street-photo and hand-set looks still win house by house.
-   */
-  houseStyle?: { facades: Record<string, number> };
-  /**
-   * Busselton fork: the map's fixed centre [lng, lat]. Without it the map is centred on the route, so
-   * changing the route moves everything; hand-made models layered over the track need it fixed.
-   */
-  origin?: [number, number];
-  /**
-   * Busselton fork: an area build. Everything inside this polygon ([lng, lat] corners), or these polygons, is built, every
-   * street in it drivable, not only the corridor round the route (see area.ts).
-   */
-  area?: [number, number][] | [number, number][][];
-  /**
-   * Busselton fork: the AI line keeps left, in the left lane a quarter of the road's width left of
-   * centre, centred on narrow streets and through roundabouts (keepLeft.ts). For town and country
-   * roads where AI and traffic share two-way streets; off for circuits.
-   */
-  aiKeepLeft?: boolean;
-  /** Busselton fork: side streets count as track (IS_VALID_TRACK) rather than off it: for area builds and free roam. */
-  streetsValid?: boolean;
-  /** Busselton fork: this build is layout `layout` of a map with several (layouts.ts): its dummies, AI and data go in that layout's places. */
+  /** Fixed local origin; absent = centre of the route's bounding box. */
+  origin?: LngLat;
+  /** Area build polygon(s); absent = no area build. */
+  area?: LngLat[] | LngLat[][];
+  /** Layout id when the route has layouts; absent = a single-layout track. */
   layout?: string;
-  /**
-   * Busselton fork: areas a hand-made layer covers (scripts/headless/build-track.mjs fills these from
-   * each layer's sidecar file): no generated or spec house there, and no generated trees unless
-   * `trees` is false.
-   */
-  clears?: { at: [number, number]; radius: number; trees?: boolean }[];
-  /**
-   * Busselton fork: hand-picked checkpoints for the Busselton Challenges app, in place of the
-   * generated ones: a list of [lng, lat] or { at, name }, or several sets [{ name, points }] (challenges.ts).
-   */
-  challenges?: import("./challenges").ChallengesOption;
-  /** Busselton fork: sectors in a point-to-point road's time trial (default 3; timeTrial.ts). */
-  timeTrialSectors?: number;
-  /** Busselton fork: false leaves out the drift spots in empty car parks (driftZones.ts). */
-  driftZones?: boolean;
-  /** Raise car parks' planted islands behind kerbs, read off the photo (experimental: tree canopy still fools it). */
-  carParkIslands: boolean;
-  /** No level-of-detail blocks within this distance of the road's centreline, metres. */
-  terrainLodNear: number;
-  /**
-   * Busselton fork: how far (metres) the ground may sit off the true surface where it's drawn in
-   * bigger blocks, more than 40 m from the route (default 0.05). Larger thins a big area build.
-   */
-  terrainLodFarTol?: number;
-  /**
-   * Busselton fork: real 3D trees with CSP's instanced tree system (cspTrees.ts, treeModels.ts) in
-   * place of the alpha-tested card trees in the kn5. Needs CSP; the browser preview shows no trees.
-   */
-  cspTrees?: boolean;
-  /**
-   * Busselton fork: CSP RainFX puddles in the road's real hollows (rainHollows.ts): the puddle height
-   * map from the ground and roads only, and the hollows listed in ext_config for checking in game.
-   */
-  rainHollows?: boolean;
-  /**
-   * Busselton fork: CSP track sounds (trackSounds.ts): waves along the shore, magpies and kookaburras
-   * in the trees. true (or "lua"): a CSP track script plays extension/sfx/surf.ogg, magpie.ogg and
-   * kookaburra.ogg (add them: extension/sfx/README.txt). "fmod": the same emitters from an FMOD bank.
-   */
-  trackSounds?: boolean | "lua" | "fmod";
-  /**
-   * Busselton fork: roads OSM tags unsealed (surface=unpaved, gravel, compacted, dirt..., and
-   * untagged tracks) are built as limestone gravel with gravel physics, no markings and no kerbs
-   * (unsealed.ts). On unless false.
-   */
-  gravelRoads?: boolean;
-  /** Busselton fork: the whole route is unsealed gravel whatever OSM says (Boranup-style forest drives). */
+  /** The whole route is gravel; absent = OSM decides. */
   unsealed?: boolean;
-  /**
-   * Busselton fork: landscape zones (zones.ts): each part of the South West gets its own tree species
-   * and density, ground detail mix and verge colour, from the tiles' landcover, the distance to the
-   * sea and a coarse region map. Towns and the foreshore keep their street trees. On in the country preset.
-   */
-  zones?: boolean;
-  /**
-   * Busselton fork: Pure haze from where the track is (clear WA air, coast) and calmer photo ground on
-   * bright sand (pureConfig.ts). On unless false; false writes CSP's generic [PURE] values.
-   */
-  pureTuning?: boolean;
-  /**
-   * Busselton fork: the sea and beaches from the aerial photo (photoSea.ts): the bay's photo (shallows,
-   * sand bars, weed) under a partly clear CSP water surface, fading to deep blue far out; white sand,
-   * wet sand and a foam line at the water's edge. On unless false (needs `sea`).
-   */
-  photoSea?: boolean;
-  /** Kerb and gutter where the photos (or a built-up area) show them, instead of a gravel verge. */
-  kerbs: boolean;
-  /**
-   * Detail-mapped materials (ksPerPixelMultiMap): asphalt grain on the road
-   * and grass on the aerial photo's lawns, sharp up close.
-   */
-  detailShaders: boolean;
-  /**
-   * Race-day dressing: barriers, debris fence and sponsor banners along the
-   * start/finish straight and the outside of tight corners, tyre walls,
-   * gantries, a grandstand and spectators, marshal posts.
-   */
-  raceDress: boolean;
-  /** Sponsors on the banners and flags, comma-separated. */
-  sponsors: string;
-  /**
-   * Busselton fork: vineyards and paddocks (farm.ts): vine rows on OSM vineyards and post-and-wire
-   * fences along paddock boundaries and OSM wire fences beside the road. On in the country preset.
-   */
-  farmland?: boolean;
-  /**
-   * Busselton fork: country roadsides (farmRoadsides.ts): gravel farm driveways with a gate and a
-   * mailbox where OSM tracks and driveways leave the route, and cattle grids where OSM maps them.
-   * On in the country preset, off otherwise.
-   */
-  farmRoadsides?: boolean;
-  /**
-   * Busselton fork: flags (landmark feather flags, marshal flags) wave in the wind: AC's flag shader,
-   * CSP's dynamic flags (flags.ts). On unless false.
-   */
-  wavingFlags?: boolean;
-  /**
-   * Busselton fork: ship the jetty train's track script, which runs it out along the jetty and back
-   * (jettyTrain.ts). The train stands at the shore platform either way. On unless false.
-   */
-  jettyTrain?: boolean;
-  /**
-   * Busselton fork: traffic lights where OSM maps signals (highway=traffic_signals, signalised
-   * pedestrian crossings): Australian posts and heads, stop lines, and working lights through CSP's
-   * traffic planner when the track has traffic (trafficLights.ts). On unless false.
-   */
-  trafficLights?: boolean;
-  /**
-   * Busselton fork: keep power poles, light poles, signal posts and seen signs off the built
-   * drivable meshes (side streets, junction mouths, rings), moving them to the nearest clear spot
-   * or dropping them (poleSpot.ts). On unless false.
-   */
-  poleClear?: boolean;
-  /**
-   * Busselton fork: leave out the car park bays (and their pads and cars) that would cover the foot
-   * of a pole, wall, fence or building already placed (padClear.ts). On unless false.
-   */
-  padClear?: boolean;
-  /**
-   * Busselton fork: the network-first road core (src/core/network, docs/specs/road-network.md),
-   * phase 1. In an area build, the network's junctions and roundabouts are built as one surface each
-   * (1ROAD_J / 1STREET_J, with kerbs, islands and give-way lines) in place of the old ring,
-   * connectors, side-street mouths and return fills; the route and streets are cut back to each
-   * junction's caps and the streets eased to its height (network/phase1.ts). Junctions it can't take
-   * are left to the old core and listed in network/junctions.json. Without an area it only writes
-   * the prototype's network/network.json. Off unless true.
-   */
+  /** Gravel on unsealed roads; on unless false. */
+  gravelRoads?: boolean;
+  /** The new road core; off unless true. */
   networkCore?: boolean;
+
+  // Terrain and imagery
+  /** Terrain either side of the road, m. */
+  corridor: number;
+  /** Terrain grid step, m. */
+  terrainStep: number;
+  /** Ground sunk under the road, m. */
+  terrainUnderRoad: number;
+  /** Blend distance from road to terrain, m. */
+  terrainBlend: number;
+  /** Terrain chunk size, m. */
+  chunkSize: number;
+  terrainLod: boolean;
+  /** Full-detail distance from the road, m. */
+  terrainLodNear: number;
+  /** Far terrain LOD tolerance, m; absent = 0.05. */
+  terrainLodFarTol?: number;
+  /** Wall offset from the road edge, m; 0 = no walls. */
+  wallOffset: number;
+  /** Imagery zoom; 0 = no imagery. */
+  imageryZoom: number;
+  /** Terrain texture size, px. 1024 here, though the UI's default imagery gives 512 (spec, Bugs 1). */
+  textureSize: number;
+  demZoom: number;
+  /** Photo horizon distance, m; 0 = none. */
+  horizon: number;
+  horizonZoom: number;
+  sea: boolean;
+  /** Sea from the photo; on unless false (only with sea in view). */
+  photoSea?: boolean;
+  detailShaders: boolean;
+  /** Landscape zones; off when absent. */
+  zones?: boolean;
+  /** Pure config; on unless false. */
+  pureTuning?: boolean;
+  /** Rain puddles in hollows; off when absent. */
+  rainHollows?: boolean;
+
+  // Trees, buildings, scenery
+  /** 0 off, 1 normal, 2 dense. */
+  trees: number;
+  maxTrees: number;
+  /** CSP trees; off when absent. */
+  cspTrees?: boolean;
+  buildings: boolean;
+  detectBuildings: boolean;
+  /** Buildings within this distance of the road, m. */
+  buildingRadius: number;
+  /** An area's own facade mix; absent = the usual mix. */
+  houseStyle?: { facades: Record<string, number> };
+  /** Places cleared of generated houses (and trees unless trees: false). */
+  clears?: { at: LngLat; radius: number; trees?: boolean }[];
+  paths: boolean;
+  landmarks: boolean;
+  streetSigns: boolean;
+  sideStreets: boolean;
+  guardRails: boolean;
+  guidePosts: boolean;
+  /** W-beam Armco; off when absent (needs guardRails). */
+  armco?: boolean;
+  /** Vineyards and paddocks; off when absent. */
+  farmland?: boolean;
+  /** Farm driveways, gates, cattle grids; off when absent. */
+  farmRoadsides?: boolean;
+  /** On unless false. */
+  wavingFlags?: boolean;
+  /** On unless false. */
+  jettyTrain?: boolean;
+  /** Off when absent; "fmod" = FMOD, anything else truthy = Lua. */
+  trackSounds?: boolean | "lua" | "fmod";
+  /** On unless false. */
+  poleClear?: boolean;
+  raceDress: boolean;
+  /** Comma-separated sponsor names. */
+  sponsors: string;
+
+  // Road surface, markings, kerbs, parking
+  roadSurface: "auto" | "asphalt" | "chipseal" | "photo";
+  markings: boolean;
+  kerbs: boolean;
+  /** Kerbside bays and bike lanes; off when absent (needs markings). */
+  kerbside?: boolean;
+  /** On unless false (only with kerbside bays). */
+  laneBayClear?: boolean;
+  carParks: boolean;
+  /** Experimental car park islands. */
+  carParkIslands: boolean;
+  parkedCars: boolean;
+  /** On unless false. */
+  parkedBays?: boolean;
+  /** On unless false. */
+  padClear?: boolean;
+  /** On unless false. */
+  trafficLights?: boolean;
+
+  // AI, traffic, game files
+  traffic: boolean;
+  trafficZones: boolean;
+  trafficSetting: "normal" | "kids";
+  /** AI line in the left lane; off when absent. */
+  aiKeepLeft?: boolean;
+  /** Absent = true with an area, else false. */
+  streetsValid?: boolean;
+  /** Hand-picked challenge checkpoints; absent = generated. */
+  challenges?: ChallengesOption;
+  /** Absent = 3. */
+  timeTrialSectors?: number;
+  /** On unless false. */
+  driftZones?: boolean;
 }
 
-export const DEFAULT_OPTIONS: BuildOptions = {
+/** Fields with no default (their readers decide what absent means). */
+export const OPTIONAL_OPTION_KEYS: readonly (keyof BuildOptions)[] = Object.freeze([
+  "origin", "area", "layout", "unsealed", "gravelRoads", "networkCore",
+  "terrainLodFarTol", "photoSea", "zones", "pureTuning", "rainHollows",
+  "cspTrees", "houseStyle", "clears", "armco", "farmland", "farmRoadsides", "wavingFlags",
+  "jettyTrain", "trackSounds", "poleClear",
+  "kerbside", "laneBayClear", "parkedBays", "padClear", "trafficLights",
+  "aiKeepLeft", "streetsValid", "challenges", "timeTrialSectors", "driftZones",
+] as const);
+
+type RequiredFields<T> = { [K in keyof T as undefined extends T[K] ? never : K]: T[K] };
+
+const defaults: RequiredFields<BuildOptions> = {
   name: "My road",
   defaultWidth: 6.5,
   widthOverride: 0,
@@ -307,55 +188,75 @@ export const DEFAULT_OPTIONS: BuildOptions = {
   lineSmoothing: 4,
   elevationSmoothing: 15,
   vergeWidth: 1.5,
-  corridor: 90,
-  terrainStep: 3,
-  terrainUnderRoad: 0.6,
-  terrainBlend: 20,
-  chunkSize: 200,
-  wallOffset: 10,
   banking: true,
   maxBank: 0.06,
   crown: 0.02,
   pitCount: 8,
   runUp: 60,
   runOff: 150,
+  traceRoads: true,
+  noTrace: Object.freeze([]) as unknown as BuildOptions["noTrace"],
+  traceGuard: true,
+
+  corridor: 90,
+  terrainStep: 3,
+  terrainUnderRoad: 0.6,
+  terrainBlend: 20,
+  chunkSize: 200,
+  terrainLod: true,
+  terrainLodNear: 25,
+  wallOffset: 10,
   imageryZoom: 18,
   textureSize: 1024,
   demZoom: 14,
   horizon: 1500,
-  sea: true,
   horizonZoom: 16,
+  sea: true,
+  detailShaders: true,
+
   trees: 1,
-  groundDetail: true,
-  paths: true,
   maxTrees: 12000,
-  guardRails: true,
-  guidePosts: true,
   buildings: true,
   detectBuildings: true,
   buildingRadius: 250,
+  paths: true,
+  landmarks: true,
+  streetSigns: true,
+  sideStreets: true,
+  guardRails: true,
+  guidePosts: true,
+  raceDress: false,
+  sponsors: DEFAULT_SPONSORS,
+
   roadSurface: "auto",
   markings: true,
-  sideStreets: true,
-  streetSigns: true,
-  landmarks: true,
-  traceRoads: true,
-  noTrace: [],
-  traceGuard: true,
-  terrainLod: true,
-  traffic: false,
-  trafficZones: true,
-  trafficSetting: "normal",
+  kerbs: true,
   carParks: true,
   carParkIslands: false,
   parkedCars: true,
-  terrainLodNear: 25,
-  kerbs: true,
-  detailShaders: true,
-  raceDress: false, // Busselton fork: off; these are cruising roads, not race days (tick it in the UI for a race)
-  sponsors: DEFAULT_SPONSORS,
+
+  traffic: false,
+  trafficZones: true,
+  trafficSetting: "normal",
 };
 
+/** The defaults (frozen: copy through withDefaults, never change in place). */
+export const DEFAULT_OPTIONS: BuildOptions = Object.freeze(defaults) as BuildOptions;
+
+/**
+ * DEFAULT_OPTIONS overlaid with `partial` (shallow: a nested value replaces the default whole).
+ * Keys whose value is undefined don't erase a default. A new object; neither input is changed.
+ */
 export function withDefaults(partial: Partial<BuildOptions>): BuildOptions {
-  return { ...DEFAULT_OPTIONS, ...partial };
+  const out = { ...DEFAULT_OPTIONS, noTrace: [...DEFAULT_OPTIONS.noTrace] } as Record<string, unknown>;
+  for (const [k, v] of Object.entries(partial ?? {})) {
+    if (v !== undefined) out[k] = v;
+  }
+  return out as unknown as BuildOptions;
+}
+
+/** Keys of `obj` that aren't BuildOptions fields (typos in a route's build); keys starting with "_" are notes. */
+export function unknownOptionKeys(obj: Record<string, unknown>): string[] {
+  const known = new Set<string>([...Object.keys(DEFAULT_OPTIONS), ...OPTIONAL_OPTION_KEYS]);
+  return Object.keys(obj ?? {}).filter((k) => !k.startsWith("_") && !known.has(k));
 }

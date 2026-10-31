@@ -79,7 +79,7 @@ export async function runBuild(job: BuildJob, report: Report, traceProgress: (te
       return null;
     }),
     token
-      ? fetchSeen(paddedBounds(box, (opts.corridor ?? 90) + 20), token).catch((e) => {
+      ? fetchSeen(paddedBounds(box, (opts.corridor ?? 90) + 20), token, { warn: warnMissing }).catch((e) => {
         seenError = (e as Error).message;
         return [];
       })
@@ -142,7 +142,7 @@ export async function runBuild(job: BuildJob, report: Report, traceProgress: (te
     landuse: tiles?.landuse,
     seen,
     renderArt,
-    raster: (proj, path, reach, maxZoom) => loadRouteRaster(proj, path, reach, chain, maxZoom ?? 20, (d, t) => traceProgress(`Tracing the road in the aerial photos (${Math.round((d / t) * 100)}%)`)),
+    raster: (proj, path, reach, maxZoom) => loadRouteRaster(proj, path, reach, chain, maxZoom ?? 20, (d, t) => traceProgress(`Tracing the road in the aerial photos (${Math.round((d / t) * 100)}%)`), { warn: warnMissing }),
     roadClassAt: tiles ? roadClassLookup(tiles.roads, coords[0][1]) : undefined,
     // Busselton fork: coast, paths, house looks and shop signs.
     coast,

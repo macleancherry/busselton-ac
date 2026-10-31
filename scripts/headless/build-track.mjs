@@ -102,7 +102,9 @@ try {
     // NET_LOG=1 logs each outside request as it starts and ends (for hangs).
     const req = r.request();
     const url = req.url();
-    const key = createHash("sha256").update(`${req.method()} ${url} ${req.postData() ?? ""}`).digest("hex");
+    // Mapillary tiles are keyed without the token, so snapshots replay whoever's token builds them.
+    const keyUrl = url.startsWith("https://tiles.mapillary.com/") ? url.replace(/([?&])access_token=[^&]*(&|$)/, (_, pre, post) => (post ? pre : "")) : url;
+    const key = createHash("sha256").update(`${req.method()} ${keyUrl} ${req.postData() ?? ""}`).digest("hex");
     const host = (() => { try { return new URL(url).host; } catch { return "?"; } })();
     if (snapshot) {
       const sb = join(snapshot, `${key}.bin`), sm = join(snapshot, `${key}.json`);
