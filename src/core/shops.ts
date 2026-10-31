@@ -77,14 +77,15 @@ export function postSpots(len: number): number[] {
 
 /**
  * Steps a front down a slope (slopeSteps.ts) when its ground varies by more than a step's rise, or
- * the footpath under its verandah comes up within CLEAR of it. `g` is the building's ground.
+ * the footpath under its verandah comes up within CLEAR of it. `g` is the building's ground, `og`
+ * the ground out over the footpath (defaults to `g`).
  */
-function stepFront(f: Shopfront, g: HeightFn): void {
+function stepFront(f: Shopfront, g: HeightFn, og: HeightFn = g): void {
   const L = Math.hypot(f.b[0] - f.a[0], f.b[1] - f.a[1]);
   const e: Vec2 = [(f.b[0] - f.a[0]) / L, (f.b[1] - f.a[1]) / L];
   const at = (t: number, d: number): Vec2 => [f.a[0] + e[0] * t + f.out[0] * d, f.a[1] + e[1] * t + f.out[1] * d];
   const wall = (t: number) => g(...at(t, 0));
-  const sample = (t: number) => (f.depth > 0 ? [wall(t), g(...at(t, f.depth - 0.15)), g(...at(t, f.depth))] : [wall(t)]);
+  const sample = (t: number) => (f.depth > 0 ? [wall(t), og(...at(t, f.depth - 0.15)), og(...at(t, f.depth))] : [wall(t)]);
   const steps = slopeSteps(L, sample);
   if (steps.length === 1 && (f.depth <= 0 || f.ground + f.under >= steps[0].hi + CLEAR)) return;
   f.steps = steps.map((s) => {
@@ -158,13 +159,17 @@ export function findShopfronts(
     const room = bestGap - 0.6;
     const depth = room < 1 ? 0 : Math.min(MAX_DEPTH, room);
     const gb = groundFor?.(b) ?? ground;
+    // Out over the footpath: never under the scene's own ground there. A building past the terrain
+    // mesh stands on the horizon, metres under the mesh its verandah reaches out over (Augusta,
+    // Dunsborough: verandahs, signs and posts 1 to 5 m under the footpath).
+    const og: HeightFn = groundFor ? (x, y) => Math.max(gb(x, y), ground(x, y)) : ground;
     const f: Shopfront = {
       a, b: q, out: o, depth, posts: depth >= 2.4, ground: Math.min(gb(a[0], a[1]), gb(q[0], q[1])),
       under: Math.min(VERANDAH_H, Math.max(2.6, b.height - 0.4)),
       sign: Math.floor(rand() * SIGN_COUNT),
     };
-    stepFront(f, gb);
-    if (f.posts && groundFor) f.feet = postSpots(L).map((t) => gb(a[0] + ((q[0] - a[0]) * t) / L + o[0] * (depth - 0.15), a[1] + ((q[1] - a[1]) * t) / L + o[1] * (depth - 0.15)) - SINK);
+    stepFront(f, gb, og);
+    if (f.posts && groundFor) f.feet = postSpots(L).map((t) => og(a[0] + ((q[0] - a[0]) * t) / L + o[0] * (depth - 0.15), a[1] + ((q[1] - a[1]) * t) / L + o[1] * (depth - 0.15)) - SINK);
     out.push(f);
     centres.push([c, reach]);
   }

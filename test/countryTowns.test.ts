@@ -134,6 +134,27 @@ describe("a shop at the terrain mesh's edge", () => {
     expect(r.off).toEqual([]);
   });
 
+  it("keeps a horizon building's verandah, sign and posts over the mesh its footpath is on", () => {
+    // Augusta, Dunsborough: the shop is past the mesh (on the horizon, 4 m lower); its front faces
+    // the street with the mesh starting at its wall, so the verandah reaches out over the mesh.
+    const m = topSurface([ground("1GRASS_t000", -10, -10, 60, 7.9, () => 100)]);
+    const sc = groundOver(m, () => 96);
+    const horizon = () => 96;
+    const shop2 = shopBox(0, 8, 20, 12);
+    const [f] = findShopfronts([shop2], [], gap, sc, () => false, () => horizon);
+    expect(f.posts).toBe(true);
+    expect(f.ground).toBe(96);
+    expect(f.feet!.every((z) => Math.abs(z - (100 - 0.02)) < 1e-9)).toBe(true);
+    const shops = buildShopfronts([f], sc);
+    const r = checkGround(group("track", [group("TERRAIN", [ground("1GRASS_t000", -10, -10, 60, 7.9, () => 100)]), group("SHOPS", shops)]));
+    expect(r.off).toEqual([]);
+    // Every verandah and sign vertex over the footpath clears it.
+    for (const v of shops.filter((s) => /^SHOP_(VERANDAH|SIGN)/.test(s.name)).flatMap(enu)) expect(v[2]).toBeGreaterThan(100 + 2);
+    // Before: everything out front from the horizon's 96 m, under the 100 m footpath.
+    const old = findShopfronts([shop2], [], gap, horizon, () => false, () => horizon);
+    expect(Math.max(...buildShopfronts(old, horizon).filter((s) => s.name.startsWith("SHOP_SIGN")).flatMap(enu).map((v) => v[2]))).toBeLessThan(100);
+  });
+
   it("counts a footprint whose corners are all past the mesh but an edge crosses it as on the mesh", () => {
     // Corners at x 5 and 15 either side of a mesh strip x 9..11.
     const strip = topSurface([ground("1GRASS_t000", 9, -50, 11, 50, () => 1)]);

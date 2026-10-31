@@ -398,6 +398,8 @@ interface Span {
 interface Ctx {
   b: Building;
   g: HeightFn;
+  /** The ground out past the walls (over the footpath): never under the scene's own ground there. */
+  og: HeightFn;
   sink: number;
   ring: Vec2[]; // counter-clockwise
   walls: Wall[];
@@ -436,7 +438,9 @@ export function buildBuildings(list: Building[], ground: HeightFn, sinkFor?: (b:
     }
     const floor = Math.min(...cornerZ);
     const top = Math.max(...cornerZ) + Math.max(0.5, b.height);
-    const ctx: Ctx = { b, g, sink, ring, walls, floor, base: lowest - sink, top, out };
+    // A building on the horizon past the terrain mesh can reach out over the mesh, metres higher.
+    const og: HeightFn = groundFor ? (x, y) => Math.max(g(x, y), ground(x, y)) : g;
+    const ctx: Ctx = { b, g, og, sink, ring, walls, floor, base: lowest - sink, top, out };
     const front = frontWall(ctx);
     const spans = front ? doors(ctx, front) : [];
     wallBands(ctx, front, spans);
@@ -759,7 +763,7 @@ function verandah(ctx: Ctx, w: Wall): void {
 
 /** A cantilevered shop awning over the footpath. */
 function awning(ctx: Ctx, w: Wall): void {
-  const { b, floor, g } = ctx;
+  const { b, floor, g, og } = ctx;
   if (!b.awning || w.len < 4) return;
   const room = (b.setback ?? 3.4) - 0.4; // setback unknown: a 3 m awning
   const reach = Math.min(3, room);
@@ -768,7 +772,7 @@ function awning(ctx: Ctx, w: Wall): void {
   // wall's lowest ground and never under 2.4 m over the footpath. Laid at the footprint's lowest
   // corner + 3 m, an awning on a hillside street ran under the footpath (Augusta).
   const wallAt = (s: number) => { const p = onWall(w, s, 0); return g(p[0], p[1]); };
-  const steps = slopeSteps(w.len, (s) => { const o = onWall(w, s, reach); return [wallAt(s), g(o[0], o[1])]; });
+  const steps = slopeSteps(w.len, (s) => { const o = onWall(w, s, reach); return [wallAt(s), og(o[0], o[1])]; });
   const level = steps.length === 1 && floor + 3 >= steps[0].hi + 2.4;
   for (const st of steps) {
     const mb = ctx.out.get("AWNING", "canopy", true, 20);
