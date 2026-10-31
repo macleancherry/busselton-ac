@@ -490,14 +490,16 @@ export function groundClasses(rgba: Pixels, width: number, height: number): { gr
     const r = rgba[o] / 255, g = rgba[o + 1] / 255, b = rgba[o + 2] / 255;
     const hi = Math.max(r, g, b), lo = Math.min(r, g, b);
     const lum = 0.3 * r + 0.59 * g + 0.11 * b;
-    // Grey (roads, roofs, paving), shade and water carry no class.
-    const coloured = smoothstep(0.04, 0.11, hi - lo) * smoothstep(0.06, 0.13, lum) * smoothstep(0.92, 0.8, lum);
+    // Grey (roads, paving, grey roofs), deep shade, glare and blue things (water, shade on
+    // bitumen) carry no class.
+    const coloured = smoothstep(0.015, 0.05, hi - lo) * smoothstep(0.08, 0.16, lum) * smoothstep(0.85, 0.68, lum);
     if (coloured === 0) continue;
-    const green = smoothstep(-0.005, 0.035, g - r) * smoothstep(0.0, 0.05, g - b);
-    const warm = smoothstep(0.05, 0.13, Math.min(r, g) - b);
-    const dry = warm * smoothstep(0.045, 0.015, r - g) * smoothstep(-0.035, -0.005, g - r + 0.03);
-    const earthy = smoothstep(0.015, 0.06, r - g) * smoothstep(0.07, 0.15, r - b);
-    let gw = Math.max(green, dry) * coloured, dw = earthy * coloured;
+    // Vegetation, green or summer-dry: green at least level with blue. Tan and straw count; only
+    // clearly red-brown is earth.
+    const vegetal = smoothstep(-0.02, 0.02, g - b);
+    const earthy = smoothstep(0.07, 0.14, r - g) * smoothstep(0.1, 0.2, r - b);
+    let dw = earthy * coloured;
+    let gw = vegetal * (1 - earthy) * coloured;
     const sum = gw + dw;
     if (sum > 1) { gw /= sum; dw /= sum; }
     grass[i] = gw;
@@ -533,14 +535,15 @@ function boxBlur3(src: Float32Array, w: number, h: number): Float32Array {
  */
 export function groundMask(rgba: Pixels, width: number, height: number): { rgba: Uint8Array; width: number; height: number } {
   const { grass, dirt } = groundClasses(rgba, width, height);
-  const f = Math.max(1, Math.ceil(Math.max(width, height) / 256));
-  const mw = Math.max(1, Math.ceil(width / f)), mh = Math.max(1, Math.ceil(height / f));
+  // Each axis on its own, so a long narrow strip keeps its detail across.
+  const fx = Math.max(1, Math.ceil(width / 256)), fy = Math.max(1, Math.ceil(height / 256));
+  const mw = Math.ceil(width / fx), mh = Math.ceil(height / fy);
   const out = new Uint8Array(mw * mh * 4);
   for (let my = 0; my < mh; my++) {
     for (let mx = 0; mx < mw; mx++) {
       let gs = 0, ds = 0, cnt = 0;
-      for (let y = my * f; y < Math.min(height, (my + 1) * f); y++) {
-        for (let x = mx * f; x < Math.min(width, (mx + 1) * f); x++) {
+      for (let y = my * fy; y < Math.min(height, (my + 1) * fy); y++) {
+        for (let x = mx * fx; x < Math.min(width, (mx + 1) * fx); x++) {
           gs += grass[y * width + x];
           ds += dirt[y * width + x];
           cnt++;
