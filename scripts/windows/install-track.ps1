@@ -5,9 +5,9 @@
   a route file here, but code and route changes are never made on this machine (see CLAUDE.md).
 
 .EXAMPLE
-  .\scripts\windows\install-track.ps1 -Zip busselton            # <share>\builds\busselton.zip
+  .\scripts\windows\install-track.ps1 -Zip busselton            # the newest zip in <share>\builds holding busselton
   .\scripts\windows\install-track.ps1 -Zip busselton -RigTracks \\GAMINGRIG\tracks
-  .\scripts\windows\install-track.ps1 -All                       # every zip in <share>\builds
+  .\scripts\windows\install-track.ps1 -All                       # newest build of each track in <share>\builds, then polish
   .\scripts\windows\install-track.ps1 -Zip C:\somewhere\busselton_foreshore.zip
   .\scripts\windows\install-track.ps1 routes\foreshore.json
   .\scripts\windows\install-track.ps1 routes\foreshore.json -RigTracks \\GAMINGRIG\tracks
@@ -26,7 +26,7 @@ param(
   [string]$RigTracks = $env:BUSSELTON_RIG_TRACKS,
   [switch]$SkipBuild,
   [switch]$SkipCheck,
-  # Install every track zip in the share's builds folder.
+  # Install the newest build of each track in the share's builds folder, then newer polish zips over them.
   [switch]$All,
   # Unzip over the installed track without removing it first: for a polish zip (landmarks as layers,
   # scripts/polish/landmarks.ts) on top of an installed base. The AO bake stays.
@@ -48,8 +48,21 @@ if (Get-Command py -ErrorAction SilentlyContinue) { $pyExe = "py"; $pyArgs = @("
 if ($All) {
   $share = Get-BusseltonShare
   if (-not $share) { throw "No share: set BUSSELTON_SHARE." }
-  foreach ($z in Get-ChildItem (Join-Path $share "builds") -Filter *.zip) {
-    & $PSCommandPath -Zip $z.FullName -AcPath $AcPath -RigTracks $RigTracks
+  # The newest build of each track folder (an older zip holding the same folder is skipped), then the
+  # newest polish of each, laid over its build when it's newer than the build.
+  $builds = Join-Path $share "builds"
+  $bases = @(Get-BusseltonBuilds $builds)
+  foreach ($b in $bases) {
+    foreach ($o in @($b.Older)) { Write-Host "Skipping $($o.File.Name): $($b.File.Name) is a newer build of $($b.Slug)." -ForegroundColor DarkGray }
+    & $PSCommandPath -Zip $b.File.FullName -AcPath $AcPath -RigTracks $RigTracks
+  }
+  foreach ($p in @(Get-BusseltonBuilds $builds -Polish)) {
+    $base = $bases | Where-Object { $_.Slug -eq $p.Slug } | Select-Object -First 1
+    if ($base -and $p.File.LastWriteTimeUtc -le $base.File.LastWriteTimeUtc) {
+      Write-Host "Skipping $($p.File.Name): older than the $($p.Slug) build, which already has its landmarks." -ForegroundColor DarkGray
+      continue
+    }
+    & $PSCommandPath -Zip $p.File.FullName -AcPath $AcPath -RigTracks $RigTracks -Overlay
   }
   return
 }
@@ -99,6 +112,7 @@ function Install-Into([string]$tracks) {
     if (-not (Test-Path $dest)) { Remove-Item $tmp -Recurse -Force; throw "No $slug installed in $tracks to lay the polish over: install its base first." }
     Copy-Item (Join-Path (Join-Path $tmp $slug) "*") $dest -Recurse -Force
     Remove-Item $tmp -Recurse -Force
+    Write-BusseltonInstallMark $dest $zip -Polish
     Write-Host "Polish laid over $dest (rebake AO to shade what's new)." -ForegroundColor Green
     return
   }
@@ -128,6 +142,8 @@ function Install-Into([string]$tracks) {
     Remove-Item $keep -Recurse -Force
     Write-Host "Same geometry as before: kept the AO bake." -ForegroundColor Green
   }
+  # Which zip this came from (share.ps1), so rig-install.ps1 knows it's up to date.
+  Write-BusseltonInstallMark $dest $zip
   Write-Host "Installed $slug -> $dest" -ForegroundColor Green
 }
 Install-Into (Join-Path $AcPath "content\tracks")

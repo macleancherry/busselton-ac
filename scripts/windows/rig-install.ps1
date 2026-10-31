@@ -17,8 +17,11 @@
   zip), so AO bakes are kept the same way as on the workstation. Nothing else is needed on the rig:
   no Node, no Python, no repo (the kit in <share>\rig is enough).
 
-  What's "new": a zip whose time or size differs from the last one installed on this PC (remembered in
-  %LOCALAPPDATA%\BusseltonAC\installed.json), or a track that isn't installed at all.
+  What's "new": the newest zip of each track folder (an older zip holding the same folder, like
+  busselton.zip next to busselton_1.zip, is skipped) when the installed track didn't come from it.
+  install-track.ps1 records the zip's name, time and size in the track folder (installed_from.txt,
+  share.ps1), so a track installed from that zip by any script on this PC counts as up to date.
+  Tracks installed before that record existed fall back to %LOCALAPPDATA%\BusseltonAC\installed.json.
   Polish zips are <slug>_polish*.zip: laid over the installed track, after its base, and only when
   they're newer than the base build (a base build already carries the landmarks it was built with).
   A note for Mac about a build goes next to it as builds\<zip name>.txt and is shown here.
@@ -249,14 +252,26 @@ try {
     try { $infos += Read-ZipInfo $z }
     catch { $skipped += "$($z.Name): can't open it ($($_.Exception.Message)); still being copied?" }
   }
-  $bases = @($infos | Where-Object { -not $_.Polish })
-  $polishes = @($infos | Where-Object { $_.Polish })
+  # The newest zip per track folder (share.ps1); older ones holding the same folder are skipped.
+  $picked = @(Select-NewestPerTrack $infos)
+  foreach ($i in $picked) {
+    foreach ($o in @($i.Older)) { $skipped += "$($o.File.Name): $($i.File.Name) is a newer $(if ($i.Polish) { 'polish' } else { 'build' }) of $($i.Slug)" }
+  }
+  $bases = @($picked | Where-Object { -not $_.Polish })
+  $polishes = @($picked | Where-Object { $_.Polish })
+  # Installed from this very zip already? The track folder's record first, else this PC's state file.
+  function Test-UpToDate($info, [string]$dest) {
+    if (-not (Test-Path -LiteralPath $dest)) { return $false }
+    $mark = Test-BusseltonInstallMark $dest $info.File -Polish:$info.Polish
+    if ($null -ne $mark) { return $mark }
+    return $state[$info.File.Name] -eq $info.Key
+  }
   $reinstalled = @{}
   $verb = $(if ($DryRun) { "would install" } else { "installed" })
 
   foreach ($b in $bases) {
     $dest = Join-Path $tracks $b.Slug
-    if (-not ($Force -or -not (Test-Path -LiteralPath $dest) -or $state[$b.File.Name] -ne $b.Key)) { continue }
+    if (-not $Force -and (Test-UpToDate $b $dest)) { continue }
     $before = @(Get-InstalledLayouts $dest)
     $hadAo = Test-Ao $dest
     $wasThere = Test-Path -LiteralPath $dest
@@ -291,7 +306,7 @@ try {
 
   foreach ($p in $polishes) {
     $dest = Join-Path $tracks $p.Slug
-    if (-not ($Force -or $state[$p.File.Name] -ne $p.Key -or $reinstalled.ContainsKey($p.Slug))) { continue }
+    if (-not ($Force -or $reinstalled.ContainsKey($p.Slug) -or -not (Test-UpToDate $p $dest))) { continue }
     $base = $bases | Where-Object { $_.Slug -eq $p.Slug } | Select-Object -First 1
     if ($base -and $p.File.LastWriteTimeUtc -le $base.File.LastWriteTimeUtc) {
       # The base was built after this polish and already has the landmarks it was built with.

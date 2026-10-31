@@ -15,7 +15,8 @@
 .NOTES
   Runs code from the repo, never edits it (see CLAUDE.md). Needs CSP installed. Every build ships the
   test script (extension\autotest.lua), traffic or not.
-  The track is a slug (its zip is <share>\builds\<slug>.zip) or a zip's path. Results go to
+  The track is a slug (the newest zip in <share>\builds holding that track folder, so busselton_1.zip
+  beats an older busselton.zip; share.ps1's Resolve-BusseltonZip) or a zip's path. Results go to
   <share>\tests\<date>_<time>-<slug>-<layout> and a zip of it (share.ps1 has the share's layout).
   The car is an everyday hatch (the Abarth 500 that comes with AC) driven at AI level 75, so the
   test drives a town street the way a person would, not flat out in a race car. -Car and -AiLevel
