@@ -8,14 +8,11 @@ src/core/art.ts
 src/core/backdrop.ts
 src/core/cameras.ts
 src/core/clearance.ts
-src/core/colour.ts
 src/core/cspConfig.ts
-src/core/cull.ts
 src/core/elevation.ts
 src/core/extend.ts
 src/core/fences.ts
 src/core/frontage.ts
-src/core/geo.ts
 src/core/kerbs.ts
 src/core/lots.ts
 src/core/markings.ts
@@ -25,7 +22,6 @@ src/core/network/geom.ts
 src/core/options.ts
 src/core/paintLines.ts
 src/core/photoSurface.ts
-src/core/polyline.ts
 src/core/raceDress.ts
 src/core/road.ts
 src/core/roadMesh.ts
@@ -36,7 +32,6 @@ src/core/spurs.ts
 src/core/terrain.ts
 src/core/trace.ts
 src/core/track.ts
-src/core/zip.ts
 src/services/art.ts
 src/services/mapillary.ts
 src/services/osm.ts
@@ -51,9 +46,7 @@ src/ui/session.ts
 src/ui/style.css
 test/cameras.test.ts
 test/clearance.test.ts
-test/colour.test.ts
 test/cspConfig.test.ts
-test/cull.test.ts
 test/demtiles.test.ts
 test/extend.test.ts
 test/fences.test.ts

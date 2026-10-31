@@ -1,43 +1,52 @@
-// Colour matching between aerial imagery sources. Some state mosaics carry
-// a strong cast (NSW's can make bushland look navy blue), which also fools
-// the vegetation tests that find trees. Matching each channel's mean and
-// spread to Esri's imagery of the same area keeps the sharper source's
-// detail with a natural colour balance.
+// Aerial colour matching: fit each channel's mean and spread to a reference image of the same
+// area, keeping the source's detail with a natural colour balance. Only NSW imagery uses it
+// (`BALANCED` in src/services/tiles.ts). Written from docs/specs/colour.md.
 
-/** Per-channel out = in * gain + offset, on 0..255 values. */
-export interface ColourTransform {
-  gain: [number, number, number];
-  offset: [number, number, number];
-}
+type Pixels = Uint8Array | Uint8ClampedArray;
 
-function stats(px: Uint8Array | Uint8ClampedArray): { mean: number[]; sd: number[] } | null {
+/** Per channel (R, G, B): out = in · gain + offset, on 0..255 values. */
+export interface ColourTransform { gain: [number, number, number]; offset: [number, number, number] }
+
+const MIN_PIXELS = 64;
+const MIN_ALPHA = 128;
+
+type Stats = { mean: [number, number, number]; sd: [number, number, number] };
+
+/** Per-channel mean and population standard deviation (floored at 1) of opaque pixels, or null. */
+function stats(px: Pixels): Stats | null {
   const sum = [0, 0, 0], sq = [0, 0, 0];
   let n = 0;
-  for (let i = 0; i < px.length; i += 4) {
-    if (px[i + 3] < 128) continue;
-    for (let k = 0; k < 3; k++) {
-      sum[k] += px[i + k];
-      sq[k] += px[i + k] * px[i + k];
+  const end = px.length - (px.length % 4);
+  for (let i = 0; i < end; i += 4) {
+    if (px[i + 3] < MIN_ALPHA) continue;
+    for (let c = 0; c < 3; c++) {
+      const v = px[i + c];
+      sum[c] += v;
+      sq[c] += v * v;
     }
     n++;
   }
-  if (n < 64) return null;
-  const mean = sum.map((s) => s / n);
-  return { mean, sd: sq.map((s, k) => Math.sqrt(Math.max(1, s / n - mean[k] * mean[k]))) };
+  if (n < MIN_PIXELS) return null;
+  const mean = sum.map((s) => s / n) as [number, number, number];
+  const sd = sq.map((s, c) => Math.sqrt(Math.max(1, s / n - mean[c] * mean[c]))) as [number, number, number];
+  return { mean, sd };
 }
 
-/** The transform that gives `src` the colour statistics of `ref` (same area, any size). */
-export function matchColours(src: Uint8Array | Uint8ClampedArray, ref: Uint8Array | Uint8ClampedArray): ColourTransform | null {
-  const a = stats(src), b = stats(ref);
-  if (!a || !b) return null;
-  const gain = [0, 1, 2].map((k) => Math.max(0.5, Math.min(2, b.sd[k] / a.sd[k]))) as [number, number, number];
-  const offset = [0, 1, 2].map((k) => b.mean[k] - a.mean[k] * gain[k]) as [number, number, number];
+/** The transform that gives `src` the colour statistics of `ref` (RGBA, any sizes), or null. */
+export function matchColours(src: Pixels, ref: Pixels): ColourTransform | null {
+  const s = stats(src), r = stats(ref);
+  if (!s || !r) return null;
+  const gain = [0, 1, 2].map((c) => Math.min(2, Math.max(0.5, r.sd[c] / s.sd[c]))) as [number, number, number];
+  const offset = [0, 1, 2].map((c) => r.mean[c] - s.mean[c] * gain[c]) as [number, number, number];
   return { gain, offset };
 }
 
-/** Applies a transform in place (RGBA). */
-export function applyColours(px: Uint8Array | Uint8ClampedArray, t: ColourTransform): void {
-  for (let i = 0; i < px.length; i += 4) {
-    for (let k = 0; k < 3; k++) px[i + k] = Math.max(0, Math.min(255, Math.round(px[i + k] * t.gain[k] + t.offset[k])));
+/** Applies the transform to R, G and B of every whole pixel in place (alpha untouched). */
+export function applyColours(px: Pixels, t: ColourTransform): void {
+  const end = px.length - (px.length % 4);
+  for (let i = 0; i < end; i += 4) {
+    for (let c = 0; c < 3; c++) {
+      px[i + c] = Math.min(255, Math.max(0, Math.floor(px[i + c] * t.gain[c] + t.offset[c] + 0.5)));
+    }
   }
 }
