@@ -335,8 +335,10 @@ function ribbons(mb: MeshBuilder, p: Vec3, q: Vec3, w: number): void {
 /**
  * Lights along car park aisles: a pole every 35 m (the first 17 m in), 9 m off the aisle,
  * alternating sides, each with two arms across the aisle and a lantern under each arm's end.
+ * With `onRoad` (poleSpot.ts) a pole whose foot lands on a built drivable mesh (another aisle's or a
+ * side street's asphalt) moves to the nearest clear spot, further from its aisle first, or is left out.
  */
-export function carParkLights(aisles: Vec2[][], ground: HeightFn, blocked: XY, existing: Vec3[] = []): { pieces: Piece[]; lights: Vec3[] } {
+export function carParkLights(aisles: Vec2[][], ground: HeightFn, blocked: XY, existing: Vec3[] = [], onRoad?: OnRoad): { pieces: Piece[]; lights: Vec3[] } {
   const parts: Piece[] = [];
   const glow: Vec3[] = [];
   const taken: Vec2[] = existing.map((l) => [l[0], l[1]]);
@@ -350,10 +352,11 @@ export function carParkLights(aisles: Vec2[][], ground: HeightFn, blocked: XY, e
       if (!(len > 1e-6)) continue;
       const tan = unit([b[0] - a[0], b[1] - a[1]]), n = perp(tan);
       while (next <= len) {
-        const at = add(add(a, tan, next), n, CP_OFF * side);
+        const want = add(add(a, tan, next), n, CP_OFF * side);
+        const at = clearSpot(want, onRoad, { away: scale(n, side), reach: 3 });
         side = -side;
         next += CP_STEP;
-        if (blocked(at[0], at[1]) || taken.some((t) => dist(t, at) < CP_GAP)) continue;
+        if (!at || blocked(at[0], at[1]) || taken.some((t) => dist(t, at) < CP_GAP)) continue;
         taken.push(at);
         const h = ground(at[0], at[1]);
         parts.push({ kind: "box", at, along: tan, length: CP_POLE_W, depth: CP_POLE_W, z0: h - SINK, z1: h + CP_POLE_TOP, material: "steel" });

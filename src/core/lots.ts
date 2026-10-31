@@ -21,6 +21,8 @@ import { SINK } from "./sceneGround";
 const SIDE = 1.2;
 const VERGE = 4.5;
 const YARD = 8;
+/** Fences' and front walls' bottoms follow the ground in steps this long, metres. */
+const GROUND_STEP = 0.5;
 
 export interface LotOptions {
   /** Distance from a point to the nearest road or street edge, metres (Infinity if none near). */
@@ -107,7 +109,7 @@ export function buildLots(houses: Building[], ground: HeightFn, opts: LotOptions
           const e = Math.min(s1, s + FRONT_WALL_REPEAT);
           const a = at(s, wallAt), c = at(e, wallAt);
           if (!free(a[0], a[1], b) || !free(c[0], c[1], b)) continue;
-          wallBox(fronts[kind].next(24), a, c, spec.d, ground, spec.h);
+          wallBox(fronts[kind], a, c, spec.d, ground, spec.h);
         }
       }
     }
@@ -138,7 +140,17 @@ export function buildLots(houses: Building[], ground: HeightFn, opts: LotOptions
   return out;
 }
 
-/** Colorbond fence along a line: one two-sided panel every 2.4 m, stepped to the ground. */
+/** Points every `step` metres (at most) from a to b, both ends included. */
+function stepsAlong(a: Vec2, b: Vec2, step = GROUND_STEP): Vec2[] {
+  const n = Math.max(1, Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / step));
+  return Array.from({ length: n + 1 }, (_, k): Vec2 => [a[0] + ((b[0] - a[0]) * k) / n, a[1] + ((b[1] - a[1]) * k) / n]);
+}
+
+/**
+ * Colorbond fence along a line: one two-sided panel every 2.4 m. Each panel's top is level, its
+ * bottom follows the ground every half metre, SINK into it: a level bottom at the panel's lowest
+ * ground went 10 to 50 cm into a bank or the side of a drain under the rest of it.
+ */
 function fence(cm: ChunkedMesh, [a, b]: [Vec2, Vec2], ground: HeightFn, ok: (p: Vec2) => boolean): void {
   const len = Math.hypot(b[0] - a[0], b[1] - a[1]);
   const n = Math.max(1, Math.round(len / FENCE_PANEL));
@@ -147,58 +159,67 @@ function fence(cm: ChunkedMesh, [a, b]: [Vec2, Vec2], ground: HeightFn, ok: (p: 
     const q: Vec2 = [a[0] + ((b[0] - a[0]) * (k + 1)) / n, a[1] + ((b[1] - a[1]) * (k + 1)) / n];
     const m: Vec2 = [(p[0] + q[0]) / 2, (p[1] + q[1]) / 2];
     if (!ok(p) || !ok(q) || !ok(m)) continue;
-    const z = lowestAlong(ground, p, q) - SINK;
-    const mb = cm.next(8);
+    const pts = stepsAlong(p, q);
+    const foot = pts.map(([x, y]) => ground(x, y) - SINK);
+    const lo = Math.min(...foot), hi = Math.max(...foot);
+    // The top as it always was (the lowest ground plus the fence), and never under half a metre over the ground.
+    const top = Math.max(lo + FENCE_HEIGHT, hi + 0.5);
+    const mb = cm.next(pts.length * 4);
     const dx = q[0] - p[0], dy = q[1] - p[1], l = Math.hypot(dx, dy) || 1;
     for (const side of [1, -1]) {
       const nrm: Vec3 = [(dy / l) * side, (-dx / l) * side, 0];
       const i = mb.vertexCount;
-      mb.vertex([p[0], p[1], z], 0, 1);
-      mb.vertex([q[0], q[1], z], 1, 1);
-      mb.vertex([q[0], q[1], z + FENCE_HEIGHT], 1, 0);
-      mb.vertex([p[0], p[1], z + FENCE_HEIGHT], 0, 0);
-      for (let j = 0; j < 4; j++) mb.normals!.push(...nrm);
-      if (side === 1) mb.quad(i, i + 1, i + 2, i + 3);
-      else mb.quad(i, i + 3, i + 2, i + 1);
+      pts.forEach(([x, y], j) => {
+        const u = j / (pts.length - 1);
+        mb.vertex([x, y, foot[j]], u, (top - foot[j]) / (top - lo));
+        mb.vertex([x, y, top], u, 0);
+        mb.normals!.push(...nrm, ...nrm);
+      });
+      for (let j = 0; j + 1 < pts.length; j++) {
+        const b0 = i + 2 * j, t0 = b0 + 1, b1 = b0 + 2, t1 = b0 + 3;
+        if (side === 1) mb.quad(b0, b1, t1, t0);
+        else mb.quad(b0, t0, t1, b1);
+      }
     }
   }
 }
 
-/** A low wall or hedge from a to c, `depth` thick and `h` high: two faces, two ends and a top. */
-function wallBox(mb: MeshBuilder, a: Vec2, c: Vec2, depth: number, ground: HeightFn, h: number): void {
+/**
+ * A low wall or hedge from a to c, `depth` thick and `h` high: two faces, two ends and a top. The top
+ * is level; each face's bottom follows the ground under that face every half metre, SINK into it.
+ */
+function wallBox(cm: ChunkedMesh, a: Vec2, c: Vec2, depth: number, ground: HeightFn, h: number): void {
   const dx = c[0] - a[0], dy = c[1] - a[1], l = Math.hypot(dx, dy) || 1;
   const nx = dy / l * depth / 2, ny = -dx / l * depth / 2;
-  const z0 = lowestAlong(ground, a, c) - SINK;
-  const z1 = Math.max(ground(a[0], a[1]), ground(c[0], c[1])) + h;
   const corners: Vec2[] = [[a[0] + nx, a[1] + ny], [c[0] + nx, c[1] + ny], [c[0] - nx, c[1] - ny], [a[0] - nx, a[1] - ny]];
   // Corners run counter-clockwise from above, so each edge's outside is to its right.
-  for (let k = 0; k < 4; k++) {
+  const faces = corners.map((p, k) => stepsAlong(p, corners[(k + 1) % 4]));
+  const feet = faces.map((pts) => pts.map(([x, y]) => ground(x, y) - SINK));
+  const hi = Math.max(...feet.flat()) + SINK;
+  const z1 = Math.max(Math.max(ground(a[0], a[1]), ground(c[0], c[1])) + h, hi + 0.2);
+  const mb = cm.next(faces.reduce((n, f) => n + f.length * 2, 0) + 4);
+  faces.forEach((pts, k) => {
     const p = corners[k], q = corners[(k + 1) % 4];
     const ex = q[0] - p[0], ey = q[1] - p[1], el = Math.hypot(ex, ey) || 1;
     const n: Vec3 = [ey / el, -ex / el, 0];
-    const u1 = el / FRONT_WALL_REPEAT, v1 = (z1 - z0) / 1;
     const i = mb.vertexCount;
-    mb.vertex([p[0], p[1], z0], 0, v1);
-    mb.vertex([q[0], q[1], z0], u1, v1);
-    mb.vertex([q[0], q[1], z1], u1, 0);
-    mb.vertex([p[0], p[1], z1], 0, 0);
-    for (let j = 0; j < 4; j++) mb.normals!.push(...n);
-    mb.quad(i, i + 1, i + 2, i + 3);
-  }
+    pts.forEach(([x, y], j) => {
+      const u = (el * j) / (pts.length - 1) / FRONT_WALL_REPEAT;
+      mb.vertex([x, y, feet[k][j]], u, z1 - feet[k][j]);
+      mb.vertex([x, y, z1], u, 0);
+      mb.normals!.push(...n, ...n);
+    });
+    for (let j = 0; j + 1 < pts.length; j++) {
+      const b0 = i + 2 * j;
+      mb.quad(b0, b0 + 2, b0 + 3, b0 + 1);
+    }
+  });
   const i = mb.vertexCount;
   for (const p of corners) {
     mb.vertex([p[0], p[1], z1], 0.5, 0.02);
     mb.normals!.push(0, 0, 1);
   }
   mb.quad(i, i + 1, i + 2, i + 3);
-}
-
-/** The lowest ground along a line, every half metre: where a panel's foot goes so none of it floats. */
-function lowestAlong(ground: HeightFn, a: Vec2, b: Vec2): number {
-  const n = Math.max(1, Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / 0.5));
-  let lo = Infinity;
-  for (let k = 0; k <= n; k++) lo = Math.min(lo, ground(a[0] + ((b[0] - a[0]) * k) / n, a[1] + ((b[1] - a[1]) * k) / n));
-  return lo;
 }
 
 /** Flat garden bed a few centimetres above the ground (inside the ground check's 5 cm). */

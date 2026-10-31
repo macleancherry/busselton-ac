@@ -6,7 +6,7 @@ import { buildPaths, footPathTexture, PATH_BLOCK, sharedPathTexture, type PathLi
 import { TREE_SPECIES, treeSpeciesAtlas } from "./treeSprites";
 import { FENCE_COLOURS, fenceTexture, frontWallTexture, hedgeTexture, mulchTexture, shrubAtlas } from "./houseTextures";
 import { buildLots, shrub } from "./lots";
-import { buildParkedCars, carTexture, paintFor } from "./parkedCars";
+import { buildParkedCars, carSeat, carTexture, paintFor, TYRE_SINK } from "./parkedCars";
 import { buildShopfronts, findShopfronts, shopSignTexture, shopStats, shopWindowTexture, type SignDrawer } from "./shops";
 import { buildIslands, findIslands, footprintMask, lineMask, paintOutCars } from "./carpark";
 import { trafficJson, type TrafficRoad } from "./traffic";
@@ -50,6 +50,7 @@ import { withBayBands, type BayBox } from "./bayLanes";
 import { buildTerrainChunk, makeTerrainFn, meshTop, planTerrainChunks, type TerrainChunk } from "./terrain";
 import { PHYSICS_GROUND, ROAD_SURFACE, sceneGround, SINK, topSurface } from "./sceneGround";
 import { footOnRoad, onRoadFrom } from "./poleSpot";
+import { clearBays, feetNear } from "./padClear";
 import { BAY_ASPHALT, bayHeight } from "./bayGround";
 import { ASPHALT, offAsphaltAt } from "./parkedCheck";
 import { clearParked, ROUTE_ROAD } from "./parkedClear";
@@ -256,7 +257,7 @@ export interface TrackResult {
     carsPainted?: number;
     parkedCars?: number;
     /** Busselton fork: parked cars the last pass dropped (parkedClear.ts), by what they touched. */
-    parkedDropped?: { road: number; roundabout: number; lane: number; offAsphalt?: number };
+    parkedDropped?: { road: number; roundabout: number; lane: number; offAsphalt?: number; uneven?: number };
     /** Busselton fork: parked cars put in bays (parkedPlacement.ts): in car parks, in kerbside bays, and photo cars dropped, by why. */
     parkedBays?: { carPark: number; kerb: number; dropped: { aisle: number; noBay: number; blocked: number; overlap: number } };
     /** Busselton fork: kerbside parking bays, bike lane metres and bicycle symbols painted (kerbside.ts). */
@@ -1565,6 +1566,7 @@ export async function buildTrack(
         || kept.some((b) => pointInRing(x, y, b.ring)) || parkedSpots.some((c) => Math.hypot(c.at[0] - x, c.at[1] - y) < 3);
     },
     utilities.lights,
+    poleOnRoad,
   );
   // Busselton fork: lamp posts along the jetty, lit at night.
   const jettyLamps = piers.length ? jettyLights(piers, shoreGround, sea) : { nodes: [], lights: [] };
@@ -2005,7 +2007,7 @@ export async function buildTrack(
   }
   // Busselton fork: the last pass, against the roads as built (parkedClear.ts): no part of a car on
   // the route's or a street's road surface, on a roundabout, or within half a lane of a traffic lane.
-  let parkedDropped = { road: 0, roundabout: 0, lane: 0, offAsphalt: 0 };
+  let parkedDropped = { road: 0, roundabout: 0, lane: 0, offAsphalt: 0, uneven: 0 };
   if (parked.length) {
     const lanes = lanePts;
     const throughStreets = new LineIndex(streetPlan.streets.filter((st) => !/^(parking_aisle|driveway|drive-through)$/.test(st.service ?? "")));
@@ -2016,7 +2018,7 @@ export async function buildTrack(
       lane: lanes ? (x, y) => lanes.clearance(x, y) : undefined,
     });
     parked = clear.kept;
-    parkedDropped = { ...clear.dropped, offAsphalt: 0 };
+    parkedDropped = { ...clear.dropped, offAsphalt: 0, uneven: 0 };
   }
   // Added to the scene now the traffic lanes are known (none sits in a lane): the cars culled with
   // the other detail, their collision boxes with the walls.
@@ -2024,6 +2026,13 @@ export async function buildTrack(
     // On the base's ground as built (sceneGround.ts), or the car park bays' pads over it
     // (parkedPlacement.ts), flush with the aisles and streets they meet (bayGround.ts).
     const asphaltBuilt = [...roadMeshes.road, ...sideStreets, ...kerbsClear.nodes, ...ringsClear.nodes];
+    // Busselton fork: no bay over the foot of a pole, wall, fence or building already placed (padClear.ts).
+    if (bayQuads.length && opts.padClear !== false) {
+      const c = clearBays(bayQuads, parked, feetNear(model.root.children, bayQuads, ground));
+      bayQuads = c.quads;
+      parked = c.cars;
+      if (placedParked) placedParked.dropped.blocked += c.dropped;
+    }
     const pads = bayQuads.length ? buildBayPads(bayQuads, ground, bayHeight(ground, topSurface(asphaltBuilt, BAY_ASPHALT))) : [];
     if (pads.length) model.root.children.push(group("CARPARKS", pads));
     const padTop = pads.length ? topSurface(pads) : null;
@@ -2045,6 +2054,12 @@ export async function buildTrack(
       const g = ground(x, y), p = padTop?.(x, y);
       return p != null && p > g ? p : g;
     };
+    // Busselton fork: nor where the ground under its wheels is too twisted to sit on (parkedCars.ts carSeat).
+    {
+      const n = parked.length;
+      parked = parked.filter((c) => carSeat(c, carGround).sink <= TYRE_SINK + 1e-6);
+      parkedDropped.uneven = n - parked.length;
+    }
     const parkedMeshes = buildParkedCars(parked, carGround);
     model.root.children.push(
       ...cullable([group("PARKED_CARS", parkedMeshes.filter((m) => !m.name.startsWith("1WALL")))]),
