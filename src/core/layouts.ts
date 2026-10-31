@@ -25,6 +25,7 @@ import { withDefaults, type BuildOptions } from "./options";
 import { planRoad, type RoadPlan } from "./road";
 import type { LngLat, LocalProjection } from "./geo";
 import { simplify } from "./polyline";
+import { junctionsOn, type GridAvoid } from "./gridSlots";
 
 type Vec2 = [number, number];
 const enc = new TextEncoder();
@@ -283,6 +284,11 @@ function routeAi(world: World, coords: LngLat[], opts: BuildOptions, height: (x:
   return { plan, hs, ai, limitAt, hints: aiHintsIni(ai, limitAt, !plan.closed) };
 }
 
+/** What a layout's grid and boxes keep clear of: the world's roundabouts and the streets meeting `road` (local metres). */
+export function worldAvoid(world: World, road: Vec2[]): GridAvoid {
+  return { rings: world.rings ?? [], junctions: world.lines?.length ? junctionsOn(road, world.lines) : [] };
+}
+
 /**
  * Pit boxes for AI Flood (CSP, Track Day): `n` spots spread evenly round the AI line, each on the
  * line and facing along it, so every AI car starts on its line and drives straight off (there is no
@@ -315,7 +321,7 @@ export function floodPits(ai: AiPoint[], n: number, avoid: Vec2[] = []): { pos: 
 }
 
 /** A layout's own files (dummies kn5, AI line, data, ui), on the world's road surface. */
-export function layoutFiles(world: World, layout: LayoutSpec, trackObjects: (plan: RoadPlan, opts: BuildOptions) => Kn5GroupNode[]): Record<string, Uint8Array> {
+export function layoutFiles(world: World, layout: LayoutSpec, trackObjects: (plan: RoadPlan, opts: BuildOptions, avoid?: GridAvoid) => Kn5GroupNode[]): Record<string, Uint8Array> {
   const opts = withDefaults({ ...world.options, name: layout.name });
   const { slug, proj } = world;
   const height = surfaceHeight(world.model);
@@ -395,7 +401,8 @@ export function layoutFiles(world: World, layout: LayoutSpec, trackObjects: (pla
     });
     const shots = landmarkShots(ai, world.landmarks ?? []);
     files[`${base}/data/autotest.ini`] = enc.encode(`[AUTOTEST]\nCLOSED=${plan.closed}\nLIMITS=${pct.join(",")}\n${shots.length ? `SHOTS=${shots.join(",")}\n` : ""}`);
-    const dummies = trackObjects(plan, opts);
+    // The grid on a straight, clear of the world's roundabouts and of the streets that meet the route.
+    const dummies = trackObjects(plan, opts, worldAvoid(world, plan.samples.map((smp) => smp.pos)));
     files[`${slug}/layout_${layout.id}.kn5`] = dummiesKn5(layout.id, dummies);
     const ground = (x: number, y: number) => height(x, y) ?? hs[0];
     // Busselton fork: the layout's hand-picked checkpoints and, point to point, its time trial.
