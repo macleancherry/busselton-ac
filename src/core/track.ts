@@ -167,6 +167,8 @@ export interface DataSources {
   groundDetails?(): Promise<Record<GroundLayer, GroundDetail> | null>;
   /** Credit line for the imagery source(s), written into the README; read after imagery is fetched. */
   imageryCredit?: string | (() => string);
+  /** Busselton fork: credit line for the elevation model(s) used (e.g. GA's 5 m DEM for WA); empty or absent = the global terrain tiles. */
+  elevationCredit?: string | (() => string);
 }
 
 export interface OsmFeatures {
@@ -2176,7 +2178,12 @@ export async function buildTrack(
     })),
     [`${slug}/ui/outline.png`]: outlinePng(outline2d),
     [`${slug}/ui/preview.png`]: previewPng(outline2d, plan.closed),
-    [`${slug}/README.txt`]: enc.encode(readme(trackMeta, textured.size ? (typeof sources.imageryCredit === "function" ? sources.imageryCredit() : sources.imageryCredit) ?? "aerial imagery" : null)),
+    [`${slug}/README.txt`]: enc.encode(readme(trackMeta, textured.size ? (typeof sources.imageryCredit === "function" ? sources.imageryCredit() : sources.imageryCredit) ?? "aerial imagery" : null, {
+      // Busselton fork: credit the elevation model actually used, and Mapillary (CC BY-SA) when its photos or map features went in.
+      elevation: typeof sources.elevationCredit === "function" ? sources.elevationCredit() : sources.elevationCredit,
+      // House looks without a spec come from street photos (scripts/mapillary/house_looks.py); spec landmarks don't.
+      mapillary: !!sources.seen?.length || !!sources.houseLooks?.some((l) => !l.spec),
+    })),
     // Busselton fork: the network-core prototype, for inspection only (src/core/network).
     ...(net ? { [`${slug}/network/junctions.json`]: enc.encode(JSON.stringify(net.json())) } : opts.networkCore ? networkPreview(slug, { lines: sources.streets?.lines ?? [], rings: sources.osm?.roundaboutRings ?? [], toLocal: (p) => proj.toLocal(p), height: dem }) : {}),
   };

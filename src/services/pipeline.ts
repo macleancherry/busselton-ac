@@ -158,7 +158,8 @@ export async function runBuild(job: BuildJob, report: Report, traceProgress: (te
     houseLooks: job.houseLooks,
     landmarks: job.landmarks,
     drawSigns,
-    imageryCredit: () => [...[...usedImagery].map((k) => IMAGERY[k].credit), ...[...usedDem].map((k) => DEM_CREDIT[k])].join("; "),
+    imageryCredit: () => [...usedImagery].map((k) => IMAGERY[k].credit).join("; "),
+    elevationCredit: () => [...usedDem].map((k) => DEM_CREDIT[k]).join("; "),
   }, job.placeMeta, report);
   return {
     result,

@@ -1,112 +1,124 @@
-// Custom Shaders Patch config: extension/ext_config.ini in the track folder,
-// where CSP looks for a track's own config. Without CSP the file is ignored.
+// The track's Custom Shaders Patch config (extension/ext_config.ini) and the settings for CSP's
+// vertex AO bakery (baked_shadow_params.ini). Written from docs/specs/cspConfig.md.
 //
-// - Night lighting: every street light becomes a real light pointing down
-//   from its lantern; the lanterns glow (Material_DistantEmissive, CSP's
-//   shader for the bright bits of lamp posts, which stops them flickering at
-//   a distance); house windows show lit rooms behind them
-//   (Material_RoomWindows). All switched on by a smooth night condition (the
-//   sun more than 88 degrees from overhead, as CSP's own configs define it).
-// - Light pollution: the glow of a built-up area over the skyline at night.
-// - Grass FX: real 3D grass blades close to the camera on the grassy parts
-//   of the aerial photo; its colour mask widened for dry Australian grass,
-//   and kept short and tidy like suburban lawns. Road, concrete and paint
-//   occlude it so nothing grows through the asphalt.
-// - Rain FX: puddles and soaked asphalt on the roads, darker concrete,
-//   grass that darkens without turning glossy (needed with Grass FX), glass
-//   that takes drops, and line paint marked for the physics (slippery wet).
-// - Shadows: thin two-sided things (fences, signs, tree sprites) cast them
-//   without acne.
-// - Busselton fork: flags wave in the wind (flags.ts) and the jetty train
-//   runs on its timetable (a track script, jettyTrain.ts).
-//
-// Syntax follows CSP's documentation (acc-extension-config wiki: Tracks -
-// Lights, Conditions, Grass FX, RainFX) and its shipped configs for Kunos
-// tracks, and the templates in common/materials_track.ini.
+// ext_config.ini is CRLF text, `KEY = value`, one empty line after each section. Numbered sections
+// are owned as in the spec's registry; sections from other modules or layers that may repeat use
+// CSP's auto-numbered `[NAME_...]` form. Layers append more sections after the file
+// (scripts/headless/build-track.mjs), so it must stay valid with text added at the end.
 
 import type { Vec3 } from "./mesh";
 import type { Hollow } from "./rainHollows";
-import { soundConfig, soundScriptConfig, type SoundEmitter, type SoundMode } from "./trackSounds";
+import { soundConfig, soundScriptConfig, type SoundEmitter } from "./trackSounds";
 import { pureSections, type AtmosphereInput } from "./pureConfig";
 import { flagCspLines } from "./flags";
 import { jettyTrainConfig } from "./jettyTrain";
 
-const f = (v: number) => v.toFixed(2);
-
 export interface CspOptions {
-  /** Built up enough for a glow over the skyline at night. */
+  /** A town glow over the skyline at night. */
   builtUp?: boolean;
-  /** Half the track's extent, km: how far the glow reaches. */
+  /** How far the glow reaches, km. */
   radiusKm?: number;
   /** Load extension/autotest.lua as a track script. */
   autotest?: boolean;
-  /**
-   * Busselton fork: a Mediterranean climate with a dry summer (south-west WA): grass and verges go
-   * straw from December to April and green from June to September (CSP's seasonAutumn, by date).
-   */
+  /** South-west WA seasons: grass goes straw December to April. */
   drySummer?: boolean;
-  /** Busselton fork: there's sea in the track (Material_Water and light bounced off it). */
+  /** There's sea in the track (`sea` material). */
   sea?: boolean;
-  /** Busselton fork: the bay's photo lies under the water (photoSea.ts): the water surface is partly clear. */
+  /** The bay's photo lies under the water; the surface is partly clear (photoSea.ts). */
   photoSea?: boolean;
-  /** Busselton fork: CSP instanced trees: the tree list's path under extension/ (e.g. trees/trees.txt). */
+  /** CSP instanced trees: the list's path under extension/ (e.g. trees/trees.txt). */
   trees?: string;
-  /** Busselton fork: there are vine rows (farm.ts, material vine_leaf): gold from autumn through winter. */
+  /** Vine rows (`vine_leaf`) turn gold in autumn. */
   vines?: boolean;
-  /**
-   * Busselton fork: where rain pools on the road (rainHollows.ts). Set (even empty) to build CSP's
-   * puddle height map from the ground and roads only, and list the hollows for checking in game.
-   */
+  /** Rain hollows (rainHollows.ts). Present, even empty, switches on the relief map. */
   hollows?: Hollow[];
-  /** Busselton fork: track sound emitters (trackSounds.ts). */
+  /** Track sound emitters (trackSounds.ts). */
   sounds?: SoundEmitter[];
-  /** How they play: "fmod" from a soundbank ([SOUNDBANK]/[EVENT]), otherwise the sounds.lua track script. */
-  soundMode?: SoundMode;
-  /** Busselton fork: Pure tuning from the build (pureConfig.ts); without it, CSP's generic [PURE] values. */
+  /** How they play; anything but "fmod" means the Lua script. */
+  soundMode?: "lua" | "fmod";
+  /** Pure tuning from the build (pureConfig.ts); absent means the generic block. */
   pure?: AtmosphereInput;
-  /** Busselton fork: flags (ksFlags meshes) wave in CSP's wind (flags.ts). */
+  /** Flags wave in CSP's wind (flags.ts). */
   flags?: boolean;
-  /** Busselton fork: load extension/jetty_train.lua, which runs the jetty train (jettyTrain.ts). */
+  /** Load extension/jetty_train.lua (jettyTrain.ts). */
   jettyTrain?: boolean;
 }
 
-/**
- * Busselton fork: keys added to [Material_Water] when the bay's photo lies under the water (photoSea.ts).
- * The surface's alpha (txDiffuse's) lets the photo layer through, and DepthAware refracts it and lays
- * caustics on it, which needs that alpha and a transparent mesh: CSP's [TEMPLATE: Material_Water] in
- * common/materials_track.ini, and its shipped ks_laguna_seca.ini, which sets exactly these four.
- */
-export function photoSeaWaterLines(): string[] {
-  return ["UseAlphaFromDiffuse = 1", "DepthAware = 1", "CausticsMultiplier = 1.0", "IS_TRANSPARENT = 1"];
-}
+// ---------------------------------------------------------------------------------------------
+// Material lists. Other modules create these materials; renaming one there silently breaks an
+// effect here, so every list is built from these few named groups. `?` is CSP's wildcard.
 
-/** Busselton fork: what CSP's RainFX height map is built from: the ground and roads, not buildings or trees. */
-export const RELIEF_MATERIALS = "road_?, side_photo_?, concrete, paint?, path_?, terrain_?, strip_photo_?, sidestrips_photo, returns_photo, rbphoto_?, grass, verge";
+/** The photo ground: terrain and the photo strips beside the road. */
+const GROUND_PHOTO = ["terrain_?", "strip_photo_?", "sidestrips_photo", "returns_photo", "rbphoto_?", "grass", "verge"];
+/** The distant backdrop ring (rough in the rain, and straw in the dry season, but no grass). */
+const BACKDROP = "backdrop_?";
+/** The road and its photo sides, where puddles form. */
+const ROAD_PHOTO = ["road_?", "side_photo_?"];
 
-/**
- * Busselton fork: lines added to [RAIN_FX] for the hollows. CSP places puddles itself, more of them
- * in the local minima of a height map of the track (wiki, Tracks - RainFX); RELIEF_MATERIALS says
- * what goes into that map, so houses and trees don't make false hollows beside them. The wiki calls
- * the key broken, but CSP's own configs for ks_brands_hatch and nevadadrift set it to ground
- * materials the same way. The hollows themselves are comments: x, y, z in AC space for the F7
- * camera and the Objects Inspector.
- */
-export function hollowLines(hollows: Hollow[]): string[] {
+const GRASS_MATERIALS = GROUND_PHOTO;
+const OCCLUDING_MATERIALS = [...ROAD_PHOTO, "concrete", "paint?", "rrpm", "barrier_?", "path_?", "mulch", "fence_?", "frontwall_?", "hedge", "sea", "jetty_?"];
+const PUDDLES_MATERIALS = ROAD_PHOTO;
+const SOAKING_MATERIALS = [...ROAD_PHOTO, "concrete", "path_?"];
+const ROUGH_MATERIALS = [GROUND_PHOTO[0], BACKDROP, ...GROUND_PHOTO.slice(1), "trees", "barrier_hedge", "hedge", "mulch", "shrubs", "frontwall_?", "jetty_?"];
+const SMOOTH_MATERIALS = ["window", "glass", "signart", "steel", "lamp"];
+const LINES_MATERIALS = ["paint", "paint_yellow"];
+const THIN_TWO_SIDED = ["barrier_colorbond", "barrier_paling", "signart", "trees", "fence_?", "shrubs", "race_fence", "race_crowd", "race_spectators"];
+const BOUNCE_MATERIALS = ["road_?", "concrete", "path_?", "terrain_?", "paint?"];
+const DRY_SEASON_MATERIALS = [...GROUND_PHOTO, BACKDROP];
+
+const list = (items: readonly string[]) => items.join(", ");
+
+/** Ground and roads only (never walls, roofs, trees, windows or fences), for CSP's puddle height map. */
+export const RELIEF_MATERIALS = list([...ROAD_PHOTO, "concrete", "paint?", "path_?", ...GROUND_PHOTO]);
+
+const f2 = (v: number) => v.toFixed(2);
+
+/** The relief line and one comment per hollow (scripts/check/autotest_report.py parses the hollow lines). */
+function hollowLines(hollows: Hollow[]): string[] {
   return [
     `RELIEF_MATERIALS = ${RELIEF_MATERIALS}`,
     `; Hollows where water should stand in the rain (rainHollows.ts): ${hollows.length}. Lowest point x, y, z; depth; area.`,
-    ...hollows.map((h, i) => `; hollow ${i + 1}: ${f(h.low[0])}, ${f(h.low[1])}, ${f(h.low[2])}  ${Math.round(h.depth * 100)} cm, ${Math.round(h.area)} m2, ${Math.round(h.radius * 2)} m across`),
+    ...hollows.map((h, i) =>
+      `; hollow ${i + 1}: ${h.low.map(f2).join(", ")}  ${Math.round(h.depth * 100)} cm, ${Math.round(h.area)} m2, ${Math.round(h.radius * 2)} m across`),
   ];
 }
 
-/** `lights` are lamp heads in local metres (x east, y north, z up). */
+/** Extra water keys when the bay's photo shows through the sea surface (photoSea.ts). */
+function photoSeaWaterLines(): string[] {
+  return ["UseAlphaFromDiffuse = 1", "DepthAware = 1", "CausticsMultiplier = 1.0", "IS_TRANSPARENT = 1"];
+}
+
+/** A material that lights up at night (CSP material adjustment on ksEmissive). */
+function nightGlow(n: number, description: string, materials: string, value: string): string[] {
+  return [
+    `[MATERIAL_ADJUSTMENT_${n}]`, "ACTIVE = 1", `DESCRIPTION = ${description}`, `MATERIALS = ${materials}`,
+    "CONDITION = NIGHT_SMOOTH", "KEY_0 = ksEmissive", `VALUE_0 = ${value}`, "OFF_VALUE_0 = 0, 0, 0", "",
+  ];
+}
+
+/** A material that changes with the time of year (CSP's seasonAutumn). */
+function season(n: number, name: string, lut: string, adjustment: number, description: string, materials: string, value: string): string[] {
+  return [
+    `[CONDITION_${n}]`, `NAME = ${name}`, "INPUT = YEAR_DAY", `LUT = ${lut}`, "LAG = 0", "",
+    `[MATERIAL_ADJUSTMENT_${adjustment}]`, "ACTIVE = 1", `DESCRIPTION = ${description}`, `MATERIALS = ${materials}`,
+    `CONDITION = ${name}`, "KEY_0 = seasonAutumn", `VALUE_0 = ${value}`, "OFF_VALUE_0 = 0", "",
+  ];
+}
+
+/**
+ * extension/ext_config.ini. `lights` are street light lantern positions in local metres
+ * (x east, y north, z up).
+ */
 export function extConfig(lights: Vec3[], opts: CspOptions = {}): string {
-  const lines = [
+  const sounds = opts.sounds ?? [];
+  const fmod = opts.soundMode === "fmod";
+  const out: string[] = [
     "; Generated by AC Track Builder. Read by Custom Shaders Patch; ignored without it.",
     "",
     "[INCLUDE]",
     "INCLUDE = common/materials_track.ini",
     "",
+    // Night: the sun more than 88 degrees from overhead.
     "[CONDITION_0]",
     "NAME = NIGHT_SMOOTH",
     "INPUT = SUN",
@@ -114,13 +126,9 @@ export function extConfig(lights: Vec3[], opts: CspOptions = {}): string {
     "LAG = 0.97",
     "",
     "[GRASS_FX]",
-    "GRASS_MATERIALS = terrain_?, strip_photo_?, sidestrips_photo, returns_photo, rbphoto_?, grass, verge",
-    "OCCLUDING_MATERIALS = road_?, side_photo_?, concrete, paint?, rrpm, barrier_?, path_?, mulch, fence_?, frontwall_?, hedge, sea, jetty_?",
+    `GRASS_MATERIALS = ${list(GRASS_MATERIALS)}`,
+    `OCCLUDING_MATERIALS = ${list(OCCLUDING_MATERIALS)}`,
     "ORIGINAL_GRASS_MATERIALS =",
-    // Busselton fork: WA verges are straw for half the year, so spawn on
-    // yellow-green as well as green (MASK_RED_THRESHOLD shifts the target
-    // toward yellow), on mid-bright pixels only: not white sand or roofs, not
-    // dark shade or bitumen; rougher and less mown than a lawn.
     "MASK_MAIN_THRESHOLD = 0.12",
     "MASK_RED_THRESHOLD = 0.3",
     "MASK_MIN_LUMINANCE = 0.06",
@@ -132,16 +140,15 @@ export function extConfig(lights: Vec3[], opts: CspOptions = {}): string {
     "SHAPE_WIDTH = 1.0",
     "",
     "[RAIN_FX]",
-    "PUDDLES_MATERIALS = road_?, side_photo_?",
-    "SOAKING_MATERIALS = road_?, side_photo_?, concrete, path_?",
-    "ROUGH_MATERIALS = terrain_?, backdrop_?, strip_photo_?, sidestrips_photo, returns_photo, rbphoto_?, grass, verge, trees, barrier_hedge, hedge, mulch, shrubs, frontwall_?, jetty_?",
-    "SMOOTH_MATERIALS = window, glass, signart, steel, lamp",
-    "LINES_MATERIALS = paint, paint_yellow",
+    `PUDDLES_MATERIALS = ${list(PUDDLES_MATERIALS)}`,
+    `SOAKING_MATERIALS = ${list(SOAKING_MATERIALS)}`,
+    `ROUGH_MATERIALS = ${list(ROUGH_MATERIALS)}`,
+    `SMOOTH_MATERIALS = ${list(SMOOTH_MATERIALS)}`,
+    `LINES_MATERIALS = ${list(LINES_MATERIALS)}`,
     ...(opts.hollows ? hollowLines(opts.hollows) : []),
     "",
-    // Thin two-sided geometry: fences, sign faces, tree sprites.
     "[SHADER_REPLACEMENT_0]",
-    "MATERIALS = barrier_colorbond, barrier_paling, signart, trees, fence_?, shrubs, race_fence, race_crowd, race_spectators",
+    `MATERIALS = ${list(THIN_TWO_SIDED)}`,
     "DOUBLE_FACE_SHADOW_BIASED = 1",
     "",
     "[Material_RoomWindows]",
@@ -153,53 +160,26 @@ export function extConfig(lights: Vec3[], opts: CspOptions = {}): string {
     "ShapeChance = 0.6",
     "NormalsFactor = 0.8",
     "",
-    "[MATERIAL_ADJUSTMENT_1]",
-    "ACTIVE = 1",
-    "DESCRIPTION = Lit rooms behind house windows at night",
-    "MATERIALS = window",
-    "CONDITION = NIGHT_SMOOTH",
-    "KEY_0 = ksEmissive",
-    "VALUE_0 = 255, 190, 120, 0.008",
-    "OFF_VALUE_0 = 0, 0, 0",
-    "",
-    // Busselton fork: shop fascia signs (with the real shop names) lit at night, and a warm glow
-    // in the shop windows below them. Emissive is tinted by each texture, so signs keep their colours.
-    "[MATERIAL_ADJUSTMENT_2]",
-    "ACTIVE = 1",
-    "DESCRIPTION = Shop signs lit at night",
-    "MATERIALS = shop_sign",
-    "CONDITION = NIGHT_SMOOTH",
-    "KEY_0 = ksEmissive",
-    "VALUE_0 = 255, 250, 240, 0.35",
-    "OFF_VALUE_0 = 0, 0, 0",
-    "",
-    "[MATERIAL_ADJUSTMENT_3]",
-    "ACTIVE = 1",
-    "DESCRIPTION = Shop windows glow at night",
-    "MATERIALS = shop_window",
-    "CONDITION = NIGHT_SMOOTH",
-    "KEY_0 = ksEmissive",
-    "VALUE_0 = 255, 215, 165, 0.12",
-    "OFF_VALUE_0 = 0, 0, 0",
-    "",
+    ...nightGlow(1, "Lit rooms behind house windows at night", "window", "255, 190, 120, 0.008"),
+    ...nightGlow(2, "Shop signs lit at night", "shop_sign", "255, 250, 240, 0.35"),
+    ...nightGlow(3, "Shop windows glow at night", "shop_window", "255, 215, 165, 0.12"),
   ];
   if (opts.builtUp) {
-    lines.push(
+    out.push(
       "[LIGHT_POLLUTION]",
       "RELATIVE_POSITION = 0.5, 0, 0.5",
       "DENSITY = 0.15",
-      `RADIUS_KM = ${f(Math.max(0.8, opts.radiusKm ?? 1))}`,
+      `RADIUS_KM = ${f2(Math.max(0.8, opts.radiusKm ?? 1))}`,
       "COLOR = 1.0, 0.72, 0.45",
       "ACTIVE = 1",
       "",
     );
   }
   if (lights.length) {
-    lines.push(
+    out.push(
       "[LIGHT_SERIES_0]",
       "DESCRIPTION = Street lights",
       "CONDITION = NIGHT_SMOOTH",
-      // Neutral white LED street lighting, pointing down, lighting the road and footpath.
       "COLOR = 255, 236, 210, 0.06",
       "SPOT = 140",
       "SPOT_SHARPNESS = 0.3",
@@ -208,42 +188,32 @@ export function extConfig(lights: Vec3[], opts: CspOptions = {}): string {
       "DIFFUSE_CONCENTRATION = 0.7",
       "FADE_AT = 450",
       "FADE_SMOOTH = 60",
-      // AC space: x east, y up, z south.
-      ...lights.map(([x, y, z], i) => `POSITION_${i} = ${f(x)}, ${f(z)}, ${f(-y)}`),
+      ...lights.map(([x, y, z], i) => `POSITION_${i} = ${f2(x)}, ${f2(z)}, ${f2(-y)}`),
       "",
       "[Material_DistantEmissive]",
       "Materials = lamp",
       "",
-      "[MATERIAL_ADJUSTMENT_0]",
-      "ACTIVE = 1",
-      "DESCRIPTION = Street light lanterns glow at night",
-      "MATERIALS = lamp",
-      "CONDITION = NIGHT_SMOOTH",
-      "KEY_0 = ksEmissive",
-      "VALUE_0 = 255, 236, 210, 0.4",
-      "OFF_VALUE_0 = 0, 0, 0",
-      "",
+      ...nightGlow(0, "Street light lanterns glow at night", "lamp", "255, 236, 210, 0.4"),
     );
   }
-  // Busselton fork: from the CSP research (docs/csp.md). Cheap and visible on a sunny flat town.
-  lines.push(
-    // Wind: CSP sways trees and grass with it.
+  out.push(
     "[BASIC]",
     "SUPPORTS_WIND = 1",
     "",
-    // Sunlit road and footpaths bouncing light onto walls and verandahs (Extra FX, about 0.3 ms).
     "[BOUNCED_LIGHT]",
     "SUPPORTED = 1",
-    "SURFACE_MATERIALS = road_?, concrete, path_?, terrain_?, paint?",
+    `SURFACE_MATERIALS = ${list(BOUNCE_MATERIALS)}`,
     `CAUSTICS = ${opts.sea ? 1 : 0}`,
     "",
-    // CSP's tiling fix on the detail-mapped ground and roads (no visible repeat in the detail).
+    // ksAlphaRef -193 is CSP's tiling fix for detail maps on these shaders.
     "[SHADER_REPLACEMENT_1]",
     "MATERIALS = shader:ksMultilayer?, shader:ksPerPixelMultiMap?",
     "PROP_0 = ksAlphaRef, -193",
     "",
-    // Pure: tuned to where the track is (pureConfig.ts), else the values CSP's own track configs use.
-    ...(opts.pure ? pureSections(opts.pure) : [
+  );
+  if (opts.pure) out.push(...pureSections(opts.pure));
+  else {
+    out.push(
       "[PURE]",
       "ACTIVE = 1",
       "SUN_DAWN = 1",
@@ -255,70 +225,35 @@ export function extConfig(lights: Vec3[], opts: CspOptions = {}): string {
       "SMOG_NOON = 0.1",
       "SMOG_EVENING = 0.15",
       "",
-    ]),
-  );
-  if (opts.trees) {
-    // CSP's instanced 3D trees (docs/trees.md). Every species here is evergreen: no seasonal tint.
-    lines.push("[TREES]", `LIST_0 = ${opts.trees}`, "", "[LIGHTING]", "ENABLE_TREES_LIGHTING = 1", "");
+    );
   }
-  if (opts.sea) lines.push("[Material_Water]", "Materials = sea", "Type = SEA", "UseRecommendedTextures = 1", ...(opts.photoSea ? photoSeaWaterLines() : []), "");
+  if (opts.trees) out.push("[TREES]", `LIST_0 = ${opts.trees}`, "", "[LIGHTING]", "ENABLE_TREES_LIGHTING = 1", "");
+  if (opts.sea) {
+    out.push("[Material_Water]", "Materials = sea", "Type = SEA", "UseRecommendedTextures = 1", ...(opts.photoSea ? photoSeaWaterLines() : []), "");
+  }
+  // Straw from December to April, green June to September (masked by greenness, so roads and roofs keep their colour).
   if (opts.drySummer) {
-    lines.push(
-      // 1 (straw) from December to April, 0 (green) June to September, blending in May and October-November.
-      "[CONDITION_1]",
-      "NAME = DRY_SEASON",
-      "INPUT = YEAR_DAY",
-      "LUT = (|1=1|120=1|152=0|273=0|335=1|365=1|)",
-      "LAG = 0",
-      "",
-      // seasonAutumn turns green toward straw, masked by greenness, so roads, sand and roofs stay put.
-      // Trees and hedges stay green (WA natives don't brown off).
-      "[MATERIAL_ADJUSTMENT_4]",
-      "ACTIVE = 1",
-      "DESCRIPTION = Grass and verges go straw in the dry season",
-      "MATERIALS = terrain_?, strip_photo_?, sidestrips_photo, returns_photo, rbphoto_?, grass, verge, backdrop_?",
-      "CONDITION = DRY_SEASON",
-      "KEY_0 = seasonAutumn",
-      "VALUE_0 = 0.8",
-      "OFF_VALUE_0 = 0",
-      "",
-    );
+    out.push(...season(1, "DRY_SEASON", "(|1=1|120=1|152=0|273=0|335=1|365=1|)", 4,
+      "Grass and verges go straw in the dry season", list(DRY_SEASON_MATERIALS), "0.8"));
   }
+  // Green from budburst to March, gold in April and May, left gold through winter.
   if (opts.vines) {
-    lines.push(
-      // South West vines: green from budburst (October) to March, gold in April and May, and left
-      // gold through the bare winter (a tint can't take the leaves off) until the new growth.
-      "[CONDITION_2]",
-      "NAME = VINE_AUTUMN",
-      "INPUT = YEAR_DAY",
-      "LUT = (|1=0|80=0|110=1|230=1|280=0|365=0|)",
-      "LAG = 0",
-      "",
-      "[MATERIAL_ADJUSTMENT_5]",
-      "ACTIVE = 1",
-      "DESCRIPTION = Vine leaves turn gold in autumn",
-      "MATERIALS = vine_leaf",
-      "CONDITION = VINE_AUTUMN",
-      "KEY_0 = seasonAutumn",
-      "VALUE_0 = 1",
-      "OFF_VALUE_0 = 0",
-      "",
-    );
+    out.push(...season(2, "VINE_AUTUMN", "(|1=0|80=0|110=1|230=1|280=0|365=0|)", 5,
+      "Vine leaves turn gold in autumn", "vine_leaf", "1"));
   }
-  if (opts.sounds?.length && opts.soundMode === "fmod") lines.push(...soundConfig(opts.sounds));
-  if (opts.flags) lines.push(...flagCspLines());
-  if (opts.autotest) lines.push("[SCRIPT_0]", "SCRIPT = autotest.lua", "");
-  if (opts.sounds?.length && opts.soundMode !== "fmod") lines.push(...soundScriptConfig(opts.autotest ? 1 : 0));
-  if (opts.jettyTrain) lines.push(...jettyTrainConfig());
-  return lines.join("\r\n");
+  if (sounds.length && fmod) out.push(...soundConfig(sounds));
+  if (opts.flags) out.push(...flagCspLines());
+  if (opts.autotest) out.push("[SCRIPT_0]", "SCRIPT = autotest.lua", "");
+  if (sounds.length && !fmod) out.push(...soundScriptConfig(opts.autotest ? 1 : 0));
+  if (opts.jettyTrain) out.push(...jettyTrainConfig());
+  return out.join("\r\n");
 }
 
 /**
- * Busselton fork: settings for CSP's vertex AO bakery (acc-bakeryoptix), read from the track folder
- * when it bakes a models_<layout>.ini (scripts/windows/bake-vao.ps1). Keys from the bakery's source;
- * see docs/csp.md.
+ * baked_shadow_params.ini for CSP's AO bakery (bakeryoptix.exe). Keep the `KEY = value` spacing:
+ * scripts/windows/bake-vao.ps1 rewrites `^RAYS_PER_SAMPLE = \d+` for its test quality.
  */
-export function bakedShadowParams(quality: "test" | "final" = "final"): string {
+export function bakedShadowParams(): string {
   return [
     "; Generated by Busselton AC. Read by CSP's AO bakery (bakeryoptix.exe) when it bakes this track.",
     "[GENERAL]",
@@ -326,7 +261,7 @@ export function bakedShadowParams(quality: "test" | "final" = "final"): string {
     "USE_VULKAN = 1",
     "",
     "[MODE_TRACK]",
-    `RAYS_PER_SAMPLE = ${quality === "test" ? 32 : 96}`,
+    "RAYS_PER_SAMPLE = 96",
     "MIN_SAMPLES_PER_FACE = 4",
     "RAYS_OFFSET = 0.1",
     "BOUNCES = 5",

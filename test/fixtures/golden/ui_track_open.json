@@ -1,0 +1,23 @@
+{
+  "name": "Kings Park Run",
+  "description": "A run.",
+  "tags": [
+    "real road",
+    "point to point",
+    "street",
+    "osm",
+    "traffic-planner-ready"
+  ],
+  "geotags": [
+    "0.25000 N",
+    "0.50000 W"
+  ],
+  "country": "Australia",
+  "city": "Perth",
+  "length": "812",
+  "width": "7",
+  "pitboxes": "1",
+  "run": "A to B",
+  "author": "Mac",
+  "version": "1.0"
+}

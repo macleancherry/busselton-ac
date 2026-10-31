@@ -24,7 +24,9 @@ const flag = (n) => { const i = process.argv.indexOf(n); return i >= 0 ? process
 if (!cmd || !routeArg) throw new Error("usage: base.mjs build|accept|rollback <route.json> [--snapshot <dir>]");
 const routePath = resolve(root, routeArg);
 const route = JSON.parse(readFileSync(routePath, "utf8"));
-const slug = route.name.normalize("NFKD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+// The same rule as slugify() in src/core/acFiles.ts: trim, cut to 40, trim again; real_road when empty.
+const trimUnderscores = (s) => s.replace(/^_+|_+$/g, "");
+const slug = trimUnderscores(trimUnderscores(route.name.normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "_")).slice(0, 40)) || "real_road";
 // Private tracks keep their folder under routes/private (gitignored), public ones under tracks/.
 const isPrivate = routePath.includes(`${join("routes", "private")}`);
 const trackDir = join(root, isPrivate ? join("routes", "private", "tracks") : "tracks", slug);
