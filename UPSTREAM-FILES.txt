@@ -3,9 +3,7 @@
 index.html
 package.json
 src/core/aiLine.ts
-src/core/art.ts
 src/core/network/geom.ts
-src/core/options.ts
 src/core/raceDress.ts
 src/core/road.ts
 src/core/roadMesh.ts
@@ -13,11 +11,8 @@ src/core/roundabout.ts
 src/core/sideStreets.ts
 src/core/sponsors.ts
 src/core/track.ts
-src/services/art.ts
-src/services/mapillary.ts
 src/services/osm.ts
 src/services/pipeline.ts
-src/services/raster.ts
 src/services/tiles.ts
 src/services/vectorTiles.ts
 src/ui/buildWorker.ts
