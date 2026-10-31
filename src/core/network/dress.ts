@@ -12,7 +12,7 @@ import type { RJunction } from "./ribbons";
 
 // The route kerb's profile (kerbs.ts): gutter 0.3 m with a 3 cm dip, a 5 cm face run, 15 cm top,
 // 15 cm high, the strip 2 cm above the kerb top, an 80 cm skirt; the verge drops 20 cm.
-export const KERB = { gutter: 0.3, faceRun: 0.05, top: 0.15, height: 0.15, dip: 0.03, stripRise: 0.02, skirt: 0.8, vergeDrop: 0.2 };
+import { KERB_PROFILE as KERB } from "../kerbs"; export { KERB };
 const KERB_BACK = KERB.gutter + KERB.faceRun + KERB.top;
 const RAMP = 1.5;
 export const PAINT_LIFT = 0.015;
