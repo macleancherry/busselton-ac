@@ -508,7 +508,7 @@ $("build").onclick = async () => {
       houseLooks: (window as unknown as { __houseLooks?: BuildJob["houseLooks"] }).__houseLooks,
       landmarks: (window as unknown as { __landmarks?: BuildJob["landmarks"] }).__landmarks,
     };
-    const { result, chunkImages, usedImagery, usedDem, widthFallback, seen, seenError, missing } = await build(job, report);
+    const { result, chunkImages, usedImagery, usedDem, widthFallback, seen, seenError, missing, warnings } = await build(job, report);
     lastMissing = missing;
     await report("Rendering preview");
     preview = await createPreview($<HTMLCanvasElement>("preview-canvas"), result.model, result.plan, chunkImages, result.previewTextures);
@@ -534,6 +534,10 @@ $("build").onclick = async () => {
     if (missing.length) {
       // The track built, but without some data: say so, it will differ from a full build.
       $("result-stats").insertAdjacentHTML("beforeend", `<div><dt>Missing data</dt><dd>${missing.map(escapeHtml).join("; ")}. Build again for a complete track.</dd></div>`);
+    }
+    if (warnings.length) {
+      // Left out for a reason a rebuild won't fix (an area too large for the map tiles).
+      $("result-stats").insertAdjacentHTML("beforeend", `<div><dt>Left out</dt><dd>${warnings.map(escapeHtml).join("; ")}</dd></div>`);
     }
     await report("Done", 1);
     $("result").hidden = false;

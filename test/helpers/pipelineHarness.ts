@@ -23,6 +23,9 @@ const settle = async <T>(name: string, v: unknown): Promise<T> => {
 
 let captured: { route: LngLat[]; partial: unknown; sources: Record<string, unknown>; meta: unknown; probe: Record<string, unknown> } | null = null;
 
+/** The last buildTrack call (a function, so TypeScript doesn't narrow it away). */
+export const capturedCall = () => captured;
+
 /** What buildTrack would do with the sources: sample the width and class lookups, load DEM and imagery, trace, read the credits. */
 async function probe(s: Record<string, unknown>): Promise<Record<string, unknown>> {
   const out: Record<string, unknown> = {};
@@ -177,7 +180,8 @@ const ser = (v: unknown): unknown => JSON.parse(JSON.stringify(v ?? null, (_k, x
 export async function runCase(
   runBuild: (job: never, report: (s: string, f?: number) => Promise<void>, trace: (t: string) => void) => Promise<Record<string, unknown>>,
   c: PipeCase,
-): Promise<Record<string, unknown>> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+): Promise<Record<string, any>> {
   events.length = 0;
   for (const k of Object.keys(calls)) delete calls[k];
   captured = null;
@@ -191,7 +195,8 @@ export async function runCase(
   } catch (e) {
     error = (e as Error).message;
   }
-  const s = captured?.sources ?? {};
+  const cap = capturedCall();
+  const s = cap?.sources ?? {};
   const sourceSummary: Record<string, unknown> = { keys: Object.keys(s).sort() };
   for (const [k, v] of Object.entries(s)) {
     if (typeof v !== "function") sourceSummary[k] = ser(v);
@@ -202,7 +207,7 @@ export async function runCase(
     reports,
     traces,
     calls: ser(calls),
-    buildTrack: captured ? { route: captured.route, partial: ser(captured.partial), meta: captured.meta, sources: sourceSummary, probe: captured.probe } : null,
+    buildTrack: cap ? { route: cap.route, partial: ser(cap.partial), meta: cap.meta, sources: sourceSummary, probe: cap.probe } : null,
     outcome: outcome ? ser({ ...outcome, result: "[result]" }) : null,
   };
 }

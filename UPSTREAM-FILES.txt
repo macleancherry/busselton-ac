@@ -43,7 +43,6 @@ src/ui/style.css
 test/cameras.test.ts
 test/clearance.test.ts
 test/cspConfig.test.ts
-test/demtiles.test.ts
 test/extend.test.ts
 test/frontage.test.ts
 test/gates.test.ts
@@ -60,7 +59,5 @@ test/streets.test.ts
 test/terrain.test.ts
 test/trace.test.ts
 test/track.test.ts
-test/wa-imagery.test.ts
-test/wa.test.ts
 tsconfig.json
 vite.config.ts
