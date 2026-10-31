@@ -135,7 +135,8 @@ export function buildStreetMeshes(streets: MeshStreet[], o: StreetMeshOptions): 
         const gap = o.joinGap(x);
         if (gap < PROX) {
           const jd = o.junctionDist ? o.junctionDist(x) : Infinity;
-          w = Math.max(w, (1 - smoothstep(Math.max(0, gap) / PROX)) * smoothstep(Math.max(0, jd) / PROX));
+          // On the route's asphalt it always takes the route's height (tucked under), junction or not.
+          w = Math.max(w, gap <= 0 ? 1 : (1 - smoothstep(gap / PROX)) * smoothstep(Math.max(0, jd) / 0.75));
         }
       }
       if (w <= 0) return draped;

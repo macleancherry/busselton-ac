@@ -309,11 +309,20 @@ export function matchJunctions(g: Graph, route: RouteRibbon | null, streets: Str
       if (e.median !== undefined && graphStreets) {
         const cw = (e.width - e.median) / 2, off = e.median / 2 + cw / 2;
         const lf = leftOf(q.d);
-        const onSide = ([1, -1] as const).map((side) => {
+        const near = ([1, -1] as const).map((side) => {
           const qs = add(q.p, mul(lf, side * off));
           if (!route) return null;
           const nr = route.nearest(qs[0], qs[1], cw / 2 + 2);
-          if (!nr || Math.abs(dot(q.d, S[nr.seg].tan)) <= 0.8) return null;
+          return nr && Math.abs(dot(q.d, S[nr.seg].tan)) > 0.8 ? nr : null;
+        });
+        // The route near both carriageways' lines (a narrow median, or the route built down the middle of
+        // the road): it's on the nearer one only; the other is a street of its own if streets.ts made one.
+        // (Not when it's two passes of the route, one down each carriageway.)
+        if (near[0] && near[1] && Math.abs(routeArc(near[0].seg, near[0].frac) - routeArc(near[1].seg, near[1].frac)) < 30
+          && dot(S[near[0].seg].tan, S[near[1].seg].tan) > 0) near[near[0].dist <= near[1].dist ? 1 : 0] = null;
+        const onSide = ([1, -1] as const).map((side, k) => {
+          const nr = near[k];
+          if (!nr) return null;
           const leg = routeLeg(l.edge, e.rank, dot(q.d, S[nr.seg].tan) > 0 ? 1 : -1, routeArc(nr.seg, nr.frac), edgeLimit, add(osm[0], mul(lf, side * off)));
           if (typeof leg !== "string") leg.inbound = side !== 1;
           return leg;
