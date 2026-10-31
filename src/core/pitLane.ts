@@ -59,13 +59,16 @@ export function pitLaneAi(ai: AiPoint[], boxes: Xyz[], closed: boolean): AiPoint
   const first = along.findIndex((d) => d !== null);
   if (first < 0) return null;
   const ref = along[first]!;
-  // Each box's place relative to the first one on the line (shortest way round on a loop).
+  // Each box's place relative to the first one on the line (shortest way round on a loop). The
+  // first box itself is exactly 0: wrapping 0 round a lap whose length isn't a round number in
+  // binary gives a few 1e-13 instead, and an indexOf(0) on that found nothing, so half of all
+  // closed layouts (Busselton foreshore and sights, both Collie layouts) shipped no pit lane.
   const rel = along.filter((d): d is number => d !== null).map((d) => {
     let o = d - ref;
-    if (closed && total > 0) o = ((o + total / 2) % total + total) % total - total / 2;
+    if (o !== 0 && closed && total > 0) o = ((o + total / 2) % total + total) % total - total / 2;
     return o;
   }).sort((a, b) => a - b);
-  const zero = rel.indexOf(0);
+  const zero = rel.findIndex((o) => Math.abs(o) < 1e-6);
   let lo = zero, hi = zero;
   while (lo > 0 && rel[lo] - rel[lo - 1] < GROUP_GAP) lo--;
   while (hi < rel.length - 1 && rel[hi + 1] - rel[hi] < GROUP_GAP) hi++;
