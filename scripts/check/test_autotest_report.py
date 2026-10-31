@@ -16,6 +16,7 @@ import tempfile
 import unittest
 import zipfile
 
+import numpy as np
 from PIL import Image
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -99,6 +100,24 @@ class Parsing(unittest.TestCase):
     def test_env_hours(self):
         self.assertEqual(rep.env_hours(rep.read_csv(os.path.join(FIX, "night_cars"))), 22)
         self.assertEqual(rep.env_hours([]), None)
+
+
+class LineLength(unittest.TestCase):
+    def test_circuit_adds_closing_stretch(self):
+        a = np.linspace(0, 2 * np.pi, 200, endpoint=False)
+        P = np.c_[100 * np.cos(a), 100 * np.sin(a)]
+        D = np.r_[0, np.cumsum(np.hypot(*np.diff(P, axis=0).T))]
+        length, closed = rep.line_length(P, D)
+        self.assertTrue(closed)
+        self.assertAlmostEqual(length, 2 * np.pi * 100, delta=1)
+
+    def test_point_to_point_not_doubled(self):
+        # Cape Naturaliste Road in retest 3: 12,196 m of AI line, reported as 23,077 m.
+        P = [[0, 0], [6000, 3000], [9000, 6000]]
+        D = [0, 6708, 12196]
+        length, closed = rep.line_length(P, D)
+        self.assertFalse(closed)
+        self.assertEqual(length, 12196)
 
 
 class Cars(unittest.TestCase):

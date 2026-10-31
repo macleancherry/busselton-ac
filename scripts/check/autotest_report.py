@@ -43,6 +43,18 @@ CLUSTER_M = 30     # ...and metres of each other
 RB_MARGIN = 20     # an incident this far outside a roundabout's ring is still "at" it
 WET = 0.05         # CSP rain intensity below which a rain run counts as dry
 HOLLOW_M = 15      # a rain hollow this close to the drive was passed
+CLOSE_M = 50       # an AI line whose two ends are this close is a circuit
+
+
+# ---------- the AI line ----------
+
+def line_length(P, D):
+    """The AI line's length and whether it's a circuit. A circuit's length includes the stretch from
+    its last point back to the first; a point-to-point road (ends more than CLOSE_M apart) ends at its
+    last point, so the straight line between its ends isn't added."""
+    gap = float(np.linalg.norm(np.asarray(P[0], float) - np.asarray(P[-1], float)))
+    closed = gap <= CLOSE_M
+    return float(D[-1]) + (gap if closed else 0.0), closed
 
 
 # ---------- reading the results ----------
@@ -419,7 +431,8 @@ def main():
         ai = data["ai"]
     P = np.array([[a["position"][0], a["position"][2]] for a in ai])
     D = np.array([a["distance"] for a in ai])
-    length = D[-1] + np.linalg.norm(P[0] - P[-1])
+    length, closed = line_length(P, D)
+    print(f"AI line: {length:.0f} m, {'a circuit' if closed else 'point to point'}")
 
     def where(x, z):
         d = np.hypot(P[:, 0] - x, P[:, 1] - z)
