@@ -4,7 +4,7 @@
 
 export type ArtKind =
   | "street" | "poi" | "tourist" | "speed" | "stop" | "giveway" | "warning" | "chevron"
-  | "noentry" | "keepleft" | "bus" | "info" | "back" | "gate";
+  | "noentry" | "keepleft" | "bus" | "back" | "gate";
 
 /** One piece of art. `key` is its identity: geometry refers to art by key. */
 export interface ArtRequest {

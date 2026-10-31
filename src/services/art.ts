@@ -31,7 +31,6 @@ const SIZES: Record<Exclude<ArtRequest["kind"], "street">, [number, number]> = {
   noentry: [160, 160],
   keepleft: [128, 160],
   bus: [128, 160],
-  info: [160, 160],
   gate: [480, 150],
   back: [32, 32],
 };
@@ -446,14 +445,6 @@ function drawPiece(ctx: Ctx, item: ArtRequest, w: number, h: number): void {
       ctx.fillStyle = "#fff";
       centredText(ctx, "BUS", cx, h * 0.4, bold(40), w - 24);
       centredText(ctx, "STOP", cx, h * 0.66, bold(30), w - 24);
-      break;
-    }
-    case "info": {
-      roundRect(ctx, 0, 0, w, h, 12);
-      ctx.fillStyle = "#1c3f94";
-      ctx.fill();
-      ctx.fillStyle = "#fff";
-      fittedText(ctx, text || "i", cx, cy, bold, 60, 140);
       break;
     }
     case "gate": {

@@ -24,7 +24,7 @@ describe("sign art layout", () => {
   const SIZES: [ArtKind, number, number][] = [
     ["poi", 384, 160], ["tourist", 384, 160], ["speed", 160, 192], ["stop", 160, 160], ["giveway", 160, 140],
     ["warning", 160, 160], ["chevron", 128, 160], ["noentry", 160, 160], ["keepleft", 128, 160], ["bus", 128, 160],
-    ["info", 160, 160], ["gate", 480, 150], ["back", 32, 32],
+    ["gate", 480, 150], ["back", 32, 32],
   ];
 
   it("sizes each kind per the table", () => {

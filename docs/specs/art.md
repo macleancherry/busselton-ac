@@ -18,7 +18,7 @@ The build passes `renderArt` to `buildTrack` as `DataSources.renderArt`; without
 ```ts
 type ArtKind =
   | "street" | "poi" | "tourist" | "speed" | "stop" | "giveway" | "warning" | "chevron"
-  | "noentry" | "keepleft" | "bus" | "info" | "back" | "gate";
+  | "noentry" | "keepleft" | "bus" | "back" | "gate";
 
 interface ArtRequest { key: string; kind: ArtKind; text?: string; colour?: string; }
 interface ArtCell { u0: number; v0: number; u1: number; v1: number; aspect: number; }
@@ -66,7 +66,6 @@ Field meanings:
 | furniture kangaroo signs (country) | `warning:kangaroo` | warning | "kangaroo" |
 | furniture `gateSigns` (point to point) | `gate-START`, `gate-FINISH` | gate | "START" / "FINISH" |
 
-**Never requested:** kind `info`. See "Could be deleted".
 
 ## Service module: `src/services/art.ts`
 
@@ -107,7 +106,6 @@ The old function also attached the canvas to the result (`{ ...atlas, canvas }`)
 | noentry | 160 x 160 |
 | keepleft | 128 x 160 |
 | bus | 128 x 160 |
-| info | 160 x 160 |
 | gate | 480 x 150 |
 | back | 32 x 32 |
 
@@ -140,7 +138,6 @@ Australian-style signs (AS 1742). Pixel-identical output isn't required; keep ea
 - **noentry**: red `#c8102e` disc (radius 76) with a white horizontal bar (104 x 24) across the middle.
 - **keepleft**: white rounded plate (radius 10) with a 4 px black outline; a thick (14 px) black arrow pointing down-left (Australian R2-3).
 - **bus**: white box with a blue `#1c3f94` panel 6 px in; "BUS" (bold 40) above "STOP" (bold 30) in white.
-- **info**: blue `#1c3f94` rounded square (radius 12); `text` (or "i" when empty) in white bold, base 60, fitted to 140.
 - **gate**: text "START": green `#1d7a3a` panel; "FINISH": black `#111` panel with a chequered band (20 px squares, two rows, `#111` / `#f4f4f4`) along the top and the bottom. Both: a 6 px `#f4f4f4` border 3 px in; the word in `#f4f4f4` bold, base 90 (START) or 60 (FINISH), fitted to 420, centred.
 - **back**: flat grey `#9a9ea3` square.
 
@@ -152,10 +149,6 @@ Australian-style signs (AS 1742). Pixel-identical output isn't required; keep ea
 4. **Draw state leaks between boxes**: wrap each box's drawing in save/restore (the old code did) so line width, caps and fonts never carry over.
 5. **No height limit.** Hundreds of distinct street names could make a very tall atlas. Not seen in practice (Busselton is well under 2048 x 2048). Add a guard: if `H > 8192`, throw a clear error naming the count of requests (a silent giant texture is worse).
 6. Duplicate drawing code: `src/services/signs.ts` (fork) draws shop signs with its own canvas text code. The rewrite may share a small text helper with it, but don't merge the modules.
-
-## Could be deleted (lead checks with Mac)
-
-- **Kind `info`**: nothing requests it. Delete from `ArtKind` and the renderer.
 
 ## Tests to write
 
@@ -184,5 +177,5 @@ Integration (existing tests keep passing): furniture, gates, kangaroo, streets, 
 - `src/services/art.ts` exports the pure `layoutArt(items, measure)`, `boxSize`, `splitLines`, `fitSize` (Node-tested) and `renderArt`, which encodes with our own `encodePng`.
 - Fixed: squeeze at the size floor, save/restore and a clip per box, no returned canvas, 8192 px height guard. A key requested twice gets the later request's cell (cells are assigned in request order).
 - Kept for now (Mac's call): kind `info`, green and blue flags, race-day kinds.
-- Later on 31 Oct: race dressing deleted, and with it the kinds `banner`, `feather`, `lights` and `flag` (green and blue flags included) and the `ink` field.
+- Later on 31 Oct: race dressing deleted, and with it the kinds `banner`, `feather`, `lights` and `flag` (green and blue flags included) and the `ink` field; kind `info` (never requested) deleted.
 - **Later:** text is still measured and drawn with the system font stack (Bugs 1). Bundle an open-licence condensed font and load it with `FontFace` so blade widths are the same on every machine; then add browser tests 11 and 12.
