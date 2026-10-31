@@ -82,7 +82,7 @@ Pins snap to the nearest road. A pin near a car park, side street or the far car
 honestjams/ac-track-builder is a source of ideas, not a partner: its owner has moved on (docs/external-review-2026-10-31.md). Don't design around clean merges any more.
 
 - Look at upstream's commits and `docs/roadmap.md` now and then, take ideas, and write the code fresh. Don't merge upstream code into files we've rewritten.
-- Owning the code is a long-term goal: the fork's own code is under PolyForm Noncommercial 1.0.0 (`LICENSE`); upstream-derived files are excluded and listed in `UPSTREAM-FILES.txt`, made by `scripts/provenance/upstream_overlap.py` (rerun it with `--write` after each rewrite). Rewrite, don't edit: a behaviour spec in `docs/specs/` first, then a fresh module written from the spec by a separate session without the old file open, with fresh tests. Delete what we don't use instead of rewriting it (check with Mac first).
+- Owning the code is a long-term goal: the fork's own code is under PolyForm Noncommercial 1.0.0 (`LICENSE`); upstream-derived files are excluded and listed in `UPSTREAM-FILES.txt`, made by `scripts/provenance/upstream_overlap.py` (rerun it with `--write` after each rewrite). Rewrite, don't edit: a behaviour spec in `docs/specs/` first, then a fresh module written from the spec by a separate session without the old file open, with fresh tests. Delete anything we don't actually use instead of rewriting it (Mac approved this on 31 Oct: the browser UI, unused options, features and exports).
 - Small general fixes can still go upstream as PRs when Mac wants (his merged PRs are his own work).
 
 ## Code map
