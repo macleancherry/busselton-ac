@@ -335,6 +335,8 @@ export function buildSideStreets(
   opts: BuildOptions,
   ground: HeightFn,
   materialFor: (st: SideStreet, i: number) => string | { material: string; perStreet: true },
+  /** Busselton fork: networkCore junctions (network/phase1.ts) cover the quad from arc s0 to s1 of a street. */
+  skip?: (st: SideStreet, s0: number, s1: number) => boolean,
 ): Kn5MeshNode[] {
   const out: Kn5MeshNode[] = [];
   const meshes = new Map<string, ChunkedMesh>();
@@ -362,6 +364,7 @@ export function buildSideStreets(
       }
     }
     for (let k = 0; k < n - 1; k++) {
+      if (skip?.(st0, along[k], along[k + 1])) continue;
       const p = base + k * 2, q = p + 2;
       mb.quad(p, p + 1, q + 1, q);
     }

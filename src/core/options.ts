@@ -278,9 +278,13 @@ export interface BuildOptions {
    */
   poleClear?: boolean;
   /**
-   * Busselton fork: run the network-first road core prototype (src/core/network,
-   * docs/specs/road-network.md) over the build's streets and write network/network.json into the
-   * zip for inspection. It doesn't change the track. Off unless true.
+   * Busselton fork: the network-first road core (src/core/network, docs/specs/road-network.md),
+   * phase 1. In an area build, the network's junctions and roundabouts are built as one surface each
+   * (1ROAD_J / 1STREET_J, with kerbs, islands and give-way lines) in place of the old ring,
+   * connectors, side-street mouths and return fills; the route and streets are cut back to each
+   * junction's caps and the streets eased to its height (network/phase1.ts). Junctions it can't take
+   * are left to the old core and listed in network/junctions.json. Without an area it only writes
+   * the prototype's network/network.json. Off unless true.
    */
   networkCore?: boolean;
 }

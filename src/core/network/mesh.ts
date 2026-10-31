@@ -130,6 +130,11 @@ function chain(segs: [P2, P2][]): P2[][] {
   return rings;
 }
 
+/** The outline of a signed distance's inside over a box, as closed rings (outer anticlockwise, holes clockwise). */
+export function contourRings(shape: Pick<JunctionShape, "sdf" | "box">, step: number): P2[][] {
+  return chain(march(sampleGrid(shape as JunctionShape, step)).segs);
+}
+
 export interface JunctionMesh extends Tris {
   contour: Contour;
   /** Area of the road surface, m². */
