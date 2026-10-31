@@ -1,0 +1,22 @@
+{
+  "name": "Perth Test Loop",
+  "description": "Perth Test Loop, built from the real road with OpenStreetMap and open elevation data.",
+  "tags": [
+    "real road",
+    "circuit",
+    "street",
+    "osm"
+  ],
+  "geotags": [
+    "31.95000 S",
+    "115.86000 E"
+  ],
+  "country": "",
+  "city": "",
+  "length": "2346",
+  "width": "7",
+  "pitboxes": "12",
+  "run": "clockwise",
+  "author": "AC Track Builder",
+  "version": "1.0"
+}
