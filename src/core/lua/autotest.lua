@@ -14,16 +14,26 @@
 -- another car ("contact", note "car=<i>;with=<j>"), and waits for the others to finish their lap
 -- (or GRACE seconds) after the player's car is done. The "env" line at the start says the time of
 -- day, the number of cars and CSP's rain, so a night run (-Night) or a rain run (-Rain) can be checked.
+--
+-- Night runs (-Night, -Time): run-test.ps1 puts the time of day it wants in race.ini
+-- ([BUSSELTON_TEST] TIME, seconds after midnight). If the game's clock is more than 5 minutes off it
+-- when the drive starts, the script moves CSP's weather clock there with ac.setWeatherTimeOffset
+-- (the call CSP's own CSP Debug app makes for its time buttons: acc-lua-internal
+-- included-apps/CspDebug/CspDebug.lua), because in retest 3 (CSP 0.2.12-preview1, Pure 2.57) weather FX
+-- started at the PC's clock whatever race.ini said. It logs a "clock ..." note either way.
 
 local MAX_TIME = 480
 local MIN_TIME = 480
 local AVG_SPEED = 35 / 3.6 -- m/s, for the default time limit
 local maxFromRun = false
+local TARGET_TIME = nil -- seconds after midnight run-test asked for (-Night, -Time)
 -- run-test.ps1's settings for this run, in race.ini (AC ignores the section).
 pcall(function ()
   local cfg = ac.INIConfig.raceConfig()
   local m = tonumber(cfg:get('BUSSELTON_TEST', 'MAX_SECONDS', 0))
   if m and m > 0 then MAX_TIME, maxFromRun = m, true end
+  local tod = tonumber(cfg:get('BUSSELTON_TEST', 'TIME', -1))
+  if tod and tod >= 0 then TARGET_TIME = tod % 86400 end
 end)
 local GRACE = 90
 local CLOSED = __CLOSED__ -- filled in by the build: a circuit (true) or point to point
@@ -56,6 +66,7 @@ local active = ac.getDriverName(0) == 'Busselton Test'
 ac.log('BTEST,loaded,0,0,0,0,0,0,0,0,driver=' .. tostring(ac.getDriverName(0)) .. (active and ' (test run)' or ' (idle)'))
 local t, lastLog, lastShot, offFor, stuckFor = 0, -1, -1, 0, 0
 local started, offNow, finishing, quitAt = false, false, false, nil
+local envAt = nil
 local laps0 = 0
 local menuWait = 0
 local pastHalf = false -- a lap only counts once the car has been halfway round
@@ -123,6 +134,31 @@ local function logEnv(kind)
     ok4 and tostring(lights) or '?',
     num(function () return sim.rainIntensity end), num(function () return sim.rainWetness end),
     num(function () return sim.rainWater end)))
+end
+
+-- The game's time of day in seconds after midnight, or nil.
+local function clockSeconds()
+  local ok, v = pcall(function () return sim.timeHours * 3600 + sim.timeMinutes * 60 + (sim.timeSeconds or 0) end)
+  return (ok and type(v) == 'number') and v or nil
+end
+local function hhmm(s) return string.format('%02d:%02d', math.floor(s / 3600) % 24, math.floor(s / 60) % 60) end
+
+-- How far the clock is from the time asked for, seconds (-12 h to +12 h), or nil.
+local function clockOff()
+  local now = clockSeconds()
+  if not TARGET_TIME or not now then return nil, now end
+  return (TARGET_TIME - now + 43200) % 86400 - 43200, now
+end
+
+-- Night runs: move CSP's weather clock to the time asked for when it's more than 5 minutes off.
+local function setClock()
+  if not TARGET_TIME then return end
+  local delta, now = clockOff()
+  if not delta then log('note', 'clock: the game time is unreadable, left as it is') return end
+  if math.abs(delta) < 300 then return end
+  local ok, err = pcall(ac.setWeatherTimeOffset, delta, true)
+  log('note', ok and string.format('clock moved from %s to %s', hhmm(now), hhmm(TARGET_TIME))
+    or string.format('clock move from %s to %s failed: %s', hhmm(now), hhmm(TARGET_TIME), clean(err)))
 end
 
 local function finish(why)
@@ -245,9 +281,17 @@ function script.update(dt)
     pcall(function () ac.setHeadlights(true) end)
     log('start', ok and 'autopilot' or ('autopilot failed: ' .. clean(err)))
     log('note', string.format('time limit %.0f s (%s)', MAX_TIME, maxFromRun and 'run-test -Minutes' or 'from the track length'))
-    logEnv('env')
+    setClock()
+    -- The env line a couple of seconds later, once the clock has moved.
+    envAt = t + 2
     laps0 = car.lapCount
     started = true
+  end
+  if envAt and t >= envAt then
+    envAt = nil
+    local delta, now = clockOff()
+    if delta and math.abs(delta) >= 300 then log('note', 'clock still at ' .. hhmm(now) .. ', not ' .. hhmm(TARGET_TIME)) end
+    logEnv('env')
   end
   if t - lastLog >= 0.25 then
     lastLog = t

@@ -20,9 +20,16 @@
   The car is an everyday hatch (the Abarth 500 that comes with AC) driven at AI level 75, so the
   test drives a town street the way a person would, not flat out in a race car. -Car and -AiLevel
   change them (-Car "" keeps the car from the last session Content Manager started).
-  -Night drives at 22:00 (-Time sets another time, e.g. -Time 19:30 for dusk): race.ini's sun angle
-  as Content Manager writes it, with the unclamped angle CSP reads (AC alone stops at 18:00, so CSP's
-  weather FX must be on). -Weather sets race.ini's weather by name.
+  -Night drives at 22:00 (-Time sets another time, e.g. -Time 19:30 for dusk). Two ways, as CSP
+  versions differ (CSP's weather FX must be on: AC alone stops at 18:00):
+    1. race.ini as Content Manager writes it: SUN_ANGLE unclamped (22:00 is 144; CM's
+       Game.ConditionProperties.GetSunAngle in gro-ove/actools doesn't clamp, AC does, CSP reads the
+       full angle), and none of the keys an earlier CM session may have left that override the time.
+    2. In retest 3 (CSP 0.2.12-preview1, Pure 2.57) weather FX still started at the PC's clock
+       ("Weather FX: start time=..." in the CSP log), so race.ini's [BUSSELTON_TEST] TIME also tells the
+       track script the time, and it moves CSP's weather clock there when the drive starts
+       (ac.setWeatherTimeOffset, as CSP Debug's time buttons do) and logs a "clock ..." note.
+  -Weather sets race.ini's weather by name.
   -Rain drives in the rain: race.ini's weather becomes a rain weather from content\weather (the first
   of heavy rain, rain, then anything with "rain" in its name; -Weather names one instead). The track
   script logs CSP's rain intensity, wetness and standing water in its env line, so the report can
@@ -70,11 +77,13 @@ $ErrorActionPreference = "Stop"
 $inv = [Globalization.CultureInfo]::InvariantCulture
 if ($Night -and -not $Time) { $Time = "22:00" }
 $sunAngle = $null
+$timeOfDay = $null
 if ($Time) {
   $tm = [regex]::Match($Time, '^(\d{1,2}):(\d{2})$')
   if (-not $tm.Success -or [int]$tm.Groups[1].Value -gt 23 -or [int]$tm.Groups[2].Value -gt 59) { throw "-Time must be HH:mm (24-hour), e.g. 22:00." }
   # Content Manager's sun angle: 16 degrees an hour from 13:00 (-80 is 08:00, 80 is 18:00).
   $sunAngle = 16.0 * ([int]$tm.Groups[1].Value + [int]$tm.Groups[2].Value / 60.0 - 13.0)
+  $timeOfDay = [int]$tm.Groups[1].Value * 3600 + [int]$tm.Groups[2].Value * 60
 }
 if ($Cars -lt 0) { throw "-Cars must be 0 or more." }
 if ($PSBoundParameters.ContainsKey('Minutes') -and $Minutes -lt 1) { throw "-Minutes must be 1 or more." }
@@ -153,6 +162,15 @@ function Get-Ini([string[]]$lines, [string]$section, [string]$key) {
   }
   return ""
 }
+function Remove-Ini([string[]]$lines, [string]$section, [string]$key) {
+  $in = $false
+  $out = foreach ($l in $lines) {
+    if ($l -match '^\s*\[(.+)\]\s*$') { $in = ($Matches[1] -eq $section); $l }
+    elseif ($in -and $l -match "^\s*$([regex]::Escape($key))\s*=") { }
+    else { $l }
+  }
+  return ,@($out)
+}
 function Set-Ini([string[]]$lines, [string]$section, [string]$key, [string]$value) {
   $out = New-Object System.Collections.Generic.List[string]
   $in = $false; $done = $false; $seen = $false
@@ -205,12 +223,19 @@ if ($Cars -gt 0) {
     )) { $ini = Set-Ini $ini "CAR_$i" $kv[0] $kv[1] }
   }
 }
+# Keys an earlier Content Manager session may have left that override the time of day: a CSP new
+# mode's forced date and time (__CM_DATE with __CM_DATE_USE_TIME=1, CM's NewModeDetails.cs), a picked
+# date (WeatherSpecificDate.cs) and a weather's lighting backup (__CM_UNCLAMPED_SUN_ANGLE,
+# WeatherSpecificLightingHelper.cs). CM's Game.ClearUpIniFile drops the same ones.
+foreach ($k in "__CM_DATE", "__CM_DATE_USE_TIME", "__CM_UNCLAMPED_SUN_ANGLE") { $ini = Remove-Ini $ini "LIGHTING" $k }
+# And a time from a test run that never got to restore race.ini.
+$ini = Remove-Ini $ini "BUSSELTON_TEST" "TIME"
 if ($null -ne $sunAngle) {
-  # AC clamps SUN_ANGLE to 08:00..18:00; CSP reads the unclamped angle, as Content Manager writes it.
-  $clamped = [Math]::Max(-80.0, [Math]::Min(80.0, $sunAngle))
+  # As Content Manager writes it: unclamped (AC clamps to 08:00..18:00 itself; CSP reads the full angle).
   foreach ($kv in @(
-    @("LIGHTING", "SUN_ANGLE", $clamped.ToString("0.00", $inv)), @("LIGHTING", "__CM_UNCLAMPED_SUN_ANGLE", $sunAngle.ToString("0.00", $inv)),
-    @("LIGHTING", "TIME_MULT", "1")
+    @("LIGHTING", "SUN_ANGLE", $sunAngle.ToString("0.00", $inv)), @("LIGHTING", "TIME_MULT", "1"),
+    # The track script moves CSP's weather clock here if weather FX started elsewhere (see .NOTES).
+    @("BUSSELTON_TEST", "TIME", "$timeOfDay")
   )) { $ini = Set-Ini $ini $kv[0] $kv[1] $kv[2] }
 }
 if ($Weather) { $ini = Set-Ini $ini "WEATHER" "NAME" $Weather }

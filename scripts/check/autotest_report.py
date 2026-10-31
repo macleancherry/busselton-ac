@@ -471,11 +471,15 @@ def main():
         print(f"night run (asked for {info['time'] or 'night'})")
         h = env_hours(rows)
         env = next((r for r in rows if r["kind"] == "env"), None)
+        # The track script's own clock fix (autotest.lua: "clock moved from ... to ...", or why it couldn't).
+        for r in rows:
+            if r["kind"] == "note" and r["note"].startswith("clock"):
+                print(f"  track script: {r['note']}")
         if h is None:
             print("  the game's time of day wasn't logged (no env line): can't tell it was night")
         elif not is_night_hour(h):
             print(f"  WARNING: the game ran at {env['kv']['time']}, not at night. AC stops at 18:00 without CSP's weather FX:"
-                  " check CSP is on and its weather FX is enabled.")
+                  " check CSP is on and its weather FX is enabled, and the track script's clock line above.")
         else:
             print(f"  game time {env['kv']['time']}; headlights {env['kv'].get('headlights', '?')}")
         shots = [r for r in rows if r["kind"] == "shot"]

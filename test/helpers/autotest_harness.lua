@@ -8,13 +8,15 @@
 --   ab_finish       point to point, run-test's MAX_SECONDS=2000: the car crosses the finish line
 --   default_limit   point to point with no race.ini setting on a 12,196 m road: limit from the length
 --   night           a circuit at 13:45 with race.ini TIME=79200 (22:00): the script moves the clock
+--   night_noapi     the same where CSP has no ac.setWeatherTimeOffset for track scripts
 
 local path, scenario = arg[1], arg[2]
 local f = assert(io.open(path, 'r'))
 local src = f:read('*a')
 f:close()
 
-local closed = scenario == 'night'
+local night = scenario == 'night' or scenario == 'night_noapi'
+local closed = night
 src = src:gsub('__CLOSED__', closed and 'true' or 'false')
 local limits = {}
 for i = 1, 100 do limits[i] = '60' end
@@ -22,7 +24,7 @@ src = src:gsub('__LIMITS__', table.concat(limits, ', '))
 
 local race = {}
 if scenario == 'ab_finish' then race = { BUSSELTON_TEST = { MAX_SECONDS = 2000 } } end
-if scenario == 'night' then race = { BUSSELTON_TEST = { MAX_SECONDS = 600, TIME = 79200 } } end
+if night then race = { BUSSELTON_TEST = { MAX_SECONDS = 600, TIME = 79200 } } end
 
 local clock = 13 * 3600 + 45 * 60 -- the game's time of day, seconds
 local finishedAt = nil
@@ -70,6 +72,7 @@ ac = {
     end,
   },
 }
+if scenario == 'night_noapi' then ac.setWeatherTimeOffset = nil end
 io.load = function () return nil end
 script = {}
 

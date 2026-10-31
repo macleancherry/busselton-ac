@@ -37,3 +37,28 @@ describe("autotest.lua's time limit and finish", () => {
     expect(note(lines, "finish")).toBe("finish line");
   });
 });
+
+describe("autotest.lua's night clock", () => {
+  it("run-test passes the time asked for and writes race.ini as Content Manager does", () => {
+    const ps = readFileSync("scripts/windows/run-test.ps1", "utf8");
+    expect(ps).toContain('@("BUSSELTON_TEST", "TIME", "$timeOfDay")');
+    expect(ps).toContain('Remove-Ini $ini "BUSSELTON_TEST" "TIME"');
+    expect(readFileSync("src/core/lua/autotest.lua", "utf8")).toContain("cfg:get('BUSSELTON_TEST', 'TIME', -1)");
+  });
+
+  it.skipIf(!LUA)("moves CSP's weather clock from the PC's time to 22:00", () => {
+    const lines = run("night");
+    expect(lines).toContain("CALL,setWeatherTimeOffset,29700,true");
+    expect(lines.map((l) => note([l], "note")).filter(Boolean)).toContain("clock moved from 13:45 to 22:00");
+    expect(note(lines, "env")).toMatch(/^time=22:00;/);
+    expect(lines.some((l) => l.includes("clock still"))).toBe(false);
+  });
+
+  it.skipIf(!LUA)("says so when it can't move the clock", () => {
+    const lines = run("night_noapi");
+    const notes = lines.filter((l) => l.startsWith("BTEST,note,")).map((l) => note([l], "note"));
+    expect(notes.some((n) => n?.startsWith("clock move from 13:45 to 22:00 failed"))).toBe(true);
+    expect(notes).toContain("clock still at 13:45, not 22:00");
+    expect(note(lines, "env")).toMatch(/^time=13:45;/);
+  });
+});

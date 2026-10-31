@@ -67,7 +67,7 @@ Two switches on the same script. Without them a run is the usual single car in d
 .\scripts\windows\run-test.ps1 busselton -Layout town -Night -Cars 5
 ```
 
-- **-Night** sets the time in race.ini the way Content Manager does, with the unclamped sun angle CSP reads. AC alone stops at 18:00, so CSP's weather FX must be on. The run's `env` line says the time the game actually ran at; if it says daytime, note it.
+- **-Night** sets the time in race.ini the way Content Manager does (SUN_ANGLE unclamped, 144 for 22:00, and CM's leftover date and time keys removed). AC alone stops at 18:00, so CSP's weather FX must be on. Some CSP and Pure versions still start weather FX at the PC's clock, so the track script also moves CSP's weather clock to the time asked for when the drive starts, and logs a `clock moved from ... to ...` note (or why it couldn't). The run's `env` line says the time the game actually ran at; if it says daytime, note it with the `clock` line and the CSP log's `Weather FX: start time=` line.
 - **-Cars N** starts a race with N AI cars in the same car as the test car (other skins), capped at the layout's pit boxes less one. The test car still drives one lap, then the run waits up to 90 s for the others. The log has every car's contacts, off-road moments and stops.
 - **-Rain** drives in a rain weather from `content\weather` (heavy rain first; `-Weather <folder>` picks one). The env line logs CSP's rain intensity, wetness and standing water, and the console says whether it really rained. The report lists the build's rain hollows the drive passed (from the run's copy of `ext_config.ini`).
 - The folder name ends in `-night`, `-cars<N>` or `-rain`, and `run.json` in it says what was asked.

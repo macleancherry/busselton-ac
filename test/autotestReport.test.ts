@@ -38,7 +38,10 @@ describe("automatic AI test", () => {
   it("has night and AI-car switches, single car by default", () => {
     expect(ps).toMatch(/\[switch\]\$Night/);
     expect(ps).toMatch(/\[int\]\$Cars = 0/);
-    expect(ps).toContain("__CM_UNCLAMPED_SUN_ANGLE");
+    // The sun angle unclamped, as Content Manager writes it, and CM's leftover time keys dropped.
+    expect(ps).toContain('@("LIGHTING", "SUN_ANGLE", $sunAngle.ToString("0.00", $inv))');
+    expect(ps).not.toContain("$clamped");
+    expect(ps).toMatch(/"__CM_DATE", "__CM_DATE_USE_TIME", "__CM_UNCLAMPED_SUN_ANGLE"\) \{ \$ini = Remove-Ini/);
   });
 
   it("has a rain switch, and the env line carries CSP's rain for the report", () => {
