@@ -236,7 +236,6 @@ async function lercTile(url: string): Promise<Float32Array | null> {
 }
 export type DemSource = keyof typeof STATE_DEMS;
 export const DEM_CREDIT = Object.fromEntries(Object.entries(STATE_DEMS).map(([k, v]) => [k, v.credit])) as Record<DemSource, string>;
-export const DEM_LABEL = Object.fromEntries(Object.entries(STATE_DEMS).map(([k, v]) => [k, v.label])) as Record<DemSource, string>;
 const WORLD = 40075016.68557849;
 
 /** One 256 x 256 web map tile of a state model's heights, or null where it has none. */

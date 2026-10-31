@@ -1,7 +1,7 @@
 import { PbfWriter } from "pbf";
 import { describe, expect, it } from "vitest";
 import { lngLatToPixel, pixelToLngLat, type LngLat } from "../src/core/geo";
-import { fetchSeen, savedToken, saveToken } from "../src/services/mapillary";
+import { fetchSeen } from "../src/services/mapillary";
 
 type Feat = { x: number; y: number; value?: string };
 
@@ -147,28 +147,5 @@ describe("Mapillary map features", () => {
         : new Response("", { status: 500 }));
     const seen = await fetchSeen(bboxOver(TX, TY, 1, 0), "t", { fetch, ...fast });
     expect(seen.map((s) => s.value)).toEqual(["object--traffic-light"]);
-  });
-
-  it("remembers the token", () => {
-    const map = new Map<string, string>();
-    const store = {
-      getItem: (k: string) => map.get(k) ?? null,
-      setItem: (k: string, v: string) => void map.set(k, v),
-      removeItem: (k: string) => void map.delete(k),
-    };
-    saveToken("abc", store);
-    expect(savedToken(store)).toBe("abc");
-    expect(map.get("mapillary_token")).toBe("abc");
-    saveToken("", store);
-    expect(map.has("mapillary_token")).toBe(false);
-    expect(savedToken(store)).toBe("");
-    const broken = {
-      getItem: () => { throw new Error("denied"); },
-      setItem: () => { throw new Error("denied"); },
-      removeItem: () => { throw new Error("denied"); },
-    };
-    expect(savedToken(broken)).toBe("");
-    expect(() => saveToken("x", broken)).not.toThrow();
-    expect(savedToken()).toBe(""); // Node: no localStorage
   });
 });

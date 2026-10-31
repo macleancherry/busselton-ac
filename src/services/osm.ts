@@ -1,4 +1,4 @@
-// Road routing (OSRM), place search (Photon / Nominatim) and road widths
+// Road routing (OSRM), place names (Nominatim) and road widths
 // (Overpass). All keyless public services; the browser's Referer identifies
 // the app, as their usage policies ask.
 
@@ -13,7 +13,6 @@ import type { RoundaboutHint } from "../core/roundabout";
 import { routeAlongWays, type OsmWayGeom, type WayRouteOptions } from "../core/wayRoute";
 
 const OSRM = "https://router.project-osrm.org";
-const PHOTON = "https://photon.komoot.io/api/";
 const NOMINATIM = "https://nominatim.openstreetmap.org";
 const OVERPASS = [
   "https://overpass-api.de/api/interpreter",
@@ -62,32 +61,6 @@ export async function route(pins: LngLat[], signal?: AbortSignal): Promise<Route
     uturns: t.kept,
     trimmed: t.cut,
   };
-}
-
-export interface Place {
-  label: string;
-  detail: string;
-  lngLat: LngLat;
-  /** [minLng, maxLat, maxLng, minLat] when the place is an area. */
-  extent?: [number, number, number, number];
-}
-
-/** Search-as-you-type (Photon is built for it; Nominatim's policy forbids it). */
-export async function searchPlaces(q: string, near?: LngLat, signal?: AbortSignal): Promise<Place[]> {
-  const params = new URLSearchParams({ q, limit: "6" });
-  if (near) {
-    params.set("lon", near[0].toFixed(4));
-    params.set("lat", near[1].toFixed(4));
-  }
-  const r = await fetch(`${PHOTON}?${params}`, { signal });
-  if (!r.ok) return [];
-  const body = await r.json();
-  return (body.features ?? []).map((f: { properties: Record<string, string>; geometry: { coordinates: LngLat }; }) => {
-    const p = f.properties as Record<string, unknown>;
-    const label = String(p.name ?? p.street ?? p.city ?? "Unnamed");
-    const detail = [p.street !== label ? p.street : null, p.city, p.state, p.country].filter(Boolean).join(", ");
-    return { label, detail, lngLat: f.geometry.coordinates, extent: p.extent as Place["extent"] };
-  });
 }
 
 export interface PlaceName {
