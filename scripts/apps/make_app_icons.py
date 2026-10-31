@@ -1,6 +1,13 @@
 """Draw the taskbar icons of the Busselton Lua apps (apps/lua/<app>/icon.png, ICON = icon.png in each
-manifest's [WINDOW_...]). CSP looks for them by the window's ICON key and logs
-"TaskBarIcon :: COULD NOT FIND TEXTURES FOR IMGUI_LUA_<app>_main_ICON" without one.
+manifest's [WINDOW_...]). CSP's app taskbar shows them by the window's ICON key.
+
+AC's own taskbar logs "TaskBarIcon :: COULD NOT FIND TEXTURES FOR <window>_ICON" for every app
+window it lists, whatever its icon: in the workstation's log (28 Oct 2026) for AC's own AUDIO_ICON and
+CHAT_ICON, CSP's IMGUI_CSP_* tools, CSP's own Lua apps (IMGUI_CSP_LUA_App Shelf_main_ICON,
+IMGUI_CSP_LUA_CSP Debug_main_ICON, ..._settings_ICON), Pure's Lua apps (IMGUI_LUA_Pure Config
+App_main_pure_config_ICON) and Python apps (G Meter_ICON). CSP's apps declare their icon exactly as
+ours do (ICON = icon.png, 64 x 64 RGBA PNG; acc-lua-internal included-apps/*/manifest.ini) and log the
+same line, so it isn't ours to fix: the icon CSP's taskbar shows comes from ICON.
 
     python3 -I scripts/apps/make_app_icons.py
 
