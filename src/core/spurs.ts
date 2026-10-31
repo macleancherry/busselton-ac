@@ -1,192 +1,261 @@
-// U-turn spurs. A pin that snaps to the far carriageway of a divided road
-// (or into a side street or car park) makes the router drive past it, turn
-// round and come back: an out-and-back stretch that builds as a hairpin
-// spike, two roads side by side, or the same road twice. The router says
-// where it turned round, so each U-turn it reports is cut out: from where
-// the route first runs alongside itself (either direction, within a divided
-// road's width) to where it last does, joined with a gentle diagonal.
+// Cuts U-turn spurs out of a routed line. A pin on the far carriageway of a
+// divided road, or up a side street, makes the router drive past, turn round
+// and come back. For each U-turn the router reports, this finds the
+// out-and-back around it (from where the route first runs alongside itself to
+// where it last does), cuts it out and joins the ends with a gentle diagonal.
+// Bends the router doesn't call U-turns (mountain hairpins) are left alone.
 //
-// Only spurs with a reported U-turn are cut. A mountain hairpin's two arms
-// can run as close together, but the router doesn't call a bend a U-turn.
+// Written from docs/specs/spurs.md.
 
-import { haversine, type LngLat } from "./geo";
-
-const STEP = 2; // resample spacing, metres
-const SEP = 36; // arms within this distance run alongside each other (a divided road's two carriageways, light rail between them included)
-const MIN_SPAN = 30; // a cut is at least this long, or it's just a bend
-const MAX_CUT = 1500; // and at most this long...
-const MAX_SHARE = 0.5; // ...and never more than this share of the route
+import type { LngLat, Vec2 } from "./geo";
 
 export interface Trimmed {
+  /** The route without the spurs. */
   coords: LngLat[];
-  /** Where each U-turn that was cut out was. */
+  /** U-turns whose spur was cut out. */
   cut: LngLat[];
-  /** U-turns left in (the spur couldn't be found, or was too long to cut). */
+  /** U-turns left in (no spur found, too long to cut, or not on the route). */
   kept: LngLat[];
-  /** Arc-length ranges removed, metres along the original route. */
+  /** Arc-length ranges removed, metres along the original route, sorted by start. */
   ranges: [number, number][];
 }
 
-interface Sample {
-  p: [number, number];
-  s: number;
-  dir: [number, number];
+/** Resample spacing, m. */
+const STEP = 2;
+/** Arms closer than this run alongside (a divided road's carriageways, light rail between included), m. */
+const SEP = 36;
+/** Shortest out-and-back that counts, m. */
+const MIN_SPAN = 30;
+/** Longest spur ever cut, m. */
+const MAX_CUT = 1500;
+/** Never cut more than this share of the route. */
+const MAX_SHARE = 0.5;
+/** A U-turn further than this from the route is ignored, m. */
+const TURN_MATCH = 30;
+/** Half-window for sample directions, m. */
+const DIR_WINDOW = 6;
+/** Arms must be at least this parallel (|cos|). */
+const ALIGN = 0.8;
+/** Search window for the end adjustments, m. */
+const END_WINDOW = 2 * SEP;
+/** A spur this close to an end is the route's start or finish, m. */
+const END_TOL = 2 * STEP + SEP;
+/** How far past the limit the pair search looks, m. */
+const REACH_PAST = 60;
+const M_PER_DEG_LAT = 110574;
+const M_PER_DEG_LNG = 111320;
+
+interface Frame {
+  toLocal(p: LngLat): Vec2;
 }
 
-export function trimSpurs(coords: LngLat[], uturns: LngLat[]): Trimmed {
-  if (coords.length < 3 || !uturns.length) return { coords, cut: [], kept: uturns, ranges: [] };
-  const o = coords[0];
-  const kx = Math.cos((o[1] * Math.PI) / 180) * 111320, ky = 110574;
-  const local = (c: LngLat): [number, number] => [(c[0] - o[0]) * kx, (c[1] - o[1]) * ky];
-  const pts = coords.map(local);
+function frameAt(origin: LngLat): Frame {
+  const k = Math.cos((origin[1] * Math.PI) / 180) * M_PER_DEG_LNG;
+  return { toLocal: (p) => [(p[0] - origin[0]) * k, (p[1] - origin[1]) * M_PER_DEG_LAT] };
+}
+
+function cumulative(pts: Vec2[]): number[] {
   const cum = [0];
   for (let i = 1; i < pts.length; i++) cum.push(cum[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]));
-  const total = cum[cum.length - 1];
-  const samples = resample(pts, cum, total);
-
-  const ranges: [number, number][] = [];
-  const cut: LngLat[] = [], kept: LngLat[] = [];
-  // Where each reported U-turn is along the route.
-  const turnsAt = uturns.map((u) => {
-    const up = local(u);
-    let s = 0, bd = Infinity;
-    for (const q of samples) {
-      const d = Math.hypot(q.p[0] - up[0], q.p[1] - up[1]);
-      if (d < bd) [bd, s] = [d, q.s];
-    }
-    return bd <= 30 ? s : -1;
-  });
-  for (const u of uturns) {
-    const up = local(u);
-    // The U-turn's place on the route: the nearest sample.
-    let k = 0, best = Infinity;
-    samples.forEach((q, i) => {
-      const d = Math.hypot(q.p[0] - up[0], q.p[1] - up[1]);
-      if (d < best) [best, k] = [d, i];
-    });
-    if (best > 30 || ranges.some(([a, b]) => samples[k].s >= a && samples[k].s <= b)) {
-      if (best > 30) kept.push(u);
-      continue;
-    }
-    const span = spurAround(samples, k, total, turnsAt);
-    if (!span) {
-      kept.push(u);
-      continue;
-    }
-    ranges.push(span);
-    cut.push(u);
-  }
-  if (!ranges.length) return { coords, cut, kept, ranges };
-  ranges.sort((a, b) => a[0] - b[0]);
-  return { coords: removeRanges(coords, cum, total, ranges), cut, kept, ranges };
+  return cum;
 }
 
-function resample(pts: [number, number][], cum: number[], total: number): Sample[] {
-  const out: Sample[] = [];
-  let seg = 1;
-  for (let s = 0; s <= total; s += STEP) {
-    while (seg < pts.length - 1 && cum[seg] < s) seg++;
-    const a = pts[seg - 1], b = pts[seg];
-    const L = cum[seg] - cum[seg - 1] || 1;
-    const f = Math.max(0, Math.min(1, (s - cum[seg - 1]) / L));
-    out.push({ p: [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f], s, dir: [0, 0] });
+/** Index of the segment containing arc length s (cum[i] <= s <= cum[i+1]), clamped. */
+function segmentAt(cum: number[], s: number): number {
+  let lo = 0, hi = cum.length - 1;
+  if (hi < 1) return 0;
+  while (hi - lo > 1) {
+    const mid = (lo + hi) >> 1;
+    if (cum[mid] <= s) lo = mid;
+    else hi = mid;
   }
-  // Direction over ±6 m, so a kink in the line doesn't count.
-  const w = Math.max(1, Math.round(6 / STEP));
-  out.forEach((q, i) => {
-    const a = out[Math.max(0, i - w)].p, b = out[Math.min(out.length - 1, i + w)].p;
-    const l = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;
-    q.dir = [(b[0] - a[0]) / l, (b[1] - a[1]) / l];
-  });
-  return out;
+  return lo;
 }
 
-/**
- * The longest stretch [s0, s1] around sample k whose ends run alongside each
- * other (or the route's own start or end, for a spur at a pin at either end).
- */
-function spurAround(samples: Sample[], k: number, total: number, turnsAt: number[] = []): [number, number] | null {
-  // Search a little past the limit: a spur whose arms still run alongside
-  // there is longer than the limit, and is left alone rather than cut short.
-  const limit = Math.min(MAX_CUT, total * MAX_SHARE);
-  const reach = limit + 60;
-  const sk = samples[k].s;
-  let found: [number, number] | null = null;
-  for (let i = k; i >= 0 && sk - samples[i].s <= reach; i--) {
-    const a = samples[i];
-    for (let j = samples.length - 1; j > k; j--) {
-      const b = samples[j];
-      if (b.s - a.s > reach) continue;
-      if (b.s - a.s < MIN_SPAN) break;
-      if (found && b.s - a.s <= found[1] - found[0]) break;
-      const d = Math.hypot(a.p[0] - b.p[0], a.p[1] - b.p[1]);
-      // Out and back, the arms run opposite ways; out, back and out again (two U-turns between
-      // them), the same way. Two points the same way along one road either side of a single spur
-      // up a side street are not its arms: taking them cut a corner across a block.
-      const dot = a.dir[0] * b.dir[0] + a.dir[1] * b.dir[1];
-      const turns = turnsAt.filter((t) => t > a.s && t < b.s).length;
-      const par = turns >= 2 ? Math.abs(dot) : -dot;
-      if (d <= SEP && par > 0.8) {
-        found = [a.s, b.s];
+function lerpAt<T extends [number, number]>(pts: T[], cum: number[], s: number): T {
+  const i = segmentAt(cum, s);
+  if (pts.length === 1) return [pts[0][0], pts[0][1]] as T;
+  const a = pts[i], b = pts[i + 1];
+  const L = cum[i + 1] - cum[i];
+  const f = L > 0 ? Math.max(0, Math.min(1, (s - cum[i]) / L)) : 0;
+  return [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f] as T;
+}
+
+interface Samples {
+  pos: Vec2[];
+  s: number[];
+  dir: Vec2[];
+}
+
+function resampleRoute(local: Vec2[], cum: number[], total: number): Samples {
+  const pos: Vec2[] = [];
+  const s: number[] = [];
+  for (let i = 0; i * STEP <= total; i++) {
+    s.push(i * STEP);
+    pos.push(lerpAt(local, cum, i * STEP));
+  }
+  const w = Math.round(DIR_WINDOW / STEP);
+  const n = pos.length;
+  const dir = pos.map((_, i) => {
+    const a = pos[Math.max(0, i - w)], b = pos[Math.min(n - 1, i + w)];
+    const dx = b[0] - a[0], dy = b[1] - a[1];
+    const l = Math.hypot(dx, dy);
+    return (l > 0 ? [dx / l, dy / l] : [0, 0]) as Vec2;
+  });
+  return { pos, s, dir };
+}
+
+function nearestSample(sm: Samples, p: Vec2, from = 0, to = sm.pos.length - 1): { k: number; d: number } {
+  let k = -1, d = Infinity;
+  for (let i = from; i <= to; i++) {
+    const di = Math.hypot(sm.pos[i][0] - p[0], sm.pos[i][1] - p[1]);
+    if (di < d) {
+      d = di;
+      k = i;
+    }
+  }
+  return { k, d };
+}
+
+/** Nearest sample to p among those with s in [lo, hi]; `fallback` when none lie there. */
+function nearestInWindow(sm: Samples, p: Vec2, lo: number, hi: number, fallback: number): number {
+  let best = fallback, bd = Infinity;
+  for (let i = 0; i < sm.s.length; i++) {
+    if (sm.s[i] < lo || sm.s[i] > hi) continue;
+    const d = Math.hypot(sm.pos[i][0] - p[0], sm.pos[i][1] - p[1]);
+    if (d < bd) {
+      bd = d;
+      best = sm.s[i];
+    }
+  }
+  return best;
+}
+
+/** Last sample index with s <= limit (binary search; samples are i * STEP). */
+function lastAtOrBefore(sm: Samples, limit: number): number {
+  return Math.max(0, Math.min(sm.s.length - 1, Math.floor(limit / STEP + 1e-9)));
+}
+
+function findSpur(sm: Samples, k: number, total: number, turnsAt: number[]): [number, number] | null {
+  const limit = Math.min(MAX_CUT, MAX_SHARE * total);
+  const reach = limit + REACH_PAST;
+  const n = sm.pos.length;
+  let bestA = -1, bestB = -1, bestSpan = -Infinity;
+  for (let a = k; a >= 0 && sm.s[k] - sm.s[a] <= reach; a--) {
+    const sa = sm.s[a];
+    for (let b = Math.min(n - 1, lastAtOrBefore(sm, sa + reach)); b > k; b--) {
+      const span = sm.s[b] - sa;
+      if (span < MIN_SPAN || span <= bestSpan) break;
+      const pa = sm.pos[a], pb = sm.pos[b];
+      if (Math.hypot(pa[0] - pb[0], pa[1] - pb[1]) > SEP) continue;
+      const dot = sm.dir[a][0] * sm.dir[b][0] + sm.dir[a][1] * sm.dir[b][1];
+      const sb = sm.s[b];
+      const twoTurns = turnsAt.filter((t) => t > sa && t < sb).length >= 2;
+      const par = twoTurns ? Math.abs(dot) : -dot;
+      if (par > ALIGN) {
+        bestA = a;
+        bestB = b;
+        bestSpan = span;
         break;
       }
     }
   }
-  if (!found || found[1] - found[0] > limit) return null;
-  // At either end of the route the spur is the route's own beginning or end,
-  // and the route now begins (or ends) beside the pin.
-  const nearest = (to: Sample, from: number, until: number) => {
-    let best = from, bd = Infinity;
-    for (const q of samples) {
-      if (q.s < from || q.s > until) continue;
-      const d = Math.hypot(q.p[0] - to.p[0], q.p[1] - to.p[1]);
-      if (d < bd) [bd, best] = [d, q.s];
-    }
-    return best;
-  };
-  if (found[0] <= 2 * STEP + SEP) {
-    found[0] = 0;
-    found[1] = nearest(samples[0], found[1] - 2 * SEP, found[1]);
+  if (bestA < 0 || bestSpan > limit) return null;
+  let sa = sm.s[bestA], sb = sm.s[bestB];
+  const atStart = sa <= END_TOL;
+  const atEnd = sb >= total - END_TOL;
+  if (atStart && atEnd) return null;
+  if (atStart) {
+    const unadjusted = sb;
+    sa = 0;
+    sb = nearestInWindow(sm, sm.pos[0], sb - END_WINDOW, sb, unadjusted);
+  } else if (atEnd) {
+    const unadjusted = sa;
+    sb = total;
+    sa = nearestInWindow(sm, sm.pos[n - 1], sa, sa + END_WINDOW, unadjusted);
   }
-  if (found[1] >= total - 2 * STEP - SEP) {
-    found[1] = total;
-    found[0] = nearest(samples[samples.length - 1], found[0], found[0] + 2 * SEP);
-  }
-  return found;
+  if (sb - sa > limit) return null;
+  return [sa, sb];
 }
 
-/** The route without the given stretches, each gap bridged by a straight run. */
-function removeRanges(coords: LngLat[], cum: number[], total: number, ranges: [number, number][]): LngLat[] {
-  const at = (s: number): LngLat => {
-    let i = 1;
-    while (i < cum.length - 1 && cum[i] < s) i++;
-    const f = Math.max(0, Math.min(1, (s - cum[i - 1]) / (cum[i] - cum[i - 1] || 1)));
-    return [coords[i - 1][0] + (coords[i][0] - coords[i - 1][0]) * f, coords[i - 1][1] + (coords[i][1] - coords[i - 1][1]) * f];
+/**
+ * Rebuilds the route without the given ranges (metres along `coords`, any
+ * order). Middle ranges are widened by J = max(10, 3 x the gap between the
+ * arms) each side and bridged with a straight diagonal; ranges touching an
+ * end just drop that end. Exported for tests.
+ */
+export function rebuildWithout(coords: LngLat[], ranges: [number, number][]): LngLat[] {
+  const local = coords.map(frameAt(coords[0]).toLocal);
+  const cum = cumulative(local);
+  const total = cum[cum.length - 1];
+  const at = (s: number) => lerpAt(coords, cum, s);
+  const frame = frameAt(coords[0]);
+  const dist = (p: LngLat, q: LngLat) => {
+    const a = frame.toLocal(p), b = frame.toLocal(q);
+    return Math.hypot(a[0] - b[0], a[1] - b[1]);
   };
-  // Merge overlaps, then widen each middle gap so the sideways step between
-  // the two carriageways becomes a gentle diagonal.
+  // Widen every range first, then merge (so a widened cut never steps backwards).
+  const wide = ranges
+    .map(([a0, b0]) => {
+      const middle = a0 > 0 && b0 < total;
+      const J = middle ? Math.max(10, 3 * dist(at(a0), at(b0))) : 0;
+      return [Math.max(0, a0 - J), Math.min(total, b0 + J)] as [number, number];
+    })
+    .sort((p, q) => p[0] - q[0]);
   const merged: [number, number][] = [];
-  for (const r of ranges) {
+  for (const r of wide) {
     const last = merged[merged.length - 1];
     if (last && r[0] <= last[1]) last[1] = Math.max(last[1], r[1]);
     else merged.push([r[0], r[1]]);
   }
   const out: LngLat[] = [];
-  let from = 0;
-  for (const [a0, b0] of merged) {
-    const step = haversine(at(a0), at(b0));
-    const J = a0 > 0 && b0 < total ? Math.max(10, 3 * step) : 0;
-    const a = Math.max(from, a0 - J), b = Math.min(total, b0 + J);
-    coords.forEach((c, i) => {
-      if (cum[i] >= from && cum[i] < a) out.push(c);
-    });
+  let prevEnd = -Infinity;
+  let ci = 0;
+  for (const [a, b] of merged) {
+    for (; ci < coords.length && cum[ci] < a; ci++) if (cum[ci] >= prevEnd) out.push(coords[ci]);
     if (a > 0) out.push(at(a));
-    from = b;
     if (b < total) out.push(at(b));
+    prevEnd = b;
   }
-  coords.forEach((c, i) => {
-    if (cum[i] > from) out.push(c);
+  for (let i = 0; i < coords.length; i++) if (cum[i] > prevEnd) out.push(coords[i]);
+  return out.filter((p, i) => i === 0 || p[0] !== out[i - 1][0] || p[1] !== out[i - 1][1]);
+}
+
+export function trimSpurs(coords: LngLat[], uturns: LngLat[]): Trimmed {
+  if (coords.length < 3 || uturns.length === 0) return { coords, cut: [], kept: uturns, ranges: [] };
+  const frame = frameAt(coords[0]);
+  const local = coords.map(frame.toLocal);
+  const cum = cumulative(local);
+  const total = cum[cum.length - 1];
+  const sm = resampleRoute(local, cum, total);
+  const turnsAt = uturns.map((u) => {
+    const { k, d } = nearestSample(sm, frame.toLocal(u));
+    return k >= 0 && d <= TURN_MATCH ? sm.s[k] : -1;
   });
-  // Drop repeats.
-  return out.filter((c, i) => i === 0 || c[0] !== out[i - 1][0] || c[1] !== out[i - 1][1]);
+
+  const cut: LngLat[] = [];
+  const kept: LngLat[] = [];
+  const ranges: [number, number][] = [];
+  for (const u of uturns) {
+    const { k, d } = nearestSample(sm, frame.toLocal(u));
+    if (k < 0 || d > TURN_MATCH) {
+      kept.push(u);
+      continue;
+    }
+    const s = sm.s[k];
+    if (ranges.some(([a, b]) => s >= a && s <= b)) {
+      cut.push(u); // removed with a spur already cut
+      continue;
+    }
+    const r = findSpur(sm, k, total, turnsAt);
+    if (!r) {
+      kept.push(u);
+      continue;
+    }
+    ranges.push(r);
+    cut.push(u);
+  }
+  if (ranges.length === 0) return { coords, cut, kept, ranges: [] };
+  ranges.sort((p, q) => p[0] - q[0]);
+  return { coords: rebuildWithout(coords, ranges), cut, kept, ranges };
 }

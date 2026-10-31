@@ -1,52 +1,68 @@
-// A last check that nothing solid stands on the driving line. Kerbs, nature
-// strips, gutters and guard rails are each placed with care, but they come
-// from several builders (road edges, kerb returns, side streets, roundabout
-// rings) and real road networks are full of odd corners; any triangle of
-// theirs whose middle lands on the route's asphalt is dropped here.
+// Last pass before the model is assembled: solid edge meshes (kerbs, strips,
+// gutters, paths, driveways, rails, fences, Armco) lose any triangle whose
+// centre lands on the route's asphalt or a roundabout's carriageway, so
+// nothing solid ever stands on the driving line.
+//
+// Written from docs/specs/clearance.md. `clearOfRoute` and `keepOffRoute`
+// take any point predicate; only `onRoute` knows about the RoadPlan.
 
 import type { Kn5MeshNode } from "./kn5";
-import { innerRadius, outerRadius } from "./roundabout";
 import type { RoadPlan, SegmentIndex } from "./road";
+import { innerRadius, outerRadius } from "./roundabout";
 
-/** Meshes that must never stand on the route: kerbs, their strips and gutters, guard rails. */
+/** Mesh names that are cleared off the route (prefix match, case-sensitive). */
 export const KEEP_OFF = /^(1(KERB|GRASS_STRIP|ROAD_GUTTER|STREET_GUTTER|STREET_PATH|STREET_DRIVE|WALL_RAIL|WALL_FENCE|WALL_ARMCO)|ARMCO_)/;
 
-/** Is this local point (x east, y north) on the route's asphalt or a roundabout's carriageway? */
-export function onRoute(plan: RoadPlan, index: SegmentIndex, margin = 0.15): (x: number, y: number) => boolean {
+/** How far from the centreline to look for route asphalt, metres. */
+const ROUTE_REACH = 25;
+
+/** Local-metre point test (x east, y north). */
+export type OnRoad = (x: number, y: number) => boolean;
+
+/**
+ * Is a point on the route's asphalt (more than `margin` inside its edge) or
+ * on a roundabout's carriageway (more than `margin` inside either edge)?
+ */
+export function onRoute(plan: RoadPlan, index: SegmentIndex, margin = 0.15): OnRoad {
+  const rings = plan.roundabouts.map((rb) => ({
+    cx: rb.c[0],
+    cy: rb.c[1],
+    lo: innerRadius(rb) + margin,
+    hi: outerRadius(rb) - margin,
+  }));
   return (x, y) => {
-    const n = index.nearest(x, y, 25);
-    if (n && n.dist < index.at(n).width / 2 - margin) return true;
-    return plan.roundabouts.some((rb) => {
-      const d = Math.hypot(x - rb.c[0], y - rb.c[1]);
-      return d > innerRadius(rb) && d < outerRadius(rb) - margin;
-    });
+    const near = index.nearest(x, y, ROUTE_REACH);
+    if (near && near.dist < index.at(near).width / 2 - margin) return true;
+    for (const r of rings) {
+      const d = Math.hypot(x - r.cx, y - r.cy);
+      if (d > r.lo && d < r.hi) return true;
+    }
+    return false;
   };
 }
 
-/**
- * Drops the triangles whose centre is on the route. Returns the mesh with
- * the rest (vertices untouched), or null when nothing is left.
- */
-export function clearOfRoute(node: Kn5MeshNode, on: (x: number, y: number) => boolean): { node: Kn5MeshNode | null; dropped: number } {
-  const p = node.positions, idx = node.indices;
-  const keep: number[] = [];
+/** Drops the triangles whose centre is on the road. Mesh positions are AC space (x east, y up, z south). */
+export function clearOfRoute(node: Kn5MeshNode, on: OnRoad): { node: Kn5MeshNode | null; dropped: number } {
+  const pos = node.positions;
+  const idx = node.indices;
+  const kept: number[] = [];
   let dropped = 0;
-  for (let t = 0; t < idx.length; t += 3) {
+  for (let t = 0; t + 2 < idx.length; t += 3) {
     const a = idx[t] * 3, b = idx[t + 1] * 3, c = idx[t + 2] * 3;
-    // AC space: x east, y up, z south.
-    const x = (p[a] + p[b] + p[c]) / 3, y = -(p[a + 2] + p[b + 2] + p[c + 2]) / 3;
-    if (on(x, y)) dropped++;
-    else keep.push(idx[t], idx[t + 1], idx[t + 2]);
+    const x = (pos[a] + pos[b] + pos[c]) / 3;
+    const z = (pos[a + 2] + pos[b + 2] + pos[c + 2]) / 3;
+    if (on(x, -z)) dropped++;
+    else kept.push(idx[t], idx[t + 1], idx[t + 2]);
   }
-  if (!dropped) return { node, dropped };
-  if (!keep.length) return { node: null, dropped };
-  return { node: { ...node, indices: Uint16Array.from(keep) }, dropped };
+  if (dropped === 0) return { node, dropped: 0 };
+  if (kept.length === 0) return { node: null, dropped };
+  return { node: { ...node, indices: Uint16Array.from(kept) }, dropped };
 }
 
-/** Applies clearOfRoute to every KEEP_OFF mesh in a list. */
-export function keepOffRoute(nodes: Kn5MeshNode[], on: (x: number, y: number) => boolean): { nodes: Kn5MeshNode[]; dropped: number } {
-  let dropped = 0;
+/** Clears every KEEP_OFF mesh; others pass through untouched. Order is kept. */
+export function keepOffRoute(nodes: Kn5MeshNode[], on: OnRoad): { nodes: Kn5MeshNode[]; dropped: number } {
   const out: Kn5MeshNode[] = [];
+  let dropped = 0;
   for (const n of nodes) {
     if (!KEEP_OFF.test(n.name)) {
       out.push(n);
