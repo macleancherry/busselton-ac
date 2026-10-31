@@ -4,8 +4,8 @@
 // All procedural, all deterministic: the same call gives the same bytes, so a build never needs a
 // download and two builds of the same route match.
 
-import { encodeDdsDxt1 } from "./dds";
-import { encodePng } from "./png";
+import { encodeDdsDxt1 as toDxt1 } from "./dds";
+import { encodePng as toPng } from "./png";
 import { rng } from "./random";
 
 export { rng };
@@ -13,6 +13,10 @@ export { rng };
 type Rgb = readonly [number, number, number];
 type Rgba = readonly [number, number, number, number];
 type Pixels = Uint8Array | Uint8ClampedArray;
+/** The bytes of a PNG file. */
+type PngFile = Uint8Array;
+/** Raw RGBA bytes, four per pixel. */
+type RgbaBytes = Uint8Array;
 
 /* ---------------- shared building blocks ---------------- */
 
@@ -31,32 +35,32 @@ const wrapIndex = (v: number, n: number) => ((v % n) + n) % n;
 export function valueNoise(width: number, height: number, cells: number, seed: number): Float32Array {
   const cx = Math.max(1, Math.round(cells));
   const cy = Math.max(1, Math.round((cells * height) / width));
-  const r = rng(seed);
-  const lattice = new Float32Array(cx * cy);
-  for (let i = 0; i < lattice.length; i++) lattice[i] = r();
-  // Per-column lattice cells and weights, reused for every row.
-  const x0 = new Int32Array(width), x1 = new Int32Array(width), tx = new Float32Array(width);
-  for (let x = 0; x < width; x++) {
-    const f = (x / width) * cx, i = Math.floor(f);
-    x0[x] = i % cx;
-    x1[x] = (i + 1) % cx;
-    tx[x] = smooth(f - i);
+  const rand = rng(seed);
+  const lattice = Float32Array.from({ length: cx * cy }, () => rand());
+  // Lattice cells either side of each column and the eased weight between them, reused every row.
+  const left = new Int32Array(width), right = new Int32Array(width), wx = new Float32Array(width);
+  for (let col = 0; col < width; col++) {
+    const f = (col * cx) / width, c = Math.floor(f);
+    left[col] = c % cx;
+    right[col] = (c + 1) % cx;
+    wx[col] = smooth(f - c);
   }
   const out = new Float32Array(width * height);
-  for (let y = 0; y < height; y++) {
-    const f = (y / height) * cy, j = Math.floor(f), ty = smooth(f - j);
-    const row0 = (j % cy) * cx, row1 = ((j + 1) % cy) * cx;
-    for (let x = 0; x < width; x++) {
-      const top = lerp(lattice[row0 + x0[x]], lattice[row0 + x1[x]], tx[x]);
-      const bottom = lerp(lattice[row1 + x0[x]], lattice[row1 + x1[x]], tx[x]);
-      out[y * width + x] = lerp(top, bottom, ty);
+  for (let row = 0; row < height; row++) {
+    const f = (row * cy) / height, c = Math.floor(f), wy = smooth(f - c);
+    const above = (c % cy) * cx, below = ((c + 1) % cy) * cx;
+    const base = row * width;
+    for (let col = 0; col < width; col++) {
+      const a = lerp(lattice[above + left[col]], lattice[above + right[col]], wx[col]);
+      const b = lerp(lattice[below + left[col]], lattice[below + right[col]], wx[col]);
+      out[base + col] = lerp(a, b, wy);
     }
   }
   return out;
 }
 
 /** Opaque RGBA pixels from a shading function of (x, y, pixel index) giving RGB; values clamped to 0..255. */
-export function fill(width: number, height: number, shade: (x: number, y: number, i: number) => ArrayLike<number>): Uint8Array {
+export function fill(width: number, height: number, shade: (x: number, y: number, i: number) => ArrayLike<number>): RgbaBytes {
   const out = new Uint8Array(width * height * 4);
   for (let y = 0, i = 0; y < height; y++) {
     for (let x = 0; x < width; x++, i++) {
@@ -71,8 +75,8 @@ export function fill(width: number, height: number, shade: (x: number, y: number
 }
 
 /** A 4 x 4 opaque PNG of one colour. */
-export function solidTexture(rgb: readonly [number, number, number]): Uint8Array {
-  return encodePng(fill(4, 4, () => rgb), 4, 4);
+export function solidTexture(rgb: readonly [number, number, number]): PngFile {
+  return toPng(fill(4, 4, () => rgb), 4, 4);
 }
 
 /** RGB float planes, for textures painted in several passes. */
@@ -101,20 +105,20 @@ class Planes {
     this.g[i] += d;
     this.b[i] += d;
   }
-  rgba(): Uint8Array {
+  rgba(): RgbaBytes {
     return fill(this.width, this.height, (_x, _y, i) => [this.r[i], this.g[i], this.b[i]]);
   }
-  png(): Uint8Array {
-    return encodePng(this.rgba(), this.width, this.height);
+  png(): PngFile {
+    return toPng(this.rgba(), this.width, this.height);
   }
 }
 
 /* ---------------- road surface ---------------- */
 
 /** Metres of road one seal texture covers along v; the road meshes' v coordinates use it. */
-export const SEAL_LENGTH = 24;
+export const SEAL_LENGTH = 24; // metres
 
-export type SealKind = "asphalt" | "chipseal";
+export type SealKind = "asphalt" | "chipseal"; // asphalt in town, chip seal on country roads
 
 const SEAL_W = 512, SEAL_H = 1024;
 const CRACK: Rgb = [24, 24, 25];
@@ -129,7 +133,10 @@ const STONES: Rgb[] = [
  * The road surface, 512 x 1024: u across the whole road (left to right), v along it for
  * SEAL_LENGTH metres, tiling along v. Wheel paths, patches and sealed cracks; no markings.
  */
-export function sealTexture(kind: SealKind, twoLane: boolean, variant: number): { dds: Uint8Array; rgba: Uint8Array; width: number; height: number } {
+/** A painted road surface: DXT1 for the kn5, raw RGBA for the preview and normal maps. */
+export type SealTexture = { dds: Uint8Array; rgba: RgbaBytes; width: number; height: number };
+
+export function sealTexture(kind: SealKind, twoLane: boolean, variant: number): SealTexture {
   const W = SEAL_W, H = SEAL_H;
   const lanes = twoLane ? 2 : 1;
   const laneW = W / lanes;
@@ -140,21 +147,21 @@ export function sealTexture(kind: SealKind, twoLane: boolean, variant: number): 
 
   // Across the road: how much of a wheel path, and of a lane's centre (oil drips), each column is.
   const wheel = new Float32Array(W), centre = new Float32Array(W);
-  for (let x = 0; x < W; x++) {
+  for (let col = 0; col < W; col++) {
     let w = 0, c = 0;
     for (let l = 0; l < lanes; l++) {
       const mid = (l + 0.5) * laneW;
-      for (const side of [-1, 1]) w += Math.exp(-(((x - (mid + side * 0.26 * laneW)) / (0.06 * laneW)) ** 2));
-      c += Math.exp(-(((x - mid) / (0.025 * laneW)) ** 2));
+      for (const side of [-1, 1]) w += Math.exp(-(((col - (mid + side * 0.26 * laneW)) / (0.06 * laneW)) ** 2));
+      c += Math.exp(-(((col - mid) / (0.025 * laneW)) ** 2));
     }
-    wheel[x] = Math.min(1, w);
-    centre[x] = Math.min(1, c);
+    wheel[col] = Math.min(1, w);
+    centre[col] = Math.min(1, c);
   }
 
   const px = new Planes(W, H);
-  for (let y = 0; y < H; y++) {
-    for (let x = 0; x < W; x++) {
-      const i = y * W + x;
+  for (let i = 0; i < W * H; i++) {
+    const x = i % W, y = (i - x) / W;
+    {
       if (kind === "asphalt") {
         let v = 60 + 12 * (n1[i] - 0.5) + 12 * (n2[i] - 0.5) + 10 * (n3[i] - 0.5) + (r() - 0.5) * 20;
         v -= 4 * wheel[x];
@@ -176,15 +183,14 @@ export function sealTexture(kind: SealKind, twoLane: boolean, variant: number): 
           c = [lerp(grey, s[0], 0.55) * b * 1.02, lerp(grey, s[1], 0.55) * b, lerp(grey, s[2], 0.55) * b * 0.96];
         }
         px.set(i, c);
-        // Flushed binder in the wheel paths: darker and smoother.
+        // Wheel paths: traffic has pushed binder up between the stones, dark and smooth.
         px.mix(i, [56 * tone, 54 * tone, 51 * tone], 0.55 * wheel[x]);
       }
     }
   }
 
   // Patches: newer seal in a lane, a different tone with a dark sealed edge, wrapping along v.
-  const patches = 1 + Math.floor(r() * 3);
-  for (let p = 0; p < patches; p++) {
+  for (let p = 0, patches = 1 + Math.floor(r() * 3); p < patches; p++) {
     const lane = Math.floor(r() * lanes);
     const pw = Math.round(laneW * (0.15 + r() * 0.3));
     const x0 = Math.round(lane * laneW + r() * (laneW - pw));
@@ -230,9 +236,9 @@ export function sealTexture(kind: SealKind, twoLane: boolean, variant: number): 
       if (x < 2 || x > W - 3) break;
     }
   };
-  const cracks = kind === "asphalt" ? 4 + Math.floor(r() * 4) : 1 + Math.floor(r() * 2);
+  const cracks = kind === "asphalt" ? 4 + Math.floor(r() * 4) : 1 + (r() < 0.5 ? 1 : 0);
   const along = Math.PI / 2, thirty = Math.PI / 6;
-  for (let c = 0; c < cracks; c++) {
+  for (let n = 0; n < cracks; n++) {
     const x = 8 + r() * (W - 16), y = r() * H;
     const dir = r() < 0.5 ? 1 : -1;
     if (r() < 0.75) crack(x, y, dir * along, thirty, 150 + r() * 350);
@@ -241,7 +247,7 @@ export function sealTexture(kind: SealKind, twoLane: boolean, variant: number): 
   if (twoLane) crack(W / 2 + (r() - 0.5) * 10, r() * H, along, Math.PI / 18, 300 + r() * 300);
 
   const rgba = px.rgba();
-  return { dds: encodeDdsDxt1(rgba, W, H), rgba, width: W, height: H };
+  return { dds: toDxt1(rgba, W, H), rgba, width: W, height: H };
 }
 
 /** A repeatable 0..1 number for an integer cell. */
@@ -258,10 +264,10 @@ function hash2(x: number, y: number, salt: number): number {
 /* ---------------- small plain textures ---------------- */
 
 /** Line paint, 64 px for a metre: near white with worn patches. */
-export function paintTexture(): Uint8Array {
+export function paintTexture(): PngFile {
   const s = 64, r = rng(211);
   const wear = valueNoise(s, s, 8, 212), fine = valueNoise(s, s, 32, 213);
-  return encodePng(fill(s, s, (_x, _y, i) => {
+  return toPng(fill(s, s, (_x, _y, i) => {
     const worn = smoothstep(0.36, 0.14, wear[i]) * (0.7 + 0.6 * fine[i]);
     const v = 228 - 60 * worn + (r() - 0.5) * 10;
     return [v, v, v - 3];
@@ -269,11 +275,11 @@ export function paintTexture(): Uint8Array {
 }
 
 /** The roadside verge, 256 px: gravel brown fading into dry grass. */
-export function vergeTexture(): Uint8Array {
+export function vergeTexture(): PngFile {
   const s = 256, r = rng(221);
   const blend = valueNoise(s, s, 4, 222), mid = valueNoise(s, s, 16, 223), fine = valueNoise(s, s, 64, 224);
   const gravel: Rgb = [140, 124, 96], dry: Rgb = [118, 114, 80];
-  return encodePng(fill(s, s, (_x, _y, i) => {
+  return toPng(fill(s, s, (_x, _y, i) => {
     const t = smoothstep(0.3, 0.7, blend[i]);
     const k = 1 + 0.16 * (mid[i] - 0.5) + 0.16 * (fine[i] - 0.5) + (r() - 0.5) * 0.14;
     return [lerp(gravel[0], dry[0], t) * k, lerp(gravel[1], dry[1], t) * k, lerp(gravel[2], dry[2], t) * k];
@@ -281,10 +287,10 @@ export function vergeTexture(): Uint8Array {
 }
 
 /** Grass, 512 px: green with two scales of noise and grain. */
-export function grassTexture(): Uint8Array {
+export function grassTexture(): PngFile {
   const s = 512, r = rng(231);
   const big = valueNoise(s, s, 8, 232), small = valueNoise(s, s, 48, 233);
-  return encodePng(fill(s, s, (_x, _y, i) => {
+  return toPng(fill(s, s, (_x, _y, i) => {
     const k = 1 + 0.24 * (big[i] - 0.5) + 0.2 * (small[i] - 0.5) + (r() - 0.5) * 0.2;
     const dry = 6 * (big[i] - 0.5);
     return [(82 + dry) * k, 113 * k, 53 * k];
@@ -292,10 +298,10 @@ export function grassTexture(): Uint8Array {
 }
 
 /** Concrete, 64 x 256: pale weathered grey, a contraction joint across the top two rows (one pour per tile). */
-export function concreteTexture(): Uint8Array {
+export function concreteTexture(): PngFile {
   const w = 64, h = 256, r = rng(241);
   const stain = valueNoise(w, h, 4, 242), grit = valueNoise(w, h, 16, 243);
-  return encodePng(fill(w, h, (_x, y, i) => {
+  return toPng(fill(w, h, (_, y, i) => {
     if (y < 2) return [93, 93, 90];
     const v = 168 + 14 * (stain[i] - 0.5) + 8 * (grit[i] - 0.5) + (r() - 0.5) * 10;
     return [v, v, v - 4];
@@ -303,9 +309,9 @@ export function concreteTexture(): Uint8Array {
 }
 
 /** W-beam guard rail, 64 px: two ridges and a groove across v, galvanised grey. */
-export function railTexture(): Uint8Array {
+export function railTexture(): PngFile {
   const s = 64, r = rng(251);
-  return encodePng(fill(s, s, (_x, y) => {
+  return toPng(fill(s, s, (_x, y) => {
     const ridge = 0.5 + 0.5 * Math.cos((2 * Math.PI * 2 * y) / s);
     const v = (ridge - 0.5) * 92 + (r() - 0.5) * 8;
     return [148 + v, 150 + v, 154 + v];
@@ -319,9 +325,9 @@ const POST_WHITE: Rgb = [236, 236, 230];
  * A guide post, 48 x 64, in thirds across: red reflector, white reflector, plain. Reflectors on
  * rows 3 to 11 with a darker outline row above and below (the scenery spec's u ranges match).
  */
-export function postTexture(): Uint8Array {
+export function postTexture(): PngFile {
   const third = POST_W / 3;
-  return encodePng(fill(POST_W, POST_H, (x, y) => {
+  return toPng(fill(POST_W, POST_H, (x, y) => {
     const t = Math.floor(x / third), lx = x - t * third;
     if (t < 2) {
       if (y === 2 || y === 12) return [212, 212, 207];
@@ -332,9 +338,9 @@ export function postTexture(): Uint8Array {
 }
 
 /** A Colorbond roller door, 64 px: fine horizontal ribs, a darker bottom rail. */
-export function garageTexture(): Uint8Array {
+export function garageTexture(): PngFile {
   const s = 64, r = rng(261);
-  return encodePng(fill(s, s, (_x, y) => {
+  return toPng(fill(s, s, (_x, y) => {
     if (y >= s - 3) return [117, 117, 113];
     const k = 0.94 + 0.07 * Math.cos((2 * Math.PI * 14 * y) / s) + (r() - 0.5) * 0.02;
     return [209 * k, 207 * k, 196 * k];
@@ -342,9 +348,9 @@ export function garageTexture(): Uint8Array {
 }
 
 /** One window, 64 px: sky reflected at the top darkening downward, a hint of curtain each side. */
-export function windowTexture(): Uint8Array {
+export function windowTexture(): PngFile {
   const s = 64, r = rng(271);
-  return encodePng(fill(s, s, (x, y) => {
+  return toPng(fill(s, s, (x, y) => {
     const t = y / (s - 1);
     const n = (r() - 0.5) * 5;
     const glass = [152 - 92 * t + n, 167 - 96 * t + n, 182 - 96 * t + n];
@@ -354,11 +360,11 @@ export function windowTexture(): Uint8Array {
 }
 
 /** The garden barriers fences.ts can build; each has a 128 px texture covering 2 m x 2 m. */
-export const BARRIERS = ["colorbond", "paling", "brickwall", "hedge"] as const;
+export const BARRIERS = ["colorbond", "paling", "brickwall", "hedge"] as const; // fences.ts
 export type Barrier = (typeof BARRIERS)[number];
 
 /** A barrier's texture (PNG). */
-export function barrierTexture(kind: Barrier): Uint8Array {
+export function barrierTexture(kind: Barrier): PngFile {
   switch (kind) {
     case "colorbond": return colorbondTexture();
     case "paling": return palingTexture();
@@ -369,9 +375,9 @@ export function barrierTexture(kind: Barrier): Uint8Array {
 
 const B = 128;
 
-function colorbondTexture(): Uint8Array {
+function colorbondTexture(): PngFile {
   const r = rng(301), stain = valueNoise(B, B, 4, 302);
-  return encodePng(fill(B, B, (x, y, i) => {
+  return toPng(fill(B, B, (x, y, i) => {
     const k = 1 + 0.03 * (stain[i] - 0.5) + (r() - 0.5) * 0.04;
     if (x < 3 || x >= B - 3) return [60 * k, 63 * k, 57 * k]; // post
     if (y === 0) return [96 * k, 99 * k, 90 * k]; // lit top edge of the rail
@@ -381,7 +387,7 @@ function colorbondTexture(): Uint8Array {
   }), B, B);
 }
 
-function palingTexture(): Uint8Array {
+function palingTexture(): PngFile {
   const r = rng(311);
   const grain = valueNoise(B, B * 4, 64, 312);
   // Paling widths that add up to the tile, so it tiles across.
@@ -389,7 +395,7 @@ function palingTexture(): Uint8Array {
   while (edges[edges.length - 1] < B - 14) edges.push(edges[edges.length - 1] + 9 + Math.floor(r() * 5));
   edges.push(B);
   const tones = edges.map(() => 0.86 + r() * 0.24);
-  return encodePng(fill(B, B, (x, y) => {
+  return toPng(fill(B, B, (x, y) => {
     let p = 0;
     while (edges[p + 1] <= x) p++;
     if (x === edges[p]) return [52, 40, 28]; // shadow gap
@@ -402,12 +408,12 @@ function palingTexture(): Uint8Array {
   }), B, B);
 }
 
-function brickTexture(): Uint8Array {
+function brickTexture(): PngFile {
   const r = rng(321);
   const cap = 7, course = 6, brick = 16;
   const tone = new Float32Array(64 * 32);
   for (let i = 0; i < tone.length; i++) tone[i] = 0.84 + r() * 0.28;
-  return encodePng(fill(B, B, (x, y) => {
+  return toPng(fill(B, B, (x, y) => {
     const n = (r() - 0.5) * 0.08;
     if (y < cap - 1) return [178 * (1 + n), 172 * (1 + n), 162 * (1 + n)]; // capping course
     const yy = y - (cap - 1);
@@ -420,10 +426,10 @@ function brickTexture(): Uint8Array {
   }), B, B);
 }
 
-function hedgeTexture(): Uint8Array {
+function hedgeTexture(): PngFile {
   const r = rng(331);
   const a = valueNoise(B, B, 8, 332), b = valueNoise(B, B, 16, 333), c = valueNoise(B, B, 32, 334);
-  return encodePng(fill(B, B, (_x, _y, i) => {
+  return toPng(fill(B, B, (_x, _y, i) => {
     const v = 0.5 * a[i] + 0.3 * b[i] + 0.2 * c[i];
     const hollow = smoothstep(0.42, 0.3, v) * 0.2;
     const k = (0.55 + 0.9 * v) * (1 - hollow) + (r() - 0.5) * 0.12;
@@ -438,14 +444,14 @@ function hedgeTexture(): Uint8Array {
  * or lighter than the binder (chipseal fewer and bigger), drawn 3:1 wide so they come out round on
  * the road. Wraps.
  */
-export function detailTexture(kind: SealKind): Uint8Array {
+export function detailTexture(kind: SealKind): PngFile {
   const s = 256, chip = kind === "chipseal";
   const r = rng(chip ? 402 : 401);
   const base = valueNoise(s, s, 8, chip ? 404 : 403);
   const lum = new Float32Array(s * s);
   for (let i = 0; i < lum.length; i++) lum[i] = 245 + 8 * (base[i] - 0.5);
   const count = chip ? 1500 : 2900;
-  for (let k = 0; k < count; k++) {
+  for (let stone = 0; stone < count; stone++) {
     const cx = r() * s, cy = r() * s;
     const rx = chip ? 3 + r() * 5 : 1.5 + r() * 2.5, ry = Math.max(0.6, rx / 3);
     const v = r() < 0.8 ? -(30 + r() * 35) : 7;
@@ -458,23 +464,23 @@ export function detailTexture(kind: SealKind): Uint8Array {
       }
     }
   }
-  return encodePng(fill(s, s, (_x, _y, i) => [lum[i], lum[i], lum[i]]), s, s);
+  return toPng(fill(s, s, (_x, _y, i) => [lum[i], lum[i], lum[i]]), s, s);
 }
 
 /** A flat tangent-space normal map, 4 x 4. */
-export function flatNormalTexture(): Uint8Array {
-  return encodePng(fill(4, 4, () => [128, 128, 255]), 4, 4);
+export function flatNormalTexture(): PngFile {
+  return toPng(fill(4, 4, () => [128, 128, 255]), 4, 4);
 }
 
 /** A txMaps texture, 4 x 4: specular (R), glossiness (G) and sun specular (B), each 0..1. */
-export function mapsTexture(specular: number, gloss: number, sun: number): Uint8Array {
-  return encodePng(fill(4, 4, () => [specular * 255, gloss * 255, sun * 255]), 4, 4);
+export function mapsTexture(specular: number, gloss: number, sun: number): PngFile {
+  return toPng(fill(4, 4, () => [specular * 255, gloss * 255, sun * 255]), 4, 4);
 }
 
-export type GroundKind = "grass" | "dirt" | "plain";
+export type GroundKind = "grass" | "dirt" | "plain"; // the ground mask's R, G and B
 
 /** Metres one ground detail tile covers. */
-export const GROUND_TILE: Record<GroundKind, number> = { grass: 1.6, dirt: 2.4, plain: 2 };
+export const GROUND_TILE: Record<GroundKind, number> = { grass: 1.6, dirt: 2.4, plain: 2.0 };
 
 /**
  * How much of each aerial photo pixel is grass (green lawn, or dry summer grass: warm, not earthy)
@@ -508,22 +514,25 @@ export function groundClasses(rgba: Pixels, width: number, height: number): { gr
   return { grass: boxBlur3(grass, width, height), dirt: boxBlur3(dirt, width, height) };
 }
 
+/** A 3 x 3 box blur, done as two 3-tap passes; at the edges it averages only what's inside. */
 function boxBlur3(src: Float32Array, w: number, h: number): Float32Array {
+  const across = new Float32Array(src.length);
+  for (let row = 0; row < h; row++) {
+    const base = row * w;
+    for (let col = 0; col < w; col++) {
+      const lo = Math.max(0, col - 1), hi = Math.min(w - 1, col + 1);
+      let acc = 0;
+      for (let k = lo; k <= hi; k++) acc += src[base + k];
+      across[base + col] = acc / (hi - lo + 1);
+    }
+  }
   const out = new Float32Array(src.length);
-  for (let y = 0; y < h; y++) {
-    for (let x = 0; x < w; x++) {
-      let sum = 0, cnt = 0;
-      for (let dy = -1; dy <= 1; dy++) {
-        const yy = y + dy;
-        if (yy < 0 || yy >= h) continue;
-        for (let dx = -1; dx <= 1; dx++) {
-          const xx = x + dx;
-          if (xx < 0 || xx >= w) continue;
-          sum += src[yy * w + xx];
-          cnt++;
-        }
-      }
-      out[y * w + x] = sum / cnt;
+  for (let row = 0; row < h; row++) {
+    const lo = Math.max(0, row - 1), hi = Math.min(h - 1, row + 1);
+    for (let col = 0; col < w; col++) {
+      let acc = 0;
+      for (let k = lo; k <= hi; k++) acc += across[k * w + col];
+      out[row * w + col] = acc / (hi - lo + 1);
     }
   }
   return out;
@@ -538,7 +547,7 @@ export function groundMask(rgba: Pixels, width: number, height: number): { rgba:
   // Each axis on its own, so a long narrow strip keeps its detail across.
   const fx = Math.max(1, Math.ceil(width / 256)), fy = Math.max(1, Math.ceil(height / 256));
   const mw = Math.ceil(width / fx), mh = Math.ceil(height / fy);
-  const out = new Uint8Array(mw * mh * 4);
+  const out = new Uint8Array(4 * mw * mh);
   for (let my = 0; my < mh; my++) {
     for (let mx = 0; mx < mw; mx++) {
       let gs = 0, ds = 0, cnt = 0;
@@ -558,7 +567,7 @@ export function groundMask(rgba: Pixels, width: number, height: number): { rgba:
       out[o + 3] = 255;
     }
   }
-  return { rgba: out, width: mw, height: mh };
+  return { width: mw, height: mh, rgba: out };
 }
 
 const GD = 512;
@@ -567,7 +576,7 @@ const GD = 512;
  * A ground detail texture, 512 px, tiling, mid grey on average (the shader doubles it, so the
  * photo keeps its brightness from a distance). Returns RGBA pixels.
  */
-export function groundDetail(kind: GroundKind): Uint8Array {
+export function groundDetail(kind: GroundKind): RgbaBytes {
   const px = kind === "grass" ? grassDetail() : kind === "dirt" ? dirtDetail() : plainDetail();
   // Shift to a mean luminance of 127.5, keeping any tint.
   let sum = 0;
@@ -608,7 +617,7 @@ function grassDetail(): Planes {
 }
 
 function dirtDetail(): Planes {
-  const r = rng(511);
+  const r = rng(510 + 1);
   const a = valueNoise(GD, GD, 5, 512), b = valueNoise(GD, GD, 18, 513), c = valueNoise(GD, GD, 64, 514);
   const lum = new Float32Array(GD * GD);
   for (let i = 0; i < lum.length; i++) lum[i] = 0.5 + 0.4 * (a[i] - 0.5) + 0.48 * (b[i] - 0.5) + 0.22 * (c[i] - 0.5) + (r() - 0.5) * 0.2;
@@ -625,7 +634,7 @@ function dirtDetail(): Planes {
     }
   }
   // Pebbles lit from the upper left, each with a shadow to the lower right.
-  for (let k = 0; k < 700; k++) {
+  for (let pebble = 0; pebble < 700; pebble++) {
     const cx = r() * GD, cy = r() * GD, rad = 1.2 + r() * 2.2, tone = 0.46 + r() * 0.16;
     const R = Math.ceil(rad) + 2;
     for (let dy = -R; dy <= R; dy++) for (let dx = -R; dx <= R; dx++) {
@@ -657,19 +666,18 @@ function plainDetail(): Planes {
  * A tangent-space normal map from a texture's brightness taken as height (DirectX convention:
  * green points down the image), wrapping at the edges. Dark cracks and edges come out as grooves.
  */
-export function normalFromHeight(rgba: Pixels, width: number, height: number, strength: number): Uint8Array {
+export function normalFromHeight(rgba: Pixels, width: number, height: number, strength: number): RgbaBytes {
   const h = new Float32Array(width * height);
   for (let i = 0; i < h.length; i++) h[i] = (0.3 * rgba[i * 4] + 0.59 * rgba[i * 4 + 1] + 0.11 * rgba[i * 4 + 2]) / 255;
   const out = new Uint8Array(width * height * 4);
-  for (let y = 0; y < height; y++) {
-    const up = wrapIndex(y - 1, height) * width, down = wrapIndex(y + 1, height) * width;
-    for (let x = 0; x < width; x++) {
-      const left = wrapIndex(x - 1, width), right = wrapIndex(x + 1, width);
-      const dx = (h[y * width + right] - h[y * width + left]) * 0.5 * strength;
-      const dy = (h[down + x] - h[up + x]) * 0.5 * strength;
+  for (let row = 0; row < height; row++) {
+    const up = wrapIndex(row - 1, height) * width, down = wrapIndex(row + 1, height) * width, here = row * width;
+    for (let col = 0; col < width; col++) {
+      const dx = (h[here + wrapIndex(col + 1, width)] - h[here + wrapIndex(col - 1, width)]) * 0.5 * strength;
+      const dy = (h[down + col] - h[up + col]) * 0.5 * strength;
       // Normal = (-dh/dx, -dh/dy(down), 1), normalised; y stored as "down" for DirectX.
       const len = Math.hypot(dx, dy, 1);
-      const o = (y * width + x) * 4;
+      const o = (here + col) * 4;
       out[o] = toByte(128 + (-dx / len) * 127 + 0.5);
       out[o + 1] = toByte(128 + (-dy / len) * 127 + 0.5);
       out[o + 2] = toByte(128 + (1 / len) * 127 + 0.5);
@@ -682,7 +690,7 @@ export function normalFromHeight(rgba: Pixels, width: number, height: number, st
 /* ---------------- raster ---------------- */
 
 /** A small RGBA canvas with anti-aliased thick polylines and dots, for map.png and the UI images. */
-export class Raster {
+export class Raster { // map.png, outline.png and preview.png
   readonly rgba: Uint8Array;
   constructor(readonly width: number, readonly height: number, background: Rgba | readonly number[] = [0, 0, 0, 0]) {
     this.rgba = new Uint8Array(width * height * 4);
@@ -699,14 +707,14 @@ export class Raster {
       const x0 = Math.max(0, Math.floor(Math.min(ax, bx) - half - 1)), x1 = Math.min(this.width - 1, Math.ceil(Math.max(ax, bx) + half + 1));
       const y0 = Math.max(0, Math.floor(Math.min(ay, by) - half - 1)), y1 = Math.min(this.height - 1, Math.ceil(Math.max(ay, by) + half + 1));
       const ex = bx - ax, ey = by - ay, len2 = ex * ex + ey * ey;
-      for (let y = y0; y <= y1; y++) {
-        for (let x = x0; x <= x1; x++) {
-          const px = x + 0.5, py = y + 0.5;
+      for (let gy = y0; gy <= y1; gy++) {
+        for (let gx = x0; gx <= x1; gx++) {
+          const px = gx + 0.5, py = gy + 0.5;
           const t = len2 > 0 ? clamp01(((px - ax) * ex + (py - ay) * ey) / len2) : 0;
           const d = Math.hypot(px - (ax + ex * t), py - (ay + ey * t));
           const c = clamp01(half + 0.5 - d);
           if (c <= 0) continue;
-          const i = y * this.width + x;
+          const i = gy * this.width + gx;
           if (c > (cover.get(i) ?? 0)) cover.set(i, c);
         }
       }
@@ -726,8 +734,8 @@ export class Raster {
     }
   }
 
-  png(): Uint8Array {
-    return encodePng(this.rgba, this.width, this.height);
+  png(): PngFile {
+    return toPng(this.rgba, this.width, this.height);
   }
 
   /** Source-over compositing of `colour` at `coverage` onto pixel i. */
@@ -735,7 +743,7 @@ export class Raster {
     const o = i * 4, d = this.rgba;
     const sa = ((colour[3] ?? 255) / 255) * coverage, da = d[o + 3] / 255;
     const oa = sa + da * (1 - sa);
-    if (oa <= 0) return;
+    if (!(oa > 0)) return;
     for (let c = 0; c < 3; c++) d[o + c] = toByte((colour[c] * sa + d[o + c] * da * (1 - sa)) / oa + 0.5);
     d[o + 3] = toByte(oa * 255 + 0.5);
   }
