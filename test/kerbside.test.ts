@@ -67,8 +67,13 @@ describe("fitting to the asphalt", () => {
   });
 
   it("narrows, then drops, parking before bike lanes", () => {
-    const narrower = fitKerbside(9.25, { parking: "parallel" }, { parking: "parallel" });
+    // Narrowed to 1.8 m of paint, each side's car still takes 1.9 m (10 cm off the kerb).
+    const narrower = fitKerbside(9.45, { parking: "parallel" }, { parking: "parallel" });
     expect(narrower.left.depth).toBe(1.8);
+    expect(fitKerbside(9.25, { parking: "parallel" }, { parking: "parallel" }).left.park).toBeUndefined();
+    // Margaret River: 7.43 m, parking one side: the car's 1.9 m leaves the lanes 5.53 m, short of 5.6.
+    expect(fitKerbside(7.43, {}, { parking: "parallel" }).right.park).toBeUndefined();
+    expect(fitKerbside(7.5, {}, { parking: "parallel" }).right).toEqual({ park: "parallel", depth: 1.8, bike: undefined, bikeW: 0 });
     const narrow = fitKerbside(8.5, { parking: "parallel", cycle: "lane" }, { parking: "parallel", cycle: "lane" });
     expect(narrow.left.park).toBeUndefined();
     expect(narrow.left.bikeW).toBe(1.2);

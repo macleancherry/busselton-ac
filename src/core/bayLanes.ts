@@ -41,6 +41,8 @@ export const MIN_LANE_TWO_WAY = 2.8;
 export const MIN_LANE_ONE_WAY = 3;
 /** Sideways shift per metre along the road as a lane eases round bays (1 m over about 7 m). */
 export const RAMP = 0.15;
+/** How far under the narrowest two-way spacing lanes may close to clear bays, metres. */
+export const LANE_SLACK = 0.1;
 /** Bays this much off the road's own direction (|cos| below) are another street's. */
 const PARALLEL = 0.8;
 
@@ -157,7 +159,9 @@ export function clearOffsets(offs: number[], lo: number | null, hi: number | nul
         moveF += take;
         short -= take;
       }
-      if (short > 1e-9) return offs;
+      // A few centimetres short (the traffic road's centreline and widths aren't quite the bays'
+      // carriageway's): the lanes close up that little more rather than stay in the bays.
+      if (short > LANE_SLACK) return offs;
     }
     const moved = offs.map((o) => (o > 0 ? o + moveF : o + moveB));
     return inside(moved) ? moved : offs;

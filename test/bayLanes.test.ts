@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { bayBand, clearOffsets, lanesOverBays, LANE_CLEAR, RAMP, withBayBands, type BayBox } from "../src/core/bayLanes";
+import { bayBand, clearOffsets, lanesOverBays, LANE_CLEAR, LANE_SLACK, RAMP, withBayBands, type BayBox } from "../src/core/bayLanes";
 import { buildKerbside, type Carriageway, type KerbsideWay } from "../src/core/kerbside";
 import { carFootprint, LANE_HALF } from "../src/core/parkedClear";
 import { trafficGraph, type TrafficRoad } from "../src/core/traffic";
@@ -61,6 +61,16 @@ describe("lane offsets clear of bays", () => {
 
   it("keeps the lanes where they were when the street is too narrow for both and the bays", () => {
     expect(clearOffsets([1.75, -1.75], null, 1.4, 3.5, false)).toEqual([1.75, -1.75]);
+  });
+
+  it("closes the lanes a few centimetres under 2.8 m rather than leave them in the bays", () => {
+    // Margaret River: 7.43 m traced street, a narrowed bay's car reaching 1.84 m in from the right.
+    const o = clearOffsets([1.75, -1.75], -1.84, null, 3.715, false);
+    expect(o[1]).toBeCloseTo(-1.84 + LANE_CLEAR);
+    expect(o[0]).toBeCloseTo(3.715 - 1.4);
+    expect(o[0] - o[1]).toBeGreaterThan(2.8 - LANE_SLACK);
+    // Further short than the slack: still kept where they were (kerbside.ts drops those bays).
+    expect(clearOffsets([1.75, -1.75], -1.6, null, 3.715, false)).toEqual([1.75, -1.75]);
   });
 
   it("moves a one-way street's lane off the bays, keeping 3 m", () => {

@@ -180,7 +180,12 @@ export function fitKerbside(width: number, left: KerbSide, right: KerbSide, onew
   };
   const l = make(left), r = make(right);
   const avail = width - (oneway ? 3 : 5.6);
-  const total = () => l.depth + l.bikeW + r.depth + r.bikeW - 1e-6;
+  // What a side takes: its paint, or the car in a parallel bay where that reaches further. A car
+  // sits KERB_IN off the kerb, so a bay narrowed to 1.8 m still takes 1.9 m (bayLanes.ts keeps the
+  // lanes clear of the car): counted as 1.8, the lanes were 10 cm short and stayed in the bays
+  // (Margaret River).
+  const reach = (s: SideLayout) => (s.park === "parallel" ? Math.max(s.depth, KERB_IN + CAR_WIDTH) : s.depth);
+  const total = () => reach(l) + l.bikeW + reach(r) + r.bikeW - 1e-6;
   const each = (f: (s: SideLayout) => void) => { f(l); f(r); };
   if (total() > avail) each((s) => { if (s.park === "parallel") s.depth = PARALLEL_MIN; });
   if (total() > avail) each((s) => { s.park = undefined; s.depth = 0; });
