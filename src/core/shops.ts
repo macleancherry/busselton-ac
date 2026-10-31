@@ -21,6 +21,7 @@ import { MeshBuilder } from "./mesh";
 import { fill, rng } from "./textures";
 import { centroid, ringArea, type Building } from "./buildings";
 import { SINK } from "./sceneGround";
+import { slopeSteps } from "./slopeSteps";
 
 /** POI classes that mean a shop front (OpenMapTiles poi layer). */
 const SHOP_CLASSES = new Set([
@@ -55,6 +56,46 @@ export interface Shopfront {
   sign: number;
   /** The shop's name, for its sign. */
   name?: string;
+  /**
+   * On a slope (slopeSteps.ts): the front in steps along the wall (t0..t1 metres from `a`), each
+   * with its own ground floor (the lowest ground along its wall) and verandah underside above it.
+   * Absent: one step, `ground` and `under`.
+   */
+  steps?: { t0: number; t1: number; ground: number; under: number }[];
+  /** Each post's foot (postSpots order), on the building's own ground. Absent: the ground passed to buildShopfronts. */
+  feet?: number[];
+}
+
+/** How far a verandah's underside stays above the highest footpath under it, metres. */
+const CLEAR = 2.3;
+
+/** Where the posts go along a front `len` metres long: about every 4 m, 0.3 m in from each end. */
+export function postSpots(len: number): number[] {
+  const n = Math.max(2, Math.round(len / 4) + 1);
+  return Array.from({ length: n }, (_, k) => 0.3 + ((len - 0.6) * k) / (n - 1));
+}
+
+/**
+ * Steps a front down a slope (slopeSteps.ts) when its ground varies by more than a step's rise, or
+ * the footpath under its verandah comes up within CLEAR of it. `g` is the building's ground.
+ */
+function stepFront(f: Shopfront, g: HeightFn): void {
+  const L = Math.hypot(f.b[0] - f.a[0], f.b[1] - f.a[1]);
+  const e: Vec2 = [(f.b[0] - f.a[0]) / L, (f.b[1] - f.a[1]) / L];
+  const at = (t: number, d: number): Vec2 => [f.a[0] + e[0] * t + f.out[0] * d, f.a[1] + e[1] * t + f.out[1] * d];
+  const wall = (t: number) => g(...at(t, 0));
+  const sample = (t: number) => (f.depth > 0 ? [wall(t), g(...at(t, f.depth - 0.15)), g(...at(t, f.depth))] : [wall(t)]);
+  const steps = slopeSteps(L, sample);
+  if (steps.length === 1 && (f.depth <= 0 || f.ground + f.under >= steps[0].hi + CLEAR)) return;
+  f.steps = steps.map((s) => {
+    let lo = Infinity;
+    const n = Math.max(1, Math.ceil((s.t1 - s.t0) / 0.5));
+    for (let i = 0; i <= n; i++) lo = Math.min(lo, wall(s.t0 + ((s.t1 - s.t0) * i) / n));
+    // One step (a flat front with a high footpath): keep the front's own ground floor.
+    const ground = steps.length === 1 ? Math.min(f.ground, lo) : lo;
+    const zU = Math.max(ground + f.under, s.hi + CLEAR);
+    return { t0: s.t0, t1: s.t1, ground, under: zU - ground };
+  });
 }
 
 /** Draws shop names for signs: one RGBA row per name, `w` x `h` pixels, each squeezed by `squeeze[i]` across. */
@@ -77,6 +118,13 @@ export function findShopfronts(
   ground: HeightFn,
   /** Houses only count with a shop right at them (a café in a house), not just nearby. */
   isHome: (b: Building) => boolean = () => false,
+  /**
+   * The ground a building stands on, as buildBuildings gets it (track.ts: the base's mesh, held up
+   * to the mesh's lowest round the footprint where a corner is past its edge). A shop front on
+   * `ground` point by point took the analytic terrain or the horizon for a corner past the mesh's
+   * edge and sank metres under the rest of its building.
+   */
+  groundFor?: (b: Building) => HeightFn,
 ): Shopfront[] {
   const shops = pois.filter((p) => SHOP_CLASSES.has(p.cls) || SHOP_CLASSES.has(p.subclass ?? ""));
   const rand = rng(77);
@@ -109,12 +157,15 @@ export function findShopfronts(
     // Stop short of the kerb; under a metre of room, just the windows.
     const room = bestGap - 0.6;
     const depth = room < 1 ? 0 : Math.min(MAX_DEPTH, room);
-    const g = Math.min(ground(a[0], a[1]), ground(q[0], q[1]));
-    out.push({
-      a, b: q, out: o, depth, posts: depth >= 2.4, ground: g,
+    const gb = groundFor?.(b) ?? ground;
+    const f: Shopfront = {
+      a, b: q, out: o, depth, posts: depth >= 2.4, ground: Math.min(gb(a[0], a[1]), gb(q[0], q[1])),
       under: Math.min(VERANDAH_H, Math.max(2.6, b.height - 0.4)),
       sign: Math.floor(rand() * SIGN_COUNT),
-    });
+    };
+    stepFront(f, gb);
+    if (f.posts && groundFor) f.feet = postSpots(L).map((t) => gb(a[0] + ((q[0] - a[0]) * t) / L + o[0] * (depth - 0.15), a[1] + ((q[1] - a[1]) * t) / L + o[1] * (depth - 0.15)) - SINK);
+    out.push(f);
     centres.push([c, reach]);
   }
   // Names: each named shop goes on the sign of the nearest front it's within reach of, one name per
@@ -167,12 +218,16 @@ export function buildShopfronts(fronts: Shopfront[], ground: HeightFn): Kn5MeshN
     const L = Math.hypot(b[0] - a[0], b[1] - a[1]);
     const e: Vec2 = [(b[0] - a[0]) / L, (b[1] - a[1]) / L];
     const at = (p: Vec2, t: number, d: number): Vec2 => [p[0] + e[0] * t + o[0] * d, p[1] + e[1] * t + o[1] * d];
-    // Shop windows: one glazed band across the ground floor, just proud of the wall.
-    {
+    // One step on the level; on a slope each step has its own ground floor and verandah height.
+    const steps = f.steps ?? [{ t0: 0, t1: L, ground: f.ground, under: f.under }];
+    // Shop windows: one glazed band across each step's ground floor, just proud of the wall.
+    const inset = Math.min(0.4, L * 0.05);
+    for (const st of steps) {
+      const t0 = Math.max(st.t0, inset), t1 = Math.min(st.t1, L - inset);
+      if (t1 - t0 < 0.3) continue;
       const mb = glass.next(8);
       const i = mb.vertexCount;
-      const z0 = f.ground + 0.35, z1 = f.ground + Math.min(f.under - 0.2, 2.8);
-      const t0 = Math.min(0.4, L * 0.05), t1 = L - t0;
+      const z0 = st.ground + 0.35, z1 = st.ground + Math.min(st.under - 0.2, 2.8);
       const p0 = at(a, t0, 0.05), p1 = at(a, t1, 0.05);
       const reps = Math.max(1, Math.round((t1 - t0) / 4));
       mb.vertex([p0[0], p0[1], z0], 0, 1);
@@ -182,55 +237,77 @@ export function buildShopfronts(fronts: Shopfront[], ground: HeightFn): Kn5MeshN
       mb.quad(i, i + 1, i + 2, i + 3);
     }
     if (f.depth <= 0) continue;
-    const zU = f.ground + f.under, zT = zU + 0.18;
-    // Verandah roof: a slab from the wall out over the footpath, falling a little to the street.
-    {
-      const mb = roof.next(16);
-      const i = mb.vertexCount;
-      const w0 = at(a, 0, 0), w1 = at(a, L, 0), s0 = at(a, 0, f.depth), s1 = at(a, L, f.depth);
-      const v = f.depth / 2, uL = L / 2;
-      // Top (faces up), then underside (faces down).
-      mb.vertex([w0[0], w0[1], zT + 0.12], 0, 0);
-      mb.vertex([w1[0], w1[1], zT + 0.12], uL, 0);
-      mb.vertex([s1[0], s1[1], zT], uL, v);
-      mb.vertex([s0[0], s0[1], zT], 0, v);
-      mb.quad(i, i + 3, i + 2, i + 1);
-      mb.vertex([w0[0], w0[1], zU + 0.12], 0, 0);
-      mb.vertex([w1[0], w1[1], zU + 0.12], uL, 0);
-      mb.vertex([s1[0], s1[1], zU], uL, v);
-      mb.vertex([s0[0], s0[1], zU], 0, v);
-      mb.quad(i + 4, i + 5, i + 6, i + 7);
-    }
-    // Fascia: the sign band along the outer edge, facing the street, from the roof's top down.
-    {
-      const mb = fascia.next(16);
-      const i = mb.vertexCount;
-      const s0 = at(a, 0, f.depth + 0.02), s1 = at(a, L, f.depth + 0.02);
-      const v0 = f.sign / rows, v1 = (f.sign + 1) / rows;
-      mb.vertex([s0[0], s0[1], zT + 0.08], 0, v0);
-      mb.vertex([s1[0], s1[1], zT + 0.08], 1, v0);
-      mb.vertex([s1[0], s1[1], zT + 0.08 - FASCIA], 1, v1);
-      mb.vertex([s0[0], s0[1], zT + 0.08 - FASCIA], 0, v1);
-      // Faces out (to the street): counter-clockwise seen from outside.
-      mb.quad(i, i + 3, i + 2, i + 1);
-      // The back of the fascia, plain (sign's edge colour row), facing the shop.
-      mb.vertex([s0[0], s0[1], zT + 0.08], 0.01, v0 + 0.002);
-      mb.vertex([s1[0], s1[1], zT + 0.08], 0.01, v0 + 0.002);
-      mb.vertex([s1[0], s1[1], zT + 0.08 - FASCIA], 0.01, v0 + 0.002);
-      mb.vertex([s0[0], s0[1], zT + 0.08 - FASCIA], 0.01, v0 + 0.002);
-      mb.quad(i + 4, i + 5, i + 6, i + 7);
-    }
-    // Posts at the outer edge, about every 4 m, square steel.
+    const zUs = steps.map((st) => st.ground + st.under);
+    steps.forEach((st, k) => {
+      const zU = zUs[k], zT = zU + 0.18;
+      // Verandah roof: a slab from the wall out over the footpath, falling a little to the street.
+      {
+        const mb = roof.next(16);
+        const i = mb.vertexCount;
+        const w0 = at(a, st.t0, 0), w1 = at(a, st.t1, 0), s0 = at(a, st.t0, f.depth), s1 = at(a, st.t1, f.depth);
+        const v = f.depth / 2, u0 = st.t0 / 2, u1 = st.t1 / 2;
+        // Top (faces up), then underside (faces down).
+        mb.vertex([w0[0], w0[1], zT + 0.12], u0, 0);
+        mb.vertex([w1[0], w1[1], zT + 0.12], u1, 0);
+        mb.vertex([s1[0], s1[1], zT], u1, v);
+        mb.vertex([s0[0], s0[1], zT], u0, v);
+        mb.quad(i, i + 3, i + 2, i + 1);
+        mb.vertex([w0[0], w0[1], zU + 0.12], u0, 0);
+        mb.vertex([w1[0], w1[1], zU + 0.12], u1, 0);
+        mb.vertex([s1[0], s1[1], zU], u1, v);
+        mb.vertex([s0[0], s0[1], zU], u0, v);
+        mb.quad(i + 4, i + 5, i + 6, i + 7);
+      }
+      // Where it steps, an upright closing the gap between this slab and the next, both faces.
+      if (k + 1 < steps.length && Math.abs(zUs[k + 1] - zU) > 0.01) {
+        const mb = roof.next(8);
+        const i = mb.vertexCount;
+        const z0 = Math.min(zU, zUs[k + 1]), z1 = Math.max(zU, zUs[k + 1]) + 0.3;
+        const w = at(a, st.t1, 0), s = at(a, st.t1, f.depth);
+        // Each face its own corners, so their normals don't cancel.
+        for (let side = 0; side < 2; side++) {
+          mb.vertex([w[0], w[1], z0], 0, z0 / 2);
+          mb.vertex([s[0], s[1], z0], f.depth / 2, z0 / 2);
+          mb.vertex([s[0], s[1], z1], f.depth / 2, z1 / 2);
+          mb.vertex([w[0], w[1], z1], 0, z1 / 2);
+        }
+        mb.quad(i, i + 1, i + 2, i + 3);
+        mb.quad(i + 4, i + 7, i + 6, i + 5);
+      }
+      // Fascia: the sign band along the outer edge, facing the street, from the roof's top down.
+      // The sign runs on across the steps (u is the share of the front's length).
+      {
+        const mb = fascia.next(16);
+        const i = mb.vertexCount;
+        const s0 = at(a, st.t0, f.depth + 0.02), s1 = at(a, st.t1, f.depth + 0.02);
+        const v0 = f.sign / rows, v1 = (f.sign + 1) / rows;
+        const u0 = st.t0 / L, u1 = st.t1 / L;
+        mb.vertex([s0[0], s0[1], zT + 0.08], u0, v0);
+        mb.vertex([s1[0], s1[1], zT + 0.08], u1, v0);
+        mb.vertex([s1[0], s1[1], zT + 0.08 - FASCIA], u1, v1);
+        mb.vertex([s0[0], s0[1], zT + 0.08 - FASCIA], u0, v1);
+        // Faces out (to the street): counter-clockwise seen from outside.
+        mb.quad(i, i + 3, i + 2, i + 1);
+        // The back of the fascia, plain (sign's edge colour row), facing the shop.
+        mb.vertex([s0[0], s0[1], zT + 0.08], 0.01, v0 + 0.002);
+        mb.vertex([s1[0], s1[1], zT + 0.08], 0.01, v0 + 0.002);
+        mb.vertex([s1[0], s1[1], zT + 0.08 - FASCIA], 0.01, v0 + 0.002);
+        mb.vertex([s0[0], s0[1], zT + 0.08 - FASCIA], 0.01, v0 + 0.002);
+        mb.quad(i + 4, i + 5, i + 6, i + 7);
+      }
+    });
+    // Posts at the outer edge, about every 4 m, square steel: each from its own ground up to its
+    // step's verandah (the higher one where it stands right at a step).
     if (f.posts) {
-      const n = Math.max(2, Math.round(L / 4) + 1);
-      for (let k = 0; k < n; k++) {
-        const t = 0.3 + ((L - 0.6) * k) / (n - 1);
+      postSpots(L).forEach((t, k) => {
         const c = at(a, t, f.depth - 0.15);
+        let zU = -Infinity;
+        steps.forEach((st, s) => { if (t >= st.t0 - 1e-6 && t <= st.t1 + 1e-6) zU = Math.max(zU, zUs[s]); });
         const mb = posts.next(16);
         const r = 0.05;
         const i = mb.vertexCount;
         const cs: Vec2[] = [[-r, -r], [r, -r], [r, r], [-r, r]];
-        const foot = ground(c[0], c[1]) - SINK;
+        const foot = f.feet?.[k] ?? ground(c[0], c[1]) - SINK;
         for (const [dx, dy] of cs) {
           mb.vertex([c[0] + dx, c[1] + dy, foot], 0, 1);
           mb.vertex([c[0] + dx, c[1] + dy, zU], 0, 0);
@@ -239,7 +316,7 @@ export function buildShopfronts(fronts: Shopfront[], ground: HeightFn): Kn5MeshN
           const p = i + s * 2, q = i + ((s + 1) % 4) * 2;
           mb.quad(p, q, q + 1, p + 1);
         }
-      }
+      });
     }
   }
   const out: Kn5MeshNode[] = [];
