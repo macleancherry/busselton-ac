@@ -90,6 +90,7 @@ import { applyTrace, displayOf, traceRoad, type RasterSampler, type TraceResult 
 import { buildSideStreets, LineIndex, traceSideStreets, planSideStreets, streetSurface, type StreetLine, type StreetName } from "./sideStreets";
 import { networkPreview } from "./network/preview";
 import { planJunctionCore, type JunctionCore } from "./network/phase1";
+import { treeAtlasTexture } from "./treeAtlasMips";
 
 /** Progress callback; a returned promise is awaited, which lets a UI repaint. */
 export type Progress = (stage: string, fraction?: number) => void | Promise<void>;
@@ -577,8 +578,11 @@ export async function buildTrack(
     const light = { ambient: 0.6, diffuse: 0.2, specular: 0, exp: 1 };
     return opts.detailShaders ? groundMaterial(name, tex, photoMask(name, img.rgba, img.width, img.height), light) : material(name, tex, light);
   };
-  addScenery("trees.png", treeSpeciesAtlas(), {
-    ...material("trees", "trees.png", { ambient: 0.55, diffuse: 0.35, specular: 0, exp: 1 }),
+  // Busselton fork: the tree atlas with its own mips (no dark wedges or fringes; treeAtlasMips.ts).
+  const treeTex = opts.treeMips === false ? { name: "trees.png", data: treeSpeciesAtlas() } : treeAtlasTexture();
+  if (treeTex.preview) previewTextures[treeTex.name] = treeTex.preview;
+  addScenery(treeTex.name, treeTex.data, {
+    ...material("trees", treeTex.name, { ambient: 0.55, diffuse: 0.35, specular: 0, exp: 1 }),
     shader: "ksPerPixelAT",
     alphaTested: true,
   });

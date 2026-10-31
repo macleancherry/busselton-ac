@@ -128,6 +128,8 @@ export interface BuildOptions {
   trackSounds?: boolean | "lua" | "fmod";
   /** On unless false. */
   poleClear?: boolean;
+  /** Tree cards use trees.dds with its own mip chain and bled colour (treeAtlasMips.ts), not trees.png. On unless false. */
+  treeMips?: boolean;
 
   // Road surface, markings, kerbs, parking
   roadSurface: "auto" | "asphalt" | "chipseal" | "photo";

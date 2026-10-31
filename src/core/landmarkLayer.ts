@@ -13,7 +13,7 @@ import { buildSpecHouse, type HouseSpec, type SpecPlacement } from "./specHouse"
 import { ROOF_COLOURS, facadeTexture, roofTexture } from "./buildingStyles";
 import { normalFromHeight, solidTexture, windowTexture } from "./textures";
 import { hedgeTexture } from "./houseTextures";
-import { treeSpeciesAtlas } from "./treeSprites";
+import { treeAtlasTexture } from "./treeAtlasMips";
 import { buildTrees } from "./scenery";
 import { surfaceTexture } from "./surfaceTextures";
 import type { SignDrawer } from "./shops";
@@ -112,8 +112,10 @@ export function landmarkModel(
     nodes.push(...buildTrees(sh.trees, ground, `TREES_${tag}`));
     if (!have.has("trees")) {
       have.add("trees");
-      textures.push({ name: "trees.png", data: treeSpeciesAtlas() });
-      materials.push({ ...material("trees", "trees.png", { ambient: 0.55, diffuse: 0.35, specular: 0, exp: 1 }), shader: "ksPerPixelAT", alphaTested: true });
+      // The same trees.dds (own mips, bled colour) as the base's cards: treeAtlasMips.ts.
+      const tex = treeAtlasTexture();
+      textures.push({ name: tex.name, data: tex.data });
+      materials.push({ ...material("trees", tex.name, { ambient: 0.55, diffuse: 0.35, specular: 0, exp: 1 }), shader: "ksPerPixelAT", alphaTested: true });
     }
   }
   const triangles = nodes.reduce((a, n) => a + n.indices.length / 3, 0);
