@@ -36,6 +36,8 @@ export interface Ground {
   sea: SeaMask;
   /** Where no tree may stand (null inland or with shoreClear off). */
   shore: ShoreMask | null;
+  /** What the shore mask says is at a point ("sea" from the sea mask without one), or null. */
+  shoreAt: (x: number, y: number) => string | null;
   /** Spots off the shore mask. */
   offShore: <T extends { x: number; y: number }>(spots: T[]) => T[];
   zones: ZoneMap | null;
@@ -121,6 +123,7 @@ export async function prepareGround(ctx: BuildContext, rp: RoutePlan): Promise<G
   const area2 = (farBounds.maxX - farBounds.minX) * (farBounds.maxY - farBounds.minY);
   const shore = opts.shoreClear === false || !anyShore ? null
     : new ShoreMask(shoreInput, farBounds.minX, farBounds.minY, farBounds.maxX, farBounds.maxY, { cell: Math.max(2, Math.ceil(Math.sqrt(area2 / 4e6))) });
+  const shoreAt = (x: number, y: number): string | null => (shore ? shore.at(x, y) : sea.has(x, y) ? "sea" : null);
   const offShore = <T extends { x: number; y: number }>(spots: T[]): T[] => (shore ? spots.filter((t) => !shore.hitsAround(t.x, t.y, 1)) : spots);
 
   const dem = ocean.length ? withSeabed(landDem, sea) : landDem;
@@ -140,7 +143,7 @@ export async function prepareGround(ctx: BuildContext, rp: RoutePlan): Promise<G
   const terrainAt = makeTerrainFn(plan, index, dem, opts);
   const cover = makeCover(index, opts, ctx.area);
   return {
-    dem, farDem, bounds, farBounds, ocean, piers, pierKinds, majorPiers, beaches, onJetty, jettyFeatures, sea, shore, offShore, zones, treeModels,
+    dem, farDem, bounds, farBounds, ocean, piers, pierKinds, majorPiers, beaches, onJetty, jettyFeatures, sea, shore, shoreAt, offShore, zones, treeModels,
     index, terrainAt, terrainH: (x, y) => terrainAt(x, y).h, cover,
     inCover: (x, y, k = 0) => cover(x, y) <= opts.corridor - k,
     chunks: planTerrainChunks(plan, index, opts, ctx.area),

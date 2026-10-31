@@ -112,7 +112,7 @@ const houses = (): Vec2[][] => {
 };
 const shopRing: Vec2[] = rect(100, -92, 130, -76);
 /** Roofs in the photo that OSM doesn't have (detected buildings). */
-const photoRoofs: Vec2[][] = [rect(-40, -62, -26, -50), rect(-130, 40, -118, 52), rect(150, -60, 162, -48)];
+const photoRoofs: Vec2[][] = [rect(-40, -62, -26, -50), rect(-130, 40, -118, 52), rect(150, -60, 162, -48), rect(215, 40, 226, 48)];
 /** The car park round the aisle, with cars parked nose in each side of it. */
 const carPark = { x0: 55, x1: 145, y0: 26, y1: 54 };
 
@@ -146,6 +146,8 @@ function loopSources(withImagery: boolean, withSea: boolean, extra: boolean): Da
       buildings: [
         ...houses().map((r) => ({ ring: llAll(r), tags: { building: "house" } as Record<string, string> })),
         { ring: llAll(shopRing), tags: { building: "retail", "building:levels": "1" } },
+        // Scene d: a mapped boat shed standing in the inland water (it stays, marked for the shore check).
+        ...(extra ? [{ ring: llAll(rect(204, 28, 214, 36)), tags: { building: "yes" } as Record<string, string> }] : []),
       ],
       guardRails: [],
       roundaboutRings: [{ pts: llAll(Array.from({ length: 13 }, (_, k) => { const a = (k % 12) / 12 * 2 * Math.PI; return [hC[0] + hRing * Math.cos(a), hC[1] + hRing * Math.sin(a)] as Vec2; })), lanes: 1 }],
@@ -378,6 +380,8 @@ export const SCENES: Record<"a" | "b" | "c" | "d" | "e" | "f", Scene> = {
       noTrace: [{ at: ll(180, 60), radius: 30 }],
       clears: [{ at: ll(98, 14), radius: 10 }, { at: ll(-46, -14), radius: 8, trees: false }],
       houseStyle: { facades: { wb_white: 3, brick_red: 1 } },
+      // Another layout's drive down the dead end and on (layoutDrives.ts).
+      layoutDrives: [{ coords: [ll(30, -100), ll(30, -130), ll(32, -150), ll(70, -152)] }],
     },
     sources: () => loopSources(true, true, true),
   },

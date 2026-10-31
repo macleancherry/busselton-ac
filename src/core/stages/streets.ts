@@ -5,6 +5,7 @@
 import type { Vec2 } from "../geo";
 import type { GridAvoid } from "../gridSlots";
 import type { JunctionCore } from "../network/phase1";
+import { layoutDriveLines } from "../layoutDrives";
 import { planNetworkStreets, type NetworkStreets } from "../network/phase2";
 import { LineIndex, planSideStreets, traceSideStreets, type Junction, type SideStreet, type StreetPlan } from "../sideStreets";
 import { displayOf, type RasterSampler } from "../trace";
@@ -41,7 +42,9 @@ export interface Streets {
 export async function planStreets(ctx: BuildContext, rp: RoutePlan, tr: Traced, g: Ground, progress: Progress): Promise<Streets> {
   const { opts, sources, proj, area } = ctx;
   const plan = rp.plan, index = g.index;
-  const streetPlan = planSideStreets(opts.sideStreets ? sources.streets?.lines ?? [] : [], sources.streets?.names ?? [], plan, index, opts, proj, area);
+  // Every layout's drive along OSM ways is a street too (layoutDrives.ts); raceways only as a layout's drive.
+  const lines = [...(opts.sideStreets ? (sources.streets?.lines ?? []).filter((l) => l.cls !== "raceway") : []), ...layoutDriveLines(opts.layoutDrives)];
+  const streetPlan = planSideStreets(lines, sources.streets?.names ?? [], plan, index, opts, proj, area);
   // networkCore phase 2: in an area build the streets and their mouths come from the network's graph.
   const withNet = !!(opts.networkCore && area);
   const netLines = withNet ? (sources.streets?.lines ?? []).map((l) => ({ ...l, pts: ctx.line(l.pts) })) : [];

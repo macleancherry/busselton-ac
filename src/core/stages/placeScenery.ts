@@ -17,6 +17,7 @@ import type { Kn5MeshNode } from "../kn5";
 import { material, type Light } from "../materials";
 import { buildPaths, footPathTexture, PATH_BLOCK, sharedPathTexture, type PathLine } from "../paths";
 import { footOnRoad, onRoadFrom } from "../poleSpot";
+import { clearPieces } from "../pieceClear";
 import { inRoundabout } from "../road";
 import { buildRingWall, innerRadius, vergeOuterRadius } from "../roundabout";
 import { buildGuardRails, buildGuidePosts, buildTrees, filterTrees, railNeeds, treeTrunks, type TreeSpot } from "../scenery";
@@ -284,7 +285,8 @@ export async function placeScenery(
   // 17. The sign atlas, then the pieces' meshes.
   const atlas = sources.renderArt && art.list.length ? await sources.renderArt(art.list) : null;
   if (atlas) reg.scenery("signart.png", atlas.data, { ...material("signart", "signart.png", L(0.55, 0.45, 0.15, 20)), shader: "ksPerPixelAT", alphaTested: true });
-  const furniture = buildPieces(pieces, atlas);
+  // Every piece's posts off the drivable meshes (pieceClear.ts).
+  const furniture = buildPieces(clearPieces(pieces, gm.poleOnRoad, ground).pieces, atlas);
 
   return {
     treesKept, trees, trunks, horizonTrees, barriers, farm, islandTrees, pathMeshes, ringWalls, rails, needs, posts, farmRoad,

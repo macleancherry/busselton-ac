@@ -3,6 +3,7 @@
 // the lng/lat converters every stage uses. Nothing here changes after makeContext.
 
 import { Area, areaRings } from "../area";
+import { layoutDriveRings } from "../layoutDrives";
 import { slugify } from "../acFiles";
 import { LocalProjection, type LngLat, type Vec2 } from "../geo";
 import type { BuildOptions } from "../options";
@@ -42,7 +43,9 @@ export function makeContext(route: LngLat[], opts: BuildOptions, sources: DataSo
   const toLocal = (p: LngLat) => proj.toLocal(p);
   const clears: Clear[] = (opts.clears ?? []).map((c) => ({ c: toLocal(c.at), r: c.radius, trees: c.trees !== false }));
   const rings = areaRings(opts.area);
-  const area = rings.length ? new Area(rings.map((r) => r.map(toLocal))) : null;
+  // And round every layout's drive, so a layout leaving the main drive has its road (layoutDrives.ts).
+  const driveAreas = layoutDriveRings(opts.layoutDrives, toLocal, opts.corridor);
+  const area = rings.length || driveAreas.length ? new Area([...rings.map((r) => r.map(toLocal)), ...driveAreas]) : null;
   return {
     opts,
     sources,

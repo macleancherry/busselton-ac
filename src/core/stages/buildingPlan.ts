@@ -7,6 +7,7 @@ import { dressBuilding, FACADES, facadeTexture, ROOF_COLOURS, roofTexture } from
 import { chunkPhotoSampler, frontageHouses } from "../frontage";
 import type { Vec2 } from "../geo";
 import { inRoundabout } from "../road";
+import { onWater } from "../waterBuildings";
 import type { BuildContext } from "./context";
 import type { Ground } from "./ground";
 import type { Imagery } from "./imagery";
@@ -128,7 +129,10 @@ export function planBuildings(ctx: BuildContext, rp: RoutePlan, g: Ground, st: S
     const [cx, cy] = centroid(b.ring);
     if (g.onJetty(cx, cy)) return false;
     return !jettyHouses.some((j) => pointInRing(cx, cy, j.pts));
-  });
+  })
+    // No generated or detected building on water; mapped ones stand, marked for the shore check (waterBuildings.ts).
+    .filter((b) => b.source === "osm" || !onWater(b.ring, g.shoreAt));
+  if (g.shore) for (const b of kept) if (b.source === "osm" && onWater(b.ring, g.shoreAt)) g.shore.mark(b.ring, "mapped");
   dressBuildings(kept, roadEdge, pois);
 
   const finishes = usedFinishes(kept);
