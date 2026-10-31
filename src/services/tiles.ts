@@ -281,7 +281,8 @@ const DEM_TABLE: [DemSource, string, string, [number, number, number, number], s
   ["qld", "Qld", "https://spatial-img.information.qld.gov.au/arcgis/rest/services/Elevation/QldDem/ImageServer/exportImage", [137.9, -29.3, 153.7, -9], "Queensland Digital Elevation Model (c) State of Queensland; (c) Commonwealth of Australia (Geoscience Australia)"],
   ["nsw", "NSW", "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_5M_Elevation/ImageServer/exportImage", [140.9, -37.6, 153.7, -28.1], "NSW 5 m elevation (c) Department of Customer Service NSW (Spatial Services)"],
   ["vic", "Vic", "https://tiles-ap1.arcgis.com/P744lA0wf4LlBZ84/arcgis/rest/services/Vicmap_10m_DEM/ImageServer/tile", [140.9, -39.3, 150.1, -33.9], "Vicmap Elevation 10 m DEM (c) State of Victoria (Department of Transport and Planning)"],
-  // The box must take in every box scripts/dem/make_wa_tiles.py has cut.
+  // The box must take in every box scripts/dem/make_wa_tiles.py has cut. Tiles at zooms 10 to 15
+  // (WA_ZOOMS); 10 to 14 are averaged from 15 by scripts/dem/make_wa_overviews.py.
   ["wa", "WA 5 m", `${BASE_URL}dem/wa`, [114.98, -33.74, 115.54, -33.52], "Digital Elevation Model of Australia derived from LiDAR 5 m grid (c) Commonwealth of Australia (Geoscience Australia), CC BY 4.0"],
 ];
 
@@ -292,6 +293,9 @@ export const STATE_DEMS: Readonly<Record<DemSource, Readonly<StateDem>>> = Objec
 const DEM_KEYS = Object.keys(STATE_DEMS) as DemSource[];
 export const DEM_CREDIT = Object.fromEntries(DEM_KEYS.map((k) => [k, STATE_DEMS[k].credit])) as Record<DemSource, string>;
 export const DEM_LABEL = Object.fromEntries(DEM_KEYS.map((k) => [k, STATE_DEMS[k].label])) as Record<DemSource, string>;
+
+/** The zooms public/dem/wa holds: 15 cut from the LiDAR, 10 to 14 averaged from it. */
+export const WA_ZOOMS = [10, 15] as const;
 
 const TERRARIUM_URL = "https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png";
 const TILE = 256;
@@ -459,7 +463,9 @@ async function fetchModel(model: DemSource, z: number, tiles: { x: number; y: nu
     }
     for (const { px, py, children } of parents.values()) {
       jobs.push(async () => {
-        const h = model === "wa" ? await readTerrariumPng(`${STATE_DEMS.wa.url}/${zp}/${px}/${py}.png`) : await readLercTile(`${STATE_DEMS.vic.url}/${zp}/${py}/${px}`);
+        // Below WA_ZOOMS[0] there are no WA tiles: no data, without asking.
+        const h = model === "vic" ? await readLercTile(`${STATE_DEMS.vic.url}/${zp}/${py}/${px}`)
+          : zp >= WA_ZOOMS[0] ? await readTerrariumPng(`${STATE_DEMS.wa.url}/${zp}/${px}/${py}.png`) : null;
         for (const { x, y } of children) put(x, y, h && up > 0 ? upsample(h, x - (px << up), y - (py << up), up) : h);
       });
     }

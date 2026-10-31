@@ -11,6 +11,7 @@ Output: public/dem/wa/15/{x}/{y}.png, Web Mercator tiles at zoom 15 (about 4 m
 
 The tiles cut so far: --box 115.2 -33.74 115.54 -33.56, then --box 114.98 -33.72 115.2 -33.52 (the capes;
 the LiDAR stops just west of Dunsborough). STATE_DEMS.wa.box in src/services/tiles.ts covers both.
+After a cut, run make_wa_overviews.py to rebuild zooms 10 to 14 from these tiles.
 """
 
 import argparse
@@ -65,6 +66,10 @@ def encode(h):
     carry = b >= 256
     b[carry] = 0
     g[carry] += 1
+    # And g up to 256 into r (heights just under a multiple of 256 m, e.g. -0.001).
+    carry = g >= 256
+    g[carry] = 0
+    r[carry] += 1
     rgba = np.zeros(h.shape + (4,), np.uint8)
     rgba[..., 0] = np.clip(r, 0, 255)
     rgba[..., 1] = np.clip(g, 0, 255)
