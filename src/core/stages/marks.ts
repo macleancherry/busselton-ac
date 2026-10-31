@@ -52,7 +52,7 @@ export async function buildMarks(
     const at: Vec2 = ctx.toLocal(f.at);
     const n = index.nearest(at[0], at[1], 15);
     if (!n || Math.abs(n.t) > index.at(n).width / 2 + 1) continue;
-    const a = plan.samples[n.seg], b = plan.samples[(n.seg + 1) % nS];
+    const a = plan.samples[n.seg];
     const s = a.s + n.frac * opts.spacing, t = n.t;
     const kind: DiscreteMark["kind"] = m[1] === "stop-line" ? "stop" : m[1] === "give-way" ? "giveway" : m[1] === "crosswalk-zebra" ? "zebra" : m[2] ? "arrow" : m[3] ? "text" : "symbol";
     const shape = m[2] ?? m[3] ?? m[4];

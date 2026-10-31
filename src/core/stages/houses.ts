@@ -3,8 +3,8 @@
 // whole house from a spec), shop fronts, then (finish) the clear circles, the building meshes and
 // the front yards.
 
-import { buildBuildings, centroid, houseRoof, plainHouse, pointInRing, ringArea, type Building } from "../buildings";
-import { FACADES, facadeTexture, ROOF_COLOURS, roofTexture } from "../buildingStyles";
+import { buildBuildings, centroid, houseRoof, plainHouse, pointInRing, type Building } from "../buildings";
+import { facadeTexture, ROOF_COLOURS, roofTexture } from "../buildingStyles";
 import { flagMaterial } from "../flags";
 import { facadeForLook, facadeForStyle } from "../houseLooks";
 import type { Vec2 } from "../geo";
@@ -251,4 +251,3 @@ export function finishHouses(ctx: BuildContext, g: Ground, hs: Houses, bp: Build
   return { houses, lots };
 }
 
-export { FACADES };

@@ -13,8 +13,7 @@ import { buildFarmRoadsides, farmTextures, type FarmResult } from "../farmRoadsi
 import { buildBarriers } from "../fences";
 import { letterboxes } from "../footpaths";
 import { buildPieces, gateSigns, kangarooSigns, landmarks, mergeSightings, seenFeatures, streetSigns } from "../furniture";
-import type { Vec2 } from "../geo";
-import type { Kn5MeshNode, Kn5Node } from "../kn5";
+import type { Kn5MeshNode } from "../kn5";
 import { material, type Light } from "../materials";
 import { buildPaths, footPathTexture, PATH_BLOCK, sharedPathTexture, type PathLine } from "../paths";
 import { footOnRoad, onRoadFrom } from "../poleSpot";
@@ -293,4 +292,3 @@ export async function placeScenery(
   };
 }
 
-export type { Kn5Node, Vec2 };
