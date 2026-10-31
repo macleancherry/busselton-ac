@@ -12,5 +12,5 @@ Cape Naturaliste Road (Tourist Drive 250) from the north edge of Dunsborough, pa
 ## Next
 
 1. Build on the fallback heights and run the checks.
-2. The lighthouse as a landmark: listed in `routes/landmarks/cape_naturaliste_road_looks.json` with the keepers' cottages (`lm_cape_naturaliste_lighthouse.kn5`); check it in game after the next build.
+2. The lighthouse is the hand-made Blender layer (`routes/layers/cape_naturaliste_road/cape_naturaliste_lighthouse.kn5`, from `scripts/blender/landmarks/cape_naturaliste_lighthouse.py`). Its spec (`routes/landmarks/cape_naturaliste_lighthouse.json`) is kept for reference but isn't in the looks file: with both, retest 4 found two lighthouses in the same spot.
 3. Rebuild when better heights arrive.

@@ -26,7 +26,8 @@ import { planRoad, type RoadPlan } from "./road";
 import type { LngLat, LocalProjection } from "./geo";
 import { simplify } from "./polyline";
 import { pitLaneFiles } from "./pitLane";
-import { clearAiPoint, junctionsOn, type GridAvoid } from "./gridSlots";
+import { clearAiPoint, GRID_CLEAR_AHEAD, junctionsOn, type GridAvoid } from "./gridSlots";
+import { retimeAi, ringCircles, ringHintValues, smoothKinks, type WorldRing } from "./aiRings";
 
 type Vec2 = [number, number];
 const enc = new TextEncoder();
@@ -113,8 +114,8 @@ export interface LayoutSpec {
   /**
    * Free roam: where cars start, [lng, lat] and heading in degrees clockwise from north. With
    * `coords` as well, those are the free roam's own AI loop (for AI Flood) instead of the main
-   * layout's line. The first is the player's start; the others are AI starts only where they sit on
-   * the AI line (spawnsOnLine), and the rest of the boxes go on its straights (floodPits).
+   * layout's line. Spawns are starts only where they sit on the AI line (spawnsOnLine), the first of
+   * those being the player's; the rest of the boxes go on its straights (floodPits).
    */
   spawns?: { at: LngLat; heading: number }[];
   /** Busselton fork: hand-picked checkpoints for the Busselton Challenges app (challenges.ts). */
@@ -148,7 +149,8 @@ export interface World {
   speeds?: number[];
   /** Busselton fork: landmarks the automatic test photographs as it drives past (landmarkShots.ts). */
   landmarks?: Landmark[];
-  rings?: { c: Vec2; rOut: number }[];
+  /** The world's roundabouts: centre, outer edge and (when known) island edge, local metres. */
+  rings?: WorldRing[];
   /** Busselton fork: painted kerbside bays (track.ts bayBoxes) a layout's keep-left line keeps clear of (bayLanes.ts). */
   bays?: BayBox[];
 }
@@ -270,10 +272,15 @@ function routeAi(world: World, coords: LngLat[], opts: BuildOptions, height: (x:
     }
     dense.push(p);
   });
-  const plan = planRoad(world.lines?.length ? snapToLines(dense, world.lines, world.rings) : local, opts);
+  // Planned with the world's roundabouts (aiRings.ts): the route's arc round each stays a circle
+  // instead of being smoothed into a wiggle that flicks out of the ring.
+  const rings = world.rings ?? [];
+  const plan = planRoad(world.lines?.length ? snapToLines(dense, world.lines, rings) : local, opts, undefined, ringCircles(rings));
   const hs = fillHeights(plan.samples.map((s) => height(s.pos[0], s.pos[1])), 0);
   plan.samples.forEach((s, i) => { s.h = hs[i]; s.bank = 0; });
-  const ai = keepOnSurface(buildAiLine(plan, { keepLeft: opts.aiKeepLeft, bays: world.bays }), height);
+  // On the surface, the kinks that leaves eased out, then radii and speeds from the line itself,
+  // slow on the rings (aiRings.ts).
+  const ai = retimeAi(smoothKinks(keepOnSurface(buildAiLine(plan, { keepLeft: opts.aiKeepLeft, bays: world.bays }), height), height, plan.closed), plan.closed, rings);
   // Speed limits from the street each stretch is on (the world's), so the AI drives a town street
   // at 50 rather than at the grip limit.
   let limitAt: ((d: number) => number | undefined) | undefined;
@@ -283,12 +290,12 @@ function routeAi(world: World, coords: LngLat[], opts: BuildOptions, height: (x:
     const total = ai.length ? ai[ai.length - 1].distance + ai[ai.length - 1].length : 1;
     limitAt = (d) => lim[Math.max(0, Math.min(lim.length - 1, Math.round((d / total) * (lim.length - 1))))];
   }
-  return { plan, hs, ai, limitAt, hints: aiHintsIni(ai, limitAt, !plan.closed) };
+  return { plan, hs, ai, limitAt, hints: aiHintsIni(ai, limitAt, !plan.closed, ringHintValues(ai, rings, plan.closed)) };
 }
 
 /** What a layout's grid and boxes keep clear of: the world's roundabouts and the streets meeting `road` (local metres). */
 export function worldAvoid(world: World, road: Vec2[]): GridAvoid {
-  return { rings: world.rings ?? [], junctions: world.lines?.length ? junctionsOn(road, world.lines) : [] };
+  return { rings: world.rings ?? [], junctions: world.lines?.length ? junctionsOn(road, world.lines) : [], clearAhead: GRID_CLEAR_AHEAD };
 }
 
 /**
@@ -333,13 +340,14 @@ export function floodPits(ai: AiPoint[], n: number, avoid: Vec2[] = [], clear: G
 export const SPAWN_ON_LINE = 3;
 
 /**
- * Which hand-placed free roam spawns can be AI starts: on the AI line (within SPAWN_ON_LINE) and
- * facing along it. The first spawn is the player's and always stays; an AI car started in a car
- * park off the line never finds its way onto it (retest 3: ten of fifteen didn't move).
+ * Which hand-placed free roam spawns can be starts: on the AI line (within SPAWN_ON_LINE) and
+ * facing along it. A car started in a car park off the line never finds its way onto it (retest 3:
+ * ten of fifteen AI cars didn't move), and that goes for the first spawn too: AC puts the player
+ * (and, in a race, AI car 1) in box 0, and with the first spawn kept regardless, the automatic test
+ * car and AI car 1 sat in a car park 266 m from the line and never moved (retest 4).
  */
 export function spawnsOnLine(spots: { x: number; y: number; fwd: Vec2 }[], ai: AiPoint[]): boolean[] {
-  return spots.map((s, k) => {
-    if (k === 0) return true;
+  return spots.map((s) => {
     let best = Infinity, dot = 0;
     for (let i = 0; i < ai.length; i++) {
       const p = ai[i], q = ai[(i + 1) % ai.length];
@@ -391,30 +399,28 @@ export function layoutFiles(world: World, layout: LayoutSpec, trackObjects: (pla
       const gap = Math.hypot(last.position[0] - ai[0].position[0], last.position[2] - ai[0].position[2]);
       closed = gap < 50;
     }
-    // The player's spawn, and the other hand-placed spawns that are on the AI line; the rest of the
-    // boxes on the AI line's straights, for Track Day's AI cars (one box each).
+    // The hand-placed spawns that are on the AI line, then the rest of the boxes on the AI line's
+    // straights, for Track Day's AI cars (one box each). Box 0 is the player's start, so it's the
+    // first that's on the line: with no hand-placed spawn on it, the first straight's box.
     const keep = ai.length > 1 ? spawnsOnLine(spots, ai) : spots.map(() => true);
     const starts = spots.filter((_, k) => keep[k]);
-    starts.forEach((s, k) => {
-      const h = (s.h ?? 0) + 0.5;
-      const pos: [number, number, number] = [s.x, h, -s.y], fwd: [number, number, number] = [s.fwd[0], 0, -s.fwd[1]];
-      dummies.push(dummy(`AC_START_${k}`, pos, fwd), dummy(`AC_PIT_${k}`, pos, fwd));
-    });
+    const boxes: { x: number; y: number; h: number; fwd: Vec2 }[] = starts.map((s) => ({ x: s.x, y: s.y, h: (s.h ?? 0) + 0.5, fwd: s.fwd }));
     const clear = worldAvoid(world, ai.map((p) => [p.position[0], -p.position[2]] as Vec2));
     const extra = floodPits(ai, (layout.aiPits ?? FLOOD_PITS) - starts.length, starts.map((s) => [s.x, s.y] as Vec2), clear);
-    extra.forEach((p, j) => {
-      const k = starts.length + j;
-      const h = (height(p.pos[0], -p.pos[2]) ?? p.pos[1]) + 0.5;
-      const pos: [number, number, number] = [p.pos[0], h, p.pos[2]];
-      dummies.push(dummy(`AC_START_${k}`, pos, p.fwd), dummy(`AC_PIT_${k}`, pos, p.fwd));
+    for (const p of extra) boxes.push({ x: p.pos[0], y: -p.pos[2], h: (height(p.pos[0], -p.pos[2]) ?? p.pos[1]) + 0.5, fwd: [p.fwd[0], -p.fwd[2]] });
+    // No AI line and no spawn kept can't happen (without a line every spawn stays), but never ship no start.
+    if (!boxes.length) boxes.push({ x: spots[0].x, y: spots[0].y, h: (spots[0].h ?? 0) + 0.5, fwd: spots[0].fwd });
+    boxes.forEach((b, k) => {
+      const pos: [number, number, number] = [b.x, b.h, -b.y], fwd: [number, number, number] = [b.fwd[0], 0, -b.fwd[1]];
+      dummies.push(dummy(`AC_START_${k}`, pos, fwd), dummy(`AC_PIT_${k}`, pos, fwd));
     });
-    pitboxes = starts.length + extra.length;
-    // A timing line 15 m ahead of the first spot, so sessions that want one have it.
-    const s0 = spots[0], ahead: Vec2 = [s0.x + s0.fwd[0] * 15, s0.y + s0.fwd[1] * 15], left: Vec2 = [-s0.fwd[1], s0.fwd[0]];
-    const h0 = (height(ahead[0], ahead[1]) ?? s0.h ?? 0) + 1;
+    pitboxes = boxes.length;
+    // A timing line 15 m ahead of the player's start, so sessions that want one have it.
+    const s0 = boxes[0], ahead: Vec2 = [s0.x + s0.fwd[0] * 15, s0.y + s0.fwd[1] * 15], left: Vec2 = [-s0.fwd[1], s0.fwd[0]];
+    const h0 = (height(ahead[0], ahead[1]) ?? s0.h - 0.5) + 1;
     const f3: [number, number, number] = [s0.fwd[0], 0, -s0.fwd[1]];
     dummies.push(
-      dummy("AC_HOTLAP_START_0", [s0.x, (s0.h ?? 0) + 0.5, -s0.y], f3),
+      dummy("AC_HOTLAP_START_0", [s0.x, s0.h, -s0.y], f3),
       dummy("AC_TIME_0_L", [ahead[0] + left[0] * 5, h0, -(ahead[1] + left[1] * 5)], f3),
       dummy("AC_TIME_0_R", [ahead[0] - left[0] * 5, h0, -(ahead[1] - left[1] * 5)], f3),
     );

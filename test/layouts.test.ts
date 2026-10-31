@@ -50,7 +50,9 @@ describe("layouts", () => {
     const [sx, sy] = [t[12], -t[14]];
     expect(t[13] - height(sx, sy)!).toBeCloseTo(0.5, 1);
 
-    const roam = layoutFiles(world2, { id: "roam", name: "Free Roam", spawns: [{ at: ll(200, 0), heading: 90 }, { at: ll(600, 0), heading: 270 }] }, trackObjects);
+    // The first spawn in a car park 60 m off the road (retest 4: the player started there and never
+    // moved), one on the line, one on the line facing the wrong way.
+    const roam = layoutFiles(world2, { id: "roam", name: "Free Roam", spawns: [{ at: ll(200, 60), heading: 0 }, { at: ll(200, 0), heading: 90 }, { at: ll(600, 0), heading: 270 }] }, trackObjects);
     expect(dummyNames(roam[`${slug}/layout_roam.kn5`])).toEqual(expect.arrayContaining(["AC_START_0", "AC_PIT_1", "AC_TIME_0_L"]));
     expect(roam[`${slug}/roam/ai/fast_lane.ai`]).toBe(world2.mainAi);
     expect(readFastLaneAi(roam[`${slug}/roam/ai/pit_lane.ai`]).length).toBeGreaterThan(10);
@@ -66,12 +68,17 @@ describe("layouts", () => {
     for (const c of readKn5(roam[`${slug}/layout_roam.kn5`]).root.children.filter((c) => c.name.startsWith("AC_PIT_"))) {
       const m = (c as { transform: number[] }).transform;
       expect(height(m[12], -m[14])).not.toBeNull();
-      // Every box but the player's (the first spawn) is an AI start, so it's on the AI line, facing along it.
-      if (c.name === "AC_PIT_0") continue;
+      // Every box, the player's (box 0) too, is on the AI line, facing along it.
       const near = roamAi.reduce((b, p) => (Math.hypot(p.position[0] - m[12], p.position[2] - m[14]) < Math.hypot(b.position[0] - m[12], b.position[2] - m[14]) ? p : b));
       expect(Math.hypot(near.position[0] - m[12], near.position[2] - m[14])).toBeLessThan(SPAWN_ON_LINE);
       expect(near.forward[0] * m[8] + near.forward[2] * m[10]).toBeGreaterThan(0.9);
     }
+    // Box 0 is the on-line spawn, and the hot lap start is there too.
+    const roamKids = readKn5(roam[`${slug}/layout_roam.kn5`]).root.children as { name: string; transform: number[] }[];
+    const b0 = roamKids.find((c) => c.name === "AC_PIT_0")!.transform, hot = roamKids.find((c) => c.name === "AC_HOTLAP_START_0")!.transform;
+    const [bx, by] = r.proj.toLocal(ll(200, 0));
+    expect(Math.hypot(b0[12] - bx, -b0[14] - by)).toBeLessThan(0.01);
+    expect(Math.hypot(hot[12] - b0[12], hot[14] - b0[14])).toBeLessThan(0.01);
 
     // Free roam with its own AI loop (pins): its own line and speed hints.
     const own = layoutFiles({ ...world2, mainHints: undefined }, { id: "own", name: "Own", coords: route.slice(2, 38), spawns: [{ at: ll(200, 0), heading: 90 }], aiPits: 6 }, trackObjects);
@@ -112,12 +119,12 @@ describe("layouts", () => {
       sideLeft: 3, sideRight: 3, camber: 0, direction: 1, normal: [0, 1, 0], length: 2, forward: [1, 0, 0], grade: 0,
     }));
     const keep = spawnsOnLine([
-      { x: 0, y: 80, fwd: [0, 1] }, // the player's, in a car park: kept
+      { x: 0, y: 80, fwd: [0, 1] }, // the first, in a car park: dropped too (retest 4)
       { x: 100, y: 1, fwd: [1, 0] }, // on the line
       { x: 150, y: 40, fwd: [1, 0] }, // in a car park 40 m off
       { x: 200, y: 0, fwd: [-1, 0] }, // on the line, facing the wrong way
     ], ai);
-    expect(keep).toEqual([true, true, false, false]);
+    expect(keep).toEqual([false, true, false, false]);
   });
 
   it("pulls a route onto the built street, but not round a roundabout or far away", () => {

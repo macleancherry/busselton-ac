@@ -55,6 +55,17 @@ describe("pit lane", () => {
     expect(Math.min(...pit.map((p) => Math.hypot(p.position[0] - b[0], p.position[2] - b[2])))).toBeLessThan(0.01);
   });
 
+  it("finds the pit lane on a loop of any length (retest 4: none on foreshore, sights, Collie)", () => {
+    // Lap lengths that aren't round in binary: wrapping 0 round them gave -4.5e-13, not 0.
+    for (const step of [2, 1.9837, 2.0091, 1.99713, 2.13377]) {
+      const ai = circle().map((p, i) => ({ ...p, distance: i * step, length: step }));
+      const dummies = Array.from({ length: 7 }, (_, k) => box(k, ai[ai.length - 30 - k * 4]));
+      const pit = pitLaneAi(ai, pitBoxes(dummies), true);
+      expect(pit, `step ${step}`).not.toBeNull();
+      expect(pit!.length).toBeGreaterThan(50);
+    }
+  });
+
   it("stays inside a point to point line, and gives none with no box on the line", () => {
     const ai = circle().slice(0, 300);
     ai[ai.length - 1] = { ...ai[ai.length - 1], length: 0 };

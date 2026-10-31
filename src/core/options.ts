@@ -164,6 +164,12 @@ export interface BuildOptions {
   trafficSetting: "normal" | "kids";
   /** AI line in the left lane; off when absent. */
   aiKeepLeft?: boolean;
+  /**
+   * Busselton fork (aiRings.ts): the main drive's AI line gets its radii and speeds from its own
+   * points, slow on roundabouts, and a lower hint into each ring; off when absent. (Extra layouts'
+   * lines always get it.)
+   */
+  aiRings?: boolean;
   /** Absent = true with an area, else false. */
   streetsValid?: boolean;
   /** Hand-picked challenge checkpoints; absent = generated. */
@@ -181,7 +187,7 @@ export const OPTIONAL_OPTION_KEYS: readonly (keyof BuildOptions)[] = Object.free
   "cspTrees", "houseStyle", "clears", "armco", "farmland", "farmRoadsides", "wavingFlags",
   "jettyTrain", "swimJetties", "jettyKinds", "trackSounds", "poleClear", "raceway", "treeMips", "shoreClear",
   "kerbside", "laneBayClear", "parkedBays", "padClear", "trafficLights",
-  "aiKeepLeft", "streetsValid", "challenges", "timeTrialSectors", "driftZones",
+  "aiKeepLeft", "aiRings", "streetsValid", "challenges", "timeTrialSectors", "driftZones",
 ] as const);
 
 type RequiredFields<T> = { [K in keyof T as undefined extends T[K] ? never : K]: T[K] };
