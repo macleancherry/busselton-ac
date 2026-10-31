@@ -46,3 +46,18 @@ describe("Windows scripts", () => {
     expect(rig).toMatch(/foreach \(\$f in "rig-install.ps1", "rig-install.cmd", "install-track.ps1", "share.ps1", "ac.ps1"\)/);
   });
 });
+
+// CSP's taskbar looks up each window's ICON (manifest [WINDOW_...]); without it the log says
+// "TaskBarIcon :: COULD NOT FIND TEXTURES FOR IMGUI_LUA_<app>_main_ICON".
+describe("Busselton Lua apps", () => {
+  for (const app of ["BusseltonChallenges", "BusseltonMap"]) {
+    it(`${app} has a 64 x 64 PNG icon for its window`, () => {
+      const manifest = readFileSync(`apps/lua/${app}/manifest.ini`, "utf8");
+      const icon = /\[WINDOW_\.\.\.\][^[]*?\nICON = (\S+)/.exec(manifest)?.[1];
+      expect(icon).toBe("icon.png");
+      const png = readFileSync(`apps/lua/${app}/${icon}`);
+      expect(png.subarray(1, 4).toString("ascii")).toBe("PNG");
+      expect([png.readUInt32BE(16), png.readUInt32BE(20)]).toEqual([64, 64]);
+    });
+  }
+});
