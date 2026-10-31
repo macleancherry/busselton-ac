@@ -27,6 +27,9 @@ import { ZoneMap, type LandcoverPolygon } from "./zones";
 import { asLayout, dummiesKn5 } from "./layouts";
 import { BACKDROP_CHUNK, backdropSurface, buildBackdropChunk, planBackdrop } from "./backdrop";
 import { writeFastLaneAi } from "./aiSpline";
+import { gridFront, gridSlot, GRID_GAP, type GridAvoid } from "./gridSlots";
+import { keepLeftOffsets } from "./keepLeft";
+import { pitLaneFiles } from "./pitLane";
 import { outlinePng, previewPng, readme, slugify, streetMap, surfacesIni, trackMap, uiTrackJson, type TrackMeta } from "./acFiles";
 import type { HeightFn } from "./elevation";
 import { boundsOf, LocalProjection, type Bounds, type LngLat, type Vec2 } from "./geo";
@@ -318,18 +321,26 @@ function dummy(name: string, transform: number[]): Kn5GroupNode {
   return { kind: "node", name, transform, children: [] };
 }
 
-/** Spawn points and timing gates. */
-export function trackObjects(plan: RoadPlan, opts: BuildOptions): Kn5GroupNode[] {
+/**
+ * Spawn points and timing gates. Busselton fork: the grid (and the pit boxes, the same spots) on
+ * the nearest straight before the start line clear of roundabouts and of `avoid`'s junctions
+ * (gridSlots.ts), single file in the AI line's lane on town streets.
+ */
+export function trackObjects(plan: RoadPlan, opts: BuildOptions, avoid: GridAvoid = {}): Kn5GroupNode[] {
   const out: Kn5GroupNode[] = [];
   const width = plan.samples[0].width;
   const rows = Math.ceil(opts.pitCount / 2);
+  const offsets = opts.aiKeepLeft ? keepLeftOffsets(plan) : null;
+  const fronts = new Map<number, number>();
   const slot = (k: number, lineS: number) => {
-    // Busselton fork: on a road under 8 m wide (a town street), single file on the centre line: a
-    // race grid's quarter-width stagger put the car at the edge of a 4 m street, over a drop.
-    if (along(plan, lineS - 8, 0, 0, 0).sample.width < 8) return { s: lineS - 8 - k * 8, t: 0 };
-    const row = Math.floor(k / 2);
-    const t = (k % 2 === 0 ? 1 : -1) * width / 4;
-    return { s: lineS - 8 - row * 8, t };
+    // Busselton fork: on a road under 8 m wide (a town street), or keeping left, single file along
+    // the AI line: a race grid's quarter-width stagger put the car at the edge of a 4 m street.
+    const single = !!offsets || along(plan, lineS - 8, 0, 0, 0).sample.width < 8;
+    if (!fronts.has(lineS)) fronts.set(lineS, gridFront(plan, single ? opts.pitCount : rows, lineS, avoid) ?? lineS - GRID_GAP);
+    const front = fronts.get(lineS)!;
+    const at = along(plan, front - (single ? k : Math.floor(k / 2)) * GRID_GAP, 0, 0, 0).sample;
+    const off = offsets ? offsets[plan.samples.indexOf(at)] ?? 0 : 0;
+    return gridSlot(k, front, single ? at.width : width, off, single);
   };
   const place = (name: string, s: number, t: number, lift: number) => {
     const p = along(plan, s, t, lift, opts.crown);
@@ -742,6 +753,8 @@ export async function buildTrack(
   const streetPlan = planSideStreets(
     opts.sideStreets ? sources.streets?.lines ?? [] : [], sources.streets?.names ?? [], plan, index, opts, proj, area,
   );
+  // Busselton fork: the grid keeps clear of where side streets meet the route (gridSlots.ts).
+  const gridAvoid: GridAvoid = { junctions: streetPlan.junctions.map((j) => plan.samples[j.seg]?.pos).filter((p): p is Vec2 => !!p) };
   // Busselton fork: an area build's streets away from the route get their own photo (one zoom level
   // coarser, to keep the download and memory down) so they're traced too, not left on OSM's line.
   let streetRaster = raster;
@@ -1765,7 +1778,7 @@ export async function buildTrack(
       ] : []),
       group("WALLS", [...walls, ...trunks, ...(houseTrees.length ? treeTrunks(houseTrees, ground) : [])]),
       // Busselton fork: a layout's dummies go in their own kn5 (layouts.ts).
-      ...(opts.layout ? [] : trackObjects(plan, opts)),
+      ...(opts.layout ? [] : trackObjects(plan, opts, gridAvoid)),
     ]),
   };
 
@@ -1948,6 +1961,8 @@ export async function buildTrack(
     ...(sounds?.length && soundsBy === "lua" ? { [`${slug}/extension/${SOUND_SCRIPT}`]: enc.encode(soundLua(sounds)) } : {}),
     [`${slug}/${slug}.kn5`]: kn5,
     [`${slug}/ai/fast_lane.ai`]: ai,
+    // Busselton fork: a pit lane past the grid's boxes, and the ideal line (pitLane.ts).
+    ...pitLaneFiles(slug, aiPoints, ai, trackObjects(plan, opts, gridAvoid), plan.closed),
     [`${slug}/data/ai_hints.ini`]: enc.encode(aiHintsIni(aiPoints, (d) => {
       const last = aiPoints[aiPoints.length - 1], total = last.distance + last.length;
       return speedAt(Math.min(nS - 1, Math.max(0, Math.round((d / total) * (nS - 1)))));
@@ -1957,7 +1972,7 @@ export async function buildTrack(
     [`${slug}/data/map.ini`]: enc.encode(map.ini),
     // Busselton fork: checkpoints, time trial and drift spots for the Busselton Challenges app (challengeFiles.ts).
     ...challengeFiles(slug, opts, {
-      plan, dummies: trackObjects(plan, opts), nearest: (x, y, r) => index.nearest(x, y, r), toLocal: (p) => proj.toLocal(p), ground: terrainH,
+      plan, dummies: trackObjects(plan, opts, gridAvoid), nearest: (x, y, r) => index.nearest(x, y, r), toLocal: (p) => proj.toLocal(p), ground: terrainH,
       pois: (sources.pois ?? []).map((p) => ({ ...p, at: proj.toLocal(p.at) })), routeNames: streetPlan.routeNames, junctions: streetPlan.junctions,
       streets: streetPlan.streets, parked: parked.map((c) => c.at), buildings: shown.map((b) => b.ring),
     }),
@@ -2025,7 +2040,7 @@ export async function buildTrack(
   };
 
   // Busselton fork: one layout of several on the map (layouts.ts).
-  const laid = opts.layout ? asLayout(files, slug, opts.layout, dummiesKn5(opts.layout, trackObjects(plan, opts))) : files;
+  const laid = opts.layout ? asLayout(files, slug, opts.layout, dummiesKn5(opts.layout, trackObjects(plan, opts, gridAvoid))) : files;
 
   const hs = plan.samples.map((s) => s.h);
   let climb = 0;

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildTrack, trackObjects, type DataSources } from "../src/core/track";
-import { floodPits, layoutFiles, snapToLines, surfaceHeight } from "../src/core/layouts";
+import { floodPits, layoutFiles, snapToLines, spawnsOnLine, surfaceHeight, SPAWN_ON_LINE } from "../src/core/layouts";
 import { readFastLaneAi, type AiPoint } from "../src/core/aiSpline";
 import { DemGrid } from "../src/core/elevation";
 import { readKn5 } from "../src/core/kn5";
@@ -24,6 +24,9 @@ describe("layouts", () => {
     expect(keys).toContain(`${slug}/sprint/ai/fast_lane.ai`);
     expect(keys).toContain(`${slug}/sprint/data/surfaces.ini`);
     expect(keys).toContain(`${slug}/sprint/map.png`);
+    // A pit lane past the grid and the ideal line (pitLane.ts), so AC finds both.
+    expect(readFastLaneAi(r.files[`${slug}/sprint/ai/pit_lane.ai`]).length).toBeGreaterThan(10);
+    expect(keys).toContain(`${slug}/sprint/data/ideal_line.ai`);
     expect(keys).toContain(`${slug}/ui/sprint/ui_track.json`);
     expect(keys).toContain(`${slug}/models_sprint.ini`);
     expect(keys).not.toContain(`${slug}/ai/fast_lane.ai`);
@@ -40,7 +43,7 @@ describe("layouts", () => {
     expect(height(x, y)!).toBeGreaterThan(9);
     expect(height(x, y)!).toBeLessThan(11);
     const short = layoutFiles(world2, { id: "short", name: "Short", coords: route.slice(5, 30) }, trackObjects);
-    expect(Object.keys(short)).toEqual(expect.arrayContaining([`${slug}/short/ai/fast_lane.ai`, `${slug}/layout_short.kn5`, `${slug}/ui/short/ui_track.json`, `${slug}/models_short.ini`]));
+    expect(Object.keys(short)).toEqual(expect.arrayContaining([`${slug}/short/ai/pit_lane.ai`, `${slug}/short/data/ideal_line.ai`, `${slug}/short/ai/fast_lane.ai`, `${slug}/layout_short.kn5`, `${slug}/ui/short/ui_track.json`, `${slug}/models_short.ini`]));
     const start = readKn5(short[`${slug}/layout_short.kn5`]).root.children.find((c) => c.name === "AC_START_0")!;
     const t = (start as { transform: number[] }).transform;
     // On the road: the world's road height there, plus the spawn lift.
@@ -50,6 +53,7 @@ describe("layouts", () => {
     const roam = layoutFiles(world2, { id: "roam", name: "Free Roam", spawns: [{ at: ll(200, 0), heading: 90 }, { at: ll(600, 0), heading: 270 }] }, trackObjects);
     expect(dummyNames(roam[`${slug}/layout_roam.kn5`])).toEqual(expect.arrayContaining(["AC_START_0", "AC_PIT_1", "AC_TIME_0_L"]));
     expect(roam[`${slug}/roam/ai/fast_lane.ai`]).toBe(world2.mainAi);
+    expect(readFastLaneAi(roam[`${slug}/roam/ai/pit_lane.ai`]).length).toBeGreaterThan(10);
     // AI Flood: more pit boxes on the AI line, as many as ui_track.json says, each on the road.
     const roamNames = dummyNames(roam[`${slug}/layout_roam.kn5`]);
     const pits = roamNames.filter((n) => n.startsWith("AC_PIT_"));
@@ -58,9 +62,15 @@ describe("layouts", () => {
     const ui = JSON.parse(new TextDecoder().decode(roam[`${slug}/ui/roam/ui_track.json`]));
     expect(Number(ui.pitboxes)).toBe(pits.length);
     expect(Number(ui.length)).toBeGreaterThan(700);
+    const roamAi = readFastLaneAi(world2.mainAi);
     for (const c of readKn5(roam[`${slug}/layout_roam.kn5`]).root.children.filter((c) => c.name.startsWith("AC_PIT_"))) {
       const m = (c as { transform: number[] }).transform;
       expect(height(m[12], -m[14])).not.toBeNull();
+      // Every box but the player's (the first spawn) is an AI start, so it's on the AI line, facing along it.
+      if (c.name === "AC_PIT_0") continue;
+      const near = roamAi.reduce((b, p) => (Math.hypot(p.position[0] - m[12], p.position[2] - m[14]) < Math.hypot(b.position[0] - m[12], b.position[2] - m[14]) ? p : b));
+      expect(Math.hypot(near.position[0] - m[12], near.position[2] - m[14])).toBeLessThan(SPAWN_ON_LINE);
+      expect(near.forward[0] * m[8] + near.forward[2] * m[10]).toBeGreaterThan(0.9);
     }
 
     // Free roam with its own AI loop (pins): its own line and speed hints.
@@ -86,6 +96,28 @@ describe("layouts", () => {
     }
     for (let i = 1; i < pits.length; i++) expect(pits[i].pos[0] - pits[i - 1].pos[0]).toBeGreaterThanOrEqual(25);
     expect(floodPits(ai, 0)).toEqual([]);
+
+    // Clear of a roundabout and a junction where the stretch has room, still 10 boxes.
+    const clear = floodPits(ai, 10, [], { rings: [{ c: [50, 0], rOut: 12 }], junctions: [[650, 0]] });
+    expect(clear).toHaveLength(10);
+    for (const p of clear) {
+      expect(Math.abs(p.pos[0] - 50)).toBeGreaterThanOrEqual(12 + 15);
+      expect(Math.abs(p.pos[0] - 650)).toBeGreaterThanOrEqual(15);
+    }
+  });
+
+  it("keeps hand-placed spawns as AI starts only on the AI line and facing along it", () => {
+    const ai = Array.from({ length: 200 }, (_, i): AiPoint => ({
+      position: [i * 2, 0, 0], distance: i * 2, speed: 14, gas: 0, brake: 0, radius: 1000,
+      sideLeft: 3, sideRight: 3, camber: 0, direction: 1, normal: [0, 1, 0], length: 2, forward: [1, 0, 0], grade: 0,
+    }));
+    const keep = spawnsOnLine([
+      { x: 0, y: 80, fwd: [0, 1] }, // the player's, in a car park: kept
+      { x: 100, y: 1, fwd: [1, 0] }, // on the line
+      { x: 150, y: 40, fwd: [1, 0] }, // in a car park 40 m off
+      { x: 200, y: 0, fwd: [-1, 0] }, // on the line, facing the wrong way
+    ], ai);
+    expect(keep).toEqual([true, true, false, false]);
   });
 
   it("pulls a route onto the built street, but not round a roundabout or far away", () => {
