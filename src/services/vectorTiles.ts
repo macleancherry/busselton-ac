@@ -257,7 +257,12 @@ function readFeatureTile(tile: VectorTile, tx: number, ty: number): TileFeatures
 
 /* ---------------- coast (z13) ---------------- */
 
-export interface TilePolygon { rings: LngLat[][]; edge: boolean[][] }
+export interface TilePolygon {
+  rings: LngLat[][];
+  edge: boolean[][];
+  /** Busselton fork: the OSM way id, where the tile has it (piers; OpenFreeMap feature id = way id * 10 + 2). */
+  id?: number;
+}
 
 interface CoastTile { ocean: TilePolygon[]; piers: TilePolygon[]; beaches: TilePolygon[]; landcover: LandcoverPolygon[] }
 
@@ -302,7 +307,7 @@ function readCoastTile(tile: VectorTile, tx: number, ty: number): CoastTile {
     layer: VectorTileLayer | undefined,
     keep: (p: Record<string, unknown>) => boolean,
     into: TilePolygon[],
-    onPolygon?: (poly: TilePolygon, props: Record<string, unknown>) => void,
+    onPolygon?: (poly: TilePolygon, props: Record<string, unknown>, id?: number) => void,
   ) => {
     if (!layer) return;
     const extent = layer.extent;
@@ -323,7 +328,7 @@ function readCoastTile(tile: VectorTile, tx: number, ty: number): CoastTile {
         if (signedArea(ring) > 0) {
           current = { rings: [pts], edge: [edge] };
           into.push(current);
-          onPolygon?.(current, f.properties);
+          onPolygon?.(current, f.properties, typeof f.id === "number" ? f.id : undefined);
         } else if (current) {
           current.rings.push(pts);
           current.edge.push(edge);
@@ -333,7 +338,10 @@ function readCoastTile(tile: VectorTile, tx: number, ty: number): CoastTile {
   };
   const L = tile.layers;
   read(L.water, (p) => p.class === "ocean", out.ocean);
-  read(L.transportation, (p) => p.class === "pier", out.piers);
+  read(L.transportation, (p) => p.class === "pier", out.piers, (poly, _p, id) => {
+    // Pieces of one pier cut by tile seams share it (swimJetty.ts measures them together).
+    if (id && id % 10 === 2) poly.id = Math.floor(id / 10);
+  });
   read(L.landcover, (p) => p.class === "sand" && (p.subclass === "beach" || p.subclass === undefined || p.subclass === null), out.beaches);
   read(L.landcover, (p) => LANDCOVER.has(String(p.class)), [], (poly, p) => {
     out.landcover.push({ cls: String(p.class), subclass: typeof p.subclass === "string" ? p.subclass : undefined, rings: poly.rings });

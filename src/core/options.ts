@@ -124,6 +124,10 @@ export interface BuildOptions {
   wavingFlags?: boolean;
   /** On unless false. */
   jettyTrain?: boolean;
+  /** Short piers built as low swimming jetties (swimJetty.ts); on unless false (false = every pier like the main jetty). */
+  swimJetties?: boolean;
+  /** A pier's kind by OSM way id, over the size rule: "major", "swim" or "pontoon". */
+  jettyKinds?: Record<string, "major" | "swim" | "pontoon">;
   /** Off when absent; "fmod" = FMOD, anything else truthy = Lua. */
   trackSounds?: boolean | "lua" | "fmod";
   /** On unless false. */
@@ -167,7 +171,7 @@ export const OPTIONAL_OPTION_KEYS: readonly (keyof BuildOptions)[] = Object.free
   "origin", "area", "layout", "unsealed", "gravelRoads", "networkCore",
   "terrainLodFarTol", "photoSea", "zones", "pureTuning", "rainHollows",
   "cspTrees", "houseStyle", "clears", "armco", "farmland", "farmRoadsides", "wavingFlags",
-  "jettyTrain", "trackSounds", "poleClear",
+  "jettyTrain", "swimJetties", "jettyKinds", "trackSounds", "poleClear",
   "kerbside", "laneBayClear", "parkedBays", "padClear", "trafficLights",
   "aiKeepLeft", "streetsValid", "challenges", "timeTrialSectors", "driftZones",
 ] as const);
