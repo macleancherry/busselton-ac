@@ -79,9 +79,19 @@ export function carsFromWalls(root: Kn5Node): CheckedCar[] {
 }
 
 /** The four wheel contacts and the middle of a car (parkedCars.ts WHEELS). */
-function wheelPoints(c: CheckedCar): Vec2[] {
+export function wheelPoints(c: { at: Vec2; dir: Vec2 }): Vec2[] {
   const [fx, fy] = c.dir, sx = -fy, sy = fx;
   return [[0, 0], [1.4, 0.74], [1.4, -0.74], [-1.4, 0.74], [-1.4, -0.74]].map(([f, s]) => [c.at[0] + fx * f + sx * s, c.at[1] + fy * f + sy * s] as Vec2);
+}
+
+/** The first of a car's wheel contacts and middle that isn't on asphalt at the top (`top`: every physics surface), or null. */
+export function offAsphaltAt(c: { at: Vec2; dir: Vec2 }, top: SurfaceFn, asphalt: SurfaceFn): Vec2 | null {
+  for (const [x, y] of wheelPoints(c)) {
+    const h = top(x, y), a = asphalt(x, y);
+    if (h !== null && a !== null && a >= h - 0.005) continue;
+    return [x, y];
+  }
+  return null;
 }
 
 /** Checks a built model's parked cars: overlaps, off asphalt, outside bays. */
@@ -121,11 +131,10 @@ export function checkParked(root: Kn5Node): ParkedReport {
     (grid.get(k) ?? grid.set(k, []).get(k)!).push(i);
   });
   for (const c of cars) {
-    for (const [x, y] of wheelPoints(c)) {
-      const h = top(x, y), a = asphalt(x, y);
-      if (h !== null && a !== null && a >= h - 0.005) continue;
-      report.offAsphalt.push({ x: c.at[0], z: -c.at[1], on: h === null ? "nothing" : kindAt(x, y, h) });
-      break;
+    const off = offAsphaltAt(c, top, asphalt);
+    if (off) {
+      const h = top(off[0], off[1]);
+      report.offAsphalt.push({ x: c.at[0], z: -c.at[1], on: h === null ? "nothing" : kindAt(off[0], off[1], h) });
     }
     if (pads(c.at[0], c.at[1]) === null && !nearPaint(c.at[0], c.at[1])) report.outsideBays.push({ x: c.at[0], z: -c.at[1] });
   }

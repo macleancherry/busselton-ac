@@ -82,9 +82,9 @@ export function carTexture(): Uint8Array {
 const u = (swatch: number) => (swatch + 0.5) / SWATCHES;
 
 /** One car into `mb`: faces given as rings of local points, counter-clockwise from outside. */
-function addCar(mb: MeshBuilder, car: ParkedCar, z: number): void {
+function addCar(mb: MeshBuilder, car: ParkedCar, seat: CarSeat): void {
   const [fx, fy] = car.dir, sx = -fy, sy = fx;
-  const P = (f: number, s: number, h: number): Vec3 => [car.at[0] + fx * f + sx * s, car.at[1] + fy * f + sy * s, z + h];
+  const P = (f: number, s: number, h: number): Vec3 => [car.at[0] + fx * f + sx * s, car.at[1] + fy * f + sy * s, seat.z + seat.pitch * f + seat.roll * s + h];
   const face = (pts: Vec3[], swatch: number) => {
     const i = mb.vertexCount;
     for (const p of pts) mb.vertex(p, u(swatch), 0.5);
@@ -124,6 +124,32 @@ function addCar(mb: MeshBuilder, car: ParkedCar, z: number): void {
 /** Where the tyres touch the ground: along the car, and to its left. */
 const WHEELS: [number, number][] = [[1.4, 0.74], [1.4, -0.74], [-1.4, 0.74], [-1.4, -0.74]];
 
+/** How a car sits: its base height at the middle, and its rise per metre forward (pitch) and to its left (roll). */
+export interface CarSeat {
+  z: number;
+  pitch: number;
+  roll: number;
+}
+
+/** A parked car tilts with the ground under its wheels up to this much (1 in 10); past it, it sits level on the lowest wheel. */
+export const MAX_TILT = 0.1;
+
+/**
+ * How a car sits on `ground`: tilted to the plane through its four wheels' ground (least squares,
+ * at most MAX_TILT each way), then lowered until no wheel is off the ground; the tyres are 2 cm above
+ * the base, so the lowest one (against the plane) touches. A car on a slope or a crowned bay used to
+ * sit level on its lowest wheel with the other three in the surface.
+ */
+export function carSeat(car: ParkedCar, ground: HeightFn): CarSeat {
+  const [fx, fy] = car.dir;
+  const g = WHEELS.map(([f, s]) => ground(car.at[0] + fx * f - fy * s, car.at[1] + fy * f + fx * s));
+  const F = WHEELS[0][0], S = WHEELS[0][1];
+  const clamp = (v: number) => Math.max(-MAX_TILT, Math.min(MAX_TILT, v));
+  const pitch = clamp((g[0] + g[1] - g[2] - g[3]) / (4 * F)), roll = clamp((g[0] - g[1] + g[2] - g[3]) / (4 * S));
+  const z = Math.min(...WHEELS.map(([f, s], k) => g[k] - pitch * f - roll * s)) - 0.02;
+  return { z, pitch, roll };
+}
+
 /** Visual cars (PARKED_CARS) and their invisible collision boxes (1WALL_CAR), on `ground` (sceneGround.ts). */
 export function buildParkedCars(cars: ParkedCar[], ground: HeightFn): Kn5MeshNode[] {
   const meshes: MeshBuilder[] = [];
@@ -134,11 +160,10 @@ export function buildParkedCars(cars: ParkedCar[], ground: HeightFn): Kn5MeshNod
       meshes.push(mb);
       mb = new MeshBuilder();
     }
-    // The tyres (2 cm above the car's base) touch the lowest ground under the four of them.
-    const [fx, fy] = car.dir;
-    const z = Math.min(...WHEELS.map(([f, s]) => ground(car.at[0] + fx * f - fy * s, car.at[1] + fy * f + fx * s))) - 0.02;
-    addCar(mb, car, z);
-    box(walls.next(), car.at, car.dir, 4.4, 1.75, z - 0.3, z + 1.4);
+    // Tilted to the ground under its wheels (carSeat); its collision box stays level, round the middle.
+    const seat = carSeat(car, ground);
+    addCar(mb, car, seat);
+    box(walls.next(), car.at, car.dir, 4.4, 1.75, seat.z - 0.3, seat.z + 1.4);
   }
   meshes.push(mb);
   return [

@@ -39,6 +39,13 @@ const MIN_PIECE = 2;
 /** How far the ground may come up into the ribbon's lift at a sample, metres. */
 const UNDER = 0.005;
 
+/**
+ * Built surfaces a path is never laid over (track.ts): the route, streets and aisles, their gutters
+ * and fills, kerbs. Not the photo's footpaths (1STREET_PATH) or driveway crossovers (1STREET_DRIVE),
+ * which are at the ground's level where a footpath crosses them.
+ */
+export const PATH_BLOCK = /^\d(ROAD(?!_PATH)|STREET(?!_PATH|_DRIVE)|KERB|UNSEALED|UNPAVED)/;
+
 /** Which OSM paths to build, and as what. */
 export function pathKind(subclass: string | undefined, bicycle: string | undefined): PathLine["kind"] | null {
   if (subclass === "cycleway" || bicycle === "yes" || bicycle === "designated") return "shared";

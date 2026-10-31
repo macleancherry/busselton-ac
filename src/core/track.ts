@@ -2,7 +2,7 @@
 // through `DataSources`, so the same pipeline runs in the browser (real
 // tiles) and in Node tests (synthetic terrain).
 
-import { buildPaths, footPathTexture, sharedPathTexture, type PathLine } from "./paths";
+import { buildPaths, footPathTexture, PATH_BLOCK, sharedPathTexture, type PathLine } from "./paths";
 import { pickSpecies, TREE_SPECIES, treeSpeciesAtlas } from "./treeSprites";
 import { FENCE_COLOURS, fenceTexture, frontWallTexture, hedgeTexture, mulchTexture, shrubAtlas } from "./houseTextures";
 import { buildLots, shrub } from "./lots";
@@ -48,8 +48,10 @@ import { buildMarkings, type DiscreteMark } from "./markings";
 import { kerbsideForTrack, type KerbTags } from "./kerbside";
 import { withBayBands, type BayBox } from "./bayLanes";
 import { buildTerrainChunk, makeTerrainFn, meshTop, planTerrainChunks, type TerrainChunk } from "./terrain";
-import { ROAD_SURFACE, sceneGround, SINK, topSurface } from "./sceneGround";
-import { onRoadFrom } from "./poleSpot";
+import { PHYSICS_GROUND, ROAD_SURFACE, sceneGround, SINK, topSurface } from "./sceneGround";
+import { footOnRoad, onRoadFrom } from "./poleSpot";
+import { BAY_ASPHALT, bayHeight } from "./bayGround";
+import { ASPHALT, offAsphaltAt } from "./parkedCheck";
 import { clearParked, ROUTE_ROAD } from "./parkedClear";
 import { buildBayPads, placeParked, type BayQuad, type PhotoCar, type PlacedCar } from "./parkedPlacement";
 import { armcoNeeds, buildArmco } from "./armco";
@@ -254,7 +256,7 @@ export interface TrackResult {
     carsPainted?: number;
     parkedCars?: number;
     /** Busselton fork: parked cars the last pass dropped (parkedClear.ts), by what they touched. */
-    parkedDropped?: { road: number; roundabout: number; lane: number };
+    parkedDropped?: { road: number; roundabout: number; lane: number; offAsphalt?: number };
     /** Busselton fork: parked cars put in bays (parkedPlacement.ts): in car parks, in kerbside bays, and photo cars dropped, by why. */
     parkedBays?: { carPark: number; kerb: number; dropped: { aisle: number; noBay: number; blocked: number; overlap: number } };
     /** Busselton fork: kerbside parking bays, bike lane metres and bicycle symbols painted (kerbside.ts). */
@@ -1450,6 +1452,9 @@ export async function buildTrack(
     .filter((l) => /^(service|parking_aisle)/.test(l.cls) && l.brunnel !== "bridge" && l.brunnel !== "tunnel")
     .map((l) => ({ pts: l.pts.map((p) => proj.toLocal(p)), width: 5 })));
   const pathLines = opts.paths && sources.paths?.length ? sources.paths.map((l) => ({ kind: l.kind, pts: l.pts.map((p) => proj.toLocal(p)) })) : [];
+  // Busselton fork: nor over any road, street or kerb as built: a path crossing a street
+  // (or running down one) was laid on the asphalt and stood 20 to 40 cm over the ground beside it.
+  const pathOnRoad = onRoadFrom(topSurface([...roadMeshes.road, ...sideStreets, ...kerbsClear.nodes, ...ringsClear.nodes], PATH_BLOCK));
   // Laid on the base's ground as built (sceneGround.ts), with the path's own highest-around rule (paths.ts).
   const pathMeshes = pathLines.length
     ? buildPaths(
@@ -1465,7 +1470,7 @@ export async function buildTrack(
         if (kind === "foot" && nearVergeConcrete(x, y)) return false;
         // Not across car park aisles and driveways (OSM service roads).
         if (serviceIndex.clearance(x, y) < half + 0.3) return false;
-        return streetIndex.clearance(x, y) > half + 0.3 && !inRoundabout(plan, x, y, half + 2);
+        return streetIndex.clearance(x, y) > half + 0.3 && !inRoundabout(plan, x, y, half + 2) && !footOnRoad([x, y], half, pathOnRoad);
       },
       (x, y) => inCover(x, y, 5),
     )
@@ -1838,7 +1843,9 @@ export async function buildTrack(
     for (let i = houseTrees.length - 1; i >= 0; i--) if (cleared(houseTrees[i].x, houseTrees[i].y, true)) houseTrees.splice(i, 1);
   }
   // One ground per building (onBaseRing): 2 cm into the base's ground, or out on the horizon mesh, sunk 40 cm as before.
-  const houses = buildBuildings(shown, buildingGround, (b) => (onBaseRing(b.ring) ? SINK : 0.4), (b) => (onBaseRing(b.ring) ? ground : horizonGround));
+  // The base's ground for a footprint is the mesh's (ground.forRing): a corner past the terrain mesh's
+  // edge doesn't take the analytic terrain under it.
+  const houses = buildBuildings(shown, buildingGround, (b) => (onBaseRing(b.ring) ? SINK : 0.4), (b) => (onBaseRing(b.ring) ? ground.forRing(b.ring) : horizonGround));
   // Car park islands, clear of the road, the streets, buildings and the rings, with shrubs.
   const islandNodes: Kn5MeshNode[] = [];
   const islandShrubs = new MeshBuilder();
@@ -1999,7 +2006,7 @@ export async function buildTrack(
   }
   // Busselton fork: the last pass, against the roads as built (parkedClear.ts): no part of a car on
   // the route's or a street's road surface, on a roundabout, or within half a lane of a traffic lane.
-  let parkedDropped = { road: 0, roundabout: 0, lane: 0 };
+  let parkedDropped = { road: 0, roundabout: 0, lane: 0, offAsphalt: 0 };
   if (parked.length) {
     const lanes = lanePts;
     const throughStreets = new LineIndex(streetPlan.streets.filter((st) => !/^(parking_aisle|driveway|drive-through)$/.test(st.service ?? "")));
@@ -2010,15 +2017,31 @@ export async function buildTrack(
       lane: lanes ? (x, y) => lanes.clearance(x, y) : undefined,
     });
     parked = clear.kept;
-    parkedDropped = clear.dropped;
+    parkedDropped = { ...clear.dropped, offAsphalt: 0 };
   }
   // Added to the scene now the traffic lanes are known (none sits in a lane): the cars culled with
   // the other detail, their collision boxes with the walls.
   if (parked.length) {
-    // On the base's ground as built (sceneGround.ts), or the car park bays' pads over it (parkedPlacement.ts).
-    const pads = bayQuads.length ? buildBayPads(bayQuads, ground) : [];
+    // On the base's ground as built (sceneGround.ts), or the car park bays' pads over it
+    // (parkedPlacement.ts), flush with the aisles and streets they meet (bayGround.ts).
+    const asphaltBuilt = [...roadMeshes.road, ...sideStreets, ...kerbsClear.nodes, ...ringsClear.nodes];
+    const pads = bayQuads.length ? buildBayPads(bayQuads, ground, bayHeight(ground, topSurface(asphaltBuilt, BAY_ASPHALT))) : [];
     if (pads.length) model.root.children.push(group("CARPARKS", pads));
     const padTop = pads.length ? topSurface(pads) : null;
+    // No wheel on grass, a kerb or a car park island at the top (parkedCheck.ts): a bay that reached
+    // over a kerb or an island loses its car.
+    {
+      // The top: the base's ground as built (sceneGround.ts covers the same meshes), or an island or pad over it.
+      const extra = topSurface([...islandNodes, ...pads], PHYSICS_GROUND);
+      const top = (x: number, y: number) => {
+        const g = ground.mesh(x, y), e = extra(x, y);
+        return g === null ? e : e === null ? g : Math.max(g, e);
+      };
+      const asphalt = topSurface([...asphaltBuilt, ...pads], ASPHALT);
+      const n = parked.length;
+      parked = parked.filter((c) => !offAsphaltAt(c, top, asphalt));
+      parkedDropped.offAsphalt = n - parked.length;
+    }
     const carGround = (x: number, y: number) => {
       const g = ground(x, y), p = padTop?.(x, y);
       return p != null && p > g ? p : g;

@@ -22,6 +22,7 @@
 // physics (1GRASS). Each bay with a car, and the empty bays between them, gets an invisible asphalt
 // pad 1 cm over the ground (1STREET_CARPARK), so a parked car stands on asphalt and a car driven into
 // a bay drives on it.
+import { PAD_LIFT } from "./bayGround";
 import type { HeightFn } from "./elevation";
 import type { Vec2 } from "./geo";
 import type { KerbSlot } from "./kerbside";
@@ -62,8 +63,8 @@ export const CAR_PARK_REACH = 30;
 const AISLE_EDGE = 0.8;
 /** Cars' lines more than this far apart are separate rows. */
 const ROW_GAP = 1.6;
-/** The pads' height over the ground. */
-export const PAD_LIFT = 0.01;
+/** The pads' height over the ground (bayGround.ts). */
+export { PAD_LIFT };
 
 export interface PlaceResult {
   cars: PlacedCar[];
@@ -333,10 +334,13 @@ export function placeParked(
 /* ---------------- the bays' ground ---------------- */
 
 /**
- * Invisible asphalt pads over the car park bays (1STREET_CARPARK_nnn), `PAD_LIFT` over `ground`,
- * in cells of about a metre so they follow it.
+ * Invisible asphalt pads over the car park bays (1STREET_CARPARK_nnn), in cells of about a metre.
+ * `height` is the pad's surface (bayGround.ts bayHeight: flush with the aisles, PAD_LIFT over the
+ * ground elsewhere; by default just PAD_LIFT over `ground`). The cells are flat triangles, so where the
+ * ground bulges between their corners (the terrain's own triangles cross them) a cell's corners are
+ * raised until no point inside it is under the ground: no grass comes up through a pad.
  */
-export function buildBayPads(quads: BayQuad[], ground: HeightFn): Kn5MeshNode[] {
+export function buildBayPads(quads: BayQuad[], ground: HeightFn, height: HeightFn = (x, y) => ground(x, y) + PAD_LIFT): Kn5MeshNode[] {
   const meshes: MeshBuilder[] = [];
   let mb = new MeshBuilder();
   for (const q of quads) {
@@ -346,21 +350,37 @@ export function buildBayPads(quads: BayQuad[], ground: HeightFn): Kn5MeshNode[] 
       meshes.push(mb);
       mb = new MeshBuilder();
     }
-    const i0 = mb.vertexCount;
-    // Bilinear over the corners, a to b along, a to d across: counter-clockwise, so the faces point up.
-    for (let j = 0; j <= nv; j++) {
-      const v = j / nv;
-      for (let i = 0; i <= nu; i++) {
-        const u = i / nu;
-        const x = (1 - u) * (1 - v) * a[0] + u * (1 - v) * b[0] + u * v * c[0] + (1 - u) * v * d[0];
-        const y = (1 - u) * (1 - v) * a[1] + u * (1 - v) * b[1] + u * v * c[1] + (1 - u) * v * d[1];
-        mb.vertex([x, y, ground(x, y) + PAD_LIFT], u, v);
-      }
-    }
+    // Bilinear over the corners, a to b along, a to d across.
+    const at = (u: number, v: number): [number, number] => [
+      (1 - u) * (1 - v) * a[0] + u * (1 - v) * b[0] + u * v * c[0] + (1 - u) * v * d[0],
+      (1 - u) * (1 - v) * a[1] + u * (1 - v) * b[1] + u * v * c[1] + (1 - u) * v * d[1],
+    ];
+    const W = nu + 1, H: number[] = [];
+    for (let j = 0; j <= nv; j++) for (let i = 0; i <= nu; i++) H.push(height(...at(i / nu, j / nv)));
+    // Each cell is two triangles, (i,j)(i+1,j)(i+1,j+1) and (i,j)(i+1,j+1)(i,j+1): sample inside, raise the corners.
+    const lift = new Array<number>(H.length).fill(0);
     for (let j = 0; j < nv; j++)
       for (let i = 0; i < nu; i++) {
-        const p = i0 + j * (nu + 1) + i;
-        mb.quad(p, p + 1, p + nu + 2, p + nu + 1);
+        const p = j * W + i, ha = H[p], hb = H[p + 1], hc = H[p + W + 1], hd = H[p + W];
+        let worst = 0;
+        for (const s of [0.25, 0.5, 0.75]) for (const t of [0.25, 0.5, 0.75]) {
+          const h = s >= t ? ha + (hb - ha) * s + (hc - hb) * t : ha + (hc - hd) * s + (hd - ha) * t;
+          const over = ground(...at((i + s) / nu, (j + t) / nv)) - h;
+          if (over > worst) worst = over;
+        }
+        if (worst > 0.002) for (const k of [p, p + 1, p + W + 1, p + W]) lift[k] = Math.max(lift[k], worst + 0.003);
+      }
+    const i0 = mb.vertexCount;
+    // Counter-clockwise, so the faces point up.
+    for (let j = 0; j <= nv; j++)
+      for (let i = 0; i <= nu; i++) {
+        const [x, y] = at(i / nu, j / nv);
+        mb.vertex([x, y, H[j * W + i] + lift[j * W + i]], i / nu, j / nv);
+      }
+    for (let j = 0; j < nv; j++)
+      for (let i = 0; i < nu; i++) {
+        const p = i0 + j * W + i;
+        mb.quad(p, p + 1, p + W + 1, p + W);
       }
   }
   meshes.push(mb);
