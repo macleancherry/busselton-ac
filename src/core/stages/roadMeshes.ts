@@ -4,6 +4,7 @@
 
 import { encodeDdsDxt1 } from "../dds";
 import { buildVergeConcrete, laybacks, readVerge, stripGround, type VergeConcrete } from "../footpaths";
+import { material } from "../materials";
 import type { Vec2 } from "../geo";
 import { buildKerbReturns, buildKerbs, STRIP_EXTRA, stripPhotoTexture, type KerbMeshes, type StreetEdgePoint, type StripMaterialFn } from "../kerbs";
 import type { Kn5MeshNode } from "../kn5";
@@ -53,7 +54,7 @@ export function buildRoadSurfaces(
   // 1. The route's road and verge.
   const roadMeshes = buildRoadMeshes(
     plan, opts, sf.chunkMaterial,
-    (i, side) => st.mouth(side, plan.samples[i].s) || kb.kerbAt(i, side),
+    (i, side) => st.mouth(side, plan.samples[i % nS].s) || kb.kerbAt(i, side),
     sf.unsealedAt.includes(1) ? { at: (i) => sf.unsealedAt[i % nS] === 1, material: sf.gravelMaterial } : undefined,
     net ? { quad: net.routeQuadSkip, ring: net.handlesRing } : undefined,
   );
@@ -177,7 +178,7 @@ export function buildRoadSurfaces(
       const tex = photoRoadTexture(sub, displayOf(st.streetRaster), 0, sub.samples.length - 1, (k) => conf[k] > 0.7, 128, h);
       reg.texture(`${name}.dds`, encodeDdsDxt1(tex.rgba, tex.width, tex.height));
       reg.preview(`${name}.dds`, tex);
-      reg.material(reg.photoGround(name, `${name}.dds`, tex));
+      reg.material(material(name, `${name}.dds`, { ambient: 0.42, diffuse: 0.45, specular: 0.06, exp: 20 }));
       return { material: name, perStreet: true };
     }
     if (sf.gravelOn && isUnsealed(s.surface, s.cls)) return sf.gravelMaterial(i, s.width);

@@ -386,13 +386,13 @@
  },
  "d": {
   "files": {
-   "golden_town/golden_town.kn5": "c7abe7575492d5c4716f8df4214090d022989eb4d7b46598c81a86dc5e23411f",
+   "golden_town/golden_town.kn5": "43c7eb1aae5bc3db482fc9e4f69100a2d3960198ec8d9f9dc04272712c0cdc77",
    "golden_town/main/ai/fast_lane.ai": "d8310c94cd00d5bc49aa83097a6f7d0931c983977dd5e3d4354fe3dece77ac48",
    "golden_town/main/data/ideal_line.ai": "d8310c94cd00d5bc49aa83097a6f7d0931c983977dd5e3d4354fe3dece77ac48",
    "golden_town/main/ai/pit_lane.ai": "e848c357359ed287b663f6bf66edc6d801c13ba0030f444812433b0c124f1e8e",
    "golden_town/main/data/ai_hints.ini": "cf84baf930b20f6500750a9614fea63da2222c0db34e1c4d3c5837491433ab6d",
    "golden_town/main/data/surfaces.ini": "add39a6d2fab44be9222b57ec154b300cf8e199a634c98389f55eeee1cd0bd5f",
-   "golden_town/main/data/traffic.json": "a722c486dcba0eb7981f18afd2f6fee57021c8154621c60dafcd920bbbacf34f",
+   "golden_town/main/data/traffic.json": "c41944d660161a884fd5c7a34bf3d302e3751858495d900ffe083dbdfb3cbb08",
    "golden_town/main/data/map.ini": "611824280578a5e986bc6c8a06425d250c4a3ed284baa646b2e1bb66bd75024b",
    "golden_town/main/data/challenges.ini": "2ada85dac67b292a0ae03d5ed4df0a7015dc55f56f1b06ec54c827c0b788d67f",
    "golden_town/extension/drift_zones.ini": "75e9408572b5d34f71df1fcea5933e709dff12a12c87a4752c596495db6f6e1e",
@@ -404,7 +404,7 @@
    "golden_town/baked_shadow_params.ini": "b297e7e62960bb6edfa3c5691e6bc8afeb5832ff9d05a985f609fbb7c52292ef",
    "golden_town/extension/ext_config.ini": "8f16c58188cf6a465d9d5b8a15ebed8d4b01d1292b9ba21d1554869696a8e0e8",
    "golden_town/main/map.png": "2066ca587ad5dd10e5eeed9e7b85f817fe0a8f3faeaeb3e38916bdfe25d19bc3",
-   "golden_town/extension/street_map.png": "0a145a28b595f753136a973843a0f5dd523e368feedd7c7641c1f71dbcacf415",
+   "golden_town/extension/street_map.png": "1465584aaacd8e88ebe72d712b4f53229740db2c3e584b1e4fa3e9224b7bf95a",
    "golden_town/extension/street_map.ini": "7b929d77b8e3d2201ac7de0b00a419ea061be2b6df4e82a9202c5ea80c3ef173",
    "golden_town/extension/shore_mask.png": "b6ff38732e939aece2b679a4bda2a7529bc0fa52998d531a3d2b5a3c6cb783d7",
    "golden_town/extension/shore_mask.ini": "5c2c8483c13adb6cdeed8c6c85c66de68f96e9746546a4a3ceba0cbfa19be164",
@@ -423,11 +423,11 @@
    "maxElevation": 6.153899000176602,
    "climb": 4.42152062467026,
    "meanWidth": 7.443703201423855,
-   "vertices": 284533,
-   "triangles": 249340,
+   "vertices": 285245,
+   "triangles": 249696,
    "terrainChunks": 8,
-   "kn5Bytes": 33192719,
-   "trees": 983,
+   "kn5Bytes": 33226262,
+   "trees": 982,
    "buildings": 42,
    "buildingsDetected": 9,
    "traced": 0.9942748091603053,
@@ -437,18 +437,18 @@
    "sideTraced": 4,
    "kerbMetres": 1786,
    "poles": 4,
-   "carsPainted": 28,
-   "parkedCars": 14,
+   "carsPainted": 36,
+   "parkedCars": 21,
    "parkedDropped": {
     "road": 0,
     "roundabout": 0,
-    "lane": 0,
+    "lane": 1,
     "offAsphalt": 0,
     "uneven": 0
    },
    "parkedBays": {
     "carPark": 14,
-    "kerb": 0,
+    "kerb": 7,
     "dropped": {
      "aisle": 0,
      "noBay": 0,
@@ -491,7 +491,7 @@
    "Done 1"
   ],
   "houses": 36,
-  "parked": 14
+  "parked": 21
  },
  "f": {
   "files": {

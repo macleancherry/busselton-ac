@@ -238,6 +238,13 @@ function sceneColour(lines: { pts: Vec2[]; cls: string }[], footpaths = false) {
       const n = hash(x * 4, y * 4) * 0.03;
       return [0.33 + n, 0.33 + n, 0.35 + n];
     }
+    // Scene d: the cross street west of the ring is wider, with cars parked at both kerbs.
+    if (footpaths && x > -150 && x < -100 && Math.abs(y) < 4.6) {
+      const ay = Math.abs(y), k = Math.floor((x + 150) / 6.5);
+      if (ay > 1.6 && ay < 3.4 && ((x + 150) % 6.5) > 1 && ((x + 150) % 6.5) < 5.5) return hash(k, y > 0 ? 3 : 4, 6) < 0.5 ? [0.9, 0.9, 0.88] : [0.2, 0.25, 0.55];
+      const n = hash(x * 4, y * 4) * 0.03;
+      return [0.31 + n, 0.31 + n, 0.33 + n];
+    }
     if (d < 3.5 || street < 0) {
       if (d < 0.08 && (Math.floor((x + y + 400) / 3) % 3 === 0)) return [0.95, 0.95, 0.92];
       if (Math.abs(d - 3.3) < 0.06) return [0.93, 0.93, 0.9];
