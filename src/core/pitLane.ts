@@ -8,11 +8,16 @@
 // the pit lane is the stretch of AI line under the boxes, from a little before the first to a
 // little after the last: the AI leaves its box straight onto the line it's already on.
 //
-// AC also logs "TRACK :: NO POSITION DATA FOUND" straight after it loads the ideal line (the
-// driving line aid and the race engineer's line), which it takes from <layout>/data/ideal_line.ai,
-// or, without that file, from the AI line ("IDEAL LINE FROM AI LINE"), and then the race engineer
-// says "NO IDEAL LINE FOUND" for every car. A Kunos log shows the same warning after loading an
-// ideal_line.ai with no points. So each layout ships its AI line as data/ideal_line.ai too.
+// AC loads the ideal line (the driving line aid and the race engineer's line) from
+// <layout>/data/ideal_line.ai, or, without that file, from the AI line ("IDEAL LINE FROM AI LINE"),
+// and then the race engineer says "NO IDEAL LINE FOUND" for every car. So each layout ships its AI
+// line as data/ideal_line.ai too.
+//
+// "WARNING: TRACK :: NO POSITION DATA FOUND", logged straight after the ideal line, isn't about
+// any of this, and no file of ours removes it: it stayed with the ideal line from its own file, with
+// the lookup grid (retest 4, 31 Oct 2026), and Kunos's own tracks log it at the same point after
+// loading their own data/ideal_line.ai (Mugello, with and without CSP: GTPlanet "Assetto Corsa PC
+// Mods General Discussion" p. 1820; ks_barcelona: docs/verification.md). It's harmless; don't chase it.
 
 import { writeFastLaneAi, type AiPoint } from "./aiSpline";
 import type { Kn5GroupNode } from "./kn5";

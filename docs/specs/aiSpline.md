@@ -6,7 +6,7 @@ Status: spec for a clean rewrite (docs/external-review-2026-10-31.md, "Owning th
 
 Each layout ships `ai/fast_lane.ai` (or `<layout>/ai/fast_lane.ai`): the line the AI drives and the game uses for track progress, the minimap position and pit logic. `src/core/aiLine.ts` (fork code) works out the points and their values; this module only turns a list of points into the version 7 binary file, adds the spatial lookup grid AC needs, and reads files back for the checks and tests.
 
-Without the lookup grid AC logs "NO POSITION DATA FOUND" and AI and timing misbehave, so the grid is required, not optional.
+The lookup grid is required, not optional: it's how AC finds the nearest stretch of line to a car. (AC's "TRACK :: NO POSITION DATA FOUND" warning is not about the grid: Kunos's own Mugello and ks_barcelona log it too, and it stayed with the grid in place; see src/core/pitLane.ts.)
 
 ## Public API (keep these names and shapes)
 
@@ -186,7 +186,7 @@ Files our builds make (skip when absent; path from an env var, defaulting to `ou
 18. `python3 -I scripts/check/ai_grid.py` on a written file reports 10 m cells, neighbours 10 and full cells.
 19. Before the old module is deleted, save one or two small golden `.ai` files it writes from fixed points in `test/fixtures/`, using positions that are already exact f32 values (e.g. multiples of 0.25 m) so the f32 rounding change can't matter; the new writer must reproduce them byte for byte.
 
-In-game check (workstation): `scripts\windows\run-test.ps1 <slug>` with a build from the new writer: no "NO POSITION DATA FOUND" in the AC log, and the AI completes a lap.
+In-game check (workstation): `scripts\windows\run-test.ps1 <slug>` with a build from the new writer: the AC log loads the line ("Loading AI Spline", "LOADING GRID DATA", the right "TRACK LENGTH"), and the AI completes a lap.
 
 ## Sources
 
