@@ -85,6 +85,7 @@ import { findLines, paintCandidates, type ImageLine } from "./paintLines";
 import { applyTrace, displayOf, traceRoad, type RasterSampler, type TraceResult } from "./trace";
 import { buildSideStreets, LineIndex, traceSideStreets, planSideStreets, streetSurface, type StreetLine, type StreetName } from "./sideStreets";
 import { networkPreview } from "./network/preview";
+import { planJunctionCore, type JunctionCore } from "./network/phase1";
 
 /** Progress callback; a returned promise is awaited, which lets a UI repaint. */
 export type Progress = (stage: string, fraction?: number) => void | Promise<void>;
@@ -840,7 +841,11 @@ export async function buildTrack(
   }
   const sideTraced = streetRaster && opts.traceRoads ? traceSideStreets(streetPlan.streets, streetRaster, opts, index) : 0;
   const streetIndex = new LineIndex(streetPlan.streets);
-  const mouth = (side: 1 | -1, sd: number) => streetPlan.junctions.some((j) => j.side === side && Math.abs(j.s - sd) < j.width / 2 + 1.5);
+  // Busselton fork: networkCore (network/phase1.ts, planned below before the kerbs): junctions built
+  // as one surface each take over their mouths, and the route inside them counts as a mouth.
+  let net: JunctionCore | null = null;
+  let mouthList = streetPlan.junctions;
+  const mouth = (side: 1 | -1, sd: number) => mouthList.some((j) => j.side === side && Math.abs(j.s - sd) < j.width / 2 + 1.5) || !!net?.routeSInside(sd);
 
   // Busselton fork: roofs and parked cars found in the photos arrive in the order the photo chunks
   // finish, which changes between builds; sorted by where they are, the build comes out the same
@@ -1030,6 +1035,21 @@ export async function buildTrack(
     if (/^primary/.test(cls)) return town[i] ? 60 : 90;
     return town[i] >= 1 ? 50 : 80;
   };
+  if (opts.networkCore && area) {
+    net = planJunctionCore({
+      lines: (sources.streets?.lines ?? []).map((l) => ({ ...l, pts: l.pts.map((p) => proj.toLocal(p)) })),
+      rings: (sources.osm?.roundaboutRings ?? []).map((r) => ({ pts: r.pts.map((p) => proj.toLocal(p)), lanes: r.lanes })),
+      route: { samples: plan.samples, closed: plan.closed, length: plan.length, crown: opts.crown, nearest: (x, y, max) => index.nearest(x, y, max) },
+      streets: streetPlan.streets,
+      builtRings: plan.roundabouts,
+      terrain: (x, y) => terrainAt(x, y).h,
+      inArea: ([x, y]) => area.signed(x, y) < -5,
+      routeRowOk: (i) => unsealedAt[i] !== 1,
+      streetOk: (si) => !(gravelOn && isUnsealed(streetPlan.streets[si].surface, streetPlan.streets[si].cls)),
+    });
+    const jn = net;
+    mouthList = streetPlan.junctions.filter((j) => !jn.coversRouteRow(j.seg));
+  }
   let kerbs: [number[], number[]] = [new Array(nS).fill(0), new Array(nS).fill(0)];
   if (opts.kerbs) {
     const tr = trace;
@@ -1041,7 +1061,8 @@ export async function buildTrack(
     // route itself.
     const kerbBlocked = (i: number, side: 1 | -1) => {
       const s = plan.samples[i];
-      if (streetPlan.junctions.some((j) => j.side === side && Math.abs(j.s - s.s) < j.width / 2 + 4)) return true;
+      if (net?.routeRowInside(i)) return true;
+      if (mouthList.some((j) => j.side === side && Math.abs(j.s - s.s) < j.width / 2 + 4)) return true;
       const half = s.width / 2, reach = half + opts.vergeWidth + STRIP_EXTRA;
       const inside = s.curvature * side;
       if (inside > 0 && 1 / inside < reach + 3) return true;
@@ -1074,7 +1095,8 @@ export async function buildTrack(
   const kerbAt = (i: number, side: 1 | -1) => kerbs[side === 1 ? 0 : 1][((i % nS) + nS) % nS] > 0;
   // The gravel verge gives way to the kerb's nature strip, which also covers the slopes where kerbs start and end.
   const roadMeshes = buildRoadMeshes(plan, opts, chunkMaterial, (i, side) => mouth(side, plan.samples[i % nS].s) || kerbAt(i, side),
-    anyUnsealed ? { at: (i) => unsealedAt[i % nS] === 1, material: gravelMaterial } : undefined);
+    anyUnsealed ? { at: (i) => unsealedAt[i % nS] === 1, material: gravelMaterial } : undefined,
+    net ? { quad: net.routeQuadSkip, ring: net.handlesRing } : undefined);
   plan.roundabouts.forEach((rb, k) => {
     const open = [...roadMeshes.openings[k]];
     // Side streets that run into the ring get an opening in its verge and kerb too.
@@ -1100,7 +1122,7 @@ export async function buildTrack(
   };
   // Kerbs round the corners into side streets, carrying on along each one's first 40 m; then along the road.
   const surface = streetSurface(plan, index, opts, (x, y) => terrainAt(x, y).h);
-  const streetAt = streetPlan.junctions.map((j) => {
+  const streetAt = mouthList.map((j) => {
     const s = plan.samples[j.seg], half = s.width / 2;
     const o: Vec2 = [s.pos[0] + s.left[0] * j.side * half, s.pos[1] + s.left[1] * j.side * half];
     for (const st of streetPlan.streets) {
@@ -1113,7 +1135,7 @@ export async function buildTrack(
     if (!m) return null;
     const { st, k: k0 } = m;
     const n = st.pts.length, step = k0 === 0 ? 1 : -1;
-    const tan = plan.samples[streetPlan.junctions[ji].seg].tan;
+    const tan = plan.samples[mouthList[ji].seg].tan;
     const dirAt = (k: number): Vec2 => {
       const a = st.pts[Math.max(0, k - 1)], b = st.pts[Math.min(n - 1, k + 1)], l = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;
       return [(b[0] - a[0]) / l, (b[1] - a[1]) / l];
@@ -1139,7 +1161,7 @@ export async function buildTrack(
     return out.length > 4 ? out : null;
   };
   const returns = opts.kerbs
-    ? buildKerbReturns(plan, opts, streetPlan.junctions, kerbs, roadMaterial(0, 6, { ...plan.samples[0], kerb: [1, 1] }), raster && opts.imageryZoom > 0 ? displayOf(raster) : undefined, streetEdge, photo ?? undefined, (x, y) => streetIndex.clearance(x, y))
+    ? buildKerbReturns(plan, opts, mouthList, kerbs, roadMaterial(0, 6, { ...plan.samples[0], kerb: [1, 1] }), raster && opts.imageryZoom > 0 ? displayOf(raster) : undefined, streetEdge, photo ?? undefined, (x, y) => streetIndex.clearance(x, y))
     : null;
   const kerbReturns = returns?.nodes ?? [];
   if (returns?.sideAtlas) {
@@ -1155,7 +1177,7 @@ export async function buildTrack(
   // Footpaths and driveway crossovers in the nature strip, where the photo shows them; the kerb lays back at each driveway.
   const stripOuter = opts.vergeWidth + STRIP_EXTRA;
   const verge = opts.kerbs && raster ? readVerge(plan, raster, kerbs, stripOuter, (x, y) => streetIndex.clearance(x, y) < 0.5) : null;
-  const kerbMeshes = buildKerbs(plan, opts, kerbs, stripMaterial, returns?.noRamp, verge ? laybacks(nS, verge) : undefined);
+  const kerbMeshes = buildKerbs(plan, opts, kerbs, stripMaterial, net ? new Set([...(returns?.noRamp ?? []), ...net.noRamp]) : returns?.noRamp, verge ? laybacks(nS, verge) : undefined);
   const vergeGround = (x: number, y: number, d: number, smp: RoadSample, side: 1 | -1) =>
     d <= stripOuter ? surfaceHeight(smp, (side * smp.width) / 2, opts.crown) + KERB_H : terrainAt(x, y).h;
   const vergeConcrete = verge ? buildVergeConcrete(plan, verge, vergeGround) : [];
@@ -1170,7 +1192,7 @@ export async function buildTrack(
         .map((x) => x.st)
       : [],
   );
-  const sideStreets = buildSideStreets(streetPlan.streets, plan, index, opts, (x, y) => terrainAt(x, y).h, (st, i) => {
+  const sideStreets = buildSideStreets(streetPlan.streets, plan, index, opts, net ? net.streetGround((x, y) => terrainAt(x, y).h) : (x, y) => terrainAt(x, y).h, (st, i) => {
     if (photoStreets.has(st) && st.traced && streetRaster) {
       const sub = st.traced.plan, conf = st.traced.conf;
       const name = `side_photo_${String(i).padStart(3, "0")}`;
@@ -1186,7 +1208,7 @@ export async function buildTrack(
     if (gravelOn && isUnsealed(st.surface, st.cls)) return gravelMaterial(i, st.width);
     const mid = st.pts[Math.floor(st.pts.length / 2)];
     return roadMaterial(i, st.width, { ...plan.samples[0], pos: mid });
-  });
+  }, net?.streetSkip);
   const sampleNear = (sd: number) => plan.samples[Math.max(0, Math.min(plan.samples.length - 1, Math.round(sd / opts.spacing)))];
   // Markings read off the photo where the road was traced; generated elsewhere.
   let imageLines: ImageLine[] = [];
@@ -1223,7 +1245,7 @@ export async function buildTrack(
     ? buildMarkings(plan, opts, (sd) => {
       const p = sampleNear(sd).pos;
       // Busselton fork: no paint on gravel.
-      return !!inRoundabout(plan, p[0], p[1], 1) || unsealedAt[Math.max(0, Math.min(nS - 1, Math.round(sd / opts.spacing)))] === 1;
+      return !!inRoundabout(plan, p[0], p[1], 1) || unsealedAt[Math.max(0, Math.min(nS - 1, Math.round(sd / opts.spacing)))] === 1 || !!net?.routeSInside(sd);
     }, (side, sd) => mouth(side, sd) || kerbAt(Math.round(sd / opts.spacing), side), { lines: imageLines, covered }, [
       ...discreteMarks(),
       // The start and finish lines themselves, painted across the road.
@@ -1261,6 +1283,7 @@ export async function buildTrack(
   // The full circulating carriageway and island of each roundabout.
   const ringNodes: Kn5Node[] = [];
   plan.roundabouts.forEach((rb, k) => {
+    if (net?.handlesRing(k)) return;
     const nearest = plan.samples.reduce((a, s) => (Math.abs(s.s - rb.sIn) < Math.abs(a.s - rb.sIn) ? s : a));
     // Busselton fork: the island and the grass round the ring in their own aerial photo (mulch,
     // plantings, paving, lawn), cut from the photos around the ring, instead of plain bright grass.
@@ -1269,6 +1292,14 @@ export async function buildTrack(
     const paint = opts.markings ? buildRingMarkings(rb, k) : null;
     if (paint) markings.push(paint);
   });
+  // Busselton fork: networkCore's junction surfaces, kerbs, islands and give-way lines (network/phase1.ts).
+  const netMeshes = net?.build({
+    routeKerb: (i, side) => kerbs[side === 1 ? 0 : 1][((i % nS) + nS) % nS],
+    stripOut: opts.vergeWidth + STRIP_EXTRA, vergeWidth: opts.vergeWidth, markings: opts.markings,
+    roadMaterial: (pj) => roadMaterial(pj.id, 4, { ...plan.samples[0], pos: pj.j.centre, kerb: [1, 1] }),
+  }) ?? null;
+  const netNodes = netMeshes ? [...netMeshes.road, ...netMeshes.dress] : [];
+  if (netMeshes) markings.push(...netMeshes.markings);
   // Busselton fork: kerbside parking bays and bike lanes (kerbside.ts).
   const kerbside = opts.markings && opts.kerbside
     ? kerbsideForTrack(plan, opts.sideStreets ? streetPlan.streets : [], index, opts, (x, y) => terrainAt(x, y).h, sources.osm?.kerbside ?? [], (p) => proj.toLocal(p), parkedSpots)
@@ -1279,7 +1310,7 @@ export async function buildTrack(
   // The return fills at street mouths are street too (1STREET_RETFILL): on a hillside the ground
   // came up through them by a metre (Cape Leeuwin).
   const isStreet = (n: Kn5Node): boolean => n.kind === "mesh" ? /^1(STREET|UNPAVED)/.test(n.name) : n.children.some(isStreet);
-  const underStreets = streetCeiling([...sideStreets, ...kerbReturns.filter(isStreet)], opts.terrainStep);
+  const underStreets = streetCeiling([...sideStreets, ...kerbReturns.filter(isStreet), ...netNodes], opts.terrainStep);
   const groundAt = (x: number, y: number) => {
     const t = terrainAt(x, y);
     const top = underStreets(x, y);
@@ -1310,7 +1341,7 @@ export async function buildTrack(
   // stands on the topmost of the base's physics meshes as built: the route, its verge, kerbs, strips
   // and returns, the side streets, the roundabouts and the terrain. Where none covers a point (the sea,
   // past the corridor), the analytic terrain.
-  const ground = sceneGround([...roadMeshes.road, ...roadMeshes.verge, ...sideStreets, ...kerbsClear.nodes, ...ringsClear.nodes, ...terrainNodes], terrainH);
+  const ground = sceneGround([...roadMeshes.road, ...roadMeshes.verge, ...sideStreets, ...kerbsClear.nodes, ...ringsClear.nodes, ...netNodes, ...terrainNodes], terrainH);
 
   await progress("Placing scenery");
   const offRings = (spots: TreeSpot[]) => spots.filter((t) => !inRoundabout(plan, t.x, t.y, opts.vergeWidth + 3));
@@ -1549,7 +1580,7 @@ export async function buildTrack(
     ...(race ? raceFlags?.rest ?? race.pieces : gateSigns(plan, opts, art, ground)),
     // Busselton fork: kangaroo signs out of town (not on kerbed streets, limit 80 or more).
     ...(opts.streetSigns ? kangarooSigns(plan, opts, art, (i) => town[i] === 0 && speedAt(i) >= 80 && !kerbedNear[i],
-      (i, side) => mouth(side, plan.samples[i].s) || streetPlan.junctions.some((j) => j.side === side && Math.abs(j.s - plan.samples[i].s) < j.width / 2 + 6), ground) : []),
+      (i, side) => mouth(side, plan.samples[i].s) || mouthList.some((j) => j.side === side && Math.abs(j.s - plan.samples[i].s) < j.width / 2 + 6), ground) : []),
     ...utilities.pieces,
     ...carPark.pieces,
     ...(verge ? letterboxes(plan, verge, (x, y) => ground(x, y)) : []),
@@ -1804,6 +1835,7 @@ export async function buildTrack(
       ...cullable([
         group("ROAD", roadMeshes.road),
         group("SIDESTREETS", sideStreets),
+        group("JUNCTIONS", netNodes),
         group("FURNITURE", furniture),
         group("RACE", [...(race?.nodes ?? []), ...buildRaceFlags(raceFlags?.flags ?? [])]),
         group("WIRES", utilities.wires),
@@ -2054,7 +2086,7 @@ export async function buildTrack(
     [`${slug}/ui/preview.png`]: previewPng(outline2d, plan.closed),
     [`${slug}/README.txt`]: enc.encode(readme(trackMeta, textured.size ? (typeof sources.imageryCredit === "function" ? sources.imageryCredit() : sources.imageryCredit) ?? "aerial imagery" : null)),
     // Busselton fork: the network-core prototype, for inspection only (src/core/network).
-    ...(opts.networkCore ? networkPreview(slug, { lines: sources.streets?.lines ?? [], rings: sources.osm?.roundaboutRings ?? [], toLocal: (p) => proj.toLocal(p), height: dem }) : {}),
+    ...(net ? { [`${slug}/network/junctions.json`]: enc.encode(JSON.stringify(net.json())) } : opts.networkCore ? networkPreview(slug, { lines: sources.streets?.lines ?? [], rings: sources.osm?.roundaboutRings ?? [], toLocal: (p) => proj.toLocal(p), height: dem }) : {}),
   };
 
   // Busselton fork: one layout of several on the map (layouts.ts).

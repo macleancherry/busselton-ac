@@ -54,6 +54,8 @@ export function buildRoadMeshes(
    * mesh, 1UNSEALED_<chunk>, in `material(ci, meanWidth)`, so they get the gravel physics surface.
    */
   unsealed?: { at: (i: number) => boolean; material: (ci: number, meanWidth: number) => string },
+  /** Busselton fork: networkCore junctions (network/phase1.ts) cover these quads (row i to i + 1) and rings. */
+  network?: { quad: (i: number) => boolean; ring: (k: number) => boolean },
 ): RoadMeshes {
   const samples = plan.samples;
   const n = samples.length;
@@ -65,6 +67,7 @@ export function buildRoadMeshes(
   const sAt = (i: number) => (i >= n ? plan.length : samples[i].s);
   // Sections on a roundabout: the ring mesh covers those, so the ribbon stops.
   const onRing = (i: number) => !!inRoundabout(plan, at(i).pos[0], at(i).pos[1], 0.3);
+  const covered = (i: number) => onRing(i) || onRing(i + 1) || !!network?.quad(i % n);
 
   chunkRanges(plan).forEach(([a, b], ci) => {
     const rb = new MeshBuilder();
@@ -92,7 +95,7 @@ export function buildRoadMeshes(
       for (let r = 0; r < b - a; r++) {
         for (let j = 0; j < cols - 1; j++) {
           const p = r * cols + j;
-          if (onRing(a + r) || onRing(a + r + 1)) continue;
+          if (covered(a + r)) continue;
           // back-left, back-right, front-right, front-left
           rb.quad(p, p + 1, p + cols + 1, p + cols);
         }
@@ -112,7 +115,7 @@ export function buildRoadMeshes(
         return q;
       };
       for (let r = 0; r < b - a; r++) {
-        if (onRing(a + r) || onRing(a + r + 1)) continue;
+        if (covered(a + r)) continue;
         const k = gravelRow(r) ? 1 : 0;
         for (let j = 0; j < cols - 1; j++) {
           const p = r * cols + j;
@@ -158,6 +161,7 @@ export function buildRoadMeshes(
 
   // Join the ribbon's last section before each ring to the ring's outer edge.
   plan.roundabouts.forEach((ring, k) => {
+    if (network?.ring(k)) return;
     const Ro = outerRadius(ring);
     const last = plan.closed ? n : n - 1;
     let j = 0;

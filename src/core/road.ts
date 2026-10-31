@@ -18,6 +18,8 @@ export interface RoadSample extends PathFrame {
   bank: number;
   /** Kerb and gutter on the [left, right], 0..1 (absent = none). */
   kerb?: [number, number];
+  /** Busselton fork: this sample's crown, where it differs from the build's (eased out at networkCore junctions). */
+  crown?: number;
 }
 
 export interface RoadPlan {
@@ -173,7 +175,7 @@ export function applyElevation(plan: RoadPlan, height: HeightFn, opts: BuildOpti
 export function surfaceHeight(s: RoadSample, t: number, crown: number): number {
   const half = s.width / 2;
   const tc = Math.max(-half, Math.min(half, t));
-  return s.h + s.bank * tc - crown * Math.abs(tc);
+  return s.h + s.bank * tc - (s.crown ?? crown) * Math.abs(tc);
 }
 
 export interface Nearest {
