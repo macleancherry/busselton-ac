@@ -24,6 +24,19 @@ Other modules also produce pieces (utilities, footpaths' letterboxes, flags, rac
 - *Heights:* every piece's base is `ground` at that piece's own (x, y) minus SINK; tops and sign heights are measured up from the same ground value. A sign face uses the ground at its post. (The old module had its own verge-slope height model, `vergeZ`, and exported it to utilities; that goes.)
 - *Clear of rings:* each placer skips spots inside or near a roundabout (radius given per placer).
 
+### Ground and poles off the road (main, 31 Oct 2026)
+
+- *The ground* is the one-surface sampler (`src/core/sceneGround.ts`): the caller passes its `SceneGround` as a plain `ground(x, y)`; tests pass any height function. `SINK` comes from that module.
+- *Poles off the road:* `streetSigns` and `seenFeatures` take an optional last argument `onRoad(x, y)` (`src/core/poleSpot.ts` `OnRoad`, true on a built drivable mesh: route, gutters, rings, side streets, gravel). Each post's foot goes through `clearSpot(at, onRoad, { radius, away })`: kept if clear, else moved to the nearest clear spot (straight out from the route on its side first), or the whole sign or signal dropped if nothing is clear within reach. Radius: the post's half width plus a 15 cm gap; `away`: the route's left vector times the side. Everything hung on the post (blades, faces, signal head) moves with it. No `onRoad` (option `poleClear: false`): spots as placed. Islands and medians aren't road meshes, so a post on one stays. `scripts/check/ground_check.ts` (`poleCheck.ts`) fails a build with a post on a drivable mesh.
+- *Mapillary signals at OSM junctions:* the caller (`track.ts`) drops Mapillary traffic lights within 35 m of a junction `trafficLights.ts` already signals, before calling `seenFeatures`. Nothing in this module.
+- *Held up:* the ground check passes a piece over the ground only if something standing touches it, so every raised piece must touch its post or legs (a bench gets two small legs; a sign face sits close enough to its post).
+
+## Small exports used elsewhere
+
+- `off(sample, t)`: the point at lateral offset t (utilities.ts).
+- `signArt(value, art)`: the art key for a Mapillary sign value (rules under Mapillary objects), registering it with the art list, or null. Keys: `speed:NN`, `stop`, `giveway`, `noentry`, `keepleft`, `chevron:left|right`, `warning:<name>`.
+- `Piece`, re-exported from the shared types module (`src/core/pieces.ts`).
+
 ## Placers
 
 ### Street name signs (`streetSigns`)
@@ -43,10 +56,10 @@ Other modules also produce pieces (utilities, footpaths' letterboxes, flags, rac
 
 Each POI is matched to the nearest route segment within 60 m; skip if the matched sample is within 10 m of a roundabout. Signs on one side keep at least 12 m apart along the route (first come, first served; sort the POIs by position first so it's the same every build). At most 80 named signs per build.
 
-- **Bus stop** (class `bus`, within 25 m, spot free): a post at 70% of the verge width out, 2.7 m tall, with a 0.6 m `bus` sign facing traffic at 2.0 m. A shelter 2.3 m beyond the verge edge if the clearance there is over 2.5 m: a 3.6 x 1.7 m steel roof slab at 2.35 to 2.45 m, a glass back wall (3.6 m long, 6 cm thick, set 0.75 m further back, up to 2.35 m), a steel post at each end of the back wall, and a 2.2 x 0.4 m bench at 0.4 to 0.48 m set 0.4 m toward the back. The shelter stands on the ground at the shelter (the old code used the verge edge height for all of it).
+- **Bus stop** (class `bus`, within 25 m, spot free): a post at 70% of the verge width out, 2.7 m tall, with a 0.6 m `bus` sign facing traffic at 2.0 m. A shelter 2.3 m beyond the verge edge if the clearance there is over 2.5 m: a 3.6 x 1.7 m steel roof slab at 2.35 to 2.45 m, a glass back wall (3.6 m long, 6 cm thick, set 0.75 m further back, up to 2.35 m), a steel post at each end of the back wall, and a 2.2 x 0.4 m bench at 0.4 to 0.48 m set 0.4 m toward the back, on two 6 cm steel legs 0.9 m either side of its middle (without them the ground check calls it floating). The shelter stands on the ground at the shelter (the old code used the verge edge height for all of it).
 - **Service station** (class and subclass `fuel`), if it's more than verge + 6 m from the route: a 13 x 8 m canopy, square to the road, 5.0 to 5.8 m up, on four 0.35 m steel columns at (plus or minus 4 m along, plus or minus 2.5 m across). Each column stands on the ground at its own foot; the canopy height is from the lowest column foot. Material `canopy` for the slab, `steel` for the columns. A fuel POI then also gets a sign (below).
 - **Named sign** for attractions and these classes: fast_food, restaurant, cafe, ice_cream, bakery, grocery, shop, clothing_store, pharmacy, bank, beer, alcohol_shop, lodging, car, hospital, school, college, place_of_worship, library, police, post, fire_station, cinema, hairdresser, doctors, dentist, veterinary, sports_centre, fuel. Name from the POI; unnamed fuel says FUEL; an unnamed viewpoint says Lookout; otherwise unnamed POIs get none.
-  - A pylon at the property line: lateral offset = the smaller of the POI's distance and (half road + verge + 2.5 m).
+  - A pylon at the property line: lateral offset = the smaller of the POI's distance and (half road + verge + 2.5 m); if that would put it on the road or verge (under half road + verge), it goes at the property line (so a POI on the road still gets its pylon at the property line, per the edge cases).
   - The whole panel (points 1.3 m either side, across the road) must have clearance of at least 1 m, or no sign.
   - Two 0.12 m steel legs 0.75 m either side, set 0.1 m behind the panel; panel faces traffic, printed both sides. Fuel: 5.2 m tall legs, 1.6 m panel at the top. Others: 3.2 m, 0.9 m panel.
   - Art: attractions kind `tourist`, key `tourist:<name>`; others kind `poi`, key `poi:<class>:<name>`, with a colour per class (a table of brand-neutral colours, one per class above; default a dark slate). Pick your own palette; the old one is plain reds, greens, blues and browns by trade.
@@ -92,6 +105,14 @@ Only for a plan with timing gates (`plan.timed`, a point-to-point route). At eac
 - Meshes grouped by material, chunked: `FURNITURE_<MATERIAL>_NNN`, material as given (sign faces `signart`). `cull.ts` gives `FURNITURE` a 600 m draw distance by name, so keep the prefix.
 
 ## Call sites
+
+Signatures (argument order as `track.ts` calls them):
+- `streetSigns(streetPlan, plan, opts, art, ground, onRoad?)`
+- `landmarks(pois, plan, index, opts, art, clearance, ground)` (POIs in local metres: `{ at, cls, subclass, name? }`)
+- `seenFeatures(seen, plan, index, opts, art, ground, onRoad?)` and `mergeSightings(seen)` (`{ at, value }`, local metres)
+- `gateSigns(plan, opts, art, ground)`
+- `kangarooSigns(plan, opts, art, rural, blocked, ground)`
+- `buildPieces(pieces, atlas | null)` returns kn5 mesh nodes
 
 - `src/core/track.ts`: `streetSigns`, `landmarks`, `seenFeatures`, `mergeSightings` (also feeds utilities), `gateSigns` (when there's no race dressing), `kangarooSigns`, `buildPieces` for the whole pieces list.
 - `src/core/utilities.ts`: `off`, `vergeZ`, `Piece`. With the height contract, utilities needs only `off` and `Piece`.

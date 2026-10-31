@@ -17,7 +17,6 @@ src/core/elevation.ts
 src/core/extend.ts
 src/core/fences.ts
 src/core/frontage.ts
-src/core/furniture.ts
 src/core/geo.ts
 src/core/kerbs.ts
 src/core/lots.ts
