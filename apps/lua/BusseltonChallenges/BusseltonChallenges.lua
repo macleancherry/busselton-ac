@@ -180,6 +180,8 @@ local function driftBoard(k) return board('drift' .. k, true) end
 
 local lanSend, lanQueue, lanTimer, lanShared = nil, {}, 0, -10
 local now = 0
+-- When the app's window was last drawn (markers in the world show only while it's open).
+local windowSeen = -1e9
 
 local function lanPush(id, value, hello)
   if lanSend then lanQueue[#lanQueue + 1] = { board = id, value = value or 0, hello = hello and 1 or 0 } end
@@ -814,6 +816,7 @@ local function windowDrift(car)
 end
 
 function script.windowMain(dt)
+  windowSeen = now
   if not loaded then
     ui.text('Loading...')
     return
@@ -842,21 +845,48 @@ end
 ---------------------------------------------------------------------------------------------------
 -- In the world
 
+-- Markers are soft, see-through upright strips that turn to face the camera. They used to be
+-- stacks of render.debugSphere, which CSP draws as wireframe gizmos (a column of crosshair
+-- circles over the road in every session). If the quad call isn't there, nothing is drawn.
+
+local function cameraPos()
+  local ok, p = pcall(function() return ac.getSim().cameraPosition end)
+  return ok and p or nil
+end
+
+local function strip(foot, width, height, colour)
+  local cam = cameraPos()
+  if not cam then return end
+  local dx, dz = cam.x - foot.x, cam.z - foot.z
+  local l = math.sqrt(dx * dx + dz * dz)
+  if l < 1 then return end
+  local side = vec3(-dz / l * width / 2, 0, dx / l * width / 2)
+  local top = foot + vec3(0, height, 0)
+  pcall(render.quad, foot - side, foot + side, top + side, top - side, colour)
+end
+
+local function setupMarkers()
+  pcall(function()
+    render.setBlendMode(render.BlendMode.AlphaBlend)
+    render.setCullMode(render.CullMode.None)
+    render.setDepthMode(render.DepthMode.ReadOnlyLessEqual)
+  end)
+end
+
 local function beam(pos, colour, height)
-  for k = 0, height do
-    pcall(render.debugSphere, pos + vec3(0, 1 + k * 2.5, 0), k == 0 and 1.5 or 0.6, colour)
-  end
+  strip(pos, 1.2, 2.5 * height, rgbm(colour.r, colour.g, colour.b, 0.35))
 end
 
 local function posts(g, colour)
   local half = g.width / 2
   local side = vec3(-g.dz * half, 0, g.dx * half)
-  for _, p in ipairs({ g.pos + side, g.pos - side }) do
-    for k = 0, 4 do pcall(render.debugSphere, p + vec3(0, 0.5 + k * 0.8, 0), 0.35, colour) end
-  end
+  for _, p in ipairs({ g.pos + side, g.pos - side }) do strip(p, 0.4, 4, rgbm(colour.r, colour.g, colour.b, 0.6)) end
 end
 
 function script.draw3D()
+  -- Only while the app is open or a run is on: a session nobody opened the app in shows nothing.
+  if not (running or ttRunning or now - windowSeen < 2) then return end
+  setupMarkers()
   local car = ac.getCar(0)
   if mode == 'checkpoints' then
     local set = sets[setIndex]
@@ -884,7 +914,7 @@ function script.draw3D()
         local n = math.min(48, math.floor(z.radius * 2 * math.pi / 4))
         for i = 0, n - 1 do
           local t = i / n * 2 * math.pi
-          pcall(render.debugSphere, z.pos + vec3(math.cos(t) * z.radius, 0.6, math.sin(t) * z.radius), 0.4, rgbm(1, 0.45, 0.05, 1))
+          strip(z.pos + vec3(math.cos(t) * z.radius, 0, math.sin(t) * z.radius), 0.3, 1.2, rgbm(1, 0.45, 0.05, 0.6))
         end
       end
     end
