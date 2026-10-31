@@ -113,7 +113,8 @@ export function buildRoadSurfaces(
       if (along > R + 40) break;
       const a = s.pts[Math.max(0, k - 1)], b = s.pts[Math.min(s.pts.length - 1, k + 1)];
       const dl = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;
-      const n: Vec2 = [(-(b[1] - a[1]) / dl) * sideSt, ((b[0] - a[0]) / dl) * sideSt];
+      // The street's left (walking away from the route), on the corner's side; surface() measures t to the left of the points' order.
+      const n: Vec2 = [(-(b[1] - a[1]) / dl) * sideSt * dirStep, ((b[0] - a[0]) / dl) * sideSt * dirStep];
       const w = (s.widths?.[k] ?? s.width) / 2;
       const pos: Vec2 = [s.pts[k][0] + n[0] * w, s.pts[k][1] + n[1] * w];
       if (along > R + 4) {
@@ -121,7 +122,7 @@ export function buildRoadSurfaces(
         if (nr && nr.dist < index.at(nr).width / 2 + 4) break;
       }
       if (inRoundabout(plan, pos[0], pos[1], 4)) break;
-      out.push({ pos, out: n, z: surface(s, k, sideSt * w) });
+      out.push({ pos, out: n, z: surface(s, k, sideSt * dirStep * w) });
     }
     return out.length > 4 ? out : null;
   };

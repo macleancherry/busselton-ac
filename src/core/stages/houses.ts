@@ -169,10 +169,10 @@ export function buildHouses(ctx: BuildContext, g: Ground, bp: BuildingPlan, gm: 
       const side: Vec2 = [toRoad[1], -toRoad[0]];
       const W = 15, D = 13;
       const corner = (u: number, v: number): Vec2 => [at[0] + side[0] * u + toRoad[0] * v, at[1] + side[1] * u + toRoad[1] * v];
-      let ring: Vec2[] = [corner(-W / 2, D / 2), corner(W / 2, D / 2), corner(W / 2, -D / 2), corner(-W / 2, -D / 2)];
-      if (ringArea(ring) < 0) ring = [ring[1], ring[0], ring[3], ring[2]];
+      // Back corners, then the front wall (its corners in the ring's order).
+      const ring: Vec2[] = [corner(W / 2, -D / 2), corner(-W / 2, -D / 2), corner(-W / 2, D / 2), corner(W / 2, D / 2)];
       const surfmist = ROOF_COLOURS.findIndex((r) => r.name === "surfmist");
-      const b: Building = { ...plainHouse(houseRoof(() => 0.3), surfmist, 3), ring, source: "detected", front: [ring[0], ring[1]], setback: Math.max(2, roadGap(ring[0][0], ring[0][1])) };
+      const b: Building = { ...plainHouse(houseRoof(() => 0.3), surfmist, 3), ring, source: "detected", front: [ring[2], ring[3]], setback: Math.max(2, roadGap(ring[2][0], ring[2][1])) };
       shown.push(b);
       homes.push(b);
       if (!finishes.roofs.has(surfmist)) {

@@ -125,7 +125,7 @@ function loopSources(withImagery: boolean, withSea: boolean, extra: boolean): Da
     { rings: [llAll(rect(-100, 165, -97, 200))], edge: [[true, true, true, true]], id: 102 },
   ] : [];
   const beaches = withSea ? [{ rings: [llAll(rect(-700, 150, 700, 178))], edge: [[true, true, true, true]] }] : [];
-  const scene = sceneColour(lines);
+  const scene = sceneColour(lines, extra);
   const src: DataSources = {
     dem: async (proj, bounds, z) => DemGrid.fromFunction(proj, z, bounds, (x, y) => 4 + 0.004 * x + 1.5 * Math.sin(x / 140) * Math.cos(y / 170)).sample,
     widthAt: (p) => {
@@ -198,7 +198,7 @@ function loopSources(withImagery: boolean, withSea: boolean, extra: boolean): Da
     src.paths = [{ pts: llAll([[-150, -60], [-60, -60]]), kind: "foot" }, { pts: llAll([[-170, 140], [170, 140]]), kind: "shared" }];
     src.houseLooks = [
       { at: ll(-124, 9), facade: "wb_blue", front: "hedge", hedgeHeight: 1.1, trees: 2 },
-      { at: ll(-20, -40), place: true, facade: "weatherboard" },
+      { at: ll(-20, -80), place: true, facade: "weatherboard" },
     ];
     src.landmarks = [{ name: "The Lookout", at: ll(-20, 120) }];
     src.roadClassAt = (p) => ((p[1] - lat0) * 111_320 < -90 ? "secondary" : "minor");
@@ -215,7 +215,7 @@ function loopSources(withImagery: boolean, withSea: boolean, extra: boolean): Da
 }
 
 /** The aerial photo of the loop scenes, RGB 0..1 at a local point. */
-function sceneColour(lines: { pts: Vec2[]; cls: string }[]) {
+function sceneColour(lines: { pts: Vec2[]; cls: string }[], footpaths = false) {
   const segs: [Vec2, Vec2, number][] = [];
   for (const l of lines) {
     if (l.cls === "path") continue;
@@ -244,7 +244,14 @@ function sceneColour(lines: { pts: Vec2[]; cls: string }[]) {
       const n = hash(x * 4, y * 4) * 0.04;
       return [0.3 + n, 0.31 + n, 0.33 + n];
     }
-    if (d < 5.2 || street < 1.6) return [0.74, 0.73, 0.69];
+    // With footpaths (scene d): a kerb, the nature strip, a 1.5 m footpath 4 m back, and driveways every 26 m on the bottom edge.
+    if (footpaths && street >= 1.6 && d < 11) {
+      if (d < 3.8) return [0.74, 0.73, 0.69];
+      if (y < -100 && ((x + 300) % 26) < 3.2) return [0.76, 0.75, 0.71];
+      if (d > 7.5 && d < 9) return [0.78, 0.77, 0.73];
+    }
+    if (!footpaths && (d < 5.2 || street < 1.6)) return [0.74, 0.73, 0.69];
+    if (footpaths && street < 1.6) return [0.74, 0.73, 0.69];
     for (const h of hs) {
       const xs = h.map((p) => p[0]), ys = h.map((p) => p[1]);
       if (x > Math.min(...xs) && x < Math.max(...xs) && y > Math.min(...ys) && y < Math.max(...ys)) return [0.5, 0.22, 0.18];
