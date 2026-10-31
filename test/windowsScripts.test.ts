@@ -66,4 +66,18 @@ describe("Busselton Lua apps", () => {
       expect([png.readUInt32BE(16), png.readUInt32BE(20)]).toEqual([64, 64]);
     });
   }
+
+  // Retest 4: the Challenges beam, a flat-coloured render.quad, came out as a solid bar.
+  it("draws the Challenges markers as soft, see-through glow (shaderedQuad, alpha blend, no depth writes)", () => {
+    const lua = readFileSync("apps/lua/BusseltonChallenges/BusseltonChallenges.lua", "utf8");
+    expect(lua).toContain("blendMode = render.BlendMode.AlphaBlend");
+    expect(lua).toContain("render.setDepthMode(render.DepthMode.ReadOnlyLessEqual)");
+    expect(lua).toContain("pcall(render.shaderedQuad, glow)");
+    // Alpha from the shader: soft sides, fading in off the ground and out towards the top.
+    expect(lua).toMatch(/return pin\.ApplyFog\(float4\(gColor \* gWhiteRefPoint \* gBright, gAlpha \* side \* ends\)\);/);
+    // Every strip passes its alpha.
+    for (const call of lua.match(/\bstrip\([^\n]*\)/g)!.filter((c) => !c.startsWith("strip(foot"))) {
+      expect(call.split(",").length, call).toBeGreaterThanOrEqual(5);
+    }
+  });
 });

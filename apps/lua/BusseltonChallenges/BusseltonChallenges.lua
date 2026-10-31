@@ -845,16 +845,48 @@ end
 ---------------------------------------------------------------------------------------------------
 -- In the world
 
--- Markers are soft, see-through upright strips that turn to face the camera. They used to be
--- stacks of render.debugSphere, which CSP draws as wireframe gizmos (a column of crosshair
--- circles over the road in every session). If the quad call isn't there, nothing is drawn.
+-- Markers are soft, see-through upright strips of light that turn to face the camera. They used to
+-- be stacks of render.debugSphere, which CSP draws as wireframe gizmos (a column of crosshair circles
+-- over the road in every session).
+--
+-- Retest 4 (31 Oct 2026): drawn with render.quad and rgbm(1, 0.75, 0.1, 0.35), the beam came out as a
+-- flat, solid yellow bar. render.quad's flat colour is drawn as is: one even, full-strength colour
+-- right to the edges, in an HDR scene where 1.0 is already bright, so the 35% didn't make it soft.
+-- Now each strip is a render.shaderedQuad with its own pixel shader, as CSP's rally mode draws its
+-- start gates (acc-lua-internal included-new-modes/rally/mode.lua): alpha blending
+-- (render.BlendMode.AlphaBlend), the depth test on but no depth writes
+-- (render.DepthMode.ReadOnlyLessEqual) so it never hides what's behind it, colour scaled by
+-- gWhiteRefPoint so it's as bright by day as at night, pin.ApplyFog, and an alpha that is highest
+-- in the middle and fades to nothing at the sides, just off the ground and towards the top. Where
+-- shaderedQuad isn't there (an older CSP) it falls back to the plain quad, dimmed.
 
 local function cameraPos()
   local ok, p = pcall(function() return ac.getSim().cameraPosition end)
   return ok and p or nil
 end
 
-local function strip(foot, width, height, colour)
+-- One params table, reused every call (CSP's advice for shaderedQuad: same keys each time, so the
+-- shader compiles once).
+local glow = {
+  p1 = vec3(), p2 = vec3(), p3 = vec3(), p4 = vec3(),
+  blendMode = render.BlendMode.AlphaBlend,
+  async = true,
+  cacheKey = 4401,
+  values = { gColor = rgb(1, 1, 1), gAlpha = 0.3, gBaseY = 0, gHeight = 1, gBright = 1.5 },
+  shader = [[
+    float4 main(PS_IN pin) {
+      float3 posW = pin.PosC + gCameraPosition;
+      float h = saturate((posW.y - gBaseY) / gHeight);   // 0 at the foot, 1 at the top
+      float x = saturate(abs(pin.Tex.x * 2 - 1));        // 0 in the middle, 1 at the sides
+      float side = (1 - x) * (1 - x);                     // soft sides
+      float ends = saturate(h * 10) * pow(1 - h, 1.6);   // fades in off the ground, out towards the top
+      return pin.ApplyFog(float4(gColor * gWhiteRefPoint * gBright, gAlpha * side * ends));
+    }
+  ]],
+}
+local glowOk = render.shaderedQuad ~= nil
+
+local function strip(foot, width, height, colour, alpha)
   local cam = cameraPos()
   if not cam then return end
   local dx, dz = cam.x - foot.x, cam.z - foot.z
@@ -862,7 +894,15 @@ local function strip(foot, width, height, colour)
   if l < 1 then return end
   local side = vec3(-dz / l * width / 2, 0, dx / l * width / 2)
   local top = foot + vec3(0, height, 0)
-  pcall(render.quad, foot - side, foot + side, top + side, top - side, colour)
+  if glowOk then
+    -- p1..p4 top left, top right, bottom right, bottom left, as rally/mode.lua passes them.
+    glow.p1:set(top - side); glow.p2:set(top + side); glow.p3:set(foot + side); glow.p4:set(foot - side)
+    glow.values.gColor:set(colour.r, colour.g, colour.b)
+    glow.values.gAlpha, glow.values.gBaseY, glow.values.gHeight = alpha, foot.y, height
+    if pcall(render.shaderedQuad, glow) then return end
+    glowOk = false
+  end
+  pcall(render.quad, foot - side, foot + side, top + side, top - side, rgbm(colour.r * 0.3, colour.g * 0.3, colour.b * 0.3, alpha))
 end
 
 local function setupMarkers()
@@ -874,13 +914,13 @@ local function setupMarkers()
 end
 
 local function beam(pos, colour, height)
-  strip(pos, 1.2, 2.5 * height, rgbm(colour.r, colour.g, colour.b, 0.35))
+  strip(pos, 2.4, 2.5 * height, colour, 0.35)
 end
 
 local function posts(g, colour)
   local half = g.width / 2
   local side = vec3(-g.dz * half, 0, g.dx * half)
-  for _, p in ipairs({ g.pos + side, g.pos - side }) do strip(p, 0.4, 4, rgbm(colour.r, colour.g, colour.b, 0.6)) end
+  for _, p in ipairs({ g.pos + side, g.pos - side }) do strip(p, 0.8, 4, colour, 0.6) end
 end
 
 function script.draw3D()
@@ -891,7 +931,7 @@ function script.draw3D()
   if mode == 'checkpoints' then
     local set = sets[setIndex]
     local target = set and set.points[nextIndex]
-    -- A beam of light: a stack of glowing spheres, tall enough to see over houses.
+    -- A soft beam of light, tall enough to see over houses.
     if target then beam(target.pos, rgbm(1, 0.75, 0.1, 1), 12) end
   elseif mode == 'trial' and tt then
     if ttRunning then
@@ -914,7 +954,7 @@ function script.draw3D()
         local n = math.min(48, math.floor(z.radius * 2 * math.pi / 4))
         for i = 0, n - 1 do
           local t = i / n * 2 * math.pi
-          strip(z.pos + vec3(math.cos(t) * z.radius, 0, math.sin(t) * z.radius), 0.3, 1.2, rgbm(1, 0.45, 0.05, 0.6))
+          strip(z.pos + vec3(math.cos(t) * z.radius, 0, math.sin(t) * z.radius), 0.6, 1.2, rgbm(1, 0.45, 0.05, 1), 0.6)
         end
       end
     end
