@@ -1,454 +1,470 @@
-// Roadside scenery: trees found in the aerial imagery, guard rails where the
-// ground falls away (or where OSM maps one), and guide posts. Buildings
-// live in buildings.ts.
+// Busselton fork: roadside scenery. Trees found in the aerial photo, kept clear of the road, drawn
+// as crossed sprite cards with invisible trunks; W-beam guard rails where the land falls away; white
+// guide posts along the verges. Written fresh from docs/specs/scenery.md.
 //
-// Trees and posts are visual only. Guard rails are collidable (their names
-// start with 1WALL_).
+// Heights: every builder is handed `ground(x, y)`, the built physics ground (sceneGround.ts), and
+// stands each piece on it at the piece's own foot, SINK into it. Nothing here works a height out.
+//
+// Randomness that belongs to a place (which photo cells grow a tree, a tree's turn) is seeded by
+// position (random.ts), so the same tree comes out the same whatever else is in the list.
 
-import type { HeightFn } from "./elevation";
-import type { Vec2 } from "./geo";
-import type { Kn5MeshNode } from "./kn5";
-import { MAX_MESH_VERTICES } from "./kn5";
-import { MeshBuilder, type Vec3 } from "./mesh";
-import type { BuildOptions } from "./options";
-import { surfaceHeight, type RoadPlan, type SegmentIndex } from "./road";
-import type { TerrainChunk } from "./terrain";
-import { TREE_SPECIES } from "./treeSprites";
-import { pad } from "./roadMesh";
+import type { Bounds, Vec2 } from "./geo";
+import type { MeshBuilder } from "./mesh";
 import { SINK } from "./sceneGround";
+import { TREE_SPECIES, type TreeSpecies } from "./treeSprites";
+import { placeRandom, placeSeed, rng } from "./random";
+import { box, ChunkedMesh } from "./meshKit";
 
-export function rng(seed: number): () => number {
-  let s = seed >>> 0;
-  return () => {
-    s = (s + 0x6d2b79f5) >>> 0;
-    let t = s;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
+// The shared helpers live in their own modules; re-exported so existing imports keep working.
+export { rng, placeRandom, placeSeed } from "./random";
+export { box, ChunkedMesh, type SideUv } from "./meshKit";
+
+/* ================================================================== what the module needs */
+
+/** Height of the surface at a local point, metres (sceneGround.ts, or any stand-in). */
+type Ground = (x: number, y: number) => number;
+/** A kn5 mesh node, as MeshBuilder makes them. */
+type MeshNode = ReturnType<MeshBuilder["toKn5"]>;
+/** The build settings used here (BuildOptions has them all). */
+interface SceneryOpts { corridor: number; vergeWidth: number; spacing: number }
+/** A route sample (road.ts RoadSample): where, which way, how wide, how far along. */
+interface Station { pos: Vec2; tan: Vec2; left: Vec2; width: number; s: number }
+/** The route (road.ts RoadPlan). */
+interface Route { closed: boolean; samples: Station[] }
+/** The closest point on the route: distance, segment, signed offset (left positive), fraction along. */
+type Near = { dist: number; seg: number; t: number; frac: number };
+/** Nearest-point lookups on the route (road.ts SegmentIndex). */
+interface RouteIndex {
+  nearest(x: number, y: number, maxDist: number): Near | null;
+  at(n: Near): { width: number };
 }
+/** Per sample, [left, right]. */
+type Sides = [boolean[], boolean[]];
 
-/** Splits mesh output into kn5-sized pieces as it grows. */
-export class ChunkedMesh {
-  private current = new MeshBuilder();
-  readonly done: MeshBuilder[] = [];
-  constructor(private readonly perItem: number) {}
+/** Three-digit mesh numbering, as the rest of the build names meshes. */
+const num = (i: number) => String(i).padStart(3, "0");
+/** +1 for the left side (index 0), -1 for the right. */
+const sideSign = (side: number) => (side === 0 ? 1 : -1);
+/** A point `d` metres out from a station on a side. */
+const outFrom = (st: Station, sign: number, d: number): Vec2 => [st.pos[0] + st.left[0] * sign * d, st.pos[1] + st.left[1] * sign * d];
 
-  next(perItem = this.perItem): MeshBuilder {
-    if (this.current.vertexCount + perItem > MAX_MESH_VERTICES) {
-      this.done.push(this.current);
-      this.current = new MeshBuilder();
-      this.current.normals = [];
-    }
-    if (!this.current.normals) this.current.normals = [];
-    return this.current;
-  }
+/* ================================================================== trees: species sizes */
 
-  all(): MeshBuilder[] {
-    return [...this.done, this.current].filter((m) => m.indices.length > 0);
-  }
-}
-
-/* ---------------- trees ---------------- */
-
-export interface TreeSpot {
+export type TreeSpot = {
   x: number;
   y: number;
-  scale: number;
-  /** Index into TREE_SPECIES. */
-  variant: number;
-  /** Busselton fork: the CSP tree model (treeModels.ts MODEL_NAMES index) when it isn't the variant's own (treeZones.ts). */
-  model?: number;
-  /** Water within about 60 m in the aerial photo (the foreshore). */
-  coastal?: boolean;
+  scale: number; // relative to the species' natural size
+  variant: number; // card index into TREE_SPECIES; with zones and CSP trees, maybe a CSP model index past the cards
+  model?: number; // CSP tree model index (treeModels.ts MODEL_NAMES), when it isn't the variant
+  coastal?: boolean; // water within about 60 m in the aerial photo
+};
+
+/** CSP tree models with no card (karri, marri) borrow the tuart card's size (treeZones.ts CARD_FOR). */
+const CARDLESS_MODELS = 2;
+const STAND_IN_CARD = 3;
+const DEFAULT_TRUNK = 0.4;
+
+/** The card whose sizes a tree uses: its own, the tuart for the card-less CSP models, else card 0. */
+export function cardFor(variant: number): TreeSpecies {
+  if (Number.isInteger(variant) && variant >= 0) {
+    if (variant < TREE_SPECIES.length) return TREE_SPECIES[variant];
+    if (variant < TREE_SPECIES.length + CARDLESS_MODELS) return TREE_SPECIES[STAND_IN_CARD];
+  }
+  return TREE_SPECIES[0];
 }
 
+/** Crown radius at scale 1 for a tree's variant, metres. */
+export const crownRadius = (variant: number): number => cardFor(variant).crown;
+/** Trunk width at scale 1 for a tree's variant, metres. */
+export const trunkWidth = (variant: number): number => cardFor(variant).trunk ?? DEFAULT_TRUNK;
+
+/** Crown radius per card, metres at scale 1. */
+export const CROWN_RADIUS: number[] = TREE_SPECIES.map((sp) => sp.crown);
+/** Trunk width per card, metres at scale 1. */
+export const TRUNK: number[] = TREE_SPECIES.map((sp) => sp.trunk ?? DEFAULT_TRUNK);
+
+/* ================================================================== trees: from the photo */
+
+/** Cell size by density, metres. */
+const CELL_NORMAL = 6.5, CELL_DENSE = 4.5;
+const COAST_RADIUS = 60;
+const COAST_SHARE = 0.2;
+const STRETCH_SHARE = 0.7;
+const SALT_CELL = 0x7ee5;
+
+// What a cell shows.
+const NONE = 0, WATER = 1, LUSH = 2, OLIVE = 3, SHADED = 4;
+type CellKind = typeof NONE | typeof WATER | typeof LUSH | typeof OLIVE | typeof SHADED;
+interface CellLook { kind: CellKind; p: number; valid: boolean }
+const NO_DATA: CellLook = { kind: NONE, p: 0, valid: false };
+
+/** What one photo cell shows, from its mean colour, mean lightness and lightness spread. */
+function classify(red: number, green: number, blue: number, light: number, spread: number): CellLook {
+  // Sea first: teal water reads green otherwise.
+  if (blue - red > 0.05 && blue >= 0.85 * green) return { kind: WATER, p: 0, valid: true };
+  if (light >= 0.42 || light <= 0.04) return { kind: NONE, p: 0, valid: true };
+  const exg = (2 * green - red - blue) / (red + green + blue || 1e-6);
+  if (exg > 0.05 && spread > 0.025) return { kind: LUSH, p: 0.35 + 0.65 * Math.min(1, (exg - 0.05) / 0.15), valid: true };
+  if (exg > 0.012 && green >= red * 0.98 && blue <= green && spread >= 0.04 && spread <= 0.14) {
+    return { kind: OLIVE, p: 0.3 + 0.4 * Math.min(1, (spread - 0.04) / 0.1), valid: true };
+  }
+  if (red <= green * 1.05 && blue < Math.max(red, green) * 1.15 && spread >= 0.035 && spread <= 0.18) return { kind: SHADED, p: 0, valid: true };
+  return { kind: NONE, p: 0, valid: true };
+}
+
+const canopy = (kind: CellKind) => kind === LUSH || kind === OLIVE || kind === SHADED;
+
 /**
- * Finds tree canopy in an aerial texture covering `chunk` (RGBA, north up).
- * Per cell: canopy is green-dominant (excess-green index), darker than open
- * grass, and textured (crowns and their shadows), where lawns and paddocks
- * are smooth.
+ * Tree spots in one chunk's aerial photo (RGBA, north up, `size` pixels square). `density` 0 is off,
+ * 1 normal, 2 dense. Species is left at 0 for the pipeline to choose.
  */
-export function treeSpotsFromImagery(
-  rgba: Uint8Array | Uint8ClampedArray,
-  size: number,
-  chunk: TerrainChunk,
-  density: number,
-): TreeSpot[] {
-  if (density <= 0) return [];
-  const span = chunk.maxX - chunk.minX;
-  const cell = density >= 2 ? 4.5 : 6.5;
-  const pxPerM = size / span;
-  const cellPx = Math.max(2, Math.round(cell * pxPerM));
+export function treeSpotsFromImagery(rgba: Uint8Array | Uint8ClampedArray, size: number, chunk: Bounds, density: number): TreeSpot[] {
+  if (!(density > 0) || size <= 0) return [];
+  const width = chunk.maxX - chunk.minX;
+  if (!(width > 0)) return [];
+  const metresPerPx = width / size;
+  const cellPx = Math.max(2, Math.round((density >= 2 ? CELL_DENSE : CELL_NORMAL) / metresPerPx));
   const cells = Math.floor(size / cellPx);
-  const rand = rng(Math.round(chunk.minX * 7 + chunk.minY * 13) | 0);
-  const out: TreeSpot[] = [];
-  const water = new Uint8Array(cells * cells);
-  // Each cell: 0 nothing, 1 lush canopy, 2 grey-olive canopy (decided with its neighbours below), 3 shaded canopy.
-  const kind = new Uint8Array(cells * cells);
-  const odds = new Float32Array(cells * cells);
-  for (let cy = 0; cy < cells; cy++) {
-    for (let cx = 0; cx < cells; cx++) {
-      let sr = 0, sg = 0, sb = 0, sl = 0, sl2 = 0, n = 0;
-      for (let y = cy * cellPx; y < (cy + 1) * cellPx; y++) {
-        for (let x = cx * cellPx; x < (cx + 1) * cellPx; x++) {
-          const i = (y * size + x) * 4;
-          const r = rgba[i] / 255, g = rgba[i + 1] / 255, b = rgba[i + 2] / 255;
-          const l = (r + g + b) / 3;
-          sr += r; sg += g; sb += b; sl += l; sl2 += l * l; n++;
+  if (cells < 1) return [];
+  const cellM = cellPx * metresPerPx;
+
+  const looks: CellLook[] = [];
+  for (let row = 0; row < cells; row++) {
+    for (let col = 0; col < cells; col++) {
+      let sr = 0, sg = 0, sb = 0, sl = 0, sl2 = 0, used = 0;
+      for (let py = row * cellPx; py < (row + 1) * cellPx; py++) {
+        for (let px = col * cellPx; px < (col + 1) * cellPx; px++) {
+          const o = (py * size + px) * 4;
+          if (rgba[o + 3] === 0) continue; // no data
+          const cr = rgba[o] / 255, cg = rgba[o + 1] / 255, cb = rgba[o + 2] / 255;
+          const lum = (cr + cg + cb) / 3;
+          sr += cr; sg += cg; sb += cb; sl += lum; sl2 += lum * lum; used++;
         }
       }
-      const r = sr / n, g = sg / n, b = sb / n, l = sl / n;
-      const std = Math.sqrt(Math.max(0, sl2 / n - l * l));
-      const exg = (2 * g - r - b) / (r + g + b + 1e-6);
-      const c = cy * cells + cx;
-      // Teal sea also reads green: blue well above red and close to green is water, not canopy.
-      if (b - r > 0.08 && b > 0.75 * g) {
-        water[c] = 1;
+      if (used < (cellPx * cellPx) / 2) {
+        looks.push(NO_DATA);
         continue;
       }
-      if (l >= 0.42 || l <= 0.04) continue;
-      // Lush canopy is plainly green. Eucalypt and tuart canopy is grey-olive, barely greener than
-      // grey: textured like a crown, not red, sandy or blue-grey.
-      if (exg > 0.05 && std > 0.025) {
-        kind[c] = 1;
-        // Stronger signal, more likely a tree; keeps sparse scrub sparse.
-        odds[c] = Math.min(1, 0.35 + (exg - 0.05) * 6);
-      } else if (exg > 0.012 && g >= r * 0.98 && b < r * 1.15 && std > 0.04 && std < 0.14) {
-        kind[c] = 2;
-        odds[c] = Math.min(1, 0.3 + (std - 0.04) * 6);
-      } else if (g >= r * 0.95 && b < r * 1.3 && std > 0.035 && std < 0.18) {
-        // Dark, textured, not red: canopy in shade. A tree only inside a stretch of canopy.
-        kind[c] = 3;
-      }
+      const mean = sl / used;
+      looks.push(classify(sr / used, sg / used, sb / used, mean, Math.sqrt(Math.max(0, sl2 / used - mean * mean))));
     }
   }
-  for (let cy = 0; cy < cells; cy++) {
-    for (let cx = 0; cx < cells; cx++) {
-      const c = cy * cells + cx;
-      if (!kind[c]) continue;
-      let p = odds[c];
-      if (kind[c] >= 2) {
-        // Grey-olive and shaded canopy count only inside a stretch of canopy (most neighbours canopy too): a row of
-        // parked cars or a roof edge is as textured, but a strip one or two cells wide.
-        let canopy = 0, seen = 0;
-        for (let dy = -1; dy <= 1; dy++) {
-          for (let dx = -1; dx <= 1; dx++) {
-            const x = cx + dx, y = cy + dy;
-            if ((dx || dy) && x >= 0 && y >= 0 && x < cells && y < cells) {
-              seen++;
-              if (kind[y * cells + x]) canopy++;
-            }
-          }
-        }
-        if (canopy < seen * 0.7) continue;
-        // Inside forest: olive crowns most cells, and a fair share of the shaded ones.
-        p = kind[c] === 2 ? Math.max(p, 0.6) : 0.4;
+  const lookAt = (col: number, row: number): CellLook | null => (col < 0 || row < 0 || col >= cells || row >= cells ? null : looks[row * cells + col]);
+
+  // Grey-olive and shaded cells only count inside a stretch of canopy.
+  const inStretch = (col: number, row: number) => {
+    let inside = 0, green = 0;
+    for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) {
+      const nb = dr || dc ? lookAt(col + dc, row + dr) : null;
+      if (!nb) continue;
+      inside++;
+      if (canopy(nb.kind)) green++;
+    }
+    return inside > 0 && green / inside >= STRETCH_SHARE;
+  };
+
+  // Coastal: more than a fifth of the cells within 60 m are water.
+  const reach = Math.ceil(COAST_RADIUS / cellM);
+  const byWater = (col: number, row: number) => {
+    let seen = 0, wet = 0;
+    for (let dr = -reach; dr <= reach; dr++) for (let dc = -reach; dc <= reach; dc++) {
+      if ((dr * dr + dc * dc) * cellM * cellM > COAST_RADIUS * COAST_RADIUS) continue;
+      const nb = lookAt(col + dc, row + dr);
+      if (!nb?.valid) continue;
+      seen++;
+      if (nb.kind === WATER) wet++;
+    }
+    return seen > 0 && wet / seen > COAST_SHARE;
+  };
+
+  const found: TreeSpot[] = [];
+  for (let row = 0; row < cells; row++) {
+    for (let col = 0; col < cells; col++) {
+      const look = looks[row * cells + col];
+      if (!canopy(look.kind)) continue;
+      let chance = look.p;
+      if (look.kind !== LUSH) {
+        if (!inStretch(col, row)) continue;
+        chance = Math.max(chance, look.kind === OLIVE ? 0.6 : 0.4);
       }
-      if (rand() > p) continue;
-      const px = (cx + 0.5 + (rand() - 0.5) * 0.95) * cellPx, py = (cy + 0.5 + (rand() - 0.5) * 0.95) * cellPx;
-      out.push({
-        x: chunk.minX + px / pxPerM,
-        y: chunk.maxY - py / pxPerM,
-        scale: 0.75 + rand() * 0.6,
-        variant: 0,
-      });
+      const cx = chunk.minX + (col + 0.5) * cellM, cy = chunk.maxY - (row + 0.5) * cellM;
+      // Draws seeded by where the cell is on the map, not by which chunk or in what order.
+      const draw = rng(placeSeed(cx, cy, SALT_CELL));
+      if (draw() >= chance) continue;
+      const tx = cx + (draw() - 0.5) * cellM, ty = cy + (draw() - 0.5) * cellM;
+      found.push({ x: tx, y: ty, scale: 0.75 + draw() * 0.6, variant: 0, coastal: byWater(col, row) });
     }
   }
-  // Coastal: a real stretch of water within ~60 m (at least a fifth of the cells
-  // around), not a blue roof or a swimming pool.
-  const reach = Math.ceil(60 / cell);
-  for (const t of out) {
-    const cx = Math.floor(((t.x - chunk.minX) * pxPerM) / cellPx), cy = Math.floor(((chunk.maxY - t.y) * pxPerM) / cellPx);
-    let wet = 0, seen = 0;
-    for (let dy = -reach; dy <= reach; dy++) {
-      for (let dx = -reach; dx <= reach; dx++) {
-        const x = cx + dx, y = cy + dy;
-        if (x < 0 || y < 0 || x >= cells || y >= cells || dx * dx + dy * dy > reach * reach) continue;
-        seen++;
-        wet += water[y * cells + x];
-      }
-    }
-    t.coastal = seen > 0 && wet / seen > 0.2;
-  }
-  return out;
+  return found;
 }
 
-/** Crown radius of a tree sprite at scale 1, metres (half the quad width). */
-export const CROWN_RADIUS = TREE_SPECIES.map((s) => s.crown);
+/* ================================================================== trees: clear of the road */
+
+/** Spare room left between a crown and the road's verge, metres. */
+const VERGE_GAP = 1.5;
+/** The share of a crown that has to fit (crowns overlap the verge a little). */
+const CROWN_SHARE = 0.6;
 
 /**
- * Keeps trunks off the road and verges and inside the terrain corridor.
- * Trees close to the road are scaled down so their crowns stop at the verge
- * instead of hanging over the asphalt. Caps the total for frame rate.
+ * Keeps trees that fit beside the road, shrinking those that nearly fit, and thins evenly to `max`.
+ * `cover` (area builds): the build's coverage distance (makeCover); beyond the corridor a tree stays
+ * only where it is within the corridor less 3 m.
  */
-export function filterTrees(spots: TreeSpot[], index: SegmentIndex, opts: BuildOptions, max: number, cover?: (x: number, y: number) => number): TreeSpot[] {
-  const kept: TreeSpot[] = [];
-  for (const t of spots) {
-    const n = index.nearest(t.x, t.y, opts.corridor);
-    // Busselton fork: or anywhere in the area an area build covers (side streets clear their own trees).
-    if (!n || n.dist > opts.corridor - 3) {
-      if (cover && cover(t.x, t.y) <= opts.corridor - 3) kept.push(t);
-      continue;
+export function filterTrees(spots: TreeSpot[], index: RouteIndex, opts: SceneryOpts, max: number, cover?: Ground): TreeSpot[] {
+  const reach = opts.corridor - 3;
+  const fits: TreeSpot[] = [];
+  for (const tree of spots) {
+    const near = index.nearest(tree.x, tree.y, Math.max(0, opts.corridor));
+    if ((near === null || near.dist > reach) && !(cover && cover(tree.x, tree.y) <= reach)) continue;
+    let scale = tree.scale;
+    if (near !== null) {
+      const room = near.dist - (index.at(near).width / 2 + opts.vergeWidth + VERGE_GAP);
+      if (!(room > 0)) continue;
+      const crown = CROWN_SHARE * crownRadius(tree.variant);
+      if (crown * scale > room) {
+        const shrunk = room / crown;
+        if (shrunk < scale / 2) continue;
+        scale = shrunk;
+      }
     }
-    const room = n.dist - (index.at(n).width / 2 + opts.vergeWidth + 1.5);
-    if (room <= 0) continue;
-    const crown = CROWN_RADIUS[t.variant] * t.scale;
-    if (crown * 0.6 <= room) kept.push(t);
-    else if (room / (CROWN_RADIUS[t.variant] * 0.6) >= 0.5) kept.push({ ...t, scale: room / (CROWN_RADIUS[t.variant] * 0.6) });
+    fits.push(scale === tree.scale ? tree : { ...tree, scale });
   }
-  if (kept.length <= max) return kept;
-  // Thin evenly rather than cutting off whole areas.
-  const step = kept.length / max;
-  return Array.from({ length: max }, (_, i) => kept[Math.floor(i * step)]);
+  // The same trees survive every build: order by place, then take every k-th.
+  fits.sort((a, b) => a.y - b.y || a.x - b.x);
+  const cap = Math.max(0, Math.floor(max));
+  if (fits.length <= cap) return fits;
+  const step = fits.length / cap;
+  return Array.from({ length: cap }, (_, k) => fits[Math.floor(k * step)]);
 }
 
-/** Trunk width at scale 1 per sprite (broadleaf, conifer, eucalypt, palm), metres. */
-/** Trunk width per TREE_SPECIES entry (peppermint, she-oak, Norfolk pine, tuart, palm), metres at scale 1. */
-const TRUNK = [0.45, 0.3, 0.5, 0.75, 0.6];
+/* ================================================================== trees: meshes */
+
+const SALT_TURN = 0x7a11;
+/** How much of a card's own facing the foliage normal keeps; the rest points up. */
+const CARD_LEAN = 0.35;
+const TREE_VERTS = 24;
+const TRUNK_TOP = 3;
+const TRUNK_MIN = 0.2;
 
 /**
- * Solid trunks: an invisible box at each tree for the physics (1WALL_), so a
- * car that leaves the road hits the tree rather than driving through it.
+ * Crossed-card trees: three upright two-sided cards per tree, 60 degrees apart, standing `sink` into
+ * `ground` at the trunk. Meshes `<prefix>_NNN`, material `trees`.
  */
-export function treeTrunks(spots: TreeSpot[], ground: HeightFn): Kn5MeshNode[] {
-  const out = new ChunkedMesh(20);
-  for (const t of spots) {
-    const w = Math.max(0.2, TRUNK[t.variant] * t.scale);
-    const z = ground(t.x, t.y);
-    box(out.next(), [t.x, t.y], [1, 0], w, w, z - 0.5, z + 3);
-  }
-  return out.all().map((mb, i) => mb.toKn5(`1WALL_TREE_${pad(i)}`, "wall", { renderable: false, castShadows: false }));
-}
-
-const TREE_PLANES = 3;
-const TREE_VERTS = TREE_PLANES * 8;
-
-/**
- * Crossed-quad trees (three planes, both faces), alpha-tested. The trunk (the planes' shared middle)
- * stands `sink` metres into the ground at the tree's spot.
- */
-export function buildTrees(spots: TreeSpot[], ground: HeightFn, name = "TREES", sink = SINK): Kn5MeshNode[] {
-  const rand = rng(99);
-  const out = new ChunkedMesh(TREE_VERTS);
-  for (const t of spots) {
-    const mb = out.next();
-    const v = TREE_SPECIES[t.variant] ?? TREE_SPECIES[0];
-    const H = v.height * t.scale;
-    const W = v.crown * 2 * t.scale;
-    const z = ground(t.x, t.y) - sink;
-    const rot = rand() * Math.PI;
-    for (let p = 0; p < TREE_PLANES; p++) {
-      const a = rot + (p * Math.PI) / TREE_PLANES;
-      const dx = Math.cos(a) * W / 2, dy = Math.sin(a) * W / 2;
-      // Face normal, tilted strongly upward so foliage lights like a canopy.
-      const fx = Math.sin(a), fy = -Math.cos(a);
-      for (const side of [1, -1]) {
-        const nx = fx * side * 0.35, ny = fy * side * 0.35, l = Math.hypot(nx, ny, 1);
-        const base = mb.vertexCount;
-        const corners: [Vec3, number, number][] = [
-          [[t.x - dx, t.y - dy, z], v.u0, 1],
-          [[t.x + dx, t.y + dy, z], v.u1, 1],
-          [[t.x + dx, t.y + dy, z + H], v.u1, 0],
-          [[t.x - dx, t.y - dy, z + H], v.u0, 0],
-        ];
-        for (const [pos, u, vv] of corners) {
-          mb.vertex(pos, u, vv);
-          mb.normals!.push(nx / l, ny / l, 1 / l);
-        }
-        if (side === 1) mb.quad(base, base + 1, base + 2, base + 3);
-        else mb.quad(base, base + 3, base + 2, base + 1);
+export function buildTrees(spots: TreeSpot[], ground: Ground, prefix = "TREES", sink: number = SINK): MeshNode[] {
+  const meshes = new ChunkedMesh(TREE_VERTS);
+  for (const tree of spots) {
+    const sp = cardFor(tree.variant);
+    const half = sp.crown * tree.scale;
+    const foot = ground(tree.x, tree.y) - sink, crownTop = foot + sp.height * tree.scale;
+    const turn = placeRandom(tree.x, tree.y, SALT_TURN) * Math.PI;
+    const mb = meshes.next(TREE_VERTS);
+    for (let card = 0; card < 3; card++) {
+      const ang = turn + (card * Math.PI) / 3;
+      const dx = Math.cos(ang), dy = Math.sin(ang);
+      const ax = tree.x - dx * half, ay = tree.y - dy * half, bx = tree.x + dx * half, by = tree.y + dy * half;
+      // Quad (a low, b low, b high, a high) faces (dy, -dx); the back face is wound the other way.
+      for (const face of [1, -1]) {
+        const nx = dy * face * CARD_LEAN, ny = -dx * face * CARD_LEAN, nl = Math.hypot(nx, ny, 1);
+        const aLow = mb.vertex([ax, ay, foot], sp.u0, 1);
+        const bLow = mb.vertex([bx, by, foot], sp.u1, 1);
+        const bHigh = mb.vertex([bx, by, crownTop], sp.u1, 0);
+        const aHigh = mb.vertex([ax, ay, crownTop], sp.u0, 0);
+        if (face === 1) mb.quad(aLow, bLow, bHigh, aHigh);
+        else mb.quad(bLow, aLow, aHigh, bHigh);
+        for (let q = 0; q < 4; q++) mb.normals!.push(nx / nl, ny / nl, 1 / nl);
       }
     }
   }
-  return out.all().map((mb, i) => mb.toKn5(`${name}_${pad(i)}`, "trees", { castShadows: true }));
+  return meshes.all().map((mb, i) => mb.toKn5(`${prefix}_${num(i)}`, "trees", { castShadows: true }));
 }
 
-/* ---------------- boxes ---------------- */
-
-/**
- * Axis-aligned-to-the-road box: `along` is the unit direction of its length.
- * Faces wind counter-clockwise from outside.
- */
-export function box(mb: MeshBuilder, c: Vec2, along: Vec2, length: number, depth: number, z0: number, z1: number, faceU?: [number, number][]): void {
-  const ax = along[0] * length / 2, ay = along[1] * length / 2;
-  const bx = -along[1] * depth / 2, by = along[0] * depth / 2;
-  const corners: Vec2[] = [
-    [c[0] - ax - bx, c[1] - ay - by],
-    [c[0] + ax - bx, c[1] + ay - by],
-    [c[0] + ax + bx, c[1] + ay + by],
-    [c[0] - ax + bx, c[1] - ay + by],
-  ];
-  // Sides: corners run counter-clockwise from above, so each edge's outside is to its right.
-  for (let k = 0; k < 4; k++) {
-    const p = corners[k], q = corners[(k + 1) % 4];
-    const ex = q[0] - p[0], ey = q[1] - p[1], el = Math.hypot(ex, ey) || 1;
-    const n: Vec3 = [ey / el, -ex / el, 0];
-    const i = mb.vertexCount;
-    // Which part of the texture each side shows (sides 1 and 3 face along the box), the whole width by default.
-    const [u0, u1] = faceU?.[k] ?? [0, 1];
-    mb.vertex([p[0], p[1], z0], u0, 1);
-    mb.vertex([q[0], q[1], z0], u1, 1);
-    mb.vertex([q[0], q[1], z1], u1, 0);
-    mb.vertex([p[0], p[1], z1], u0, 0);
-    for (let j = 0; j < 4; j++) mb.normals!.push(...n);
-    mb.quad(i, i + 1, i + 2, i + 3);
+/** An invisible collidable box at each tree's trunk, so you can't drive through it. */
+export function treeTrunks(spots: TreeSpot[], ground: Ground): MeshNode[] {
+  const boxes = new ChunkedMesh(20);
+  for (const tree of spots) {
+    const w = Math.max(TRUNK_MIN, trunkWidth(tree.variant) * tree.scale);
+    const base = ground(tree.x, tree.y);
+    box(boxes.next(), [tree.x, tree.y], [1, 0], w, w, base - SINK, base + TRUNK_TOP);
   }
-  const i = mb.vertexCount;
-  for (const p of corners) {
-    mb.vertex([p[0], p[1], z1], 0, 0);
-    mb.normals!.push(0, 0, 1);
-  }
-  mb.quad(i, i + 1, i + 2, i + 3);
+  return boxes.all().map((mb, i) => mb.toKn5(`1WALL_TREE_${num(i)}`, "wall", { renderable: false, castShadows: false }));
 }
 
-/* ---------------- guard rails and guide posts ---------------- */
+/* ================================================================== guard rails */
 
-const RAIL_BOTTOM = 0.45;
-const RAIL_TOP = 0.8;
+const DROP = 1.8;
+const LOOK_OUT = [3, 7];
+const OSM_REACH = 12;
+const OSM_SPREAD = 3;
+const JOIN_GAP = 10;
+const MIN_RUN = 24;
 
-/** Which samples need a rail, per side [left, right]. */
-export function railNeeds(
-  plan: RoadPlan,
-  opts: BuildOptions,
-  ground: HeightFn,
-  osmRails: Vec2[][],
-  index: SegmentIndex,
-): [boolean[], boolean[]] {
-  const n = plan.samples.length;
-  const needs: [boolean[], boolean[]] = [new Array(n).fill(false), new Array(n).fill(false)];
-  plan.samples.forEach((s, i) => {
-    const half = s.width / 2;
-    for (const side of [0, 1] as const) {
-      const sign = side === 0 ? 1 : -1;
-      const edge = surfaceHeight(s, sign * half, opts.crown);
-      let low = Infinity;
-      for (const d of [3, 7]) {
-        const t = sign * (half + opts.vergeWidth + d);
-        low = Math.min(low, ground(s.pos[0] + s.left[0] * t, s.pos[1] + s.left[1] * t));
-      }
-      if (edge - low > 1.8) needs[side][i] = true;
+/** Runs of true in a list, as [first, last] index pairs. */
+function runsOf(flags: boolean[]): [number, number][] {
+  const spans: [number, number][] = [];
+  let open = -1;
+  flags.forEach((v, i) => {
+    if (v && open < 0) open = i;
+    if (!v && open >= 0) {
+      spans.push([open, i - 1]);
+      open = -1;
     }
   });
-  for (const line of osmRails) {
-    for (const p of line) {
-      const near = index.nearest(p[0], p[1], 12);
-      if (!near) continue;
-      const side = near.t >= 0 ? 0 : 1;
-      for (let k = -3; k <= 3; k++) {
-        const i = near.seg + k;
-        if (i >= 0 && i < n) needs[side][i] = true;
-      }
-    }
-  }
-  // Bridge short gaps, then drop runs too short to be worth a rail.
-  for (const need of needs) {
-    const gap = Math.round(10 / opts.spacing), minRun = Math.round(24 / opts.spacing);
-    let last = -1;
-    for (let i = 0; i < n; i++) {
-      if (!need[i]) continue;
-      if (last >= 0 && i - last > 1 && i - last <= gap) for (let k = last; k < i; k++) need[k] = true;
-      last = i;
-    }
-    for (let i = 0; i < n;) {
-      if (!need[i]) { i++; continue; }
-      let j = i;
-      while (j < n && need[j]) j++;
-      if (j - i < minRun) for (let k = i; k < j; k++) need[k] = false;
-      i = j;
-    }
-  }
-  return needs;
+  if (open >= 0) spans.push([open, flags.length - 1]);
+  return spans;
 }
 
-export function buildGuardRails(
-  plan: RoadPlan,
-  opts: BuildOptions,
-  needs: [boolean[], boolean[]],
-  /** The ground the posts stand on (sceneGround.ts). */
-  ground: HeightFn,
-): { rails: Kn5MeshNode[]; posts: Kn5MeshNode[] } {
-  const rails: Kn5MeshNode[] = [];
-  const posts = new ChunkedMesh(20);
-  const s = plan.samples;
-  const postEvery = Math.max(1, Math.round(4 / opts.spacing));
-  for (const side of [0, 1] as const) {
-    const sign = side === 0 ? 1 : -1;
-    const need = needs[side];
-    let run = 0;
-    for (let i = 0; i < s.length;) {
-      if (!need[i]) { i++; continue; }
-      let j = i;
-      while (j < s.length && need[j]) j++;
-      const mb = new MeshBuilder();
-      mb.normals = [];
-      for (let k = i; k < j; k++) {
-        const p = s[k];
-        const half = p.width / 2;
-        const t = sign * (half + opts.vergeWidth * 0.55);
-        const x = p.pos[0] + p.left[0] * t, y = p.pos[1] + p.left[1] * t;
-        const z = ground(x, y);
-        const u = p.s / 4;
-        // Front (facing the road) and back faces, separate vertices for their normals.
-        const nIn: Vec3 = [-p.left[0] * sign, -p.left[1] * sign, 0];
-        for (const n of [nIn, [-nIn[0], -nIn[1], 0] as Vec3]) {
-          mb.vertex([x, y, z + RAIL_BOTTOM], u, 1);
-          mb.vertex([x, y, z + RAIL_TOP], u, 0);
-          mb.normals.push(...n, ...n);
-        }
-        if ((k - i) % postEvery === 0) {
-          const back = 0.08 * sign;
-          const at: Vec2 = [x + p.left[0] * back, y + p.left[1] * back];
-          box(posts.next(), at, p.tan, 0.1, 0.1, ground(at[0], at[1]) - SINK, z + RAIL_TOP - 0.03);
-        }
-      }
-      for (let k = 0; k < j - i - 1; k++) {
-        const a = k * 4, b = a + 4;
-        // Front face winds toward the road; the back face the other way.
-        if (sign < 0) {
-          mb.quad(a, a + 1, b + 1, b);
-          mb.quad(a + 2, b + 2, b + 3, a + 3);
-        } else {
-          mb.quad(a, b, b + 1, a + 1);
-          mb.quad(a + 2, a + 3, b + 3, b + 2);
-        }
-      }
-      if (j - i > 1) rails.push(mb.toKn5(`1WALL_RAIL_${side === 0 ? "L" : "R"}_${pad(run++)}`, "rail", { castShadows: true }));
-      i = j;
-    }
+/** Points along a polyline about every `step` metres, ends included. */
+function densify(way: Vec2[], step: number): Vec2[] {
+  const pts: Vec2[] = way.length ? [way[0]] : [];
+  for (let q = 1; q < way.length; q++) {
+    const [ax, ay] = way[q - 1], [bx, by] = way[q];
+    const parts = Math.max(1, Math.ceil(Math.hypot(bx - ax, by - ay) / step));
+    for (let k = 1; k <= parts; k++) pts.push([ax + ((bx - ax) * k) / parts, ay + ((by - ay) * k) / parts]);
   }
-  return { rails, posts: posts.all().map((m, i) => m.toKn5(`RAILPOSTS_${pad(i)}`, "steel")) };
+  return pts;
 }
 
 /**
- * Australian guide posts (AS 1742.2): white, every 50 m each side, except where a rail runs. Each shows a
- * red reflector to traffic with the post on its left and a white one to traffic with it on the right.
- * Texture: the left third has the red reflector, the middle third the white one, the right third is plain.
+ * Where a rail is needed, per sample, [left, right]: the land just past the verge more than 1.8 m
+ * below the asphalt edge, or a rail OSM maps beside the route. Gaps up to 10 m are joined, runs
+ * under 24 m dropped.
  */
-const POST_RED: [number, number] = [0.02, 0.31], POST_WHITE: [number, number] = [0.35, 0.64], POST_PLAIN: [number, number] = [0.7, 0.98];
-
-/** White guide posts every 50 m each side, except where a rail runs, standing on `ground` (sceneGround.ts). */
-export function buildGuidePosts(plan: RoadPlan, opts: BuildOptions, needs: [boolean[], boolean[]], ground: HeightFn): Kn5MeshNode[] {
-  const out = new ChunkedMesh(20);
-  const every = Math.max(1, Math.round(50 / opts.spacing));
-  const skip = Math.round(30 / opts.spacing);
-  const s = plan.samples;
-  for (let i = skip; i < s.length - skip; i += every) {
-    const p = s[i];
-    for (const side of [0, 1] as const) {
-      if (needs[side].slice(Math.max(0, i - 5), i + 6).some(Boolean)) continue;
-      const sign = side === 0 ? 1 : -1;
-      const half = p.width / 2;
-      const t = sign * (half + opts.vergeWidth * 0.75);
-      const at: Vec2 = [p.pos[0] + p.left[0] * t, p.pos[1] + p.left[1] * t];
-      const z = ground(at[0], at[1]);
-      // Flat face to the traffic: 5 cm along the road, 10 cm across. Side 3 faces back down the road (traffic
-      // going along it, with a left-hand post on its left), side 1 faces traffic coming the other way.
-      const faces: [number, number][] = side === 0
-        ? [POST_PLAIN, POST_WHITE, POST_PLAIN, POST_RED]
-        : [POST_PLAIN, POST_RED, POST_PLAIN, POST_WHITE];
-      box(out.next(), at, p.tan, 0.05, 0.1, z - SINK, z + 1.0, faces);
+export function railNeeds(plan: Route, opts: SceneryOpts, ground: Ground, osmRails: Vec2[][], index: RouteIndex): Sides {
+  const stations = plan.samples, count = stations.length;
+  const need: Sides = [new Array(count).fill(false), new Array(count).fill(false)];
+  stations.forEach((st, i) => {
+    for (const side of [0, 1]) {
+      const sign = sideSign(side);
+      const heightOut = (d: number) => ground(...outFrom(st, sign, d));
+      const edge = heightOut(st.width / 2);
+      const below = Math.min(...LOOK_OUT.map((d) => heightOut(st.width / 2 + opts.vergeWidth + d)));
+      if (edge - below > DROP) need[side][i] = true;
+    }
+  });
+  for (const way of osmRails) {
+    for (const [px, py] of densify(way, Math.max(1, opts.spacing))) {
+      const near = index.nearest(px, py, OSM_REACH);
+      if (near === null) continue;
+      const flags = need[near.t >= 0 ? 0 : 1];
+      // The segment's two ends, and three samples beyond each.
+      for (let d = -OSM_SPREAD; d <= OSM_SPREAD + 1; d++) {
+        const at = plan.closed ? (((near.seg + d) % count) + count) % count : near.seg + d;
+        if (at >= 0 && at < count) flags[at] = true;
+      }
     }
   }
-  return out.all().map((m, i) => m.toKn5(`GUIDEPOSTS_${pad(i)}`, "guidepost"));
+  const spacing = Math.max(0.01, opts.spacing);
+  const joinable = Math.round(JOIN_GAP / spacing), shortest = MIN_RUN / spacing;
+  for (const flags of need) {
+    const spans = runsOf(flags);
+    for (let r = 1; r < spans.length; r++) {
+      const from = spans[r - 1][1] + 1, to = spans[r][0];
+      if (to - from <= joinable) flags.fill(true, from, to);
+    }
+    for (const [a, b] of runsOf(flags)) if (b - a + 1 < shortest) flags.fill(false, a, b + 1);
+  }
+  return need;
+}
+
+/** The rail's line: this share of the verge out from the asphalt edge. */
+const RAIL_OUT = 0.55;
+const BEAM_LOW = 0.45, BEAM_HIGH = 0.8;
+/** The rail texture repeats every 4 m. */
+const RAIL_TILE = 4;
+const POST_EVERY = 4;
+const POST_BEHIND = 0.08;
+const POST_SIZE = 0.1;
+/** Samples per rail mesh: four vertices each, well inside the kn5 limit. */
+const RAIL_PIECE = 8000;
+
+/** W-beam rails along each run of needed samples (collidable, kept apart so the caller can clear them off the road), and their posts every 4 m. */
+export function buildGuardRails(plan: Route, opts: SceneryOpts, needs: Sides, ground: Ground): { rails: MeshNode[]; posts: MeshNode[] } {
+  const stations = plan.samples;
+  const rails: MeshNode[] = [];
+  const postMesh = new ChunkedMesh(20);
+  const postStep = Math.max(1, Math.round(POST_EVERY / Math.max(0.01, opts.spacing)));
+  const railLine = (st: Station, sign: number) => outFrom(st, sign, st.width / 2 + RAIL_OUT * opts.vergeWidth);
+  for (const side of [0, 1]) {
+    const sign = sideSign(side);
+    let made = 0;
+    for (const [first, last] of runsOf(needs[side].slice(0, stations.length))) {
+      if (last <= first) continue; // a single sample makes no rail
+      for (let from = first; from < last; from += RAIL_PIECE) {
+        const to = Math.min(last, from + RAIL_PIECE);
+        const mb = new ChunkedMesh().next();
+        const pts: Vec2[] = [], base: number[] = [];
+        for (let q = from; q <= to; q++) {
+          const p = railLine(stations[q], sign);
+          pts.push(p);
+          base.push(ground(p[0], p[1]));
+        }
+        // Two faces, each with its own vertices: toward the road (-1) and away from it (+1).
+        for (const face of [-1, 1]) {
+          const start = mb.vertexCount;
+          pts.forEach((p, q) => {
+            const st = stations[from + q], u = (st.s - stations[first].s) / RAIL_TILE;
+            const nx = st.left[0] * sign * face, ny = st.left[1] * sign * face;
+            mb.vertex([p[0], p[1], base[q] + BEAM_LOW], u, 1);
+            mb.vertex([p[0], p[1], base[q] + BEAM_HIGH], u, 0);
+            mb.normals!.push(nx, ny, 0, nx, ny, 0);
+          });
+          for (let q = 0; q + 1 < pts.length; q++) {
+            const lo = start + q * 2, hi = lo + 1, loNext = lo + 2, hiNext = lo + 3;
+            // Winding low, next low, next high, high faces right of the line's direction.
+            const ex = pts[q + 1][0] - pts[q][0], ey = pts[q + 1][1] - pts[q][1];
+            const st = stations[from + q];
+            const facesRight = ey * st.left[0] * sign * face - ex * st.left[1] * sign * face >= 0;
+            if (facesRight) mb.quad(lo, loNext, hiNext, hi);
+            else mb.quad(loNext, lo, hi, hiNext);
+          }
+        }
+        rails.push(mb.toKn5(`1WALL_RAIL_${side === 0 ? "L" : "R"}_${num(made++)}`, "rail", { castShadows: true }));
+      }
+      for (let q = first; q <= last; q += postStep) {
+        const st = stations[q], rail = railLine(st, sign);
+        const at: Vec2 = [rail[0] + st.left[0] * sign * POST_BEHIND, rail[1] + st.left[1] * sign * POST_BEHIND];
+        const top = ground(rail[0], rail[1]) + BEAM_HIGH - 0.02;
+        box(postMesh.next(), at, st.tan, POST_SIZE, POST_SIZE, ground(at[0], at[1]) - SINK, top);
+      }
+    }
+  }
+  return { rails, posts: postMesh.all().map((mb, i) => mb.toKn5(`RAILPOSTS_${num(i)}`, "steel")) };
+}
+
+/* ================================================================== guide posts */
+
+const GUIDE_EVERY = 50;
+const GUIDE_END = 30;
+const GUIDE_CLEAR = 5;
+const GUIDE_OUT = 0.75;
+const GUIDE_HEIGHT = 1.0;
+/** Thirds of the guide post texture (textures.ts postTexture), as u ranges. */
+export const GUIDE_U: Record<"red" | "white" | "plain", [number, number]> = { red: [0.02, 0.31], white: [0.35, 0.64], plain: [0.7, 0.98] };
+
+/**
+ * White guide posts every 50 m each side, except where `mask` (rails, rings, mouths, kerbs) is set
+ * within 5 samples. AS 1742.2: the reflector facing traffic that has the post on its left is red,
+ * the one facing traffic with it on its right white; traffic keeps left.
+ */
+export function buildGuidePosts(plan: Route, opts: SceneryOpts, mask: Sides, ground: Ground): MeshNode[] {
+  const stations = plan.samples, last = stations.length - 1;
+  const spacing = Math.max(0.01, opts.spacing);
+  const step = Math.max(1, Math.round(GUIDE_EVERY / spacing)), margin = Math.ceil(GUIDE_END / spacing);
+  const postMesh = new ChunkedMesh(20);
+  const { red, white, plain } = GUIDE_U;
+  for (const side of [0, 1]) {
+    const sign = sideSign(side);
+    // Box side 1 faces forward (seen by oncoming traffic), side 3 back (seen by traffic going
+    // forward). Left posts are on forward traffic's left: red at the back. Right posts mirror that.
+    const faces = side === 0 ? [plain, white, plain, red] : [plain, red, plain, white];
+    const flags = mask[side] ?? [];
+    for (let q = margin; q <= last - margin; q += step) {
+      if (flags.slice(Math.max(0, q - GUIDE_CLEAR), q + GUIDE_CLEAR + 1).some(Boolean)) continue;
+      const st = stations[q];
+      const at = outFrom(st, sign, st.width / 2 + GUIDE_OUT * opts.vergeWidth);
+      const foot = ground(at[0], at[1]);
+      box(postMesh.next(), at, st.tan, 0.05, 0.1, foot - SINK, foot + GUIDE_HEIGHT, faces);
+    }
+  }
+  return postMesh.all().map((mb, i) => mb.toKn5(`GUIDEPOSTS_${num(i)}`, "guidepost"));
 }

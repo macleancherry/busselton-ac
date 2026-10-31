@@ -34,16 +34,18 @@ export interface TreeSpecies {
   height: number;
   /** Crown radius at scale 1, metres (half the quad width). */
   crown: number;
+  /** Width of the invisible collidable trunk at scale 1, metres (0.4 when absent). */
+  trunk?: number;
 }
 
 const W = 2560, H = 1024, CELL = 512;
 
 export const TREE_SPECIES: TreeSpecies[] = [
-  { name: "peppermint", u0: 0, u1: 0.2, height: 9, crown: 4.5 },
-  { name: "sheoak", u0: 0.2, u1: 0.4, height: 11, crown: 4 },
-  { name: "norfolk", u0: 0.4, u1: 0.6, height: 22, crown: 5.5 },
-  { name: "tuart", u0: 0.6, u1: 0.8, height: 17, crown: 7.5 },
-  { name: "palm", u0: 0.8, u1: 1, height: 10, crown: 4 },
+  { name: "peppermint", u0: 0, u1: 0.2, height: 9, crown: 4.5, trunk: 0.45 },
+  { name: "sheoak", u0: 0.2, u1: 0.4, height: 11, crown: 4, trunk: 0.3 },
+  { name: "norfolk", u0: 0.4, u1: 0.6, height: 22, crown: 5.5, trunk: 0.5 },
+  { name: "tuart", u0: 0.6, u1: 0.8, height: 17, crown: 7.5, trunk: 0.75 },
+  { name: "palm", u0: 0.8, u1: 1, height: 10, crown: 4, trunk: 0.6 },
 ];
 
 type RGB = [number, number, number];
