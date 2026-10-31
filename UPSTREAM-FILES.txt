@@ -41,7 +41,6 @@ src/core/terrain.ts
 src/core/textures.ts
 src/core/trace.ts
 src/core/track.ts
-src/core/utilities.ts
 src/core/zip.ts
 src/services/art.ts
 src/services/mapillary.ts
@@ -82,7 +81,6 @@ test/streets.test.ts
 test/terrain.test.ts
 test/trace.test.ts
 test/track.test.ts
-test/utilities.test.ts
 test/wa-imagery.test.ts
 test/wa.test.ts
 tsconfig.json
