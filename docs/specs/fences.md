@@ -138,7 +138,7 @@ Before deleting the old module, capture JSON (names, materials, float32 position
 
 ## Rewrite notes (31 Oct 2026)
 
-Rewritten from this page. Matches the goldens (`test/fixtures/golden/fences.json`, checked by `test/golden.test.ts`) byte for byte, with these choices:
+Rewritten from this page. Matches the goldens (`test/fixtures/golden-mesh/fences.json`, checked by `test/golden.test.ts`) byte for byte, with these choices:
 
 - **Splitting on the true vertex count** (8 or 12 per slab, 16 per post, 8 per strand): applied. A safety fix; it only changes output where a look's run passes about 60000 vertices (the split comes later, so the first mesh holds more slabs). No golden is that big.
 - **Case-insensitive tag matching:** applied. OSM values are lowercase, so current data builds the same.

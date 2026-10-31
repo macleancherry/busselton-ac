@@ -1,5 +1,5 @@
 // The clean-room rewrites of mesh.ts, materials.ts, photoSurface.ts and fences.ts against output
-// captured from the old modules before they were deleted (test/fixtures/golden). Byte for byte:
+// captured from the old modules before they were deleted (test/fixtures/golden-mesh). Byte for byte:
 // float32 bit patterns, sha256 of the photo strips, deep-equal materials with property order.
 // Deliberate output change: fences split meshes on the true vertex count (8 or 12 per slab, not
 // 24). No fixture here comes near 60000 vertices, so the fixtures don't show it.
@@ -11,9 +11,9 @@ import { groundMaterial, material, multiMapMaterial, nmMaterial } from "../src/c
 import { photoRoadTexture } from "../src/core/photoSurface";
 import { buildBarriers, buildWireFences, box, ribbon } from "../src/core/fences";
 import type { Kn5MeshNode } from "../src/core/kn5";
-import { fenceCases, LIGHTS, meshCases, photoCases } from "./fixtures/golden/inputs";
+import { fenceCases, LIGHTS, meshCases, photoCases } from "./fixtures/golden-mesh/inputs";
 
-const load = (f: string) => JSON.parse(readFileSync(new URL(`./fixtures/golden/${f}`, import.meta.url), "utf8"));
+const load = (f: string) => JSON.parse(readFileSync(new URL(`./fixtures/golden-mesh/${f}`, import.meta.url), "utf8"));
 type Stored = Record<string, unknown>;
 
 function sameNode(got: Kn5MeshNode, want: Stored, where: string) {

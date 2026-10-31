@@ -122,4 +122,4 @@ The new module must reproduce each byte for byte (compare the float32 bit patter
 
 ## Rewrite notes (31 Oct 2026)
 
-Rewritten from this page. Goldens: `test/fixtures/golden/mesh.json` (float32 bit patterns, since JSON drops the sign of `-0`; the conversion writes `-0` for a zero north component and the kn5 bytes keep it), checked by `test/golden.test.ts`. The input checks under "Bugs and rough edges" are in (wrong-length normals or uvs, out-of-range indices, a partial triangle all throw, naming the mesh); they don't change the output of any valid mesh.
+Rewritten from this page. Goldens: `test/fixtures/golden-mesh/mesh.json` (float32 bit patterns, since JSON drops the sign of `-0`; the conversion writes `-0` for a zero north component and the kn5 bytes keep it), checked by `test/golden.test.ts`. The input checks under "Bugs and rough edges" are in (wrong-length normals or uvs, out-of-range indices, a partial triangle all throw, naming the mesh); they don't change the output of any valid mesh.

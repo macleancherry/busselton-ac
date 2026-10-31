@@ -5,7 +5,7 @@ import { planRoad } from "../src/core/road";
 import { withDefaults } from "../src/core/options";
 import type { RasterSampler } from "../src/core/trace";
 import type { Vec2 } from "../src/core/geo";
-import { photo } from "./fixtures/golden/inputs";
+import { photo } from "./fixtures/golden-mesh/inputs";
 
 const W = 32, H = 256;
 // A 9 m road along y = 0, x -300..300 (left is +y).

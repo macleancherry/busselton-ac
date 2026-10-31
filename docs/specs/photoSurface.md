@@ -137,4 +137,4 @@ Rewritten from this page, byte-identical to the old module:
 - **Open-road assert:** in (`b >= n` on an open road throws). No caller passes that.
 - **Metres across from sample `a` only:** kept for now. Later, with a base upgrade: use the chunk's mean width for the grow and blur radii.
 - `boxBlur` is exported for tests. Reference smoothing uses the same running-sum line blur as the box blur.
-- Goldens: sha256 of the full `PHOTO_W x PHOTO_H` strip from the `test/trace.test.ts` inputs, plus four 32 x 256 strips (untrusted rows, a `null` gap, all untrusted, a closed loop's wrapping chunk) as hashes and PNGs in `test/fixtures/golden/`.
+- Goldens: sha256 of the full `PHOTO_W x PHOTO_H` strip from the `test/trace.test.ts` inputs, plus four 32 x 256 strips (untrusted rows, a `null` gap, all untrusted, a closed loop's wrapping chunk) as hashes and PNGs in `test/fixtures/golden-mesh/`.

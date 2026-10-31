@@ -121,4 +121,4 @@ Before deleting the old code, save the JSON of `material("g", "g.png", {0.45, 0.
 
 ## Rewrite notes (31 Oct 2026)
 
-Rewritten from this page. `multiMapMaterial`, `multilayerMaterial` and `groundMaterial` moved here from `track.ts` (which imports them), with `Light`, `DetailMaps` and `Layer` exported as types. Goldens: `test/fixtures/golden/materials.json` (the two plain builders, one asphalt, one gravel and one terrain material), compared with property and texture key order by `test/golden.test.ts`.
+Rewritten from this page. `multiMapMaterial`, `multilayerMaterial` and `groundMaterial` moved here from `track.ts` (which imports them), with `Light`, `DetailMaps` and `Layer` exported as types. Goldens: `test/fixtures/golden-mesh/materials.json` (the two plain builders, one asphalt, one gravel and one terrain material), compared with property and texture key order by `test/golden.test.ts`.
