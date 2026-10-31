@@ -1,124 +1,149 @@
-// Keeping the frame rate steady. The game skips drawing a mesh whose
-// bounding sphere is off screen, and (with lodOut set) one that is far away,
-// but only whole meshes: a batch of trees or signs that stretches the length
-// of the road is drawn in full from anywhere on it. So meshes that spread
-// wide are split into tiles by area, and small detail is given a draw
-// distance.
+// Splitting wide meshes into area tiles and giving small detail a draw distance, so AC can skip
+// what's off screen or far away. Written from docs/specs/cull.md.
+//
+// Positions are AC world coordinates (x east, y up, z south); tiles are in x and z. Group
+// transforms in generated trees are identity and are ignored here: with a non-identity
+// transform, tiling would be in the mesh's local frame.
 
-import type { Kn5MeshNode, Kn5Node } from "./kn5";
+import type { Kn5GroupNode, Kn5MeshNode, Kn5Node } from "./kn5";
 
-/** Tile size for splitting, metres. */
+/** Default tile size in metres. */
 export const CELL = 120;
-/** Meshes with fewer triangles than this aren't worth splitting. */
-const MIN_TRIS = 1500;
+/** Below this many triangles a mesh isn't worth extra draw calls. */
+const MIN_TRIANGLES = 1500;
+/** Tiles with fewer triangles merge into the nearest big tile (CSP can't size tiny meshes). */
+const SMALL = 8;
 
-/** Draw distances for small detail, by mesh name. Physics meshes (named 1...) are left alone. */
-const DRAW_DISTANCE: [RegExp, number][] = [
-  [/^(MARKINGS|RRPM)/, 450],
-  [/^FURNITURE/, 600],
-  [/^(GUIDEPOSTS|RAILPOSTS)/, 500],
-  [/^ARMCOPOSTS/, 400], // Busselton fork: Armco posts and blockouts; the beam itself goes out to 1.2 km
-  [/^ARMCO_/, 1200],
-  [/^WIRES/, 350], // a few centimetres thick: they only shimmer further off
+/** Name prefix -> draw distance in metres; first match wins. */
+const DRAW_DISTANCES: Array<[string, number]> = [
+  ["MARKINGS", 450],
+  ["RRPM", 450],
+  ["FURNITURE", 600],
+  ["GUIDEPOSTS", 500],
+  ["RAILPOSTS", 500],
+  ["ARMCOPOSTS", 400],
+  ["ARMCO_", 1200],
+  ["WIRES", 350],
 ];
 
-/** Half the diagonal of a mesh's bounding box, metres. */
-export function spread(node: Kn5MeshNode): number {
-  const p = node.positions;
-  const mn = [Infinity, Infinity, Infinity], mx = [-Infinity, -Infinity, -Infinity];
-  for (let i = 0; i < p.length; i += 3) {
-    for (let k = 0; k < 3; k++) {
-      mn[k] = Math.min(mn[k], p[i + k]);
-      mx[k] = Math.max(mx[k], p[i + k]);
+/** Half the diagonal of the mesh's 3-D bounding box (all vertices); 0 when empty. */
+export function spread(mesh: Kn5MeshNode): number {
+  const p = mesh.positions;
+  if (p.length < 3) return 0;
+  const min = [Infinity, Infinity, Infinity], max = [-Infinity, -Infinity, -Infinity];
+  for (let i = 0; i + 2 < p.length; i += 3) {
+    for (let c = 0; c < 3; c++) {
+      const v = p[i + c];
+      if (v < min[c]) min[c] = v;
+      if (v > max[c]) max[c] = v;
     }
   }
-  return p.length ? Math.hypot(mx[0] - mn[0], mx[1] - mn[1], mx[2] - mn[2]) / 2 : 0;
+  return 0.5 * Math.hypot(max[0] - min[0], max[1] - min[1], max[2] - min[2]);
 }
 
-/**
- * Splits a mesh into square tiles by where each triangle's middle falls.
- * A mesh that already fits in a couple of tiles comes back as it was.
- */
-export function splitByArea(node: Kn5MeshNode, cell = CELL): Kn5MeshNode[] {
-  // A few hundred triangles cost less to draw than the extra draw calls of splitting them.
-  if (node.indices.length / 3 < MIN_TRIS || spread(node) <= cell * 2) return [node];
-  const p = node.positions, idx = node.indices;
-  const tiles = new Map<string, number[]>();
-  for (let t = 0; t < idx.length; t += 3) {
-    const a = idx[t] * 3, b = idx[t + 1] * 3, c = idx[t + 2] * 3;
-    const key = `${Math.floor((p[a] + p[b] + p[c]) / 3 / cell)},${Math.floor((p[a + 2] + p[b + 2] + p[c + 2]) / 3 / cell)}`;
-    let list = tiles.get(key);
-    if (!list) tiles.set(key, (list = []));
-    list.push(t);
-  }
-  // A tile with a handful of triangles goes in with its nearest bigger neighbour: CSP can't size a
-  // one-triangle mesh ("Failed to calculate BS for vertices: 3"), and it isn't worth a draw call.
-  const SMALL = 8;
-  const big = [...tiles.keys()].filter((key) => tiles.get(key)!.length >= SMALL);
-  if (!big.length) return [node];
-  for (const [key, tris] of [...tiles]) {
-    if (tris.length >= SMALL) continue;
-    const [x, z] = key.split(",").map(Number);
-    let best = big[0], bd = Infinity;
-    for (const b of big) {
-      const [bx, bz] = b.split(",").map(Number);
-      const d = Math.hypot(bx - x, bz - z);
-      if (d < bd) [bd, best] = [d, b];
+type Tile = { ix: number; iz: number; tris: number[] };
+
+/** Splits a wide mesh into square tiles by triangle centroid (x, z); returns [mesh] when not worth it. */
+export function splitByArea(mesh: Kn5MeshNode, cell = CELL): Kn5MeshNode[] {
+  const idx = mesh.indices;
+  const triCount = Math.floor(idx.length / 3);
+  if (triCount < MIN_TRIANGLES || spread(mesh) <= 2 * cell) return [mesh];
+  const pos = mesh.positions;
+
+  const tiles: Tile[] = [];
+  const byKey = new Map<string, Tile>();
+  for (let t = 0; t < triCount; t++) {
+    let cx = 0, cz = 0;
+    for (let c = 0; c < 3; c++) {
+      const v = idx[t * 3 + c];
+      cx += pos[v * 3];
+      cz += pos[v * 3 + 2];
     }
-    tiles.get(best)!.push(...tris);
-    tiles.delete(key);
+    const ix = Math.floor(cx / 3 / cell), iz = Math.floor(cz / 3 / cell);
+    const key = `${ix},${iz}`;
+    let tile = byKey.get(key);
+    if (!tile) {
+      tile = { ix, iz, tris: [] };
+      byKey.set(key, tile);
+      tiles.push(tile);
+    }
+    tile.tris.push(t);
   }
-  if (tiles.size < 2) return [node];
-  const out: Kn5MeshNode[] = [];
-  let k = 0;
-  for (const tris of tiles.values()) {
-    // Only the vertices this tile uses, renumbered.
-    const remap = new Map<number, number>();
-    const indices = new Uint16Array(tris.length * 3);
-    tris.forEach((t, j) => {
-      for (let v = 0; v < 3; v++) {
-        const old = idx[t + v];
-        let nu = remap.get(old);
-        if (nu === undefined) remap.set(old, (nu = remap.size));
-        indices[j * 3 + v] = nu;
+
+  const big = tiles.filter((t) => t.tris.length >= SMALL);
+  // Merging never promotes a small tile, so the big tiles are the tiles left after merging.
+  if (big.length < 2) return [mesh];
+  for (const small of tiles) {
+    if (small.tris.length >= SMALL) continue;
+    let best = big[0], bestDist = Infinity;
+    for (const b of big) {
+      const d = Math.hypot(b.ix - small.ix, b.iz - small.iz);
+      if (d < bestDist) { bestDist = d; best = b; }
+    }
+    best.tris.push(...small.tris);
+  }
+
+  return big.map((tile, k) => buildTile(mesh, tile.tris, k));
+}
+
+function buildTile(mesh: Kn5MeshNode, tris: number[], k: number): Kn5MeshNode {
+  const idx = mesh.indices;
+  const newIndex = new Map<number, number>();
+  const used: number[] = [];
+  const indices = new Uint16Array(3 * tris.length);
+  tris.forEach((t, i) => {
+    for (let c = 0; c < 3; c++) {
+      const v = idx[t * 3 + c];
+      let nv = newIndex.get(v);
+      if (nv === undefined) {
+        nv = used.length;
+        newIndex.set(v, nv);
+        used.push(v);
       }
-    });
-    const pick = (src: Float32Array, size: number) => {
-      const dst = new Float32Array(remap.size * size);
-      for (const [old, nu] of remap) for (let c = 0; c < size; c++) dst[nu * size + c] = src[old * size + c];
-      return dst;
-    };
-    out.push({
-      ...node,
-      name: `${node.name}_T${k++}`,
-      positions: pick(node.positions, 3),
-      normals: pick(node.normals, 3),
-      uvs: pick(node.uvs, 2),
-      tangents: node.tangents ? pick(node.tangents, 3) : undefined,
-      indices,
-    });
+      indices[i * 3 + c] = nv;
+    }
+  });
+  const pick = (src: Float32Array, size: number): Float32Array => {
+    const out = new Float32Array(used.length * size);
+    used.forEach((v, i) => out.set(src.subarray(v * size, v * size + size), i * size));
+    return out;
+  };
+  const tile: Kn5MeshNode = {
+    ...mesh,
+    name: `${mesh.name}_T${k}`,
+    positions: pick(mesh.positions, 3),
+    normals: pick(mesh.normals, 3),
+    uvs: pick(mesh.uvs, 2),
+    indices,
+  };
+  if (mesh.tangents) tile.tangents = pick(mesh.tangents, 3);
+  else delete tile.tangents;
+  return tile;
+}
+
+/** Draw distance in metres for a mesh name (by prefix, case-sensitive), or undefined (always drawn). */
+export function drawDistance(meshName: string): number | undefined {
+  return DRAW_DISTANCES.find(([prefix]) => meshName.startsWith(prefix))?.[1];
+}
+
+/** Splits wide meshes and sets draw distances through a node list, keeping order. */
+export function cullable(list: Kn5Node[], cell = CELL): Kn5Node[] {
+  const out: Kn5Node[] = [];
+  for (const item of list) {
+    if (item.kind === "node") {
+      const group: Kn5GroupNode = { ...item, children: cullable(item.children, cell) };
+      out.push(group);
+      continue;
+    }
+    if (item.renderable === false) {
+      out.push(item);
+      continue;
+    }
+    for (const piece of splitByArea(item, cell)) {
+      const d = drawDistance(piece.name);
+      if (d && !piece.lodOut && spread(piece) < d / 4) out.push({ ...piece, lodOut: d });
+      else out.push(piece);
+    }
   }
   return out;
-}
-
-/** Draw distance for a mesh, or undefined to always draw it. */
-export function drawDistance(name: string): number | undefined {
-  return DRAW_DISTANCE.find(([re]) => re.test(name))?.[1];
-}
-
-/**
- * Splits wide meshes in a list into tiles and sets draw distances on small
- * detail. Invisible walls (never drawn) and group nodes pass through.
- */
-export function cullable(nodes: Kn5Node[], cell = CELL): Kn5Node[] {
-  return nodes.flatMap((n): Kn5Node[] => {
-    if (n.kind !== "mesh") return [{ ...n, children: cullable(n.children, cell) }];
-    if (n.renderable === false) return [n];
-    return splitByArea(n, cell).map((m) => {
-      // The game measures the draw distance to the middle of the mesh, so
-      // only a compact mesh gets one: a long one would vanish under the car.
-      const d = drawDistance(m.name);
-      return d && !m.lodOut && spread(m) < d / 4 ? { ...m, lodOut: d } : m;
-    });
-  });
 }

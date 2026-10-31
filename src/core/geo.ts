@@ -1,114 +1,146 @@
-// Geographic helpers. The track's local frame is Web Mercator scaled by
-// cos(origin latitude): metres at the origin, conformal everywhere, and a
-// linear map of web-map tile pixels. That last property means elevation and
-// aerial tiles line up with the geometry exactly, with no reprojection.
-// Scale error is ~0.1% ten kilometres north or south of the origin.
+// Geographic helpers and the local frame every build is placed in.
+// Written from docs/specs/geo.md.
+//
+// The local frame is Web Mercator scaled by cos(origin latitude): true metres at the origin,
+// conformal everywhere, and a linear map of web-map tile pixels, so DEM and aerial tiles line
+// up with the geometry without reprojection. scripts/blender/landmarks/common.py and
+// scripts/check/check_build.py copy these formulas and constants: don't change them.
+//
+// No antimeridian or polar handling anywhere: fine for Australia.
+// Local metres are x east, y north. Converting to Assetto Corsa (x east, y up, z south) is the
+// caller's job (AC z = -local y), not this module's.
 
-export type LngLat = [number, number];
-/** Local metres: x east, y north. */
-export type Vec2 = [number, number];
+/** [longitude, latitude] in degrees, WGS84, longitude first. */
+export type LngLat = [lng: number, lat: number];
+/** Local metres [x, y]: x east, y north, origin at the projection's origin. Also used for global pixels. */
+export type Vec2 = [x: number, y: number];
+/** An axis-aligned box in local metres. */
+export type Bounds = { minX: number; minY: number; maxX: number; maxY: number };
+/** Inclusive tile index ranges; y0 is the northern row. */
+export type TileRange = { x0: number; y0: number; x1: number; y1: number };
 
-export const EARTH_RADIUS = 6378137; // WGS84 / Web Mercator sphere
-const TILE_SIZE = 256;
+/** WGS84 semi-major axis in metres (the Web Mercator sphere). */
+export const EARTH_RADIUS = 6378137;
 
-const rad = (d: number) => (d * Math.PI) / 180;
-const deg = (r: number) => (r * 180) / Math.PI;
+/** Mean Earth radius in metres, used by `haversine` only (see the spec on the two radii). */
+const MEAN_RADIUS = 6371008.8;
+const TILE_PX = 256;
+const LAT_LIMIT = 85.0511;
+const DEG = Math.PI / 180;
 
-export function haversine(a: LngLat, b: LngLat): number {
-  const dLat = rad(b[1] - a[1]);
-  const dLng = rad(b[0] - a[0]);
-  const s = Math.sin(dLat / 2) ** 2 + Math.cos(rad(a[1])) * Math.cos(rad(b[1])) * Math.sin(dLng / 2) ** 2;
-  return 2 * 6371008.8 * Math.asin(Math.min(1, Math.sqrt(s)));
+const worldPixels = (zoom: number): number => TILE_PX * Math.pow(2, zoom);
+const clampTo = (v: number, lo: number, hi: number): number => (v < lo ? lo : v > hi ? hi : v);
+
+/** Spherical Mercator metres of a point (no clamp). */
+function mercator(lngDeg: number, latDeg: number): Vec2 {
+  return [EARTH_RADIUS * lngDeg * DEG, EARTH_RADIUS * Math.log(Math.tan(Math.PI / 4 + (latDeg * DEG) / 2))];
 }
 
-/** Global Web Mercator pixel coordinates at zoom z (256 px tiles). */
-export function lngLatToPixel(p: LngLat, z: number): Vec2 {
-  const size = TILE_SIZE * 2 ** z;
-  const x = ((p[0] + 180) / 360) * size;
-  const s = Math.sin(rad(Math.max(-85.0511, Math.min(85.0511, p[1]))));
-  const y = (0.5 - Math.log((1 + s) / (1 - s)) / (4 * Math.PI)) * size;
+/** Great-circle distance in metres on a sphere of the mean Earth radius (not EARTH_RADIUS). */
+export function haversine(from: LngLat, to: LngLat): number {
+  const lat1 = from[1] * DEG, lat2 = to[1] * DEG;
+  const halfDLat = Math.sin((lat2 - lat1) / 2);
+  const halfDLng = Math.sin(((to[0] - from[0]) * DEG) / 2);
+  const h = halfDLat * halfDLat + Math.cos(lat1) * Math.cos(lat2) * halfDLng * halfDLng;
+  return 2 * MEAN_RADIUS * Math.asin(Math.min(1, Math.sqrt(h)));
+}
+
+/**
+ * Global Web Mercator pixel position at a zoom (256 px tiles, x east, y south, (0, 0) at the
+ * world's north-west corner). The result is pixels, not metres. Latitude is clamped to ±85.0511.
+ */
+export function lngLatToPixel(ll: LngLat, zoom: number): Vec2 {
+  const world = worldPixels(zoom);
+  const sinLat = Math.sin(clampTo(ll[1], -LAT_LIMIT, LAT_LIMIT) * DEG);
+  const x = world * (ll[0] + 180) / 360;
+  const y = world * (0.5 - Math.log((1 + sinLat) / (1 - sinLat)) / (4 * Math.PI));
   return [x, y];
 }
 
-export function pixelToLngLat(px: Vec2, z: number): LngLat {
-  const size = TILE_SIZE * 2 ** z;
-  const lng = (px[0] / size) * 360 - 180;
-  const n = Math.PI - (2 * Math.PI * px[1]) / size;
-  return [lng, deg(Math.atan(Math.sinh(n)))];
+/** Inverse of `lngLatToPixel` (no clamping). */
+export function pixelToLngLat(pixel: Vec2, zoom: number): LngLat {
+  const world = worldPixels(zoom);
+  const lng = 360 * (pixel[0] / world) - 180;
+  const lat = Math.atan(Math.sinh(Math.PI * (1 - 2 * pixel[1] / world))) / DEG;
+  return [lng, lat];
 }
 
+/** The local metric frame around an origin. */
 export class LocalProjection {
-  readonly origin: LngLat;
-  private readonly k: number;
-  private readonly mx0: number;
-  private readonly my0: number;
+  /** cos(origin latitude): the frame's scale against Mercator metres. */
+  private readonly scale: number;
+  /** The origin in Mercator metres. */
+  private readonly base: Vec2;
+  /** The origin's global pixel position per zoom (callers convert per DEM sample). */
+  private readonly pixelOrigins = new Map<number, Vec2>();
 
-  constructor(origin: LngLat) {
-    this.origin = origin;
-    this.k = Math.cos(rad(origin[1]));
-    this.mx0 = EARTH_RADIUS * rad(origin[0]);
-    this.my0 = EARTH_RADIUS * Math.log(Math.tan(Math.PI / 4 + rad(origin[1]) / 2));
+  constructor(readonly origin: LngLat) {
+    this.scale = Math.cos(origin[1] * DEG);
+    this.base = mercator(origin[0], origin[1]);
   }
 
-  toLocal(p: LngLat): Vec2 {
-    const mx = EARTH_RADIUS * rad(p[0]);
-    const my = EARTH_RADIUS * Math.log(Math.tan(Math.PI / 4 + rad(p[1]) / 2));
-    return [(mx - this.mx0) * this.k, (my - this.my0) * this.k];
+  toLocal(ll: LngLat): Vec2 {
+    const [mx, my] = mercator(ll[0], ll[1]);
+    return [(mx - this.base[0]) * this.scale, (my - this.base[1]) * this.scale];
   }
 
-  toLngLat(v: Vec2): LngLat {
-    const mx = v[0] / this.k + this.mx0;
-    const my = v[1] / this.k + this.my0;
-    return [deg(mx / EARTH_RADIUS), deg(2 * Math.atan(Math.exp(my / EARTH_RADIUS)) - Math.PI / 2)];
+  toLngLat(local: Vec2): LngLat {
+    const mx = this.base[0] + local[0] / this.scale;
+    const my = this.base[1] + local[1] / this.scale;
+    const lat = 2 * Math.atan(Math.exp(my / EARTH_RADIUS)) - Math.PI / 2;
+    return [mx / EARTH_RADIUS / DEG, lat / DEG];
   }
 
-  /** Local metres per global pixel at zoom z (the same everywhere in this frame). */
-  metresPerPixel(z: number): number {
-    return ((2 * Math.PI * EARTH_RADIUS) / (TILE_SIZE * 2 ** z)) * this.k;
+  /** Local metres per global pixel at a zoom; the same everywhere in the frame. */
+  metresPerPixel(zoom: number): number {
+    return this.scale * (2 * Math.PI * EARTH_RADIUS) / worldPixels(zoom);
   }
 
-  /** Local metres -> global pixel coordinates at zoom z. Linear, by construction. */
-  localToPixel(v: Vec2, z: number): Vec2 {
-    const o = lngLatToPixel(this.origin, z);
-    const m = this.metresPerPixel(z);
-    return [o[0] + v[0] / m, o[1] - v[1] / m];
+  localToPixel(local: Vec2, zoom: number): Vec2 {
+    const at = this.pixelOrigin(zoom);
+    const perPx = this.metresPerPixel(zoom);
+    return [at[0] + local[0] / perPx, at[1] - local[1] / perPx];
   }
 
-  pixelToLocal(px: Vec2, z: number): Vec2 {
-    const o = lngLatToPixel(this.origin, z);
-    const m = this.metresPerPixel(z);
-    return [(px[0] - o[0]) * m, (o[1] - px[1]) * m];
+  pixelToLocal(pixel: Vec2, zoom: number): Vec2 {
+    const at = this.pixelOrigin(zoom);
+    const perPx = this.metresPerPixel(zoom);
+    return [perPx * (pixel[0] - at[0]), perPx * (at[1] - pixel[1])];
+  }
+
+  private pixelOrigin(zoom: number): Vec2 {
+    const cached = this.pixelOrigins.get(zoom);
+    if (cached) return cached;
+    const fresh = lngLatToPixel(this.origin, zoom);
+    this.pixelOrigins.set(zoom, fresh);
+    return fresh;
   }
 }
 
-export interface Bounds {
-  minX: number;
-  minY: number;
-  maxX: number;
-  maxY: number;
-}
-
-export function boundsOf(points: Vec2[], pad = 0): Bounds {
-  const b = { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity };
-  for (const [x, y] of points) {
-    if (x < b.minX) b.minX = x;
-    if (y < b.minY) b.minY = y;
-    if (x > b.maxX) b.maxX = x;
-    if (y > b.maxY) b.maxY = y;
+/**
+ * The box around the points, each side pushed out by `pad`. An empty list gives an inverted
+ * infinite box (min = +Infinity, max = -Infinity), so ranges built from it are empty.
+ */
+export function boundsOf(pts: Vec2[], pad = 0): Bounds {
+  const box: Bounds = { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity };
+  for (const p of pts) {
+    box.minX = Math.min(box.minX, p[0]);
+    box.maxX = Math.max(box.maxX, p[0]);
+    box.minY = Math.min(box.minY, p[1]);
+    box.maxY = Math.max(box.maxY, p[1]);
   }
-  return { minX: b.minX - pad, minY: b.minY - pad, maxX: b.maxX + pad, maxY: b.maxY + pad };
+  box.minX -= pad;
+  box.minY -= pad;
+  box.maxX += pad;
+  box.maxY += pad;
+  return box;
 }
 
-/** Tile x/y ranges at zoom z covering local bounds. */
-export function tilesCovering(proj: LocalProjection, b: Bounds, z: number): { x0: number; y0: number; x1: number; y1: number } {
-  const a = proj.localToPixel([b.minX, b.maxY], z);
-  const c = proj.localToPixel([b.maxX, b.minY], z);
-  const max = 2 ** z - 1;
-  const clamp = (v: number) => Math.max(0, Math.min(max, v));
-  return {
-    x0: clamp(Math.floor(a[0] / TILE_SIZE)),
-    y0: clamp(Math.floor(a[1] / TILE_SIZE)),
-    x1: clamp(Math.floor(c[0] / TILE_SIZE)),
-    y1: clamp(Math.floor(c[1] / TILE_SIZE)),
-  };
+/** Inclusive tile index ranges at a zoom covering the box; north is the lower y index. */
+export function tilesCovering(projection: LocalProjection, box: Bounds, zoom: number): TileRange {
+  const lastTile = Math.pow(2, zoom) - 1;
+  const tileOf = (px: number): number => clampTo(Math.floor(px / TILE_PX), 0, lastTile);
+  const [nwX, nwY] = projection.localToPixel([box.minX, box.maxY], zoom);
+  const [seX, seY] = projection.localToPixel([box.maxX, box.minY], zoom);
+  return { x0: tileOf(nwX), y0: tileOf(nwY), x1: tileOf(seX), y1: tileOf(seY) };
 }
