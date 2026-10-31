@@ -164,7 +164,18 @@ export function planJunctionCore(input: JunctionCoreInput): JunctionCore {
   const n = route?.samples.length ?? 0;
   for (const j of matched) {
     const fail = (reason: string) => failures.push({ node: j.node, at: j.centre, reason });
-    const outline = junctionOutline(j, j.legs.map((l) => l.cap), input.outlineStep ?? 0.4);
+    let outline = junctionOutline(j, j.legs.map((l) => l.cap), input.outlineStep ?? 0.4);
+    // A cap the outline can't splice (it cuts a neighbouring leg's fillet): move it out, up to 8 m.
+    for (let tries = 0; typeof outline === "string" && tries < 4; tries++) {
+      const m = /^cap (\d+) /.exec(outline);
+      if (!m || !j.retrim?.(Number(m[1]), 2)) break;
+      outline = junctionOutline(j, j.legs.map((l) => l.cap), input.outlineStep ?? 0.4);
+    }
+    // A cap whose outward strip meets another leg further out: only the outline near the cap is its own.
+    if (typeof outline === "string" && /cuts the outline twice/.test(outline)) {
+      const o2 = junctionOutline(j, j.legs.map((l) => l.cap), input.outlineStep ?? 0.4, 0.02, 3);
+      if (typeof o2 !== "string") outline = o2;
+    }
     if (typeof outline === "string") { fail(outline); continue; }
     const why = foreignOverlap(j);
     if (why) { fail(why); continue; }

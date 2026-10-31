@@ -61,7 +61,7 @@ function simplifyClosed(r: P2[], tol: number): P2[] {
  * The junction's outline with the caps spliced in. Fails (returns a reason) when the contour isn't
  * one piece or a cap can't be found on it cleanly.
  */
-export function junctionOutline(shape: { sdf: (p: P2) => number; box: [number, number, number, number] }, caps: Cap[], step = 0.4, tol = 0.02): Outline | string {
+export function junctionOutline(shape: { sdf: (p: P2) => number; box: [number, number, number, number] }, caps: Cap[], step = 0.4, tol = 0.02, reach = Infinity): Outline | string {
   const rings = contourRings(shape, step).filter((r) => r.length >= 3);
   const withArea = rings.map((r) => ({ r, a: ringArea(r) }));
   const outers = withArea.filter((x) => x.a > 0).sort((p, q) => q.a - p.a);
@@ -75,7 +75,10 @@ export function junctionOutline(shape: { sdf: (p: P2) => number; box: [number, n
     const inZone = outer.map((p) => {
       if (capOf[outer.indexOf(p)] >= 0) return false;
       const q = sub(p, cap.c);
-      return dot(q, cap.d) > -zone && Math.abs(dot(q, cap.left)) < cap.hw + zone;
+      // From the cap line outward (whatever of the outline lies past the cap is cut off), but not so far
+      // that another leg's outline further out counts.
+      const t = dot(q, cap.d);
+      return t > -zone && t < reach && Math.abs(dot(q, cap.left)) < cap.hw + zone;
     });
     const nZ = inZone.filter(Boolean).length;
     if (!nZ) return `cap ${ci} not on the outline`;

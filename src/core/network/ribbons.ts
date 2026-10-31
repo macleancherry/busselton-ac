@@ -80,6 +80,8 @@ export interface RLeg {
   inbound?: boolean;
   /** One carriageway of a divided road: the edge both carriageways' legs come from. */
   pair?: number;
+  /** The furthest the cap may go (the edge's limit). */
+  maxTrim?: number;
 }
 
 export interface RJunction {
@@ -98,6 +100,8 @@ export interface RJunction {
   onRoute: boolean;
   /** Route row spans covered, [entry cap row, exit cap row] in route order (may wrap on a loop). */
   spans: [number, number][];
+  /** Moves leg `li`'s cap `by` metres further out and remakes the junction in place (false: no room). */
+  retrim?: (li: number, by: number) => boolean;
 }
 
 export interface Failure {
@@ -424,45 +428,64 @@ export function matchJunctions(g: Graph, route: RouteRibbon | null, streets: Str
       if (s >= l.trim) { l.crowded = true; s = l.trim; }
       l.trim = s;
     }
-    for (const l of legs) {
-      const ok = l.kind === "route" ? capRoute(l) : capStreet(l);
-      if (!ok) return `leg ${l.edge} has no room for its cap`;
-    }
-    if (o.routeRowOk && legs.some((l) => l.kind === "route" && !o.routeRowOk!(l.at))) return "route leg not sealed";
-    if (o.streetOk && legs.some((l) => l.kind === "street" && !o.streetOk!(l.street))) return "street leg not sealed";
-    // Route spans: entry caps (outward against the route) to the next exit cap.
-    const spans: [number, number][] = [];
-    if (onRoute) {
-      const caps = routeLegs.map((l) => ({ row: l.at, dir: l.dir, s: S[l.at].s })).sort((a, b) => a.s - b.s);
-      const entries = caps.filter((c) => c.dir === -1), exits = caps.filter((c) => c.dir === 1);
-      if (entries.length !== exits.length) return "route enters and leaves a different number of times";
-      for (const en of entries) {
-        // The next exit after this entry along the route (wrapping on a loop).
-        let best: (typeof exits)[number] | undefined, bd = Infinity;
-        for (const ex of exits) {
-          let ds = ex.s - en.s;
-          if (ds < 0 && route!.closed) ds += total;
-          if (ds > 0 && ds < bd) { bd = ds; best = ex; }
-        }
-        if (!best || bd > 200) return "route span not closed";
-        spans.push([en.row, best.row]);
+    legs.forEach((l, i) => { l.maxTrim = limits[i]; });
+    const finish = (): RJunction | string => {
+      for (const l of legs) {
+        const ok = l.kind === "route" ? capRoute(l) : capStreet(l);
+        if (!ok) return `leg ${l.edge} has no room for its cap`;
       }
-    }
-    const parts = [...fixed, ...legs.map((l) => cappedLeg(l.line, l.hw, l.trim, l.cap))];
-    const road = unionAll(parts, k);
-    const sdf = (p: P2) => {
-      let v = road(p);
-      for (const h of holes) v = Math.max(v, h(p));
-      return v;
+      if (o.routeRowOk && legs.some((l) => l.kind === "route" && !o.routeRowOk!(l.at))) return "route leg not sealed";
+      if (o.streetOk && legs.some((l) => l.kind === "street" && !o.streetOk!(l.street))) return "street leg not sealed";
+      // Route spans: entry caps (outward against the route) to the next exit cap.
+      const spans: [number, number][] = [];
+      if (onRoute) {
+        const caps = routeLegs.map((l) => ({ row: l.at, dir: l.dir, s: S[l.at].s })).sort((a, b) => a.s - b.s);
+        const entries = caps.filter((c) => c.dir === -1), exits = caps.filter((c) => c.dir === 1);
+        if (entries.length !== exits.length) return "route enters and leaves a different number of times";
+        for (const en of entries) {
+          // The next exit after this entry along the route (wrapping on a loop).
+          let best: (typeof exits)[number] | undefined, bd = Infinity;
+          for (const ex of exits) {
+            let ds = ex.s - en.s;
+            if (ds < 0 && route!.closed) ds += total;
+            if (ds > 0 && ds < bd) { bd = ds; best = ex; }
+          }
+          if (!best || bd > 200) return "route span not closed";
+          spans.push([en.row, best.row]);
+        }
+      }
+      const parts = [...fixed, ...legs.map((l) => cappedLeg(l.line, l.hw, l.trim, l.cap))];
+      const road = unionAll(parts, k);
+      const sdf = (p: P2) => {
+        let v = road(p);
+        for (const h of holes) v = Math.max(v, h(p));
+        return v;
+      };
+      const xs: number[] = [], ys: number[] = [];
+      const addPt = (p: P2, r: number) => { xs.push(p[0] - r, p[0] + r); ys.push(p[1] - r, p[1] + r); };
+      for (const l of legs) for (const p of slice(l.line, 0, Math.max(l.trim, 0.01))) addPt(p, l.hw + k);
+      if (ring) addPt(ring.c, ring.rOut + k);
+      for (const id of inner) for (const p of g.edges[id].pts) addPt(p, k + 4);
+      const box: [number, number, number, number] = [Math.min(...xs) - 1, Math.min(...ys) - 1, Math.max(...xs) + 1, Math.max(...ys) + 1];
+      return { node: node.id, kind: ring ? "roundabout" : "junction", legs, ...(ring ? { ring } : {}), k, sdf, box, centre, onRoute, spans, retrim };
     };
-    const xs: number[] = [], ys: number[] = [];
-    const addPt = (p: P2, r: number) => { xs.push(p[0] - r, p[0] + r); ys.push(p[1] - r, p[1] + r); };
-    for (const l of legs) for (const p of slice(l.line, 0, Math.max(l.trim, 0.01))) addPt(p, l.hw + k);
-    if (ring) addPt(ring.c, ring.rOut + k);
-    for (const id of inner) for (const p of g.edges[id].pts) addPt(p, k + 4);
-    const box: [number, number, number, number] = [Math.min(...xs) - 1, Math.min(...ys) - 1, Math.max(...xs) + 1, Math.max(...ys) + 1];
+    // A cap the outline can't take (it cuts a neighbour's fillet, say): that leg's cap moves out by
+    // `by` metres and the junction is remade in place. False when the leg has no more room.
+    const retrim = (li: number, by: number): boolean => {
+      const l = legs[li];
+      const was = { trim: l.trim, at: l.at, cap: l.cap, hw: l.hw };
+      if (l.trim + by > (l.maxTrim ?? l.trim)) return false;
+      l.trim += by;
+      const j2 = finish();
+      if (typeof j2 === "string") { Object.assign(l, was); finish(); return false; }
+      Object.assign(self, j2);
+      return true;
+    };
+    const first = finish();
+    if (typeof first === "string") return first;
+    const self = first;
     if (ring) usedRing.add(ring.k);
-    return { node: node.id, kind: ring ? "roundabout" : "junction", legs, ...(ring ? { ring } : {}), k, sdf, box, centre, onRoute, spans };
+    return self;
 
     // A route leg: rows outward from the node (or from where the route leaves the ring).
     function routeLeg(edge: number, rank: number, dir: 1 | -1, arcQ: number, edgeLimit: number, target?: P2): RLeg | string {
