@@ -34,7 +34,6 @@ src/core/sideStreets.ts
 src/core/sponsors.ts
 src/core/spurs.ts
 src/core/terrain.ts
-src/core/textures.ts
 src/core/trace.ts
 src/core/track.ts
 src/core/zip.ts
@@ -56,7 +55,6 @@ test/colour.test.ts
 test/cspConfig.test.ts
 test/cull.test.ts
 test/demtiles.test.ts
-test/detail.test.ts
 test/extend.test.ts
 test/fences.test.ts
 test/frontage.test.ts
