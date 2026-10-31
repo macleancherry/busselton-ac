@@ -5,7 +5,9 @@
 -- Drive), hands the player's car to the AI,
 -- writes the car's state four times a second to the CSP log (lines starting "BTEST,"), takes a
 -- screenshot every 5% of the lap and whenever the car leaves the road or gets stuck, and quits AC
--- after a lap, at the end of a point-to-point road, when stuck, or after MAX_TIME seconds.
+-- after a lap, at the finish line of a point-to-point road, when stuck, or after MAX_TIME seconds.
+-- MAX_TIME comes from run-test.ps1's -Minutes (race.ini [BUSSELTON_TEST] MAX_SECONDS); without it,
+-- it's scaled from the AI line's length (35 km/h on average, plus 3 minutes, at least 8 minutes).
 --
 -- With AI opponents (run-test.ps1 -Cars N) it also logs every other car twice a second ("cpos",
 -- note "car=<i>"), each car leaving the road ("coffroad"), getting stuck ("cstuck") and touching
@@ -14,6 +16,15 @@
 -- day, the number of cars and CSP's rain, so a night run (-Night) or a rain run (-Rain) can be checked.
 
 local MAX_TIME = 480
+local MIN_TIME = 480
+local AVG_SPEED = 35 / 3.6 -- m/s, for the default time limit
+local maxFromRun = false
+-- run-test.ps1's settings for this run, in race.ini (AC ignores the section).
+pcall(function ()
+  local cfg = ac.INIConfig.raceConfig()
+  local m = tonumber(cfg:get('BUSSELTON_TEST', 'MAX_SECONDS', 0))
+  if m and m > 0 then MAX_TIME, maxFromRun = m, true end
+end)
 local GRACE = 90
 local CLOSED = __CLOSED__ -- filled in by the build: a circuit (true) or point to point
 -- The speed limit at each 1% of the lap, km/h (filled in by the build). The AI hints only slow it for
@@ -173,6 +184,7 @@ local function updateOthers(dt)
       if not o.half and sp > 0.4 and sp < 0.6 then o.half, o.laps0 = true, c.lapCount end
       if not o.done then
         if CLOSED and o.half and c.lapCount > o.laps0 then o.done = 'lap'
+        elseif not CLOSED and o.half and c.lapCount > o.laps0 then o.done = 'finish line'
         elseif not CLOSED and sp > 0.98 then o.done = 'end of road' end
         if o.done then logCar('clap', i, c, o.done) end
       end
@@ -222,11 +234,17 @@ function script.update(dt)
     for i = 1, nCars - 1 do
       others[i] = { off = 0, offNow = false, stuck = 0, stuckNow = false, with = nil, withAt = -10, half = false, laps0 = 0, done = nil }
     end
-    if nCars > 1 then MAX_TIME = MAX_TIME + GRACE end
+    if not maxFromRun then
+      local okL, len = pcall(function () return sim.trackLengthM end)
+      if okL and type(len) == 'number' and len > 0 then MAX_TIME = math.max(MIN_TIME, len / AVG_SPEED + 180) end
+      -- run-test.ps1 counts the opponents' grace in -Minutes already.
+      if nCars > 1 then MAX_TIME = MAX_TIME + GRACE end
+    end
     local ok, err = pcall(physics.setCarAutopilot, true, false)
     -- At night the AI may not switch the lights on by itself.
     pcall(function () ac.setHeadlights(true) end)
     log('start', ok and 'autopilot' or ('autopilot failed: ' .. clean(err)))
+    log('note', string.format('time limit %.0f s (%s)', MAX_TIME, maxFromRun and 'run-test -Minutes' or 'from the track length'))
     logEnv('env')
     laps0 = car.lapCount
     started = true
@@ -290,9 +308,11 @@ function script.update(dt)
   end
   stuckFor = (car.speedKmh < 3 and t > 15) and stuckFor + dt or 0
   if stuckFor > 10 then done('stuck') end
-  -- A lap only on a circuit: on a point-to-point road the finish line comes before the end of the
-  -- road (the run-off), and crossing it bumps the lap count too.
+  -- A lap on a circuit. On a point-to-point road the finish line (AC_AB_FINISH) comes before the end
+  -- of the road (the run-off), and crossing it bumps the lap count: that's the end of the drive.
+  -- The end of the road stays as a fallback.
   if CLOSED and pastHalf and car.lapCount > laps0 then done('lap') end
+  if not CLOSED and pastHalf and car.lapCount > laps0 then done('finish line') end
   if not CLOSED and car.splinePosition > 0.98 and car.speedKmh < 5 then done('end of road') end
   if not CLOSED and car.splinePosition > 0.995 then done('end of road') end
   if t > MAX_TIME then finish('timeout') end

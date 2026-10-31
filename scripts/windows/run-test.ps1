@@ -31,12 +31,18 @@
   (the rain hollows it lists).
   -Cars N puts N AI opponents on the grid in a race session (-Laps long, at most the layout's pit
   boxes less one); the track script logs every car's contacts, off-road moments and stops.
+  -Minutes is the longest the drive may take: the track script ends the run then (race.ini's
+  [BUSSELTON_TEST] MAX_SECONDS, which it reads), and this script closes AC 2 minutes later. Without
+  -Minutes it's scaled from the layout's AI line: 35 km/h on average plus 3 minutes, at least 9
+  (Cape Naturaliste Road's 12.2 km gets 24), and 2 more with AI cars for them to finish.
+  A point-to-point run ends at the finish line.
   Close AC before running. The script restores race.ini afterwards.
 #>
 param(
   [Parameter(Mandatory = $true, Position = 0)][Alias("Track")][string]$Zip,
   [string]$Car = "abarth500",
   [int]$AiLevel = 75,
+  # Longest drive, minutes; scaled from the AI line's length when not given.
   [int]$Minutes = 9,
   [string]$Share = "",
   [string]$AcPath = $env:BUSSELTON_AC_PATH,
@@ -71,7 +77,7 @@ if ($Time) {
   $sunAngle = 16.0 * ([int]$tm.Groups[1].Value + [int]$tm.Groups[2].Value / 60.0 - 13.0)
 }
 if ($Cars -lt 0) { throw "-Cars must be 0 or more." }
-if ($Cars -gt 0 -and -not $PSBoundParameters.ContainsKey('Minutes')) { $Minutes += 2 }
+if ($PSBoundParameters.ContainsKey('Minutes') -and $Minutes -lt 1) { throw "-Minutes must be 1 or more." }
 $repo = Resolve-Path (Join-Path $PSScriptRoot "..\..")
 . (Join-Path $PSScriptRoot "share.ps1")
 $Zip = Resolve-BusseltonZip $Zip
@@ -99,6 +105,25 @@ if (-not $Layout -and $layouts.Count) { $Layout = $layouts[0] }
 if ($Layout -and $layouts -notcontains $Layout) { throw "No layout '$Layout' in $slug (it has: $($layouts -join ', '))." }
 
 $tracks = Join-Path $AcPath "content\tracks\$slug"
+# The AI line's length in metres: fast_lane.ai (version 7) is int32 version, count, 0, 0, then per
+# point float32 x, y, z, distance and int32 id; the last point's distance is the length.
+function Get-AiLineLength([string]$file) {
+  if (-not (Test-Path -LiteralPath $file)) { return 0.0 }
+  try {
+    $b = [IO.File]::ReadAllBytes($file)
+    $n = [BitConverter]::ToInt32($b, 4)
+    if ($n -lt 2 -or $b.Length -lt 16 + 20 * $n) { return 0.0 }
+    return [double][BitConverter]::ToSingle($b, 16 + 20 * ($n - 1) + 12)
+  } catch { return 0.0 }
+}
+$aiFile = if ($Layout -and (Test-Path (Join-Path $tracks "$Layout\ai\fast_lane.ai"))) { Join-Path $tracks "$Layout\ai\fast_lane.ai" } else { Join-Path $tracks "ai\fast_lane.ai" }
+$aiLength = Get-AiLineLength $aiFile
+if (-not $PSBoundParameters.ContainsKey('Minutes')) {
+  # 35 km/h on average (town speed limits, roundabouts) plus 3 minutes; at least the old 9.
+  if ($aiLength -gt 0) { $Minutes = [int][Math]::Max(9, [Math]::Ceiling($aiLength / 1000.0 / 35.0 * 60.0) + 3) }
+  if ($Cars -gt 0) { $Minutes += 2 }
+  Write-Host ("Time limit: $Minutes min (AI line {0:N1} km)" -f ($aiLength / 1000.0))
+}
 if ($Rain -and -not $Weather) {
   # A rain weather by its folder name: Kunos ships none, CSP / Sol / Pure add their own.
   $wet = @(Get-ChildItem (Join-Path $AcPath "content\weather") -Directory -ErrorAction SilentlyContinue | Where-Object { $_.Name -match 'rain' } | ForEach-Object { $_.Name })
@@ -189,6 +214,9 @@ if ($null -ne $sunAngle) {
   )) { $ini = Set-Ini $ini $kv[0] $kv[1] $kv[2] }
 }
 if ($Weather) { $ini = Set-Ini $ini "WEATHER" "NAME" $Weather }
+# The track script's own settings (autotest.lua reads them with ac.INIConfig.raceConfig(); AC
+# ignores the section): how long it may drive before it ends the run.
+$ini = Set-Ini $ini "BUSSELTON_TEST" "MAX_SECONDS" "$($Minutes * 60)"
 Set-Content -Path $raceIni -Value $ini -Encoding ASCII
 # Run windowed: in exclusive full screen the simulated Drive click never reaches AC.
 $videoIni = Join-Path $docs "cfg\video.ini"
@@ -338,7 +366,7 @@ New-Item -ItemType Directory -Force -Path $dest | Out-Null
 # What this run was asked to do, for autotest_report.py.
 [ordered]@{
   slug = $slug; layout = $Layout; car = $Car; aiLevel = $AiLevel; night = [bool]$Night; time = $Time
-  sunAngle = $sunAngle; cars = $Cars; laps = $(if ($Cars -gt 0) { $Laps } else { 0 }); weather = $Weather; rain = [bool]$Rain
+  sunAngle = $sunAngle; cars = $Cars; minutes = $Minutes; aiLength = [Math]::Round($aiLength); laps = $(if ($Cars -gt 0) { $Laps } else { 0 }); weather = $Weather; rain = [bool]$Rain
 } | ConvertTo-Json | Set-Content (Join-Path $dest "run.json") -Encoding ASCII
 # The track's CSP config as installed (the rain hollows it lists, for autotest_report.py).
 Copy-Item (Join-Path $tracks "extension\ext_config.ini") (Join-Path $dest "ext_config.ini") -ErrorAction SilentlyContinue
