@@ -78,6 +78,8 @@ export interface RLeg {
   cap: Cap;
   /** One-way into the junction (true), out of it (false), or two-way. */
   inbound?: boolean;
+  /** One carriageway of a divided road: the edge both carriageways' legs come from. */
+  pair?: number;
 }
 
 export interface RJunction {
@@ -214,8 +216,8 @@ export function matchJunctions(g: Graph, route: RouteRibbon | null, streets: Str
   streets.forEach((st, si) => { if (st.edge !== undefined) { if (!byEdge.has(st.edge)) byEdge.set(st.edge, []); byEdge.get(st.edge)!.push(si); } });
   const graphStreets = byEdge.size > 0;
   const medOff = (e: { median?: number; width: number }) => (e.median !== undefined ? e.median / 2 + (e.width - e.median) / 4 : 0);
-  const streetOfEdge = (edge: number, p: P2, max: number, halfOnly = false): { street: number; seg: number; f: number; d: number; sd: P2 } | null => {
-    let best: { street: number; seg: number; f: number; d: number; sd: P2 } | null = null;
+  const streetOfEdge = (edge: number, p: P2, max: number, halfOnly = false): { street: number; seg: number; f: number; d: number; sd: P2; p: P2 } | null => {
+    let best: { street: number; seg: number; f: number; d: number; sd: P2; p: P2 } | null = null;
     for (const si of byEdge.get(edge) ?? []) {
       if (halfOnly && !(streets[si] as StreetRibbon & { half?: number }).half) continue;
       const pts = streets[si].pts;
@@ -224,8 +226,9 @@ export function matchJunctions(g: Graph, route: RouteRibbon | null, streets: Str
         const ab = sub(b, a), L2 = dot(ab, ab);
         if (L2 < 1e-8) continue;
         const f = Math.max(0, Math.min(1, dot(sub(p, a), ab) / L2));
-        const d = dist(p, add(a, mul(ab, f)));
-        if (d <= max && (!best || d < best.d)) best = { street: si, seg: k - 1, f, d, sd: unit(ab) };
+        const foot = add(a, mul(ab, f));
+        const d = dist(p, foot);
+        if (d <= max && (!best || d < best.d)) best = { street: si, seg: k - 1, f, d, sd: unit(ab), p: foot };
       }
     }
     return best;
@@ -277,7 +280,8 @@ export function matchJunctions(g: Graph, route: RouteRibbon | null, streets: Str
         const nr = route.nearest(node.p[0], node.p[1], 12 + extra);
         if (nr && nr.dist < S[nr.seg].width / 2 + 2 + extra) {
           onRoute = true;
-          centre = routePoint(nr.seg, nr.frac);
+          // A node on a median stays in the middle of the road (the junction spans both carriageways).
+          centre = extra > 0 ? node.p : routePoint(nr.seg, nr.frac);
           leg0Reach = S[nr.seg].width / 2 + 3 + 2 * extra;
         }
       }
@@ -296,24 +300,50 @@ export function matchJunctions(g: Graph, route: RouteRibbon | null, streets: Str
       const otherEnd = l.start ? e.b : e.a;
       const otherJ = g.nodes[otherEnd].kind === "junction" || g.nodes[otherEnd].kind === "roundabout";
       const edgeLimit = Math.max(0.5, otherJ ? len * 0.45 : len - 1);
-      let leg: RLeg | string | null = null;
-      let half: RLeg | null = null;
-      if (onRoute && route) {
-        const nr = route.nearest(q.p[0], q.p[1], 8 + medOff(e));
-        if (nr && nr.dist < S[nr.seg].width / 2 + 1.5 + medOff(e) && Math.abs(dot(q.d, S[nr.seg].tan)) > 0.8) {
-          leg = routeLeg(l.edge, e.rank, dot(q.d, S[nr.seg].tan) > 0 ? 1 : -1, routeArc(nr.seg, nr.frac), edgeLimit);
-          // A divided road the route runs along one carriageway of: its other carriageway is a leg too.
-          if (typeof leg !== "string" && e.median !== undefined && graphStreets) {
-            const ns = streetOfEdge(l.edge, q.p, 6 + medOff(e), true);
-            if (ns) {
-              const h = streetLeg(l.edge, e.rank, ns.street, dot(q.d, ns.sd) > 0 ? 1 : -1, ns.seg, ns.f, edgeLimit, osm[0]);
-              if (typeof h !== "string") {
-                const st = streets[ns.street];
-                if (st.oneway) h.inbound = st.oneway === -h.dir;
-                half = h;
+      // A divided road (one edge with a median, phase 2): each carriageway is a leg of its own, on the
+      // route where the route runs along it, else on the carriageway's street.
+      if (e.median !== undefined && graphStreets) {
+        const cw = (e.width - e.median) / 2, off = e.median / 2 + cw / 2;
+        const lf = leftOf(q.d);
+        const onSide = ([1, -1] as const).map((side) => {
+          const qs = add(q.p, mul(lf, side * off));
+          if (!route) return null;
+          const nr = route.nearest(qs[0], qs[1], cw / 2 + 2);
+          if (!nr || Math.abs(dot(q.d, S[nr.seg].tan)) <= 0.8) return null;
+          const leg = routeLeg(l.edge, e.rank, dot(q.d, S[nr.seg].tan) > 0 ? 1 : -1, routeArc(nr.seg, nr.frac), edgeLimit, add(osm[0], mul(lf, side * off)));
+          if (typeof leg !== "string") leg.inbound = side !== 1;
+          return leg;
+        });
+        // No route on either carriageway: one street with its median, an ordinary leg (below).
+        if (onSide.some((x) => x)) {
+          for (const [k, side] of ([1, -1] as const).entries()) {
+            let leg: RLeg | string | null = onSide[k];
+            if (!leg) {
+              // The other carriageway: its own one-way street (streets.ts makes it where the route takes one side).
+              const qs = add(q.p, mul(lf, side * off));
+              const ns = streetOfEdge(l.edge, qs, cw / 2 + 2, true);
+              if (ns) {
+                leg = streetLeg(l.edge, e.rank, ns.street, dot(q.d, ns.sd) > 0 ? 1 : -1, ns.seg, ns.f, edgeLimit, osm[0]);
+                if (typeof leg !== "string" && leg) {
+                  const st = streets[ns.street];
+                  if (st.oneway) leg.inbound = st.oneway === -leg.dir;
+                }
               }
             }
+            if (!leg || leg === "unreached") continue;
+            if (typeof leg === "string") return leg;
+            leg.pair = l.edge;
+            legs.push(leg);
           }
+          onRoute = true;
+          continue;
+        }
+      }
+      let leg: RLeg | string | null = null;
+      if (onRoute && route) {
+        const nr = route.nearest(q.p[0], q.p[1], 8);
+        if (nr && nr.dist < S[nr.seg].width / 2 + 1.5 && Math.abs(dot(q.d, S[nr.seg].tan)) > 0.8) {
+          leg = routeLeg(l.edge, e.rank, dot(q.d, S[nr.seg].tan) > 0 ? 1 : -1, routeArc(nr.seg, nr.frac), edgeLimit);
         }
       }
       if (!leg) {
@@ -328,7 +358,6 @@ export function matchJunctions(g: Graph, route: RouteRibbon | null, streets: Str
       const ow = e.oneway;
       if (ow) leg.inbound = l.start ? ow === -1 : ow === 1;
       legs.push(leg);
-      if (half) legs.push(half);
     }
     if (legs.length < (ring ? 1 : 3)) return "too few legs";
     for (let i = 0; i < legs.length; i++) for (let j = i + 1; j < legs.length; j++) {
@@ -376,7 +405,8 @@ export function matchJunctions(g: Graph, route: RouteRibbon | null, streets: Str
     const limits = legs.map((l) => l.trim);
     const reach = legs.map((m, j) => cappedLeg(m.line, m.hw, Math.max(0.5, limits[j])));
     for (const [i, l] of legs.entries()) {
-      const others = [...fixed, ...reach.filter((_, j) => j !== i)];
+      // The other carriageway of a divided road runs beside this one all the way: not a neighbour.
+      const others = [...fixed, ...reach.filter((_, j) => j !== i && (l.pair === undefined || legs[j].pair !== l.pair))];
       const cum = lengths(l.line);
       let s = 0;
       for (; s < l.trim; s += STEP) {
@@ -435,7 +465,7 @@ export function matchJunctions(g: Graph, route: RouteRibbon | null, streets: Str
     return { node: node.id, kind: ring ? "roundabout" : "junction", legs, ...(ring ? { ring } : {}), k, sdf, box, centre, onRoute, spans };
 
     // A route leg: rows outward from the node (or from where the route leaves the ring).
-    function routeLeg(edge: number, rank: number, dir: 1 | -1, arcQ: number, edgeLimit: number): RLeg | string {
+    function routeLeg(edge: number, rank: number, dir: 1 | -1, arcQ: number, edgeLimit: number, target?: P2): RLeg | string {
       // Walk back from q towards the junction to find where the leg starts.
       const rowAt = (arc: number) => {
         let lo = 0, hi = n - 1;
@@ -455,6 +485,14 @@ export function matchJunctions(g: Graph, route: RouteRibbon | null, streets: Str
           const p = pointAt(arcQ - dir * t);
           nodeArc = arcQ - dir * t;
           if (dist(p, ring.c) <= ring.rOut) break;
+        }
+      } else if (target) {
+        // One carriageway of a divided road: back along it from q to where it's nearest the node's point on it.
+        nodeArc = arcQ;
+        let bd = Infinity;
+        for (let t = 0; t < 60; t += 0.25) {
+          const d = dist(pointAt(arcQ - dir * t), target);
+          if (d < bd) { bd = d; nodeArc = arcQ - dir * t; } else if (d > bd + 3) break;
         }
       } else {
         const nr = route!.nearest(node.p[0], node.p[1], 30)!;

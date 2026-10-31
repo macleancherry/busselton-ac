@@ -262,3 +262,60 @@ if (process.env.PROBE) {
     }
   }
 }
+// Debug plot: PLOT=lng,lat[,radius] draws the new drivable surface there (route blue, streets green,
+// junctions orange, overlaps red), the graph's edges (white, medians dashed), the streets' numbers,
+// the route rows' numbers every 10, and the junctions left to the old core (red cross, reason).
+if (process.env.PLOT) {
+  const [lng, lat, rr] = process.env.PLOT.split(",").map(Number);
+  const c = proj.toLocal([lng, lat] as LngLat);
+  const R = rr || 60, PX = 6, W = Math.ceil(2 * R * PX);
+  const cv = createCanvas(W, W);
+  const g = cv.getContext("2d");
+  const img = g.createImageData(W, W);
+  for (let py = 0; py < W; py++) for (let px = 0; px < W; px++) {
+    const x = c[0] - R + (px + 0.5) / PX, y = c[1] + R - (py + 0.5) / PX;
+    const hits = sNew(x, y);
+    const k = (py * W + px) * 4;
+    img.data[k + 3] = 255;
+    if (!hits.length) { img.data[k] = img.data[k + 1] = img.data[k + 2] = 34; continue; }
+    const nm = hits[0].name;
+    const col = hits.length >= 2 ? [230, 40, 40] : /_J/.test(nm) ? [235, 150, 40] : /^1STREET/.test(nm) ? [60, 150, 80] : [60, 110, 220];
+    [img.data[k], img.data[k + 1], img.data[k + 2]] = col;
+  }
+  g.putImageData(img, 0, 0);
+  const to = (p: [number, number]) => [(p[0] - c[0] + R) * PX, (c[1] + R - p[1]) * PX] as const;
+  const gr = p2?.graph;
+  g.font = "13px sans-serif";
+  if (gr) for (const e of gr.edges) {
+    if (!e.pts.some((p) => Math.abs(p[0] - c[0]) < R + 20 && Math.abs(p[1] - c[1]) < R + 20)) continue;
+    g.strokeStyle = e.internal ? "#888" : "#fff"; g.lineWidth = 1; g.setLineDash(e.median !== undefined ? [6, 4] : []);
+    g.beginPath(); e.pts.forEach((p, i) => { const [x, y] = to(p as [number, number]); if (i) g.lineTo(x, y); else g.moveTo(x, y); }); g.stroke();
+    const m = e.pts[Math.floor(e.pts.length / 2)] as [number, number];
+    g.fillStyle = "#ccc"; g.fillText(`e${e.id}`, ...to(m));
+  }
+  g.setLineDash([]);
+  newStreets.forEach((st, si) => {
+    const near = st.pts.filter((p) => Math.abs(p[0] - c[0]) < R && Math.abs(p[1] - c[1]) < R);
+    if (!near.length) return;
+    g.fillStyle = "#9f9"; g.fillText(`s${si}`, ...to(near[Math.floor(near.length / 2)] as [number, number]));
+  });
+  plan.samples.forEach((smp, i) => {
+    if (i % 10 || Math.abs(smp.pos[0] - c[0]) > R || Math.abs(smp.pos[1] - c[1]) > R) return;
+    g.fillStyle = "#9cf"; g.fillText(`r${i}`, ...to(smp.pos as [number, number]));
+  });
+  for (const pj of net.junctions) {
+    if (Math.abs(pj.j.centre[0] - c[0]) > R || Math.abs(pj.j.centre[1] - c[1]) > R) continue;
+    g.fillStyle = "#fc6"; g.fillText(`J${pj.id} n${pj.j.node}`, ...to(pj.j.centre as [number, number]));
+  }
+  let fy = 16;
+  for (const f of net.failures) {
+    if (Math.abs(f.at[0] - c[0]) > R || Math.abs(f.at[1] - c[1]) > R) continue;
+    const [x, y] = to(f.at as [number, number]);
+    g.strokeStyle = "#f33"; g.lineWidth = 3; g.beginPath(); g.moveTo(x - 8, y - 8); g.lineTo(x + 8, y + 8); g.moveTo(x + 8, y - 8); g.lineTo(x - 8, y + 8); g.stroke();
+    g.fillStyle = "#f66"; g.fillText(`n${f.node}`, x + 10, y);
+    g.fillText(`n${f.node}: ${f.reason}`, 6, fy); fy += 16;
+  }
+  const file = join(outDir, `plot_${lng.toFixed(5)}_${lat.toFixed(5)}.png`);
+  writeFileSync(file, cv.toBuffer("image/png"));
+  console.log("plot", file);
+}

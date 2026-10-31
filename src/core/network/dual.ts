@@ -202,15 +202,25 @@ export function collapseDuals(ways: NetWay[], o: DualOptions = {}): { ways: NetW
   const addCut = (c: number, s: number, p: P2, cut: "start" | "end") => { if (!cuts.has(c)) cuts.set(c, []); cuts.get(c)!.push({ s, p, cut }); };
   const out: NetWay[] = [];
   const duals: DualInfo[] = [];
+  // First every stretch's anchors and midline samples, then crossings (two divided roads crossing:
+  // a vertex anchored by both) meet at one point, then the midlines.
+  const gapOf = (A: Chain, B: Chain, s: number) => {
+    const p = along(A.pts, s, A.cum).p;
+    const q = nearestOn(B, p).q;
+    return { p, q, m: [(p[0] + q[0]) / 2, (p[1] + q[1]) / 2] as P2, g: dist(p, q) };
+  };
+  interface Stretch {
+    r: Run; a0: number; a1: number; gap: number;
+    inner: { s: number; keys: P2[]; m: P2 }[];
+    samples: { s: number; p: P2 }[];
+    e0: ReturnType<typeof gapOf>; e1: ReturnType<typeof gapOf>;
+  }
+  const stretches: Stretch[] = [];
   for (const r of kept) {
     const A = chains[r.a], B = chains[r.b];
     const memberSet = new Set([...A.ways, ...B.ways]);
     const foreign = (p: P2) => [...(users.get(key(p)) ?? [])].some((w) => !memberSet.has(w));
-    const gapAt = (s: number) => {
-      const p = along(A.pts, s, A.cum).p;
-      const q = nearestOn(B, p).q;
-      return { p, q, m: [(p[0] + q[0]) / 2, (p[1] + q[1]) / 2] as P2, g: dist(p, q) };
-    };
+    const gapAt = (s: number) => gapOf(A, B, s);
     // Anchor candidates in A's arc length.
     const anchors: { s: number; keys: P2[] }[] = [];
     A.pts.forEach((p, i) => { const s = A.cum[i]; if (s >= r.a0 - 6 && s <= r.a1 + 6 && foreign(p)) anchors.push({ s, keys: [p] }); });
@@ -236,29 +246,56 @@ export function collapseDuals(ways: NetWay[], o: DualOptions = {}): { ways: NetW
     a0 = Math.max(0, a0);
     a1 = Math.min(A.cum[A.cum.length - 1], a1);
     if (a1 - a0 < minLength * 0.8) continue;
-    const inner = merged.filter((m) => m.s >= a0 - 1e-6 && m.s <= a1 + 1e-6);
-    const pts: { s: number; p: P2 }[] = [];
+    const inner = merged.filter((m) => m.s >= a0 - 1e-6 && m.s <= a1 + 1e-6).map((m) => ({ ...m, m: gapAt(m.s).m }));
+    const samples: { s: number; p: P2 }[] = [];
     let gSum = 0, gN = 0;
     for (let s = a0; s <= a1 + 1e-6; s += 3) {
       const g = gapAt(Math.min(s, a1));
       gSum += g.g; gN++;
-      if (inner.some((m) => Math.abs(m.s - s) < 1.5)) continue;
-      pts.push({ s, p: g.m });
+      samples.push({ s, p: g.m });
     }
+    stretches.push({ r, a0, a1, inner, samples, gap: gSum / Math.max(1, gN), e0: gapAt(a0), e1: gapAt(a1) });
+  }
+  // Crossings: an anchor vertex two stretches share. Both anchors go to where the midlines cross (or,
+  // if they don't within 15 m, halfway between the two anchor points).
+  const anchorOf = new Map<string, { st: number; k: number }[]>();
+  stretches.forEach((st, si) => st.inner.forEach((m, k) => m.keys.forEach((p) => {
+    const kk = key(p);
+    if (!anchorOf.has(kk)) anchorOf.set(kk, []);
+    anchorOf.get(kk)!.push({ st: si, k });
+  })));
+  for (const list of anchorOf.values()) {
+    const sts = [...new Map(list.map((x) => [x.st, x])).values()];
+    if (sts.length < 2) continue;
+    const [x, y] = sts;
+    const mx = stretches[x.st].inner[x.k], my = stretches[y.st].inner[y.k];
+    if (mx.m === my.m) continue;
+    const X = crossing(stretches[x.st].samples.map((q) => q.p), stretches[y.st].samples.map((q) => q.p), mx.m, 15)
+      ?? ([(mx.m[0] + my.m[0]) / 2, (mx.m[1] + my.m[1]) / 2] as P2);
+    mx.m = X;
+    my.m = X;
+  }
+  for (const st of stretches) {
+    const { r, a0, a1, inner, e0, e1 } = st;
+    const A = chains[r.a], B = chains[r.b];
+    const pts: { s: number; p: P2 }[] = st.samples.filter((q) => !inner.some((m) => Math.abs(m.s - q.s) < 1.5));
     for (const m of inner) {
-      const g = gapAt(m.s);
-      pts.push({ s: m.s, p: g.m });
-      for (const k of m.keys) moved.set(key(k), g.m);
+      pts.push({ s: m.s, p: m.m });
+      for (const k of m.keys) moved.set(key(k), m.m);
     }
     // Exact ends.
-    const e0 = gapAt(a0), e1 = gapAt(a1);
-    const end0 = inner.find((m) => Math.abs(m.s - a0) < 1e-6) ? pts.find((q) => Math.abs(q.s - a0) < 1e-6)!.p : e0.m;
-    const end1 = inner.find((m) => Math.abs(m.s - a1) < 1e-6) ? pts.find((q) => Math.abs(q.s - a1) < 1e-6)!.p : e1.m;
+    const end0 = inner.find((m) => Math.abs(m.s - a0) < 1e-6)?.m ?? e0.m;
+    const end1 = inner.find((m) => Math.abs(m.s - a1) < 1e-6)?.m ?? e1.m;
     const mid = pts.filter((q) => q.s > a0 + 1e-6 && q.s < a1 - 1e-6).sort((p, q) => p.s - q.s).map((q) => q.p);
-    const line = [end0, ...mid, end1].filter((p, i, arr) => i === 0 || dist(p, arr[i - 1]) > 0.05);
+    let line = [end0, ...mid, end1].filter((p, i, arr) => i === 0 || dist(p, arr[i - 1]) > 0.05);
+    // Two anchors that went to the same crossing point: nothing between them.
+    for (let i = 0; i < line.length; i++) {
+      let last = -1;
+      for (let m = line.length - 1; m > i; m--) if (dist(line[m], line[i]) < 1e-6) { last = m; break; }
+      if (last > i) line = [...line.slice(0, i + 1), ...line.slice(last + 1)];
+    }
     if (line.length < 2) continue;
-    const gap = gSum / Math.max(1, gN);
-    const median = Math.max(0, Math.min(20, gap - (A.width + B.width) / 2));
+    const median = Math.max(0, Math.min(20, st.gap - (A.width + B.width) / 2));
     const width = A.width + B.width + median;
     const wa = ways[A.ways[0]];
     const top = [...A.ways, ...B.ways].map((w) => ways[w]).sort((p, q) => classRank(q.cls) - classRank(p.cls))[0];
@@ -285,13 +322,13 @@ export function collapseDuals(ways: NetWay[], o: DualOptions = {}): { ways: NetW
     const list = cuts.get(ci)!.sort((p, q) => p.s - q.s);
     const total = c.cum[c.cum.length - 1];
     // Pieces: [0, first end], [start, next end], ..., [last start, total].
-    let from: { s: number; p: P2 } | null = { s: 0, p: c.pts[0] };
+    let from: { s: number; p: P2 } | null = { s: 0, p: moved.get(key(c.pts[0])) ?? c.pts[0] };
     const pieces: { s0: number; p0: P2; s1: number; p1: P2 }[] = [];
     for (const cut of list) {
       if (cut.cut === "end") { if (from) pieces.push({ s0: from.s, p0: from.p, s1: cut.s, p1: cut.p }); from = null; }
       else from = { s: cut.s, p: cut.p };
     }
-    if (from) pieces.push({ s0: from.s, p0: from.p, s1: total, p1: c.pts[c.pts.length - 1] });
+    if (from) pieces.push({ s0: from.s, p0: from.p, s1: total, p1: moved.get(key(c.pts[c.pts.length - 1])) ?? c.pts[c.pts.length - 1] });
     for (const pc of pieces) {
       if (pc.s1 - pc.s0 < 0.5 && dist(pc.p0, pc.p1) < 0.5) continue;
       // Split at the chain's way boundaries so each piece keeps its own way's tags.
@@ -300,7 +337,8 @@ export function collapseDuals(ways: NetWay[], o: DualOptions = {}): { ways: NetW
         const lo = Math.max(ws, pc.s0), hi = Math.min(we, pc.s1);
         if (hi - lo < 1e-6 && !(ws <= pc.s0 && pc.s0 === pc.s1)) continue;
         const pts: P2[] = [lo === pc.s0 ? pc.p0 : along(c.pts, lo, c.cum).p];
-        for (let i = 0; i < c.pts.length; i++) if (c.cum[i] > lo + 1e-6 && c.cum[i] < hi - 1e-6) pts.push(c.pts[i]);
+        // Inner vertices another divided road moved onto its midline (a dual crossing this one) move too.
+        for (let i = 0; i < c.pts.length; i++) if (c.cum[i] > lo + 1e-6 && c.cum[i] < hi - 1e-6) pts.push(moved.get(key(c.pts[i])) ?? c.pts[i]);
         pts.push(hi === pc.s1 ? pc.p1 : along(c.pts, hi, c.cum).p);
         const clean = pts.filter((p, i) => i === 0 || dist(p, pts[i - 1]) > 0.02);
         if (clean.length < 2) continue;
@@ -357,4 +395,21 @@ function fuseForks(ways: NetWay[]): NetWay[] {
     }
   });
   return ways.filter((_, i) => !gone.has(i));
+}
+
+/** Where two polylines cross, nearest to `near` and within `max` of it. */
+function crossing(a: P2[], b: P2[], near: P2, max: number): P2 | null {
+  let best: P2 | null = null, bd = max;
+  for (let i = 1; i < a.length; i++) for (let j = 1; j < b.length; j++) {
+    const p = a[i - 1], r = sub(a[i], p), q = b[j - 1], s = sub(b[j], q);
+    const den = r[0] * s[1] - r[1] * s[0];
+    if (Math.abs(den) < 1e-9) continue;
+    const qp = sub(q, p);
+    const t = (qp[0] * s[1] - qp[1] * s[0]) / den, u = (qp[0] * r[1] - qp[1] * r[0]) / den;
+    if (t < -1e-9 || t > 1 + 1e-9 || u < -1e-9 || u > 1 + 1e-9) continue;
+    const X: P2 = [p[0] + r[0] * t, p[1] + r[1] * t];
+    const d = dist(X, near);
+    if (d < bd) { bd = d; best = X; }
+  }
+  return best;
 }
