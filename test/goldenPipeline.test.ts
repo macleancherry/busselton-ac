@@ -59,6 +59,8 @@ describe("golden pipeline", () => {
       const g = structuredClone(golden[c.name]);
       if (g.outcome) g.outcome.warnings ??= [];
       FIXES[c.name]?.(g);
+      // Mapillary now reports its tile cap through the missing-data warnings (art/options rewrite).
+      for (const call of g.calls?.fetchSeen ?? []) call.push({ warn: "[fn]" });
       expect(comparable(now), c.name).toEqual(comparable(g));
     }
   });

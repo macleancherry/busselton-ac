@@ -41,7 +41,8 @@ describe("runBuild", () => {
     expect(calls.fetchOsm[0][2]).toEqual({ cattleGrids: true, trafficSignals: true });
     expect(calls.fetchTileFeatures[0][0]).toEqual(paddedBounds(ROUTE, 350));
     expect(calls.fetchCoast[0][0]).toEqual(paddedBounds(ROUTE, 3200));
-    expect(calls.fetchSeen[0]).toEqual([paddedBounds(ROUTE, 90), "t"]);
+    expect(calls.fetchSeen[0].slice(0, 2)).toEqual([paddedBounds(ROUTE, 90), "t"]);
+    expect(typeof (calls.fetchSeen[0][2] as { warn?: unknown })?.warn).toBe("function");
     expect(calls.fetchFarmland[0]).toEqual([ROUTE, 90]);
 
     const quiet = base("defaults");
