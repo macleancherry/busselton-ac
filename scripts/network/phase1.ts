@@ -20,7 +20,7 @@ import { buildSideStreets, type SideStreet } from "../../src/core/sideStreets";
 import type { Kn5MeshNode } from "../../src/core/kn5";
 import { networkGraph, planJunctionCore } from "../../src/core/network/phase1";
 import { isKerbedStreet, planGraphStreets } from "../../src/core/network/streets";
-import { buildStreetMeshes } from "../../src/core/network/streetMesh";
+import { buildStreetMeshes, tuckedJoin } from "../../src/core/network/streetMesh";
 import { surfaceHeight } from "../../src/core/road";
 import { isDrivable, sampler, surfaceSteps, type RawMesh, type Sampler } from "../check/benchmarkLib";
 import { loadTown } from "./setup";
@@ -74,7 +74,8 @@ let meshMs = 0, junctionTris = 0, dressNodes: Kn5MeshNode[] = [], streetDress: K
     const routeClear = (p: [number, number]) => { const nr = index.nearest(p[0], p[1], 30); return nr ? nr.dist - index.at(nr).width / 2 : Infinity; };
     const sm = buildStreetMeshes(newStreets, {
       ground: net.streetGround(terrain), lift: 0.1, skip: net.streetSkip,
-      joinZ: ([x, y]) => { const nr = index.nearest(x, y, 40); return nr ? surfaceHeight(plan.samples[nr.seg], nr.t, opts.crown) : null; },
+      joinZ: ([x, y]) => { const nr = index.nearest(x, y, 40); if (!nr) return null; const at = index.at(nr); return tuckedJoin(surfaceHeight({ ...plan.samples[nr.seg], h: at.h, bank: at.bank, width: at.width }, nr.t, opts.crown), at.width / 2 - nr.dist); },
+      joinGap: ([x, y]) => { const nr = index.nearest(x, y, 10); return nr ? nr.dist - index.at(nr).width / 2 : Infinity; }, junctionDist: net.sdfAt,
       clear: (p, si) => Math.min(net.streetClear(p, new Set([si])), routeClear(p)),
       kerbed: (si) => isKerbedStreet(newStreets[si]), markings: true, material: () => "road",
     });
@@ -142,7 +143,7 @@ const views = JSON.parse(readFileSync("benchmarks/views.json", "utf8")).sites.fl
   .map((v: { name: string; focus: LngLat; radius: number }) => {
     const c = proj.toLocal(v.focus);
     const a = surfaceSteps(sOld, c, v.radius), b = surfaceSteps(sNew, c, v.radius);
-    return { view: v.name, radius: v.radius, old: { steps: a.steps, maxStep: +a.maxStep.toFixed(3), lips: a.stacked, overlap: overlapAny(sOld, c, v.radius) }, new: { steps: b.steps, maxStep: +b.maxStep.toFixed(3), lips: b.stacked, overlap: overlapAny(sNew, c, v.radius) } };
+    return { view: v.name, radius: v.radius, old: { steps: a.steps, maxStep: +a.maxStep.toFixed(3), lips: a.stacked, overlap: overlapAny(sOld, c, v.radius) }, new: { steps: b.steps, maxStep: +b.maxStep.toFixed(3), lips: b.stacked, overlap: overlapAny(sNew, c, v.radius), ...(b.maxStepAt ? { maxStepAt: proj.toLngLat(b.maxStepAt as [number, number]).map((x) => +x.toFixed(6)) } : {}) } };
   });
 const reasons: Record<string, number> = {};
 for (const f of net.failures) { const k = f.reason.replace(/\d+(\.\d+)?/g, "#"); reasons[k] = (reasons[k] ?? 0) + 1; }
@@ -286,15 +287,25 @@ if (process.env.PLOT) {
   const cv = createCanvas(W, W);
   const g = cv.getContext("2d");
   const img = g.createImageData(W, W);
+  const tops = new Float32Array(W * W).fill(NaN);
   for (let py = 0; py < W; py++) for (let px = 0; px < W; px++) {
     const x = c[0] - R + (px + 0.5) / PX, y = c[1] + R - (py + 0.5) / PX;
     const hits = sNew(x, y);
     const k = (py * W + px) * 4;
     img.data[k + 3] = 255;
     if (!hits.length) { img.data[k] = img.data[k + 1] = img.data[k + 2] = 34; continue; }
+    tops[py * W + px] = hits[0].h;
     const nm = hits[0].name;
-    const col = hits.length >= 2 ? [230, 40, 40] : /_J/.test(nm) ? [235, 150, 40] : /^1STREET/.test(nm) ? [60, 150, 80] : [60, 110, 220];
+    // Overlaps: red where the two are 1 to 25 cm apart (a lip), dark red where they're within 1 cm.
+    const lip = hits.length >= 2 && hits.slice(1).some((h) => hits[0].h - h.h > 0.01 && hits[0].h - h.h < 0.25);
+    const col = hits.length >= 2 ? (lip ? [230, 40, 40] : [130, 30, 30]) : /_J/.test(nm) ? [235, 150, 40] : /^1STREET/.test(nm) ? [60, 150, 80] : [60, 110, 220];
     [img.data[k], img.data[k + 1], img.data[k + 2]] = col;
+  }
+  // Steps over 3 cm (25 cm apart, as the benchmark): magenta.
+  const st = Math.round(PX * 0.25);
+  for (let py = 0; py < W - st; py++) for (let px = 0; px < W - st; px++) {
+    const a = tops[py * W + px], b = tops[py * W + px + st], d = tops[(py + st) * W + px];
+    if (Math.abs(a - b) > 0.03 || Math.abs(a - d) > 0.03) { const k = (py * W + px) * 4; img.data[k] = 255; img.data[k + 1] = 0; img.data[k + 2] = 255; }
   }
   g.putImageData(img, 0, 0);
   const to = (p: [number, number]) => [(p[0] - c[0] + R) * PX, (c[1] + R - p[1]) * PX] as const;

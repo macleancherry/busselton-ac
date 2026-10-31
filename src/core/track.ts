@@ -94,7 +94,7 @@ import { networkPreview } from "./network/preview";
 import { planJunctionCore, type JunctionCore } from "./network/phase1";
 import { planNetworkStreets } from "./network/phase2";
 import { isKerbedStreet, type GraphStreet } from "./network/streets";
-import { buildStreetMeshes, type MeshStreet } from "./network/streetMesh";
+import { buildStreetMeshes, tuckedJoin, type MeshStreet } from "./network/streetMesh";
 
 /** Progress callback; a returned promise is awaited, which lets a UI repaint. */
 export type Progress = (stage: string, fraction?: number) => void | Promise<void>;
@@ -1248,7 +1248,8 @@ export async function buildTrack(
     const jn = net;
     return buildStreetMeshes(streetPlan.streets as MeshStreet[], {
       ground: jn.streetGround((x, y) => terrainAt(x, y).h), lift: 0.1, skip: jn.streetSkip as (st: MeshStreet, s0: number, s1: number) => boolean,
-      joinZ: ([x, y]) => { const nr = index.nearest(x, y, 40); if (!nr) return null; const at = index.at(nr); return surfaceHeight({ ...plan.samples[nr.seg], h: at.h, bank: at.bank, width: at.width }, nr.t, opts.crown); },
+      joinZ: ([x, y]) => { const nr = index.nearest(x, y, 40); if (!nr) return null; const at = index.at(nr); return tuckedJoin(surfaceHeight({ ...plan.samples[nr.seg], h: at.h, bank: at.bank, width: at.width }, nr.t, opts.crown), at.width / 2 - nr.dist); },
+      joinGap: ([x, y]) => { const nr = index.nearest(x, y, 10); return nr ? nr.dist - index.at(nr).width / 2 : Infinity; }, junctionDist: jn.sdfAt,
       clear: (p, si) => Math.min(jn.streetClear(p, new Set([si])), (() => { const nr = index.nearest(p[0], p[1], 30); return nr ? nr.dist - index.at(nr).width / 2 : Infinity; })()),
       kerbed: (si) => opts.kerbs && !(gravelOn && isUnsealed(streetPlan.streets[si].surface, streetPlan.streets[si].cls)) && isKerbedStreet(streetPlan.streets[si] as GraphStreet),
       markings: opts.markings, material: (si) => sideMaterial(streetPlan.streets[si], si), surfaceKey: (m) => surfaceKeyFor(m, false),

@@ -32,8 +32,19 @@ export interface StreetMeshOptions {
   ground: (x: number, y: number) => number;
   /** The street's height above that ground (the junction fields expect the same lift). */
   lift: number;
-  /** The surface a mouth meets (the route's, an old-core ring's), or null: the street stays draped. */
+  /**
+   * The height a street's edge point near a mouth takes (the route's surface, an old-core ring's), tucked
+   * just under it where the point is on that surface and level with it at its edge; or null: the street
+   * stays draped.
+   */
   joinZ: (p: P2) => number | null;
+  /**
+   * Distance from a point to the asphalt edge of the surface joinZ reads (negative on it). A street
+   * edge within 3 m of it takes its height there too, not only at a mouth (a carriageway running along
+   * the route as it turns off), except near a junction (`junctionDist`), whose field it meets instead.
+   */
+  joinGap?: (p: P2) => number;
+  junctionDist?: (p: P2) => number;
   /** Leave out the quad of street `st` from arc s0 to s1 (a junction covers it). */
   skip?: (st: MeshStreet, s0: number, s1: number) => boolean;
   /** Room from a point to asphalt that isn't street `si`'s own (another street, the route). */
@@ -61,6 +72,8 @@ const STRIP = 1.2;
 const DASH = 3, GAP = 9, LINE_W = 0.1;
 const RAMP = 1.5;
 const MOUTH_BLEND = 10;
+/** A street edge this close to the joined surface takes its height. */
+const PROX = 3;
 
 interface Row { p: P2; d: P2; left: P2; w: number; s: number }
 
@@ -85,6 +98,11 @@ export function streetRows(st: MeshStreet, step = 3): Row[] {
     }
   }
   return rows;
+}
+
+/** A mouth's join height: the surface there, tucked 2 cm under it more than 0.5 m inside its edge. */
+export function tuckedJoin(surface: number, inside: number): number {
+  return surface - 0.02 * Math.max(0, Math.min(1, inside / 0.5));
 }
 
 export function buildStreetMeshes(streets: MeshStreet[], o: StreetMeshOptions): StreetMeshes {
@@ -112,10 +130,18 @@ export function buildStreetMeshes(streets: MeshStreet[], o: StreetMeshOptions): 
     const zEdge = (x: P2, s: number) => {
       const draped = o.ground(x[0], x[1]) + o.lift;
       const dj = dJoin(s);
-      if (dj >= MOUTH_BLEND) return draped;
+      let w = dj >= MOUTH_BLEND ? 0 : 1 - smoothstep(dj / MOUTH_BLEND);
+      if (o.joinGap) {
+        const gap = o.joinGap(x);
+        if (gap < PROX) {
+          const jd = o.junctionDist ? o.junctionDist(x) : Infinity;
+          w = Math.max(w, (1 - smoothstep(Math.max(0, gap) / PROX)) * smoothstep(Math.max(0, jd) / PROX));
+        }
+      }
+      if (w <= 0) return draped;
       const r = o.joinZ(x);
       if (r === null) return draped;
-      return r - 0.02 + (draped - (r - 0.02)) * smoothstep(dj / MOUTH_BLEND);
+      return draped + (r - draped) * w;
     };
     const quadOn = rows.slice(0, -1).map((r, k) => !o.skip?.(st, r.s, rows[k + 1].s));
     if (!quadOn.some(Boolean)) return;
