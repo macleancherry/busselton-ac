@@ -1,0 +1,1777 @@
+{
+ "perth_wa_full": {
+  "requests": [
+   {
+    "method": "GET",
+    "url": "https://services.slip.wa.gov.au/public/rest/services/SLIP_Public_Services/Locate/ImageServer/exportImage?bbox=12897372.657,-3756727.066,12897449.094,-3756650.629&bboxSR=3857&imageSR=3857&size=256,256&format=jpg&interpolation=RSP_BilinearInterpolation&f=image",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://services.slip.wa.gov.au/public/rest/services/SLIP_Public_Services/Locate/ImageServer/exportImage?bbox=12897449.094,-3756727.066,12897525.531,-3756650.629&bboxSR=3857&imageSR=3857&size=256,256&format=jpg&interpolation=RSP_BilinearInterpolation&f=image",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://services.slip.wa.gov.au/public/rest/services/SLIP_Public_Services/Locate/ImageServer/exportImage?bbox=12897525.531,-3756727.066,12897601.968,-3756650.629&bboxSR=3857&imageSR=3857&size=256,256&format=jpg&interpolation=RSP_BilinearInterpolation&f=image",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://services.slip.wa.gov.au/public/rest/services/SLIP_Public_Services/Locate/ImageServer/exportImage?bbox=12897372.657,-3756803.503,12897449.094,-3756727.066&bboxSR=3857&imageSR=3857&size=256,256&format=jpg&interpolation=RSP_BilinearInterpolation&f=image",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://services.slip.wa.gov.au/public/rest/services/SLIP_Public_Services/Locate/ImageServer/exportImage?bbox=12897449.094,-3756803.503,12897525.531,-3756727.066&bboxSR=3857&imageSR=3857&size=256,256&format=jpg&interpolation=RSP_BilinearInterpolation&f=image",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://services.slip.wa.gov.au/public/rest/services/SLIP_Public_Services/Locate/ImageServer/exportImage?bbox=12897525.531,-3756803.503,12897601.968,-3756727.066&bboxSR=3857&imageSR=3857&size=256,256&format=jpg&interpolation=RSP_BilinearInterpolation&f=image",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://services.slip.wa.gov.au/public/rest/services/SLIP_Public_Services/Locate/ImageServer/exportImage?bbox=12897372.657,-3756879.940,12897449.094,-3756803.503&bboxSR=3857&imageSR=3857&size=256,256&format=jpg&interpolation=RSP_BilinearInterpolation&f=image",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://services.slip.wa.gov.au/public/rest/services/SLIP_Public_Services/Locate/ImageServer/exportImage?bbox=12897449.094,-3756879.940,12897525.531,-3756803.503&bboxSR=3857&imageSR=3857&size=256,256&format=jpg&interpolation=RSP_BilinearInterpolation&f=image",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://services.slip.wa.gov.au/public/rest/services/SLIP_Public_Services/Locate/ImageServer/exportImage?bbox=12897525.531,-3756879.940,12897601.968,-3756803.503&bboxSR=3857&imageSR=3857&size=256,256&format=jpg&interpolation=RSP_BilinearInterpolation&f=image",
+    "body": ""
+   }
+  ],
+  "used": [
+   "wa"
+  ],
+  "draws": [
+   {
+    "tag": "https://services.slip.wa.gov.au/public/rest/services/SLIP_Public_Services/Locate/ImageServer/exportImage?bbox=12897372.657,-3756727.066,12897449.094,-3756650.629&bboxSR=3857&imageSR=3857&size=256,256&format=jpg&interpolation=RSP_BilinearInterpolation&f=image",
+    "op": "source-over",
+    "args": [
+     -59.435579,
+     -50.316646,
+     138.862879,
+     138.862879
+    ]
+   },
+   {
+    "tag": "https://services.slip.wa.gov.au/public/rest/services/SLIP_Public_Services/Locate/ImageServer/exportImage?bbox=12897449.094,-3756727.066,12897525.531,-3756650.629&bboxSR=3857&imageSR=3857&size=256,256&format=jpg&interpolation=RSP_BilinearInterpolation&f=image",
+    "op": "source-over",
+    "args": [
+     78.927299,
+     -50.316646,
+     138.862879,
+     138.862879
+    ]
+   },
+   {
+    "tag": "https://services.slip.wa.gov.au/public/rest/services/SLIP_Public_Services/Locate/ImageServer/exportImage?bbox=12897525.531,-3756727.066,12897601.968,-3756650.629&bboxSR=3857&imageSR=3857&size=256,256&format=jpg&interpolation=RSP_BilinearInterpolation&f=image",
+    "op": "source-over",
+    "args": [
+     217.290178,
+     -50.316646,
+     138.862879,
+     138.862879
+    ]
+   },
+   {
+    "tag": "https://services.slip.wa.gov.au/public/rest/services/SLIP_Public_Services/Locate/ImageServer/exportImage?bbox=12897372.657,-3756803.503,12897449.094,-3756727.066&bboxSR=3857&imageSR=3857&size=256,256&format=jpg&interpolation=RSP_BilinearInterpolation&f=image",
+    "op": "source-over",
+    "args": [
+     -59.435579,
+     88.046232,
+     138.862879,
+     138.862879
+    ]
+   },
+   {
+    "tag": "https://services.slip.wa.gov.au/public/rest/services/SLIP_Public_Services/Locate/ImageServer/exportImage?bbox=12897449.094,-3756803.503,12897525.531,-3756727.066&bboxSR=3857&imageSR=3857&size=256,256&format=jpg&interpolation=RSP_BilinearInterpolation&f=image",
+    "op": "source-over",
+    "args": [
+     78.927299,
+     88.046232,
+     138.862879,
+     138.862879
+    ]
+   },
+   {
+    "tag": "https://services.slip.wa.gov.au/public/rest/services/SLIP_Public_Services/Locate/ImageServer/exportImage?bbox=12897525.531,-3756803.503,12897601.968,-3756727.066&bboxSR=3857&imageSR=3857&size=256,256&format=jpg&interpolation=RSP_BilinearInterpolation&f=image",
+    "op": "source-over",
+    "args": [
+     217.290178,
+     88.046232,
+     138.862879,
+     138.862879
+    ]
+   },
+   {
+    "tag": "https://services.slip.wa.gov.au/public/rest/services/SLIP_Public_Services/Locate/ImageServer/exportImage?bbox=12897372.657,-3756879.940,12897449.094,-3756803.503&bboxSR=3857&imageSR=3857&size=256,256&format=jpg&interpolation=RSP_BilinearInterpolation&f=image",
+    "op": "source-over",
+    "args": [
+     -59.435579,
+     226.409111,
+     138.862879,
+     138.862879
+    ]
+   },
+   {
+    "tag": "https://services.slip.wa.gov.au/public/rest/services/SLIP_Public_Services/Locate/ImageServer/exportImage?bbox=12897449.094,-3756879.940,12897525.531,-3756803.503&bboxSR=3857&imageSR=3857&size=256,256&format=jpg&interpolation=RSP_BilinearInterpolation&f=image",
+    "op": "source-over",
+    "args": [
+     78.927299,
+     226.409111,
+     138.862879,
+     138.862879
+    ]
+   },
+   {
+    "tag": "https://services.slip.wa.gov.au/public/rest/services/SLIP_Public_Services/Locate/ImageServer/exportImage?bbox=12897525.531,-3756879.940,12897601.968,-3756803.503&bboxSR=3857&imageSR=3857&size=256,256&format=jpg&interpolation=RSP_BilinearInterpolation&f=image",
+    "op": "source-over",
+    "args": [
+     217.290178,
+     226.409111,
+     138.862879,
+     138.862879
+    ]
+   }
+  ],
+  "result": {
+   "ext": "dds",
+   "bytes": 43832,
+   "head": [
+    68,
+    68,
+    83,
+    32
+   ],
+   "rgbaLen": 262144
+  },
+  "preview": true
+ },
+ "perth_wa_gaps": {
+  "requests": [
+   {
+    "method": "GET",
+    "url": "https://services.slip.wa.gov.au/public/rest/services/SLIP_Public_Services/Locate/ImageServer/exportImage?bbox=12897449.094,-3756879.940,12897525.531,-3756803.503&bboxSR=3857&imageSR=3857&size=256,256&format=jpg&interpolation=RSP_BilinearInterpolation&f=image",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://services.slip.wa.gov.au/public/rest/services/SLIP_Public_Services/Locate/ImageServer/exportImage?bbox=12897525.531,-3756879.940,12897601.968,-3756803.503&bboxSR=3857&imageSR=3857&size=256,256&format=jpg&interpolation=RSP_BilinearInterpolation&f=image",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://services.slip.wa.gov.au/public/rest/services/SLIP_Public_Services/Locate/ImageServer/exportImage?bbox=12897601.968,-3756879.940,12897678.405,-3756803.503&bboxSR=3857&imageSR=3857&size=256,256&format=jpg&interpolation=RSP_BilinearInterpolation&f=image",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://services.slip.wa.gov.au/public/rest/services/SLIP_Public_Services/Locate/ImageServer/exportImage?bbox=12897449.094,-3756956.377,12897525.531,-3756879.940&bboxSR=3857&imageSR=3857&size=256,256&format=jpg&interpolation=RSP_BilinearInterpolation&f=image",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://services.slip.wa.gov.au/public/rest/services/SLIP_Public_Services/Locate/ImageServer/exportImage?bbox=12897525.531,-3756956.377,12897601.968,-3756879.940&bboxSR=3857&imageSR=3857&size=256,256&format=jpg&interpolation=RSP_BilinearInterpolation&f=image",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://services.slip.wa.gov.au/public/rest/services/SLIP_Public_Services/Locate/ImageServer/exportImage?bbox=12897601.968,-3756956.377,12897678.405,-3756879.940&bboxSR=3857&imageSR=3857&size=256,256&format=jpg&interpolation=RSP_BilinearInterpolation&f=image",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/19/311293/430877",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/19/311293/430878",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/19/311293/430879",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/19/311294/430877",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/19/311294/430878",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/19/311294/430879",
+    "body": ""
+   }
+  ],
+  "used": [
+   "esri"
+  ],
+  "draws": [
+   {
+    "tag": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/19/311293/430877",
+    "op": "destination-over",
+    "args": [
+     -245.15104,
+     -22.144497,
+     277.222745,
+     277.222745
+    ]
+   },
+   {
+    "tag": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/19/311293/430878",
+    "op": "destination-over",
+    "args": [
+     31.571705,
+     -22.144497,
+     277.222745,
+     277.222745
+    ]
+   },
+   {
+    "tag": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/19/311293/430879",
+    "op": "destination-over",
+    "args": [
+     308.294449,
+     -22.144497,
+     277.222745,
+     277.222745
+    ]
+   },
+   {
+    "tag": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/19/311294/430877",
+    "op": "destination-over",
+    "args": [
+     -245.15104,
+     254.578248,
+     277.222745,
+     277.222745
+    ]
+   },
+   {
+    "tag": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/19/311294/430878",
+    "op": "destination-over",
+    "args": [
+     31.571705,
+     254.578248,
+     277.222745,
+     277.222745
+    ]
+   },
+   {
+    "tag": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/19/311294/430879",
+    "op": "destination-over",
+    "args": [
+     308.294449,
+     254.578248,
+     277.222745,
+     277.222745
+    ]
+   }
+  ],
+  "result": {
+   "ext": "dds",
+   "bytes": 174904,
+   "head": [
+    68,
+    68,
+    83,
+    32
+   ],
+   "rgbaLen": 1048576
+  },
+  "preview": true
+ },
+ "perth_wa_gaps2": {
+  "requests": [
+   {
+    "method": "GET",
+    "url": "https://services.slip.wa.gov.au/public/rest/services/SLIP_Public_Services/Locate/ImageServer/exportImage?bbox=12897601.968,-3756956.377,12897640.186,-3756918.159&bboxSR=3857&imageSR=3857&size=256,256&format=jpg&interpolation=RSP_BilinearInterpolation&f=image",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://services.slip.wa.gov.au/public/rest/services/SLIP_Public_Services/Locate/ImageServer/exportImage?bbox=12897640.186,-3756956.377,12897678.405,-3756918.159&bboxSR=3857&imageSR=3857&size=256,256&format=jpg&interpolation=RSP_BilinearInterpolation&f=image",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://services.slip.wa.gov.au/public/rest/services/SLIP_Public_Services/Locate/ImageServer/exportImage?bbox=12897678.405,-3756956.377,12897716.623,-3756918.159&bboxSR=3857&imageSR=3857&size=256,256&format=jpg&interpolation=RSP_BilinearInterpolation&f=image",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://services.slip.wa.gov.au/public/rest/services/SLIP_Public_Services/Locate/ImageServer/exportImage?bbox=12897716.623,-3756956.377,12897754.842,-3756918.159&bboxSR=3857&imageSR=3857&size=256,256&format=jpg&interpolation=RSP_BilinearInterpolation&f=image",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://services.slip.wa.gov.au/public/rest/services/SLIP_Public_Services/Locate/ImageServer/exportImage?bbox=12897754.842,-3756956.377,12897793.060,-3756918.159&bboxSR=3857&imageSR=3857&size=256,256&format=jpg&interpolation=RSP_BilinearInterpolation&f=image",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://services.slip.wa.gov.au/public/rest/services/SLIP_Public_Services/Locate/ImageServer/exportImage?bbox=12897601.968,-3756994.596,12897640.186,-3756956.377&bboxSR=3857&imageSR=3857&size=256,256&format=jpg&interpolation=RSP_BilinearInterpolation&f=image",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://services.slip.wa.gov.au/public/rest/services/SLIP_Public_Services/Locate/ImageServer/exportImage?bbox=12897640.186,-3756994.596,12897678.405,-3756956.377&bboxSR=3857&imageSR=3857&size=256,256&format=jpg&interpolation=RSP_BilinearInterpolation&f=image",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://services.slip.wa.gov.au/public/rest/services/SLIP_Public_Services/Locate/ImageServer/exportImage?bbox=12897678.405,-3756994.596,12897716.623,-3756956.377&bboxSR=3857&imageSR=3857&size=256,256&format=jpg&interpolation=RSP_BilinearInterpolation&f=image",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://services.slip.wa.gov.au/public/rest/services/SLIP_Public_Services/Locate/ImageServer/exportImage?bbox=12897716.623,-3756994.596,12897754.842,-3756956.377&bboxSR=3857&imageSR=3857&size=256,256&format=jpg&interpolation=RSP_BilinearInterpolation&f=image",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://services.slip.wa.gov.au/public/rest/services/SLIP_Public_Services/Locate/ImageServer/exportImage?bbox=12897754.842,-3756994.596,12897793.060,-3756956.377&bboxSR=3857&imageSR=3857&size=256,256&format=jpg&interpolation=RSP_BilinearInterpolation&f=image",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://services.slip.wa.gov.au/public/rest/services/SLIP_Public_Services/Locate/ImageServer/exportImage?bbox=12897601.968,-3757032.814,12897640.186,-3756994.596&bboxSR=3857&imageSR=3857&size=256,256&format=jpg&interpolation=RSP_BilinearInterpolation&f=image",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://services.slip.wa.gov.au/public/rest/services/SLIP_Public_Services/Locate/ImageServer/exportImage?bbox=12897640.186,-3757032.814,12897678.405,-3756994.596&bboxSR=3857&imageSR=3857&size=256,256&format=jpg&interpolation=RSP_BilinearInterpolation&f=image",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://services.slip.wa.gov.au/public/rest/services/SLIP_Public_Services/Locate/ImageServer/exportImage?bbox=12897678.405,-3757032.814,12897716.623,-3756994.596&bboxSR=3857&imageSR=3857&size=256,256&format=jpg&interpolation=RSP_BilinearInterpolation&f=image",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://services.slip.wa.gov.au/public/rest/services/SLIP_Public_Services/Locate/ImageServer/exportImage?bbox=12897716.623,-3757032.814,12897754.842,-3756994.596&bboxSR=3857&imageSR=3857&size=256,256&format=jpg&interpolation=RSP_BilinearInterpolation&f=image",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://services.slip.wa.gov.au/public/rest/services/SLIP_Public_Services/Locate/ImageServer/exportImage?bbox=12897754.842,-3757032.814,12897793.060,-3756994.596&bboxSR=3857&imageSR=3857&size=256,256&format=jpg&interpolation=RSP_BilinearInterpolation&f=image",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://services.slip.wa.gov.au/public/rest/services/SLIP_Public_Services/Locate/ImageServer/exportImage?bbox=12897601.968,-3757071.033,12897640.186,-3757032.814&bboxSR=3857&imageSR=3857&size=256,256&format=jpg&interpolation=RSP_BilinearInterpolation&f=image",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://services.slip.wa.gov.au/public/rest/services/SLIP_Public_Services/Locate/ImageServer/exportImage?bbox=12897640.186,-3757071.033,12897678.405,-3757032.814&bboxSR=3857&imageSR=3857&size=256,256&format=jpg&interpolation=RSP_BilinearInterpolation&f=image",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://services.slip.wa.gov.au/public/rest/services/SLIP_Public_Services/Locate/ImageServer/exportImage?bbox=12897678.405,-3757071.033,12897716.623,-3757032.814&bboxSR=3857&imageSR=3857&size=256,256&format=jpg&interpolation=RSP_BilinearInterpolation&f=image",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://services.slip.wa.gov.au/public/rest/services/SLIP_Public_Services/Locate/ImageServer/exportImage?bbox=12897716.623,-3757071.033,12897754.842,-3757032.814&bboxSR=3857&imageSR=3857&size=256,256&format=jpg&interpolation=RSP_BilinearInterpolation&f=image",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://services.slip.wa.gov.au/public/rest/services/SLIP_Public_Services/Locate/ImageServer/exportImage?bbox=12897754.842,-3757071.033,12897793.060,-3757032.814&bboxSR=3857&imageSR=3857&size=256,256&format=jpg&interpolation=RSP_BilinearInterpolation&f=image",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://services.slip.wa.gov.au/public/rest/services/SLIP_Public_Services/Locate/ImageServer/exportImage?bbox=12897601.968,-3757109.251,12897640.186,-3757071.033&bboxSR=3857&imageSR=3857&size=256,256&format=jpg&interpolation=RSP_BilinearInterpolation&f=image",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://services.slip.wa.gov.au/public/rest/services/SLIP_Public_Services/Locate/ImageServer/exportImage?bbox=12897640.186,-3757109.251,12897678.405,-3757071.033&bboxSR=3857&imageSR=3857&size=256,256&format=jpg&interpolation=RSP_BilinearInterpolation&f=image",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://services.slip.wa.gov.au/public/rest/services/SLIP_Public_Services/Locate/ImageServer/exportImage?bbox=12897678.405,-3757109.251,12897716.623,-3757071.033&bboxSR=3857&imageSR=3857&size=256,256&format=jpg&interpolation=RSP_BilinearInterpolation&f=image",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://services.slip.wa.gov.au/public/rest/services/SLIP_Public_Services/Locate/ImageServer/exportImage?bbox=12897716.623,-3757109.251,12897754.842,-3757071.033&bboxSR=3857&imageSR=3857&size=256,256&format=jpg&interpolation=RSP_BilinearInterpolation&f=image",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://services.slip.wa.gov.au/public/rest/services/SLIP_Public_Services/Locate/ImageServer/exportImage?bbox=12897754.842,-3757109.251,12897793.060,-3757071.033&bboxSR=3857&imageSR=3857&size=256,256&format=jpg&interpolation=RSP_BilinearInterpolation&f=image",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/19/311294/430879",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/19/311294/430880",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/19/311294/430881",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/19/311295/430879",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/19/311295/430880",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/19/311295/430881",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/19/311296/430879",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/19/311296/430880",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/19/311296/430881",
+    "body": ""
+   }
+  ],
+  "used": [
+   "esri"
+  ],
+  "draws": [
+   {
+    "tag": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/19/311294/430879",
+    "op": "destination-over",
+    "args": [
+     -47.35422,
+     -110.191156,
+     138.859866,
+     138.859866
+    ]
+   },
+   {
+    "tag": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/19/311294/430880",
+    "op": "destination-over",
+    "args": [
+     91.005646,
+     -110.191156,
+     138.859866,
+     138.859866
+    ]
+   },
+   {
+    "tag": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/19/311294/430881",
+    "op": "destination-over",
+    "args": [
+     229.365513,
+     -110.191156,
+     138.859866,
+     138.859866
+    ]
+   },
+   {
+    "tag": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/19/311295/430879",
+    "op": "destination-over",
+    "args": [
+     -47.35422,
+     28.16871,
+     138.859866,
+     138.859866
+    ]
+   },
+   {
+    "tag": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/19/311295/430880",
+    "op": "destination-over",
+    "args": [
+     91.005646,
+     28.16871,
+     138.859866,
+     138.859866
+    ]
+   },
+   {
+    "tag": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/19/311295/430881",
+    "op": "destination-over",
+    "args": [
+     229.365513,
+     28.16871,
+     138.859866,
+     138.859866
+    ]
+   },
+   {
+    "tag": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/19/311296/430879",
+    "op": "destination-over",
+    "args": [
+     -47.35422,
+     166.528577,
+     138.859866,
+     138.859866
+    ]
+   },
+   {
+    "tag": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/19/311296/430880",
+    "op": "destination-over",
+    "args": [
+     91.005646,
+     166.528577,
+     138.859866,
+     138.859866
+    ]
+   },
+   {
+    "tag": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/19/311296/430881",
+    "op": "destination-over",
+    "args": [
+     229.365513,
+     166.528577,
+     138.859866,
+     138.859866
+    ]
+   }
+  ],
+  "result": {
+   "ext": "dds",
+   "bytes": 43832,
+   "head": [
+    68,
+    68,
+    83,
+    32
+   ],
+   "rgbaLen": 262144
+  },
+  "preview": true
+ },
+ "nowhere": {
+  "requests": [
+   {
+    "method": "GET",
+    "url": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/18/164139/258342",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/18/164139/258343",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/18/164140/258342",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/18/164140/258343",
+    "body": ""
+   }
+  ],
+  "used": [],
+  "draws": [],
+  "result": null,
+  "preview": false
+ },
+ "sydney_nsw": {
+  "requests": [
+   {
+    "method": "GET",
+    "url": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258489/1929376",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258489/1929377",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258489/1929378",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258489/1929379",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258489/1929380",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258489/1929381",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258489/1929382",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258489/1929383",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258490/1929376",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258490/1929377",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258490/1929378",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258490/1929379",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258490/1929380",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258490/1929381",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258490/1929382",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258490/1929383",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258491/1929376",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258491/1929377",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258491/1929378",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258491/1929379",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258491/1929380",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258491/1929381",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258491/1929382",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258491/1929383",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258492/1929376",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258492/1929377",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258492/1929378",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258492/1929379",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258492/1929380",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258492/1929381",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258492/1929382",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258492/1929383",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258493/1929376",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258493/1929377",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258493/1929378",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258493/1929379",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258493/1929380",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258493/1929381",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258493/1929382",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258493/1929383",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258494/1929376",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258494/1929377",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258494/1929378",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258494/1929379",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258494/1929380",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258494/1929381",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258494/1929382",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258494/1929383",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258495/1929376",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258495/1929377",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258495/1929378",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258495/1929379",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258495/1929380",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258495/1929381",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258495/1929382",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258495/1929383",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258496/1929376",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258496/1929377",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258496/1929378",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258496/1929379",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258496/1929380",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258496/1929381",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258496/1929382",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258496/1929383",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258493/1929379",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/18/157311/241172",
+    "body": ""
+   }
+  ],
+  "used": [
+   "nsw"
+  ],
+  "draws": [
+   {
+    "tag": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258489/1929376",
+    "op": "source-over",
+    "args": [
+     -1.978339,
+     -10.253747,
+     34.348526,
+     34.348526
+    ]
+   },
+   {
+    "tag": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258489/1929377",
+    "op": "source-over",
+    "args": [
+     31.870186,
+     -10.253747,
+     34.348526,
+     34.348526
+    ]
+   },
+   {
+    "tag": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258489/1929378",
+    "op": "source-over",
+    "args": [
+     65.718712,
+     -10.253747,
+     34.348526,
+     34.348526
+    ]
+   },
+   {
+    "tag": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258489/1929379",
+    "op": "source-over",
+    "args": [
+     99.567238,
+     -10.253747,
+     34.348526,
+     34.348526
+    ]
+   },
+   {
+    "tag": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258489/1929380",
+    "op": "source-over",
+    "args": [
+     133.415764,
+     -10.253747,
+     34.348526,
+     34.348526
+    ]
+   },
+   {
+    "tag": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258489/1929381",
+    "op": "source-over",
+    "args": [
+     167.26429,
+     -10.253747,
+     34.348526,
+     34.348526
+    ]
+   },
+   {
+    "tag": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258489/1929382",
+    "op": "source-over",
+    "args": [
+     201.112816,
+     -10.253747,
+     34.348526,
+     34.348526
+    ]
+   },
+   {
+    "tag": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258489/1929383",
+    "op": "source-over",
+    "args": [
+     234.961342,
+     -10.253747,
+     34.348526,
+     34.348526
+    ]
+   },
+   {
+    "tag": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258490/1929376",
+    "op": "source-over",
+    "args": [
+     -1.978339,
+     23.594779,
+     34.348526,
+     34.348526
+    ]
+   },
+   {
+    "tag": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258490/1929377",
+    "op": "source-over",
+    "args": [
+     31.870186,
+     23.594779,
+     34.348526,
+     34.348526
+    ]
+   },
+   {
+    "tag": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258490/1929378",
+    "op": "source-over",
+    "args": [
+     65.718712,
+     23.594779,
+     34.348526,
+     34.348526
+    ]
+   },
+   {
+    "tag": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258490/1929379",
+    "op": "source-over",
+    "args": [
+     99.567238,
+     23.594779,
+     34.348526,
+     34.348526
+    ]
+   },
+   {
+    "tag": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258490/1929380",
+    "op": "source-over",
+    "args": [
+     133.415764,
+     23.594779,
+     34.348526,
+     34.348526
+    ]
+   },
+   {
+    "tag": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258490/1929381",
+    "op": "source-over",
+    "args": [
+     167.26429,
+     23.594779,
+     34.348526,
+     34.348526
+    ]
+   },
+   {
+    "tag": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258490/1929382",
+    "op": "source-over",
+    "args": [
+     201.112816,
+     23.594779,
+     34.348526,
+     34.348526
+    ]
+   },
+   {
+    "tag": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258490/1929383",
+    "op": "source-over",
+    "args": [
+     234.961342,
+     23.594779,
+     34.348526,
+     34.348526
+    ]
+   },
+   {
+    "tag": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258491/1929376",
+    "op": "source-over",
+    "args": [
+     -1.978339,
+     57.443305,
+     34.348526,
+     34.348526
+    ]
+   },
+   {
+    "tag": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258491/1929377",
+    "op": "source-over",
+    "args": [
+     31.870186,
+     57.443305,
+     34.348526,
+     34.348526
+    ]
+   },
+   {
+    "tag": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258491/1929378",
+    "op": "source-over",
+    "args": [
+     65.718712,
+     57.443305,
+     34.348526,
+     34.348526
+    ]
+   },
+   {
+    "tag": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258491/1929379",
+    "op": "source-over",
+    "args": [
+     99.567238,
+     57.443305,
+     34.348526,
+     34.348526
+    ]
+   },
+   {
+    "tag": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258491/1929380",
+    "op": "source-over",
+    "args": [
+     133.415764,
+     57.443305,
+     34.348526,
+     34.348526
+    ]
+   },
+   {
+    "tag": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258491/1929381",
+    "op": "source-over",
+    "args": [
+     167.26429,
+     57.443305,
+     34.348526,
+     34.348526
+    ]
+   },
+   {
+    "tag": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258491/1929382",
+    "op": "source-over",
+    "args": [
+     201.112816,
+     57.443305,
+     34.348526,
+     34.348526
+    ]
+   },
+   {
+    "tag": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258491/1929383",
+    "op": "source-over",
+    "args": [
+     234.961342,
+     57.443305,
+     34.348526,
+     34.348526
+    ]
+   },
+   {
+    "tag": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258492/1929376",
+    "op": "source-over",
+    "args": [
+     -1.978339,
+     91.291831,
+     34.348526,
+     34.348526
+    ]
+   },
+   {
+    "tag": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258492/1929377",
+    "op": "source-over",
+    "args": [
+     31.870186,
+     91.291831,
+     34.348526,
+     34.348526
+    ]
+   },
+   {
+    "tag": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258492/1929378",
+    "op": "source-over",
+    "args": [
+     65.718712,
+     91.291831,
+     34.348526,
+     34.348526
+    ]
+   },
+   {
+    "tag": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258492/1929379",
+    "op": "source-over",
+    "args": [
+     99.567238,
+     91.291831,
+     34.348526,
+     34.348526
+    ]
+   },
+   {
+    "tag": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258492/1929380",
+    "op": "source-over",
+    "args": [
+     133.415764,
+     91.291831,
+     34.348526,
+     34.348526
+    ]
+   },
+   {
+    "tag": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258492/1929381",
+    "op": "source-over",
+    "args": [
+     167.26429,
+     91.291831,
+     34.348526,
+     34.348526
+    ]
+   },
+   {
+    "tag": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258492/1929382",
+    "op": "source-over",
+    "args": [
+     201.112816,
+     91.291831,
+     34.348526,
+     34.348526
+    ]
+   },
+   {
+    "tag": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258492/1929383",
+    "op": "source-over",
+    "args": [
+     234.961342,
+     91.291831,
+     34.348526,
+     34.348526
+    ]
+   },
+   {
+    "tag": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258493/1929376",
+    "op": "source-over",
+    "args": [
+     -1.978339,
+     125.140357,
+     34.348526,
+     34.348526
+    ]
+   },
+   {
+    "tag": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258493/1929377",
+    "op": "source-over",
+    "args": [
+     31.870186,
+     125.140357,
+     34.348526,
+     34.348526
+    ]
+   },
+   {
+    "tag": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258493/1929378",
+    "op": "source-over",
+    "args": [
+     65.718712,
+     125.140357,
+     34.348526,
+     34.348526
+    ]
+   },
+   {
+    "tag": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258493/1929379",
+    "op": "source-over",
+    "args": [
+     99.567238,
+     125.140357,
+     34.348526,
+     34.348526
+    ]
+   },
+   {
+    "tag": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258493/1929380",
+    "op": "source-over",
+    "args": [
+     133.415764,
+     125.140357,
+     34.348526,
+     34.348526
+    ]
+   },
+   {
+    "tag": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258493/1929381",
+    "op": "source-over",
+    "args": [
+     167.26429,
+     125.140357,
+     34.348526,
+     34.348526
+    ]
+   },
+   {
+    "tag": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258493/1929382",
+    "op": "source-over",
+    "args": [
+     201.112816,
+     125.140357,
+     34.348526,
+     34.348526
+    ]
+   },
+   {
+    "tag": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258493/1929383",
+    "op": "source-over",
+    "args": [
+     234.961342,
+     125.140357,
+     34.348526,
+     34.348526
+    ]
+   },
+   {
+    "tag": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258494/1929376",
+    "op": "source-over",
+    "args": [
+     -1.978339,
+     158.988883,
+     34.348526,
+     34.348526
+    ]
+   },
+   {
+    "tag": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258494/1929377",
+    "op": "source-over",
+    "args": [
+     31.870186,
+     158.988883,
+     34.348526,
+     34.348526
+    ]
+   },
+   {
+    "tag": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258494/1929378",
+    "op": "source-over",
+    "args": [
+     65.718712,
+     158.988883,
+     34.348526,
+     34.348526
+    ]
+   },
+   {
+    "tag": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258494/1929379",
+    "op": "source-over",
+    "args": [
+     99.567238,
+     158.988883,
+     34.348526,
+     34.348526
+    ]
+   },
+   {
+    "tag": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258494/1929380",
+    "op": "source-over",
+    "args": [
+     133.415764,
+     158.988883,
+     34.348526,
+     34.348526
+    ]
+   },
+   {
+    "tag": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258494/1929381",
+    "op": "source-over",
+    "args": [
+     167.26429,
+     158.988883,
+     34.348526,
+     34.348526
+    ]
+   },
+   {
+    "tag": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258494/1929382",
+    "op": "source-over",
+    "args": [
+     201.112816,
+     158.988883,
+     34.348526,
+     34.348526
+    ]
+   },
+   {
+    "tag": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258494/1929383",
+    "op": "source-over",
+    "args": [
+     234.961342,
+     158.988883,
+     34.348526,
+     34.348526
+    ]
+   },
+   {
+    "tag": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258495/1929376",
+    "op": "source-over",
+    "args": [
+     -1.978339,
+     192.837409,
+     34.348526,
+     34.348526
+    ]
+   },
+   {
+    "tag": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258495/1929377",
+    "op": "source-over",
+    "args": [
+     31.870186,
+     192.837409,
+     34.348526,
+     34.348526
+    ]
+   },
+   {
+    "tag": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258495/1929378",
+    "op": "source-over",
+    "args": [
+     65.718712,
+     192.837409,
+     34.348526,
+     34.348526
+    ]
+   },
+   {
+    "tag": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258495/1929379",
+    "op": "source-over",
+    "args": [
+     99.567238,
+     192.837409,
+     34.348526,
+     34.348526
+    ]
+   },
+   {
+    "tag": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258495/1929380",
+    "op": "source-over",
+    "args": [
+     133.415764,
+     192.837409,
+     34.348526,
+     34.348526
+    ]
+   },
+   {
+    "tag": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258495/1929381",
+    "op": "source-over",
+    "args": [
+     167.26429,
+     192.837409,
+     34.348526,
+     34.348526
+    ]
+   },
+   {
+    "tag": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258495/1929382",
+    "op": "source-over",
+    "args": [
+     201.112816,
+     192.837409,
+     34.348526,
+     34.348526
+    ]
+   },
+   {
+    "tag": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258495/1929383",
+    "op": "source-over",
+    "args": [
+     234.961342,
+     192.837409,
+     34.348526,
+     34.348526
+    ]
+   },
+   {
+    "tag": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258496/1929376",
+    "op": "source-over",
+    "args": [
+     -1.978339,
+     226.685935,
+     34.348526,
+     34.348526
+    ]
+   },
+   {
+    "tag": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258496/1929377",
+    "op": "source-over",
+    "args": [
+     31.870186,
+     226.685935,
+     34.348526,
+     34.348526
+    ]
+   },
+   {
+    "tag": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258496/1929378",
+    "op": "source-over",
+    "args": [
+     65.718712,
+     226.685935,
+     34.348526,
+     34.348526
+    ]
+   },
+   {
+    "tag": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258496/1929379",
+    "op": "source-over",
+    "args": [
+     99.567238,
+     226.685935,
+     34.348526,
+     34.348526
+    ]
+   },
+   {
+    "tag": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258496/1929380",
+    "op": "source-over",
+    "args": [
+     133.415764,
+     226.685935,
+     34.348526,
+     34.348526
+    ]
+   },
+   {
+    "tag": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258496/1929381",
+    "op": "source-over",
+    "args": [
+     167.26429,
+     226.685935,
+     34.348526,
+     34.348526
+    ]
+   },
+   {
+    "tag": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258496/1929382",
+    "op": "source-over",
+    "args": [
+     201.112816,
+     226.685935,
+     34.348526,
+     34.348526
+    ]
+   },
+   {
+    "tag": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258496/1929383",
+    "op": "source-over",
+    "args": [
+     234.961342,
+     226.685935,
+     34.348526,
+     34.348526
+    ]
+   },
+   {
+    "tag": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/18/157311/241172",
+    "op": "source-over",
+    "args": [
+     96,
+     160,
+     32,
+     32,
+     0,
+     0,
+     32,
+     32
+    ]
+   },
+   {
+    "tag": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/21/1258493/1929379",
+    "op": "source-over",
+    "args": [
+     0,
+     0
+    ]
+   }
+  ],
+  "result": {
+   "ext": "dds",
+   "bytes": 43832,
+   "head": [
+    68,
+    68,
+    83,
+    32
+   ],
+   "rgbaLen": 262144
+  },
+  "preview": true
+ },
+ "esri_z21": {
+  "requests": [
+   {
+    "method": "GET",
+    "url": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/19/328278/516684",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/19/328278/516685",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/19/328278/516686",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/19/328279/516684",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/19/328279/516685",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/19/328279/516686",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/19/328280/516684",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/19/328280/516685",
+    "body": ""
+   },
+   {
+    "method": "GET",
+    "url": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/19/328280/516686",
+    "body": ""
+   }
+  ],
+  "used": [
+   "esri"
+  ],
+  "draws": [
+   {
+    "tag": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/19/328278/516684",
+    "op": "source-over",
+    "args": [
+     -95.484075,
+     -71.937238,
+     123.024164,
+     123.024164
+    ]
+   },
+   {
+    "tag": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/19/328278/516685",
+    "op": "source-over",
+    "args": [
+     27.040089,
+     -71.937238,
+     123.024164,
+     123.024164
+    ]
+   },
+   {
+    "tag": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/19/328278/516686",
+    "op": "source-over",
+    "args": [
+     149.564253,
+     -71.937238,
+     123.024164,
+     123.024164
+    ]
+   },
+   {
+    "tag": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/19/328279/516684",
+    "op": "source-over",
+    "args": [
+     -95.484075,
+     50.586926,
+     123.024164,
+     123.024164
+    ]
+   },
+   {
+    "tag": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/19/328279/516685",
+    "op": "source-over",
+    "args": [
+     27.040089,
+     50.586926,
+     123.024164,
+     123.024164
+    ]
+   },
+   {
+    "tag": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/19/328279/516686",
+    "op": "source-over",
+    "args": [
+     149.564253,
+     50.586926,
+     123.024164,
+     123.024164
+    ]
+   },
+   {
+    "tag": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/19/328280/516684",
+    "op": "source-over",
+    "args": [
+     -95.484075,
+     173.11109,
+     123.024164,
+     123.024164
+    ]
+   },
+   {
+    "tag": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/19/328280/516685",
+    "op": "source-over",
+    "args": [
+     27.040089,
+     173.11109,
+     123.024164,
+     123.024164
+    ]
+   },
+   {
+    "tag": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/19/328280/516686",
+    "op": "source-over",
+    "args": [
+     149.564253,
+     173.11109,
+     123.024164,
+     123.024164
+    ]
+   }
+  ],
+  "result": {
+   "ext": "dds",
+   "bytes": 43832,
+   "head": [
+    68,
+    68,
+    83,
+    32
+   ],
+   "rgbaLen": 262144
+  },
+  "preview": true
+ }
+}
