@@ -11,10 +11,6 @@ src/core/roundabout.ts
 src/core/sideStreets.ts
 src/core/sponsors.ts
 src/core/track.ts
-src/services/osm.ts
-src/services/pipeline.ts
-src/services/tiles.ts
-src/services/vectorTiles.ts
 src/ui/buildWorker.ts
 src/ui/main.ts
 src/ui/preview.ts
