@@ -15,6 +15,28 @@ a pass. The automatic runs take their own screenshots (one every 5% of the lap, 
 off-road moment and at the finish) into the run's `screens\` folder; "keep" means copy that file into
 the report's folder with a name saying what it shows, e.g. `07-armco-bend.jpg`.
 
+## Changed after retest 3 (31 October)
+
+Tooling fixes from `reports\2026-10-31-retest-3.md` (branch `fix/retest3-tooling`). `git pull`, then
+`.\scripts\windows\rig-install.ps1 -PublishKit` so the share's kit has the new `share.ps1`.
+
+- **Every build ships the test script** (`extension\autotest.lua`), traffic or not, so Collie can be
+  run-tested once it's rebuilt. An older build without it gets "older than the test script: rebuild it".
+- **Time limit:** the track script ends the run at `-Minutes` (passed in race.ini), not at 480 s.
+  Without `-Minutes` it's scaled from the AI line (Cape Naturaliste Road gets 24 minutes). A
+  point-to-point run ends at the finish line ("finish line" in the console).
+- **`autotest_report.py`** gives a point-to-point road its real length (Cape: about 12,196 m, not 23,077).
+- **Night:** race.ini gets the sun angle unclamped, as Content Manager writes it, and if CSP's weather
+  FX still starts at the PC's clock, the track script moves the clock to 22:00 and logs
+  `clock moved from 13:45 to 22:00` (or `clock move ... failed: ...` and `clock still at ...`).
+- **Newest zip per track:** `run-test.ps1 busselton`, `install-track.ps1 -Zip busselton` and `-All`, and the
+  rig installer take the newest zip holding the `busselton` folder (`busselton_1.zip` over an older
+  `busselton.zip`) and list the older one as skipped. Each install writes `installed_from.txt` in the
+  track folder; the rig's dry run then leaves out tracks installed from that same zip. Tracks installed
+  before this have no record, so reinstall them once with `install-track.ps1` to stop the dry run listing them.
+- **App icons:** Busselton Map and Busselton Challenges have taskbar icons; the `TaskBarIcon :: COULD
+  NOT FIND TEXTURES` warnings should be gone once the apps are reinstalled (any install copies them).
+
 ## Builds this needs
 
 The laptop session puts these in the share's `builds\` folder before this test. Feature flags that are
@@ -104,7 +126,8 @@ run's `btest.csv`.
 - **Night pass:** the console's `time of day` line says `time=22:00` and `headlights=true`. Street
   lights, shop signs and jetty lamps lit in the shots. Keep the jetty shot and the darkest shot.
   - Fail: the time says 13:00 or 18:00 (weather FX off: quote the CSP version), or the road ahead is
-    black between lights.
+    black between lights. Quote the `clock` note from `btest.csv` and the CSP log's
+    `Weather FX: start time=` line either way.
 - **AI cars pass:** the console says `AI cars: 5`, all six cars appear in the replay at the start, no
   more than a couple of contacts, no stops of 10 s or more. Keep a shot with cars in it.
   - Fail: cars stacked on the grid, a pile-up at a roundabout (three or more cars), or a car parked
@@ -241,9 +264,9 @@ If `\\media\busselton-share\Install Busselton.cmd` or the `rig\` folder isn't th
 `.\scripts\windows\rig-install.ps1 -PublishKit` from the repo first (it only copies the installer into
 the share) and say so.
 
-- **Pass:** it finds AC and the share by itself, lists every zip in `builds\` (bases before their
-  polish), shows any `builds\<zip>.txt` notes, ends with `dry run: nothing was touched`, and no errors.
-  Paste its output.
+- **Pass:** it finds AC and the share by itself, lists the newest zip of each track not yet installed
+  from that zip (bases before their polish), lists older zips of the same track as skipped, shows any
+  `builds\<zip>.txt` notes, ends with `dry run: nothing was touched`, and no errors. Paste its output.
 - **Fail:** it can't find AC or the share, errors, or lists something it would install twice.
 
 ## 12. Logs and report
