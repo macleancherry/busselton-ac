@@ -3,7 +3,7 @@
 import { PbfWriter } from "pbf";
 
 export type MvtValue = string | number | boolean;
-export interface MvtFeature { type: 1 | 2 | 3; props?: Record<string, MvtValue>; geom: { x: number; y: number }[][] }
+export interface MvtFeature { type: 1 | 2 | 3; props?: Record<string, MvtValue>; geom: { x: number; y: number }[][]; id?: number }
 export interface MvtLayer { name: string; extent?: number; features: MvtFeature[] }
 
 const zigzag = (n: number) => (n << 1) ^ (n >> 31);
@@ -47,6 +47,7 @@ export function encodeMvt(layers: MvtLayer[]): Uint8Array {
       p.writeStringField(1, l.name);
       for (const { f, tags } of feats) {
         p.writeMessage(2, (_: unknown, q: PbfWriter) => {
+          if (f.id !== undefined) q.writeVarintField(1, f.id);
           q.writePackedVarint(2, tags);
           q.writeVarintField(3, f.type);
           q.writePackedVarint(4, geometry(f));

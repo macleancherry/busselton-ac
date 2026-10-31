@@ -17,6 +17,7 @@ import { BeachLook, buildPhotoSea, buildShoreFoam, foamMaterial, foamTexture, sa
 import { aiHintsIni, buildAiLine } from "./aiLine";
 import { Area, areaRings, makeCover } from "./area";
 import { buildJettyPrecinct, JETTY_MATERIALS, type JettyFeatures } from "./jetty";
+import { buildSwimJetties, classifyPiers, deckZByKind, type PierKind } from "./swimJetty";
 import jettyTrainScript from "./lua/jetty_train.lua?raw";
 import { jettyTrainLua } from "./jettyTrain";
 import { flagMaterial } from "./flags";
@@ -159,7 +160,7 @@ export interface DataSources {
   drawSigns?: SignDrawer;
   /** Busselton fork: landmarks built as layers after the base (landmarkLayer.ts): the automatic test photographs them. */
   landmarks?: { name: string; at: LngLat }[];
-  coast?: { ocean: { rings: LngLat[][]; edge: boolean[][] }[]; piers: { rings: LngLat[][]; edge: boolean[][] }[]; beaches?: { rings: LngLat[][]; edge: boolean[][] }[]; landcover?: LandcoverPolygon[] };
+  coast?: { ocean: { rings: LngLat[][]; edge: boolean[][] }[]; piers: { rings: LngLat[][]; edge: boolean[][]; id?: number }[]; beaches?: { rings: LngLat[][]; edge: boolean[][] }[]; landcover?: LandcoverPolygon[] };
   /** Busselton fork: vineyards and paddocks beside the road (services/landcover.ts; farm.ts builds them). */
   farmland?: FarmPolygon[];
   /** Busselton fork: what stands on the jetties (osm.ts fetchPierFeatures; jetty.ts builds it). */
@@ -515,6 +516,9 @@ export async function buildTrack(
   const toCoast = (p: { rings: LngLat[][]; edge: boolean[][] }): CoastPolygon => ({ rings: p.rings.map((r) => r.map((q) => proj.toLocal(q))), edge: p.edge });
   const ocean = opts.sea ? (sources.coast?.ocean ?? []).map(toCoast) : [];
   const piers = opts.sea ? (sources.coast?.piers ?? []).map(toCoast) : [];
+  // Busselton fork: major jetties, swimming jetties and pontoons (swimJetty.ts); all major when swimJetties is false.
+  const pierKinds: PierKind[] = opts.swimJetties === false ? piers.map(() => "major") : classifyPiers(piers, (sources.coast?.piers ?? []).map((p) => ({ id: p.id })), opts.jettyKinds);
+  const majorPiers = piers.filter((_, i) => pierKinds[i] === "major");
   // Busselton fork: what stands on the jetties (jetty.ts), in local metres.
   const onJetty = (x: number, y: number) => piers.some((p) => pointInRing(x, y, p.rings[0]));
   const jettyFeatures: JettyFeatures | null = piers.length && sources.jetty ? {
@@ -1480,8 +1484,8 @@ export async function buildTrack(
     poleOnRoad,
   );
   // Busselton fork: lamp posts along the jetty, lit at night.
-  const jettyLamps = piers.length ? jettyLights(piers, shoreGround, sea) : { nodes: [], lights: [] };
-  const jettyPrecinct = jettyFeatures ? buildJettyPrecinct(jettyFeatures, pierDeckZ(shoreGround, sea), onJetty, SEA_LEVEL) : { nodes: [], footprints: [] };
+  const jettyLamps = majorPiers.length ? jettyLights(majorPiers, shoreGround, sea) : { nodes: [], lights: [] };
+  const jettyPrecinct = jettyFeatures ? buildJettyPrecinct(jettyFeatures, deckZByKind(piers, pierKinds, pierDeckZ(shoreGround, sea), shoreGround, sea), onJetty, SEA_LEVEL) : { nodes: [], footprints: [] };
   // Signs and street furniture; their artwork is drawn in one atlas.
   const art = new ArtList();
   const pieces = [
@@ -1762,7 +1766,7 @@ export async function buildTrack(
         group("FARM", farm ? keepOffRoute(farm.nodes, onRoad).nodes : []),
         group("PATHS", pathMeshes),
         group("LOTS", keepOffRoute(lots, onRoad).nodes),
-        group("JETTY", piers.length ? [...buildPiers(piers, shoreGround, sea), ...jettyLamps.nodes, ...jettyPrecinct.nodes] : []),
+        group("JETTY", piers.length ? [...buildPiers(majorPiers, shoreGround, sea), ...buildSwimJetties(piers, pierKinds, shoreGround, sea), ...jettyLamps.nodes, ...jettyPrecinct.nodes] : []),
         group("SEAWALL", ocean.length ? [
           ...buildSeawall(beaches, shoreGround, sea, (x, y) => !!index.nearest(x, y, 250), piers),
           ...buildGroynes((sources.osm?.groynes ?? []).map((l) => l.map((p) => proj.toLocal(p))), shoreGround),

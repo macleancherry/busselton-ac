@@ -184,7 +184,12 @@ describe("fetching", () => {
         { type: 3, props: { class: "ice" }, geom: [[{ x: 3000, y: 0 }, { x: 3600, y: 0 }, { x: 3600, y: 600 }]] },
         { type: 3, props: { class: "wood", subclass: "forest" }, geom: [[{ x: 3000, y: 0 }, { x: 3600, y: 0 }, { x: 3600, y: 600 }]] },
       ] },
-      { name: "transportation", features: [{ type: 3, props: { class: "pier" }, geom: [[{ x: 3000, y: 3000 }, { x: 3100, y: 3000 }, { x: 3100, y: 3400 }]] }] },
+      { name: "transportation", features: [
+        { type: 3, props: { class: "pier" }, geom: [[{ x: 3000, y: 3000 }, { x: 3100, y: 3000 }, { x: 3100, y: 3400 }]] },
+        // Busselton fork: a pier keeps its OSM way id (feature id = way id * 10 + 2); a relation's (+ 3) isn't kept.
+        { type: 3, props: { class: "pier" }, id: 10164261212, geom: [[{ x: 1000, y: 3000 }, { x: 1100, y: 3000 }, { x: 1100, y: 3400 }]] },
+        { type: 3, props: { class: "pier" }, id: 1234563, geom: [[{ x: 500, y: 3000 }, { x: 600, y: 3000 }, { x: 600, y: 3400 }]] },
+      ] },
     ])));
     const c = await vt.fetchCoast(one);
     expect(c.ocean).toHaveLength(1);
@@ -196,7 +201,7 @@ describe("fetching", () => {
     expect(c.ocean[0].edge[1]).toEqual([true, true, true, true]);
     expect(c.beaches).toHaveLength(2);
     expect(c.landcover.map((l) => `${l.cls}/${l.subclass}`)).toEqual(["sand/beach", "sand/undefined", "sand/dune", "wood/forest"]);
-    expect(c.piers).toHaveLength(1);
+    expect(c.piers.map((p) => p.id)).toEqual([undefined, 1016426121, undefined]);
     void cx; void cy;
 
     // Order and failures over four tiles.
