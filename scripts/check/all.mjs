@@ -4,7 +4,7 @@
 //
 // Runs: check_build (spikes, heights), budget, layout_check (when it has layouts), dump_surface then
 // surface_check and street_ground, path_ground, ground_check (placed things on the ground, parked cars
-// off the roads), parked_check (parked cars in bays, on asphalt, not overlapping), traffic_check (when it has traffic). Exits non-zero if any fails.
+// off the roads), parked_check (parked cars in bays, on asphalt, not overlapping), traffic_check and lane_bay_check (when it has traffic). Exits non-zero if any fails.
 // The headline numbers (triangles, AI off the road per layout, tilt, edge steps, ground through
 // streets, traffic loose ends) go in the JSON, so scripts/upgrade/base.mjs can compare two builds.
 
@@ -76,6 +76,9 @@ if (names.some((n) => n.endsWith("traffic.json"))) {
   results.push(r);
   summary.trafficOverlaps = num(r.text, /overlapping intersections: (\d+)/);
   summary.trafficLooseEnds = num(r.text, /lane ends outside any intersection: (\d+)/);
+  r = run("lanes clear of bays", "npx", ["tsx", "scripts/check/lane_bay_check.ts", `out/${slug}.zip`]);
+  results.push(r);
+  summary.lanesOverBays = num(r.text, /lane points over painted bays[^:]*: (\d+)/);
 }
 
 summary.passed = results.every((x) => x.ok);

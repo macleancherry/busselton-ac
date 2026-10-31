@@ -19,6 +19,7 @@
 //    lets cars turn round instead of driving off the end.
 
 import type { Vec2 } from "./geo";
+import { clearOffsets } from "./bayLanes";
 import { suggestedCars, trafficForSetting, zoneGraph, type TrafficSetting, type TrafficZone } from "./trafficZones";
 
 export interface TrafficRoad {
@@ -38,6 +39,13 @@ export interface TrafficRoad {
   zone?: TrafficZone[];
   /** Busselton fork: the speed limit at each point, where it changes along the road. */
   speeds?: number[];
+  /**
+   * Busselton fork: painted kerbside bays along the road (bayLanes.ts withBayBands): per point, how far
+   * right (lo, negative) and left (hi) of the centreline a lane may reach before a bay; null where
+   * there's none. The lanes move in to clear them.
+   */
+  bayLo?: (number | null)[];
+  bayHi?: (number | null)[];
 }
 
 export interface TrafficRoundabout {
@@ -122,13 +130,14 @@ function thin(pts: Vec2[], h: number[], step: number): { pts: Vec2[]; h: number[
   return { pts: op, h: oh, idx };
 }
 
-/** The polyline moved sideways by `off` metres (positive = left of the direction of travel). */
-function offset(pts: Vec2[], off: number, closed: boolean): Vec2[] {
+/** The polyline moved sideways by `off` metres, or by off[i] at point i (positive = left of the direction of travel). */
+function offset(pts: Vec2[], off: number | number[], closed: boolean): Vec2[] {
   const n = pts.length;
   return pts.map((p, i) => {
     const a = pts[closed ? (i - 1 + n) % n : Math.max(0, i - 1)], b = pts[closed ? (i + 1) % n : Math.min(n - 1, i + 1)];
     const dx = b[0] - a[0], dy = b[1] - a[1], L = Math.hypot(dx, dy) || 1;
-    return [p[0] - (dy / L) * off, p[1] + (dx / L) * off];
+    const o = typeof off === "number" ? off : off[i];
+    return [p[0] - (dy / L) * o, p[1] + (dx / L) * o];
   });
 }
 
@@ -169,6 +178,7 @@ export function trafficGraph(roadsIn: TrafficRoad[], roundabouts: TrafficRoundab
         ...r, pts: t.pts, h: t.h, closed,
         ...(r.zone ? { zone: at.map((i) => r.zone![i]) } : {}),
         ...(r.speeds ? { speeds: at.map((i) => r.speeds![i]) } : {}),
+        ...(r.bayLo && r.bayHi ? { bayLo: at.map((i) => r.bayLo![i]), bayHi: at.map((i) => r.bayHi![i]) } : {}),
       });
     }
   }
@@ -253,11 +263,20 @@ export function trafficGraph(roadsIn: TrafficRoad[], roundabouts: TrafficRoundab
     const perDir = one ? (r.width >= 6.5 ? 2 : 1) : r.width >= 12 ? 2 : 1;
     const laneW = Math.min(3.5, one ? r.width / perDir : r.width / (2 * perDir));
     const role = roleFor(r.speed);
+    // Two-way: lanes out from the centre on each side. One-way: spread across the road, centred.
+    // Each lane's offset left of the points' order, in the order the lanes are written.
+    const base: number[] = [];
     for (let k = 0; k < perDir; k++) {
-      // Two-way: lanes out from the centre on each side. One-way: spread across the road, centred.
       const off = one ? laneW * (k + 0.5) - (laneW * perDir) / 2 : laneW * (k + 0.5);
+      for (const dir of one ? [one] : [1, -1]) base.push(one ? off : off * dir);
+    }
+    // Busselton fork: clear of painted kerbside bays (bayLanes.ts), point by point.
+    const perPoint = r.bayLo && r.bayHi ? r.pts.map((_, i) => clearOffsets(base, r.bayLo![i], r.bayHi![i], r.width / 2, !!one)) : null;
+    let which = 0;
+    for (let k = 0; k < perDir; k++) {
       for (const dir of one ? [one] : [1, -1]) {
-        const pts = offset(r.pts, one ? off : off * dir, !!r.closed);
+        const w = which++;
+        const pts = offset(r.pts, perPoint ? perPoint.map((o) => o[w]) : base[w], !!r.closed);
         const h = r.h.slice();
         const info: LaneInfo = { zone: r.zone ? r.zone.slice() : r.pts.map(() => "quiet"), speed: r.speeds ? r.speeds.slice() : r.pts.map(() => r.speed) };
         if (dir === -1) {

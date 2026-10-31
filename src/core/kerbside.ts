@@ -29,6 +29,8 @@ import { outerRadius } from "./roundabout";
 import { pad } from "./roadMesh";
 import { ChunkedMesh } from "./scenery";
 import { densifyStreet, streetSurface, type SideStreet } from "./sideStreets";
+import type { BayBox } from "./bayLanes";
+import { CAR_LENGTH, CAR_WIDTH } from "./parkedClear";
 
 export type ParkingKind = "parallel" | "diagonal" | "perpendicular";
 
@@ -78,6 +80,8 @@ export interface KerbsideResult {
   nodes: Kn5MeshNode[];
   /** Every bay painted, in painting order. */
   slots: KerbSlot[];
+  /** The space each bay (and the car in it) takes, one per slot in the same order (bayLanes.ts keeps traffic lanes clear of them). */
+  boxes: BayBox[];
   bays: number;
   bikeLaneMetres: number;
   symbols: number;
@@ -288,8 +292,10 @@ export function buildKerbside(
   cars: { at: Vec2; dir: Vec2 }[] = [],
   blocked: (x: number, y: number) => boolean = () => false,
 ): KerbsideResult {
-  const paint = new ChunkedMesh(0);
-  const result: KerbsideResult = { nodes: [], slots: [], bays: 0, bikeLaneMetres: 0, symbols: 0 };
+  // Bay lines and bike lane paint apart (KERBSIDE_BAY_* and KERBSIDE_*), so a check can tell bays from bike lanes.
+  const bayPaint = new ChunkedMesh(0), bikePaint = new ChunkedMesh(0);
+  let paint = bikePaint;
+  const result: KerbsideResult = { nodes: [], slots: [], boxes: [], bays: 0, bikeLaneMetres: 0, symbols: 0 };
   const cwGrid = new SegGrid(streets.map((c) => c.pts));
   const wayGrid = new SegGrid(ways.map((w) => w.pts));
   const frames = streets.map(frameOf);
@@ -462,17 +468,34 @@ export function buildKerbside(
       const bikeW = layout.map((l) => l[side].bikeW);
 
       // Parking bays, run by run of one kind.
+      paint = bayPaint;
       for (const kind of ["parallel", "diagonal", "perpendicular"] as const) {
         for (const [a, b] of runs((k) => layout[k][side].park === kind && clear[k][side], kind === "parallel" ? PARALLEL_BAY : 5)) {
           const D = (s: number) => valueAt(depth, s);
           const photo = fromPhoto[Math.min(n - 1, Math.round(fr.at((a + b) / 2).u))][side];
-          /** A bay's slot: its middle at (s, t), a car in it pointing along (ds, dt) in the street's frame. */
-          const slot = (s: number, t: number, ds: number, dt: number) => {
+          /**
+           * A bay's slot: its middle at (s, t), a car in it pointing along (ds, dt) in the street's frame;
+           * `len` the bay's length along the kerb. Its box runs from the kerb's paint line to the bay's inner
+           * line, or to the car's inner side where the car reaches further (narrowed and angle bays).
+           */
+          const slot = (s: number, t: number, ds: number, dt: number, len: number) => {
             const f = fr.at(s), tg: Vec2 = [f.left[1], -f.left[0]], l = Math.hypot(ds, dt) || 1;
+            const at: Vec2 = [f.pos[0] + f.left[0] * t, f.pos[1] + f.left[1] * t];
             result.slots.push({
-              at: [f.pos[0] + f.left[0] * t, f.pos[1] + f.left[1] * t],
+              at,
               dir: [(tg[0] * ds + f.left[0] * dt) / l, (tg[1] * ds + f.left[1] * dt) / l],
               kind, street: id, photo,
+            });
+            const ca = Math.abs(dt) / l, cs = Math.abs(ds) / l;
+            const outer = f.half - KERB_IN;
+            const inner = Math.min(f.half - D(s), Math.abs(t) - (ca * CAR_LENGTH + cs * CAR_WIDTH) / 2);
+            const mid = sg * (outer + inner) / 2;
+            result.boxes.push({
+              c: [f.pos[0] + f.left[0] * mid, f.pos[1] + f.left[1] * mid],
+              along: tg,
+              halfLen: Math.max(len / 2, (cs * CAR_LENGTH + ca * CAR_WIDTH) / 2),
+              halfDepth: Math.max(0, (outer - inner) / 2),
+              street: id,
             });
           };
           if (kind === "parallel") {
@@ -484,7 +507,7 @@ export function buildKerbside(
               stroke(s, sg * (h - KERB_IN), s, tOut);
               stroke(s - 0.5, tOut, s + 0.5, tOut);
               // Traffic keeps left: a car on the left (+) side points along the line, on the right against it.
-              if (j < bays) { const sm = s + PARALLEL_BAY / 2, hm = half(sm); slot(sm, sg * (hm - KERB_IN - D(sm) / 2), sg, 0); }
+              if (j < bays) { const sm = s + PARALLEL_BAY / 2, hm = half(sm); slot(sm, sg * (hm - KERB_IN - D(sm) / 2), sg, 0, PARALLEL_BAY); }
             }
             result.bays += bays;
           } else {
@@ -501,7 +524,7 @@ export function buildKerbside(
               // The bay between this line and the next: nose in, along its lines towards the kerb.
               if (j < lines) {
                 const sm = s + spacing / 2, hm = half(sm), Lm = lean(sm), Dm = D(sm);
-                slot(sm - (sg * Lm) / 2, sg * (hm - KERB_IN - (Dm - KERB_IN) / 2), sg * Lm, sg * (Dm - KERB_IN));
+                slot(sm - (sg * Lm) / 2, sg * (hm - KERB_IN - (Dm - KERB_IN) / 2), sg * Lm, sg * (Dm - KERB_IN), spacing + Lm);
               }
             }
             const sN = s0 + lines * spacing;
@@ -513,6 +536,7 @@ export function buildKerbside(
       }
 
       // Bike lanes: the line between the lane and the traffic, and the symbols.
+      paint = bikePaint;
       const bicycle = symbolGlyph("bicycle")!;
       for (const [a, b] of runs((k) => layout[k][side].bike === "lane" && clear[k][side], 15)) {
         along(a, b, (s) => sg * (half(s) - valueAt(depth, s) - valueAt(bikeW, s)));
@@ -532,7 +556,10 @@ export function buildKerbside(
       }
     }
   });
-  result.nodes = paint.all().map((m, i) => m.toKn5(`KERBSIDE_${pad(i)}`, "paint", { castShadows: false }));
+  result.nodes = [
+    ...bayPaint.all().map((m, i) => m.toKn5(`KERBSIDE_BAY_${pad(i)}`, "paint", { castShadows: false })),
+    ...bikePaint.all().map((m, i) => m.toKn5(`KERBSIDE_${pad(i)}`, "paint", { castShadows: false })),
+  ];
   return result;
 }
 
