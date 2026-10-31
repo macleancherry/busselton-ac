@@ -4,15 +4,16 @@
 // and the street front (doors, driveway, verandah, shop awning). What a building wears is chosen in
 // buildingStyles.ts; this module only reads the dress.
 
-import earcut from "earcut";
-import type { HeightFn } from "./elevation";
-import type { Vec2 } from "./geo";
-import type { Kn5MeshNode } from "./kn5";
-import type { MeshBuilder, Vec3 } from "./mesh";
+import triangulate from "earcut";
+import { type HeightFn } from "./elevation";
+import { type Vec2 } from "./geo";
+import { type Kn5MeshNode } from "./kn5";
+import { type MeshBuilder, type Vec3 } from "./mesh";
 import { box, ChunkedMesh } from "./meshKit";
-import type { BuildOptions } from "./options";
+import { type BuildOptions } from "./options";
 import { placeSeed, rng } from "./random";
-import type { SegmentIndex } from "./road";
+import { type SegmentIndex } from "./road";
+import { type TerrainChunk } from "./terrain";
 import { ccwRing, centroid, isRectangle, pointInRing, ringArea } from "./ringGeometry";
 import { SINK } from "./sceneGround";
 import { FACADES, FACADE_INDEX, LAYOUTS, PITCHED, ROOF_COLOURS, type Dress, type Facade, type Layout, type LayoutName, type RGB, type RoofShape } from "./buildingStyles";
@@ -22,20 +23,17 @@ export { centroid, isRectangle, pointInRing, ringArea };
 export type BuildingSource = "osm" | "detected" | "frontage";
 export type FrontKind = "none" | "limestone" | "brick" | "hedge";
 
-/** A footprint and what it wears. */
-export interface Building extends Dress {
-  /** Local metres, first point not repeated. */
-  ring: Vec2[];
+/** A footprint (local metres, first point not repeated) and what it wears. */
+export type Building = Dress & {
+  ring: Vec2[]; // the footprint
   source: BuildingSource;
-  tags?: Record<string, string>;
-  /** The two corners of the wall facing the street. */
-  front?: [Vec2, Vec2];
-  /** From the road edge to the front wall, metres. */
-  setback?: number;
+  tags?: Record<string, string>; // OSM tags, when mapped
+  front?: [Vec2, Vec2]; // the two corners of the wall facing the street
+  setback?: number; // road edge to the front wall, metres
   /** What runs along the front boundary (house looks; lots.ts). */
   frontKind?: FrontKind;
   hedgeHeight?: number;
-}
+};
 
 // Salts for the position-seeded draws (random.ts placeSeed).
 const SALT_OSM = 0xb1d0;
@@ -51,7 +49,7 @@ export function plainHouse(roof: RoofShape, roofColour: number, height: number):
 
 /** Hip about two thirds of the time, gable otherwise. */
 export function houseRoof(rand: () => number): RoofShape {
-  return rand() < 0.68 ? "hip" : "gable";
+  return rand() >= 0.68 ? "gable" : "hip";
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -66,7 +64,7 @@ export function heightFromTags(tags: Record<string, string>): number {
     const h = parseFloat(tags[key] ?? "");
     if (Number.isFinite(h) && h > 2) return Math.min(80, h);
   }
-  const levels = parseFloat(tags["building:levels"] ?? "");
+  const levels = Number(tags["building:levels"] ?? NaN);
   if (Number.isFinite(levels) && levels > 0) return Math.min(80, levels * 3 + 1);
   const kind = tags.building ?? "";
   if (LOW_KINDS.test(kind)) return 3.5;
@@ -101,10 +99,7 @@ export function nearestRoofColour(rgb: RGB | number[]): number {
   for (const i of PITCHED) {
     const c = ROOF_COLOURS[i].rgb;
     const d = (c[0] - r) ** 2 + (c[1] - g) ** 2 + (c[2] - b) ** 2;
-    if (d < bestD) {
-      bestD = d;
-      best = i;
-    }
+    if (bestD > d) [bestD, best] = [d, i];
   }
   return best;
 }
@@ -130,13 +125,8 @@ export function fromOsm(ring: Vec2[], tags: Record<string, string> = {}, _index?
 // ---------------------------------------------------------------------------------------------
 // Roofs in the aerial photo
 
-/** Local bounds of a photo chunk (terrain.ts TerrainChunk has these and more). */
-export interface ChunkBounds {
-  minX: number;
-  minY: number;
-  maxX: number;
-  maxY: number;
-}
+/** Local bounds of a photo chunk. */
+export type ChunkBounds = Pick<TerrainChunk, "minX" | "minY" | "maxX" | "maxY">;
 
 /** Is a mean cell colour roof-like: pale metal or concrete, or terracotta? */
 export function roofLike(r: number, g: number, b: number): boolean {
@@ -163,23 +153,18 @@ export function detectBuildings(rgba: ArrayLike<number>, size: number, chunk: Ch
   if (n < 2) return [];
   const mask = new Uint8Array(n * n);
   const mean = new Float32Array(n * n * 3);
-  for (let cy = 0; cy < n; cy++) {
-    for (let cx = 0; cx < n; cx++) {
-      let r = 0, g = 0, b = 0;
-      for (let py = cy * cpx; py < (cy + 1) * cpx; py++) {
-        for (let px = cx * cpx; px < (cx + 1) * cpx; px++) {
-          const o = (py * size + px) * 4;
-          r += rgba[o];
-          g += rgba[o + 1];
-          b += rgba[o + 2];
-        }
+  const cnt = cpx * cpx;
+  for (let k = 0; k < n * n; k++) {
+    const col0 = (k % n) * cpx, row0 = Math.floor(k / n) * cpx;
+    const sum = [0, 0, 0];
+    for (let dy = 0; dy < cpx; dy++) {
+      for (let dx = 0; dx < cpx; dx++) {
+        const o = ((row0 + dy) * size + col0 + dx) * 4;
+        for (let ch = 0; ch < 3; ch++) sum[ch] += rgba[o + ch];
       }
-      const k = cy * n + cx, cnt = cpx * cpx;
-      mean[k * 3] = r / cnt;
-      mean[k * 3 + 1] = g / cnt;
-      mean[k * 3 + 2] = b / cnt;
-      mask[k] = roofLike(r / cnt, g / cnt, b / cnt) ? 1 : 0;
     }
+    for (let ch = 0; ch < 3; ch++) mean[k * 3 + ch] = sum[ch] / cnt;
+    mask[k] = roofLike(sum[0] / cnt, sum[1] / cnt, sum[2] / cnt) ? 1 : 0;
   }
   const at = (m: Uint8Array, x: number, y: number) => (x >= 0 && y >= 0 && x < n && y < n ? m[y * n + x] : 0);
   // Opening: erode with the 4-neighbour cross, then grow back within the original mask.
@@ -197,61 +182,56 @@ export function detectBuildings(rgba: ArrayLike<number>, size: number, chunk: Ch
     }
   }
   // Connected patches.
-  const seen = new Uint8Array(n * n);
-  const out: Building[] = [];
+  const label = new Int32Array(n * n).fill(-1); // patch id per cell, -1 unvisited
+  const found: Building[] = [];
   const cellArea = cell * cell;
-  for (let start = 0; start < n * n; start++) {
-    if (!open[start] || seen[start]) continue;
-    const cells: number[] = [];
-    const stack = [start];
-    seen[start] = 1;
-    while (stack.length) {
-      const k = stack.pop()!;
-      cells.push(k);
-      const x = k % n, y = (k / n) | 0;
-      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
-        const nx = x + dx, ny = y + dy;
-        if (nx < 0 || ny < 0 || nx >= n || ny >= n) continue;
-        const j = ny * n + nx;
-        if (open[j] && !seen[j]) {
-          seen[j] = 1;
-          stack.push(j);
+  let patches = 0;
+  for (let first = 0; first < n * n; first++) {
+    if (!open[first] || label[first] >= 0) continue;
+    const id = patches++;
+    const patch: number[] = [first];
+    label[first] = id;
+    // Breadth first: the patch list doubles as the queue.
+    for (let q = 0; q < patch.length; q++) {
+      const k = patch[q], x = k % n, y = Math.floor(k / n);
+      const next = [x > 0 ? k - 1 : -1, x < n - 1 ? k + 1 : -1, y > 0 ? k - n : -1, y < n - 1 ? k + n : -1];
+      for (const j of next) {
+        if (j >= 0 && open[j] && label[j] < 0) {
+          label[j] = id;
+          patch.push(j);
         }
       }
     }
-    const area = cells.length * cellArea;
-    if (area < 40 || area > 700) continue;
-    const b = patchBuilding(cells, n, cell, chunk, mean, area);
-    if (b) out.push(b);
+    const area = patch.length * cellArea;
+    if (!(area >= 40 && area <= 700)) continue;
+    const house = patchBuilding(patch, n, cell, chunk, mean, area);
+    if (house) found.push(house);
   }
-  return out;
+  return found;
+}
+
+/** The middle of some points and the direction of their long axis (radians). */
+function principalAxis(pts: Vec2[]): { mid: Vec2; angle: number } {
+  const count = pts.length || 1;
+  const mid: Vec2 = [pts.reduce((a, p) => a + p[0], 0) / count, pts.reduce((a, p) => a + p[1], 0) / count];
+  let cxx = 0, cyy = 0, cxy = 0;
+  for (const p of pts) {
+    const dx = p[0] - mid[0], dy = p[1] - mid[1];
+    cxx += dx * dx;
+    cyy += dy * dy;
+    cxy += dx * dy;
+  }
+  return { mid, angle: Math.atan2(2 * cxy, cxx - cyy) / 2 };
 }
 
 function patchBuilding(cells: number[], n: number, cell: number, chunk: ChunkBounds, mean: Float32Array, area: number): Building | null {
   const pts = cells.map((k): Vec2 => [chunk.minX + ((k % n) + 0.5) * cell, chunk.maxY - (((k / n) | 0) + 0.5) * cell]);
-  let mx = 0, my = 0;
-  for (const [x, y] of pts) {
-    mx += x;
-    my += y;
-  }
-  mx /= pts.length;
-  my /= pts.length;
-  let sxx = 0, syy = 0, sxy = 0;
-  for (const [x, y] of pts) {
-    sxx += (x - mx) ** 2;
-    syy += (y - my) ** 2;
-    sxy += (x - mx) * (y - my);
-  }
-  const angle = 0.5 * Math.atan2(2 * sxy, sxx - syy);
-  const ux = Math.cos(angle), uy = Math.sin(angle);
-  let a0 = Infinity, a1 = -Infinity, b0 = Infinity, b1 = -Infinity;
-  for (const [x, y] of pts) {
-    const a = (x - mx) * ux + (y - my) * uy, c = -(x - mx) * uy + (y - my) * ux;
-    a0 = Math.min(a0, a);
-    a1 = Math.max(a1, a);
-    b0 = Math.min(b0, c);
-    b1 = Math.max(b1, c);
-  }
+  const { mid, angle } = principalAxis(pts);
+  const [mx, my] = mid;
+  const ux = Math.cos(angle), uy = Math.sin(angle); // the long axis
+  const along = pts.map(([x, y]) => (x - mx) * ux + (y - my) * uy);
+  const across = pts.map(([x, y]) => (y - my) * ux - (x - mx) * uy);
+  const a0 = Math.min(...along), a1 = Math.max(...along), b0 = Math.min(...across), b1 = Math.max(...across);
   const len = a1 - a0 + cell, wid = b1 - b0 + cell;
   const long = Math.max(len, wid), short = Math.min(len, wid);
   if (short < 4 || long > 4 * short || area / (len * wid) < 0.55) return null;
@@ -259,14 +239,9 @@ function patchBuilding(cells: number[], n: number, cell: number, chunk: ChunkBou
   const ox = mx + ac * ux - bc * uy, oy = my + ac * uy + bc * ux;
   const corner = (sa: number, sb: number): Vec2 => [ox + sa * (len / 2) * ux - sb * (wid / 2) * uy, oy + sa * (len / 2) * uy + sb * (wid / 2) * ux];
   const ring = ccwRing([corner(-1, -1), corner(1, -1), corner(1, 1), corner(-1, 1)]);
-  let r = 0, g = 0, b = 0;
-  for (const k of cells) {
-    r += mean[k * 3];
-    g += mean[k * 3 + 1];
-    b += mean[k * 3 + 2];
-  }
+  const avg = [0, 1, 2].map((ch) => cells.reduce((acc, k) => acc + mean[k * 3 + ch], 0) / cells.length);
   const rand = rng(placeSeed(ox, oy, SALT_DETECT));
-  const finish = nearestRoofColour([r / cells.length, g / cells.length, b / cells.length]);
+  const finish = nearestRoofColour(avg);
   return { ...plainHouse(houseRoof(rand), finish, area > 250 ? 3.6 : 2.8), ring, source: "detected" };
 }
 
@@ -286,14 +261,11 @@ export function filterBuildings(buildings: Building[], index: SegmentIndex, opts
     });
   const inMapped = (x: number, y: number) => mapped.some((m) => x >= m.x0 && x <= m.x1 && y >= m.y0 && y <= m.y1 && pointInRing(x, y, m.ring));
   const reach = Math.max(maxDist, 60);
-  return buildings.filter((b) => {
-    if (b.ring.length < 3 || Math.abs(ringArea(b.ring)) < 6) return false;
-    if (b.source !== "osm") {
-      const c = centroid(b.ring);
-      if (inMapped(c[0], c[1]) || b.ring.some(([x, y]) => inMapped(x, y))) return false;
-    }
+  return buildings.filter(({ ring, source }) => {
+    if (ring.length < 3 || Math.abs(ringArea(ring)) < 6) return false;
+    if (source !== "osm" && [centroid(ring), ...ring].some(([x, y]) => inMapped(x, y))) return false;
     let near = false;
-    for (const [x, y] of b.ring) {
+    for (const [x, y] of ring) {
       const hit = index.nearest(x, y, reach);
       if (!hit) continue;
       if (hit.dist < index.at(hit).width / 2 + opts.vergeWidth + 2) return false;
@@ -304,14 +276,14 @@ export function filterBuildings(buildings: Building[], index: SegmentIndex, opts
 }
 
 /** The facades (main and ground floor) and roof finishes the buildings wear. */
-export function usedFinishes(buildings: Building[]): { facades: Set<number>; roofs: Set<number> } {
-  const facades = new Set<number>(), roofs = new Set<number>();
-  for (const b of buildings) {
-    facades.add(b.facade);
-    if (b.groundFacade !== undefined) facades.add(b.groundFacade);
-    roofs.add(b.roofColour);
+export function usedFinishes(list: Building[]): { facades: Set<number>; roofs: Set<number> } {
+  const used = { facades: new Set<number>(), roofs: new Set<number>() };
+  for (const bld of list) {
+    used.facades.add(bld.facade);
+    if (bld.groundFacade !== undefined) used.facades.add(bld.groundFacade);
+    used.roofs.add(bld.roofColour);
   }
-  return { facades, roofs };
+  return used;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -341,13 +313,13 @@ class Sink {
   }
 
   nodes(): Kn5MeshNode[] {
-    const out: Kn5MeshNode[] = [];
+    const nodes: Kn5MeshNode[] = []; // in stem order
     for (const [stem, g] of this.groups) {
       g.mesh.all().forEach((mb, i) => {
-        out.push(mb.toKn5(`${stem}_${String(i).padStart(3, "0")}`, g.material, g.shadows ? {} : { castShadows: false }));
+        nodes.push(mb.toKn5(`${stem}_${String(i).padStart(3, "0")}`, g.material, g.shadows ? {} : { castShadows: false }));
       });
     }
-    return out;
+    return nodes;
   }
 }
 
@@ -360,8 +332,8 @@ function normalOf(p: V3[]): V3 {
     ny += (a[2] - b[2]) * (a[0] + b[0]);
     nz += (a[0] - b[0]) * (a[1] + b[1]);
   }
-  const l = Math.hypot(nx, ny, nz) || 1;
-  return [nx / l, ny / l, nz / l];
+  const size = Math.hypot(nx, ny, nz) || 1;
+  return [nx / size, ny / size, nz / size];
 }
 
 /**
@@ -401,16 +373,16 @@ interface Wall {
 }
 
 function wallsOf(ring: Vec2[]): Wall[] {
-  const walls: Wall[] = [];
   let p0 = 0;
-  for (let k = 0; k < ring.length; k++) {
-    const a = ring[k], b = ring[(k + 1) % ring.length];
-    const len = Math.hypot(b[0] - a[0], b[1] - a[1]);
-    const dir: Vec2 = len > 0 ? [(b[0] - a[0]) / len, (b[1] - a[1]) / len] : [1, 0];
-    walls.push({ a, b, len, dir, out: [dir[1], -dir[0]], p0 });
+  return ring.map((a, k) => {
+    const b = ring[(k + 1) % ring.length];
+    const dx = b[0] - a[0], dy = b[1] - a[1];
+    const len = Math.sqrt(dx * dx + dy * dy);
+    const dir: Vec2 = len > 0 ? [dx / len, dy / len] : [1, 0];
+    const wall: Wall = { a, b, len, dir, out: [dir[1], -dir[0]], p0 };
     p0 += len;
-  }
-  return walls;
+    return wall;
+  });
 }
 
 /** A door or garage span on the front wall: metres along it, and its top. */
@@ -425,9 +397,9 @@ interface Ctx {
   b: Building;
   g: HeightFn;
   sink: number;
-  ring: Vec2[];
+  ring: Vec2[]; // counter-clockwise
   walls: Wall[];
-  floor: number;
+  floor: number; // the lowest corner
   base: number;
   top: number;
   out: Sink;
@@ -441,14 +413,9 @@ const facadeAt = (i: number | undefined): Facade | undefined => (i === undefined
  * every height of that building, and `sinkFor(b)` (default SINK) how far its walls go under the
  * lowest ground along them.
  */
-export function buildBuildings(
-  buildings: Building[],
-  ground: HeightFn,
-  sinkFor?: (b: Building) => number,
-  groundFor?: (b: Building) => HeightFn,
-): Kn5MeshNode[] {
+export function buildBuildings(list: Building[], ground: HeightFn, sinkFor?: (b: Building) => number, groundFor?: (b: Building) => HeightFn): Kn5MeshNode[] {
   const out = new Sink();
-  for (const b of buildings) {
+  for (const b of list) {
     const ring = ccwRing(b.ring);
     if (ring.length < 3 || Math.abs(ringArea(ring)) < 1e-6) continue;
     const g = groundFor?.(b) ?? ground;
@@ -467,8 +434,8 @@ export function buildBuildings(
         lowest = Math.min(lowest, g(m[0], m[1]));
       }
     }
-    const c = centroid(ring);
-    lowest = Math.min(lowest, g(c[0], c[1]));
+    const mid = centroid(ring);
+    lowest = Math.min(lowest, g(mid[0], mid[1]));
     const floor = Math.min(...cornerZ);
     const top = Math.max(...cornerZ) + Math.max(0.5, b.height);
     const ctx: Ctx = { b, g, sink, ring, walls, floor, base: lowest - sink, top, out };
@@ -576,7 +543,7 @@ function wallBands(ctx: Ctx, front: Wall | null, spans: Span[]): void {
   } else {
     bands.push({ fc: main, z0: base, z1: top, floor });
   }
-  for (const band of bands) {
+  bands.forEach((band) => {
     const lay = layoutOf(band.fc);
     const mb = ctx.out.get(`1WALL_BLD_${safeName(band.fc.name)}`, `facade_${band.fc.name}`, true, walls.length * 4);
     const v = (z: number) => 1 - (z - band.floor) / lay.storey;
@@ -593,7 +560,7 @@ function wallBands(ctx: Ctx, front: Wall | null, spans: Span[]): void {
       mb.quad(first, first + 1, first + 2, first + 3);
     }
     if (lay.panes) panes(ctx, band, lay, front, spans);
-  }
+  });
 }
 
 /** Glass over each window opening of a band, kept clear of doors, wall ends and the ground. */
@@ -637,11 +604,11 @@ function plainWall(ctx: Ctx, w: Wall, pts: V3[]): void {
   const vOf = (z: number) => 1 - (p0 + ((z - lo) / Math.max(1e-6, hi - lo)) * (p1 - p0)) / lay.storey;
   const mb = ctx.out.get(`1WALL_BLD_${safeName(fc.name)}`, `facade_${fc.name}`, true, pts.length);
   const first = mb.vertexCount;
-  for (const p of pts) {
+  pts.forEach((p) => {
     const s = (p[0] - w.a[0]) * w.dir[0] + (p[1] - w.a[1]) * w.dir[1];
     mb.vertex(p as Vec3, (w.p0 + s) / lay.period, vOf(p[2]));
     mb.normals!.push(w.out[0], w.out[1], 0);
-  }
+  });
   for (let k = 1; k + 1 < pts.length; k++) mb.tri(first, first + k, first + k + 1);
 }
 
@@ -677,14 +644,14 @@ function roof(ctx: Ctx): void {
 
 function flatRoof(ctx: Ctx): void {
   const { b, ring, top, walls } = ctx;
-  const tris = earcut(ring.flatMap((p) => p));
+  const tris = triangulate(ring.flat());
   const { stem, material } = roofStem(ctx);
   const mb = ctx.out.get(stem, material, true, ring.length);
   const first = mb.vertexCount;
-  for (const [x, y] of ring) {
+  ring.forEach(([x, y]) => {
     mb.vertex([x, y, top], x / 2, y / 2);
-    mb.normals!.push(0, 0, 1);
-  }
+    mb.normals?.push(0, 0, 1);
+  });
   for (let i = 0; i < tris.length; i += 3) {
     const [a, c, d] = [tris[i], tris[i + 1], tris[i + 2]];
     const pa = ring[a], pc = ring[c], pd = ring[d];
@@ -743,8 +710,9 @@ function pitchedRoof(ctx: Ctx): void {
   const ridge = top + (span / 2) * tan;
   const m03 = lerp2(e[0], e[3], 0.5), m12 = lerp2(e[1], e[2], 0.5);
   const grownLen = len + 2 * ov;
+  const hip = b.roof === "hip";
   let r0 = m03, r1 = m12;
-  if (b.roof === "hip") {
+  if (hip) {
     const inset = Math.min(span / 2 + ov, grownLen / 2);
     r0 = add(m03, u, inset);
     r1 = add(m12, u, -inset);
@@ -757,7 +725,7 @@ function pitchedRoof(ctx: Ctx): void {
   // Long-side soffits.
   soffit(ctx, [T[0], T[1], E[1], E[0]]);
   soffit(ctx, [T[2], T[3], E[3], E[2]]);
-  if (b.roof === "hip") {
+  if (hip) {
     roofFace(ctx, [E[3], E[0], R0]);
     roofFace(ctx, [E[1], E[2], R1]);
     soffit(ctx, [T[1], T[2], E[2], E[1]]);
@@ -778,7 +746,8 @@ function pitchedRoof(ctx: Ctx): void {
 function verandah(ctx: Ctx, w: Wall): void {
   const { b, g, top } = ctx;
   if (!b.verandah || w.len < 5) return;
-  const depth = Math.min(2.6, (b.setback ?? 6) - 1.2);
+  const room = (b.setback ?? 6) - 1.2; // setback unknown: assume 6 m
+  const depth = Math.min(2.6, room);
   if (depth < 1.5) return;
   const pitched = b.roof !== "flat" && ctx.ring.length === 4;
   const ov = b.type === "warehouse" || b.type === "shed" ? 0.2 : 0.45;
@@ -794,8 +763,8 @@ function verandah(ctx: Ctx, w: Wall): void {
   // Posts along the depth line, from under the ground to the verandah's underside.
   const under = z0 - depth * fall - 0.02;
   const count = Math.max(2, Math.round(w.len / 2.6) + 1);
-  for (let i = 0; i < count; i++) {
-    const s = 0.1 + ((w.len - 0.2) * i) / (count - 1);
+  for (let post = 0; post < count; post++) {
+    const s = 0.1 + ((w.len - 0.2) * post) / (count - 1);
     const at = onWall(w, s, depth);
     const zg = g(at[0], at[1]) - ctx.sink;
     if (under - zg < 0.5) continue;
@@ -807,7 +776,8 @@ function verandah(ctx: Ctx, w: Wall): void {
 function awning(ctx: Ctx, w: Wall): void {
   const { b, floor } = ctx;
   if (!b.awning || w.len < 4) return;
-  const reach = Math.min(3, (b.setback ?? 3.4) - 0.4);
+  const room = (b.setback ?? 3.4) - 0.4; // setback unknown: a 3 m awning
+  const reach = Math.min(3, room);
   if (reach < 1.2) return;
   const z0 = floor + 3, z1 = z0 + 0.35;
   const mb = ctx.out.get("AWNING", "canopy", true, 20);

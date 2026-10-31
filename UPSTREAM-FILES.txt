@@ -6,8 +6,6 @@ src/core/acFiles.ts
 src/core/aiLine.ts
 src/core/art.ts
 src/core/backdrop.ts
-src/core/buildingStyles.ts
-src/core/buildings.ts
 src/core/cameras.ts
 src/core/clearance.ts
 src/core/colour.ts
@@ -52,8 +50,6 @@ src/ui/main.ts
 src/ui/preview.ts
 src/ui/session.ts
 src/ui/style.css
-test/buildingStyles.test.ts
-test/buildings.test.ts
 test/cameras.test.ts
 test/clearance.test.ts
 test/colour.test.ts

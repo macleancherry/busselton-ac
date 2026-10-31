@@ -167,7 +167,23 @@ Found while writing the new module from the call sites and the commit messages (
 
 - **Window sills above the ground** (d14ecb8): a big building's floor is its lowest ground, so on a slope its shop windows ran 40 cm into the ground on the high side. Each pane's bottom is kept at least 8 cm over the ground just outside the wall (sampled 0.3 m out at both ends of the pane, the higher of the two); a pane left under 0.3 m tall goes.
 - **Wall names** (eb2839b): the surface-key substitution in the facade part of `1WALL_BLD_` names. The material keeps the real facade name (`facade_render_sand`). Nothing in the CSP config matches `1WALL_BLD_` today (lit windows match the material `window`; `docs/verification.md` refers to `1WALL_BLD_*`), but keep the prefix: it's how checks and people find building walls.
+- **Houses at the terrain mesh's edge** (704513a): on the base, track.ts's `groundFor(b)` is `ground.forRing(b.ring)` (sceneGround.ts): the built mesh where it covers a point, and where it doesn't (past the terrain mesh's edge), the analytic terrain but never under the mesh's lowest point along the ring. So a straddling house stands on the mesh's lowest, not the terrain past it. This module only has to use `groundFor(b)` for every height of the building; the rule lives in sceneGround.
+- **Buildings start at the lowest ground along their edges** (6781975): sample every corner, along each edge at most 2 m apart (the midpoint of a short edge), and the centroid.
 - **Shopfronts on replaced buildings** (6781975): track.ts skips `findShopfronts` on buildings inside a hand-made layer's cleared circles. Not this module's job; noted so nobody moves it here.
+
+### Choices the rewrite made where the spec was open (31 Oct 2026, second session)
+
+- **Excess green** in roof detection is `(2G - R - B) / (R + G + B)` on the cell's mean colour; saturation and lightness are HSL. Cells are classified on their mean colour.
+- **Front door with a garage:** starts at `min(4.2, wall - 1.4 - 0.85)` along the wall, but never before 3.6 m (clear of the 0.6 to 3.2 m garage door); dropped if it would end within 0.3 m of the wall's end.
+- **Front wall:** the ring edge whose ends match `front` (either order) within 1 m in total, else the edge whose middle is nearest the front's middle.
+- **Setback unknown:** driveway assumes 6 m (2.5 m of driveway), verandah 6 m, awning 3.4 m (a 3 m reach).
+- **Verandah top** starts 15 cm under the eave (the wall top on a flat roof); posts 0.1 m square, `max(2, round(wall / 2.6) + 1)` of them evenly from 0.1 m in at each end; a post under 0.5 m tall is left out.
+- **Gable rakes** get soffits too (two quads per gable end, from the wall triangle's sloping edges out to the rake), and a skillion's high wall and end triangles wear the plain band like gable ends.
+- **Parapets** are the plain band on both faces (outside, and the same quad turned inward); no cap.
+- **Doors** are dropped if under 1 m tall after capping at 10 cm below the wall top.
+- **Pitch** is clamped to 1..60 degrees for the roof maths.
+- `Building` is a type (`Dress & { ... }`) rather than an interface; callers only spread and read it.
+- Extra exports for tests: `heightFromTags`, `parseColour`, `roofLike`, `safeName`, `ChunkBounds`.
 
 ### Determinism
 

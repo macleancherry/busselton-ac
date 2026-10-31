@@ -2,7 +2,7 @@
 // facades and roof finishes by name, their procedural textures, and the choice of what a building
 // is from what's known about it. No geometry here: buildings.ts builds the meshes.
 
-import { encodePng } from "./png";
+import { encodePng as png } from "./png";
 import { mix32, rng } from "./random";
 
 export type RGB = [number, number, number];
@@ -13,33 +13,31 @@ export type RGB = [number, number, number];
 export type OpeningKind = "window" | "shop" | "door";
 
 /** One opening in a layout: x along the period, z up from the storey floor, metres. */
-export interface Opening {
+export type Opening = {
   x0: number;
   x1: number;
   z0: number;
   z1: number;
   kind: OpeningKind;
-}
+};
 
 export type LayoutName =
   | "house" | "modern" | "flats" | "apartment" | "office" | "curtain"
   | "shopfront" | "shopupper" | "industrial" | "hall" | "blank";
 
 /** How openings repeat along (period) and up (storey) a wall. */
-export interface Layout {
+export type Layout = {
   name: LayoutName;
-  period: number;
-  storey: number;
-  openings: Opening[];
-  /** Glass panes go over the windows (CSP lights a room behind each). */
-  panes: boolean;
-  /** A z range of the storey with no openings: gable ends and parapets wear it. */
-  plain: [number, number];
+  period: number; // metres along the wall before it repeats
+  storey: number; // metres
+  openings: Opening[]; // within one period and storey
+  panes: boolean; // glass over the windows (CSP lights a room behind each)
+  plain: [number, number]; // a z range with no openings: gable ends and parapets wear it
   /** A shop sign band across the top of the storey. */
   sign?: boolean;
   /** A balcony in front of the first opening. */
   balcony?: boolean;
-}
+};
 
 const win = (x0: number, x1: number, z0: number, z1: number, kind: OpeningKind = "window"): Opening => ({ x0, x1, z0, z1, kind });
 
@@ -67,15 +65,15 @@ export const LAYOUTS: Record<LayoutName, Layout> = {
 export type WallKind = "brick" | "weatherboard" | "fibro" | "render" | "cladding" | "corrugated" | "panel" | "glass";
 
 /** A wall finish: a kind in a colour, with a trim colour for frames, on a layout (by name). */
-export interface Facade {
-  name: string;
-  wall: WallKind;
+export type Facade = {
+  name: string; // unique: material, mesh and house-look names use it
+  wall: WallKind; // what the bare wall is
   colour: RGB;
   trim: RGB;
   layout: string;
   /** Shop sign fascia colour (sign layouts). */
   sign?: RGB;
-}
+};
 
 const WHITE_TRIM: RGB = [238, 238, 232];
 const DARK_TRIM: RGB = [48, 49, 52];
@@ -85,7 +83,7 @@ const fac = (name: string, wall: WallKind, colour: RGB, trim: RGB, layout: Layou
   sign ? { name, wall, colour, trim, layout, sign } : { name, wall, colour, trim, layout };
 
 /** Every generated facade. Looked up by name (FACADE_INDEX); the order only matters within a build. */
-export const FACADES: Facade[] = [
+export const FACADES: readonly Facade[] = [
   // Brick veneer houses (brick_red first: plain houses wear it).
   fac("brick_red", "brick", [150, 72, 52], WHITE_TRIM, "house"),
   fac("brick_cream", "brick", [214, 196, 158], [96, 82, 64], "house"),
@@ -112,7 +110,7 @@ export const FACADES: Facade[] = [
   fac("render_terracotta", "render", [184, 110, 80], DARK_TRIM, "modern"),
   fac("clad_timber", "cladding", [150, 106, 70], DARK_TRIM, "modern"),
   fac("clad_black", "cladding", [44, 44, 46], [24, 24, 26], "modern"),
-  // Walk-up flats.
+  // Walk-up flats of the sixties and seventies.
   fac("flats_red", "brick", [142, 70, 54], WHITE_TRIM, "flats"),
   fac("flats_cream", "brick", [210, 192, 152], [90, 80, 64], "flats"),
   fac("flats_brown", "brick", [110, 74, 56], WHITE_TRIM, "flats"),
@@ -157,18 +155,14 @@ export const FACADE_INDEX: Map<string, number> = new Map(FACADES.map((f, i) => [
 // ---------------------------------------------------------------------------------------------
 // Roof finishes
 
-export type RoofKind = "metal" | "tile" | "ctile" | "membrane" | "gravel";
+export type RoofKind = "metal" | "tile" | "ctile" | "membrane" | "gravel"; // ctile: concrete tile
 
-export interface RoofFinish {
-  name: string;
-  rgb: RGB;
-  kind: RoofKind;
-}
+export type RoofFinish = { name: string; rgb: RGB; kind: RoofKind };
 
 const finish = (name: string, rgb: RGB, kind: RoofKind = "metal"): RoofFinish => ({ name, rgb, kind });
 
 /** Roof finishes, looked up by name. `shalegrey` stays second (track.ts takes the verandah texture as [1]). */
-export const ROOF_COLOURS: RoofFinish[] = [
+export const ROOF_COLOURS: readonly RoofFinish[] = [
   finish("surfmist", [228, 226, 213]),
   finish("shalegrey", [189, 191, 186]),
   finish("windspray", [136, 139, 135]),
@@ -236,12 +230,11 @@ function tilingNoise(w: number, h: number, cx: number, seed: number): (x: number
   const cy = Math.max(1, Math.round((cx * h) / w));
   const lat = (i: number, j: number) => cellRand(((i % cx) + cx) % cx, ((j % cy) + cy) % cy, seed);
   const s = (t: number) => t * t * (3 - 2 * t);
-  return (x, y) => {
-    const fx = (x / w) * cx, fy = (y / h) * cy;
+  const mixAt = (a: number, b: number, t: number) => a + (b - a) * t;
+  return (px, py) => {
+    const fx = (px / w) * cx, fy = (py / h) * cy;
     const ix = Math.floor(fx), iy = Math.floor(fy), tx = s(fx - ix), ty = s(fy - iy);
-    const top = lat(ix, iy) + (lat(ix + 1, iy) - lat(ix, iy)) * tx;
-    const bot = lat(ix, iy + 1) + (lat(ix + 1, iy + 1) - lat(ix, iy + 1)) * tx;
-    return top + (bot - top) * ty;
+    return mixAt(mixAt(lat(ix, iy), lat(ix + 1, iy), tx), mixAt(lat(ix, iy + 1), lat(ix + 1, iy + 1), tx), ty);
   };
 }
 
@@ -249,17 +242,13 @@ const scaleRgb = (c: RGB, k: number): RGB => [c[0] * k, c[1] * k, c[2] * k];
 const mixRgb = (a: RGB, b: RGB, t: number): RGB => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
 
 function paint(w: number, h: number, shade: (x: number, y: number) => RGB): Uint8Array {
-  const px = new Uint8Array(w * h * 4);
-  for (let y = 0; y < h; y++) {
-    for (let x = 0; x < w; x++) {
-      const c = shade(x, y), o = (y * w + x) * 4;
-      px[o] = clamp255(Math.round(c[0]));
-      px[o + 1] = clamp255(Math.round(c[1]));
-      px[o + 2] = clamp255(Math.round(c[2]));
-      px[o + 3] = 255;
-    }
+  const out = new Uint8Array(w * h * 4);
+  for (let i = 0; i < w * h; i++) {
+    const c = shade(i % w, Math.floor(i / w));
+    for (let ch = 0; ch < 3; ch++) out[i * 4 + ch] = clamp255(Math.round(c[ch]));
+    out[i * 4 + 3] = 255;
   }
-  return px;
+  return out;
 }
 
 const SKY_TOP: RGB = [170, 196, 220];
@@ -271,7 +260,7 @@ const BALCONY_WASH: RGB = [196, 210, 220];
 function wallPixel(fc: Facade, layout: Layout, w: number, h: number, x: number, y: number, seed: number): RGB {
   const base = fc.colour;
   switch (fc.wall) {
-    case "brick": {
+    case "brick": { // stretcher bond
       // 230 x 76 mm bricks, 10 mm joints (at least a pixel), stretcher bond, whole bricks per tile.
       const courses = Math.max(1, Math.round(h / (0.086 * PX_PER_M)));
       const across = Math.max(1, Math.round(w / (0.24 * PX_PER_M)));
@@ -285,21 +274,21 @@ function wallPixel(fc: Facade, layout: Layout, w: number, h: number, x: number, 
       const tone = 0.86 + cellRand(row, col % across, seed) * 0.24;
       return scaleRgb(base, tone);
     }
-    case "weatherboard": {
+    case "weatherboard": { // 150 mm boards, a shadow under each lap
       const boards = Math.max(1, Math.round(h / (0.15 * PX_PER_M)));
       const bh = h / boards, inB = y % bh;
       if (inB >= bh - 1) return scaleRgb(base, 0.68);
       return scaleRgb(base, 0.94 + (inB / bh) * 0.08);
     }
-    case "fibro": {
+    case "fibro": { // 1.2 m sheets behind cover strips
       const sheets = Math.max(1, Math.round(layout.period / 1.2));
       const sw = w / sheets, inS = x % sw;
       if (inS < 2) return scaleRgb(base, inS < 1 ? 1.04 : 0.84);
       return base;
     }
-    case "render":
+    case "render": // plain; the stain noise does the rest
       return base;
-    case "cladding": {
+    case "cladding": { // vertical 140 mm boards
       const boards = Math.max(1, Math.round(w / (0.14 * PX_PER_M)));
       const bw = w / boards, b = Math.floor(x / bw);
       if (x - b * bw < 1) return scaleRgb(base, 0.6);
@@ -310,25 +299,25 @@ function wallPixel(fc: Facade, layout: Layout, w: number, h: number, x: number, 
       const t = ((x + 0.5) / w) * ribs;
       return scaleRgb(base, 0.9 + 0.12 * Math.cos(t * 2 * Math.PI));
     }
-    case "panel": {
+    case "panel": { // tilt-up panels, 3 m by a storey
       const panels = Math.max(1, Math.round(layout.period / 3));
       const pw = w / panels;
       if (x % pw < 1 || y < 1) return scaleRgb(base, 0.72);
       return base;
     }
-    case "glass":
-      return fc.trim;
+    case "glass": // mullions and spandrels
+      return fc.trim; // the glass itself is in openingPixel
   }
 }
 
 /** Inside an opening: what you see through it, at metres (u across the opening 0..1, z up the storey). */
 function openingPixel(fc: Facade, o: Opening, u: number, mz: number, seed: number): RGB {
   const t = (mz - o.z0) / Math.max(0.01, o.z1 - o.z0); // 0 bottom, 1 top
-  if (fc.wall === "glass") {
+  if (fc.wall === "glass") { // curtain wall: tinted, darker spandrel
     if (mz < 0.9) return scaleRgb(fc.colour, 0.6);
     return scaleRgb(fc.colour, 0.85 + t * 0.35);
   }
-  if (o.kind === "shop" || o.kind === "door") {
+  if (o.kind !== "window") { // shop windows and glass doors: a lit room
     let c = scaleRgb(ROOM_WALL, 0.62 + t * 0.38);
     if (o.kind === "shop" && t > 0.45) {
       // Shelves and goods in the upper part.
@@ -351,13 +340,13 @@ function openingPixel(fc: Facade, o: Opening, u: number, mz: number, seed: numbe
  * A facade's texture: one period wide, one storey tall (floor at the bottom), 32 px a metre,
  * sides rounded to a multiple of 4. Works for any facade, listed or not (spec houses).
  */
-export function facadeTexture(fc: Facade): Uint8Array {
+export function facadeTexture(fc: Readonly<Facade>): Uint8Array {
   const layout = LAYOUTS[fc.layout as LayoutName] ?? LAYOUTS.blank;
   const w = round4(layout.period * PX_PER_M), h = round4(layout.storey * PX_PER_M);
   const seed = seedOf(fc.name, fc.colour);
   const stain = tilingNoise(w, h, 3, seed ^ 0x51ed);
   const grain = (x: number, y: number) => (cellRand(x, y, seed ^ 0x9a1) - 0.5) * 10;
-  const frame = 0.06;
+  const frame = 0.06; // window frame width, metres
   const big = layout.openings[0];
   const rgba = paint(w, h, (x, y) => {
     const mx = ((x + 0.5) / w) * layout.period;
@@ -404,7 +393,7 @@ export function facadeTexture(fc: Facade): Uint8Array {
     const g = grain(x, y);
     return [c[0] + g, c[1] + g, c[2] + g];
   });
-  return encodePng(rgba, w, h, { alpha: false });
+  return png(rgba, w, h, { alpha: false });
 }
 
 const ROOF_PX = 128; // 2 m square
@@ -461,7 +450,7 @@ export function roofTexture(r: RoofFinish): Uint8Array {
     const g = grain(x, y);
     return [c[0] + g, c[1] + g, c[2] + g];
   });
-  return encodePng(rgba, n, n, { alpha: false });
+  return png(rgba, n, n, { alpha: false });
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -471,42 +460,30 @@ export type BuildingType = "house" | "townhouse" | "flats" | "apartments" | "off
 export type RoofShape = "flat" | "hip" | "gable" | "skillion";
 
 /** What a building is and wears. */
-export interface Dress {
+export type Dress = {
   type: BuildingType;
-  /** Index into FACADES. */
-  facade: number;
-  /** A different facade for the ground floor (a shopfront under offices or flats). */
-  groundFacade?: number;
+  facade: number; // index into FACADES
+  groundFacade?: number; // a different ground floor (a shopfront under offices or flats)
   roof: RoofShape;
-  /** Index into ROOF_COLOURS. */
-  roofColour: number;
-  /** Roof pitch, degrees. */
-  pitch: number;
-  /** Wall height above the floor, metres. */
-  height: number;
-  verandah?: boolean;
-  awning?: boolean;
-  /** Parapet above a flat roof, metres. */
-  parapet?: number;
-  garage?: boolean;
-}
+  roofColour: number; // index into ROOF_COLOURS
+  pitch: number; // degrees
+  height: number; // wall height above the floor, metres
+  verandah?: boolean; // across the front wall
+  awning?: boolean; // a shop awning over the footpath
+  parapet?: number; // above a flat roof, metres
+  garage?: boolean; // a garage door on the front wall
+};
 
-export interface DressInfo {
-  /** Height OSM actually gave (a guess must be passed as undefined). */
-  height?: number;
-  /** OSM `building` value. */
-  kind?: string;
-  /** Footprint area, m^2. */
-  area: number;
-  /** Class of a point of interest inside the footprint. */
-  poi?: string;
-  /** The roof finish seen in the photo (index into ROOF_COLOURS). */
-  photoRoof?: number;
-  rectangle: boolean;
-  /** On the street front (setback under 15 m). */
-  fronted: boolean;
-  seed: number;
-}
+export type DressInfo = {
+  height?: number; // what OSM actually gave; pass a guess as undefined
+  kind?: string; // OSM `building`
+  area: number; // footprint, m^2
+  poi?: string; // class of a point of interest inside the footprint
+  photoRoof?: number; // the roof finish seen in the photo (index into ROOF_COLOURS)
+  rectangle: boolean; // isRectangle(footprint)
+  fronted: boolean; // on the street front (setback under 15 m)
+  seed: number; // from the building's position
+};
 
 const SHOP_POI = /^(shop|grocery|clothing_store|cafe|restaurant|fast_food|bar|pub)$/;
 const HALL_KIND = /^(church|chapel|cathedral|school|civic|public|hall)$/;
@@ -560,9 +537,8 @@ const pick = <T>(rand: () => number, list: T[]): T => list[Math.min(list.length 
  * What a building is, from what's known about it (first matching rule wins; see the spec).
  * The same info and seed always give the same dress.
  */
-export function dressBuilding(info: DressInfo): Dress {
-  const rand = rng(info.seed);
-  const kind = info.kind ?? "";
+export function dressBuilding(info: Readonly<DressInfo>): Dress {
+  const kind = info.kind ?? "", rand = rng(info.seed);
   const known = info.height !== undefined && info.height > 0 ? info.height : undefined;
   const photo = info.photoRoof !== undefined && ROOF_COLOURS[info.photoRoof] ? info.photoRoof : undefined;
   /** The photo's finish when known, otherwise one from the list. */
@@ -642,7 +618,7 @@ export function dressBuilding(info: DressInfo): Dress {
   }
 
   // 7. A mid-size low building on the street: often a shop.
-  if (info.area > 350 && info.fronted && rand() < 0.5) {
+  if (info.fronted && info.area > 350 && rand() < 0.5) {
     return { type: "shop", facade: pick(rand, STYLE_FACADES.shop), roof: "flat", roofColour: photoOr(SHOP_ROOFS), pitch: 0, height: 4.2, parapet: 1.1, awning: true };
   }
 
@@ -650,7 +626,7 @@ export function dressBuilding(info: DressInfo): Dress {
   const style = weighted(rand, [["brick", 34], ["modern", 16], ["weatherboard", 14], ["fibro", 7], ["townhouse", info.area > 140 ? 9 : 0]]);
   const twoStorey = style === "townhouse" || (style !== "fibro" && info.area > 150 && rand() < 0.25);
   const height = twoStorey ? 5.7 : 2.7;
-  if (style === "modern" || style === "townhouse") {
+  if (style === "townhouse" || style === "modern") {
     const facade = pick(rand, STYLE_FACADES.modern);
     const roof: RoofShape = info.rectangle ? weighted<RoofShape>(rand, [["skillion", 4], ["flat", 3], ["hip", 2], ["gable", 1]]) : "flat";
     const type: BuildingType = style === "townhouse" ? "townhouse" : "house";

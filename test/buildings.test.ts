@@ -22,7 +22,7 @@ import type { Kn5MeshNode } from "../src/core/kn5";
 import type { SegmentIndex } from "../src/core/road";
 import { SINK } from "../src/core/sceneGround";
 
-const roofIndex = (name: string) => ROOF_COLOURS.findIndex((r) => r.name === name);
+const roofIndex = (finish: string) => ROOF_COLOURS.findIndex((r) => r.name === finish);
 const facadeIndex = (name: string) => FACADE_INDEX.get(name)!;
 const rect = (w: number, d: number, x = 0, y = 0): Vec2[] => [[x, y], [x + w, y], [x + w, y + d], [x, y + d]];
 const house = (over: Partial<Building> = {}): Building => ({ ...plainHouse("hip", roofIndex("surfmist"), 3), ring: rect(12, 10), source: "osm", ...over });
@@ -38,7 +38,7 @@ const tris = (nodes: Kn5MeshNode[]) => nodes.reduce((s, m) => s + m.indices.leng
 /** Face normals (ENU) of every triangle in the meshes. */
 function faceNormals(nodes: Kn5MeshNode[]): [number, number, number][] {
   const out: [number, number, number][] = [];
-  for (const m of nodes) {
+  for (const m of nodes.values()) {
     const p = enu(m);
     for (let i = 0; i < m.indices.length; i += 3) {
       const a = p[m.indices[i]], b = p[m.indices[i + 1]], c = p[m.indices[i + 2]];
@@ -177,7 +177,7 @@ describe("roofs in the photo", () => {
   });
 
   it("ignores a 1 m wide pale path and a patch over 700 m^2", () => {
-    expect(detectBuildings(canvas((x, y) => (Math.abs(y - 50) < 0.5 ? [220, 220, 216] : null)), SIZE, chunk)).toHaveLength(0);
+    expect(detectBuildings(canvas((_x, y) => (Math.abs(y - 50) < 0.5 ? [220, 220, 216] : null)), SIZE, chunk)).toHaveLength(0);
     expect(detectBuildings(canvas((x, y) => (Math.abs(x - 50) < 15 && Math.abs(y - 50) < 15 ? [220, 220, 216] : null)), SIZE, chunk)).toHaveLength(0);
   });
 
@@ -191,7 +191,7 @@ describe("roofs in the photo", () => {
 describe("filtering", () => {
   // A straight road along y = 0, 7 m wide.
   const index = {
-    nearest: (x: number, y: number, max: number) => (Math.abs(y) <= max ? { dist: Math.abs(y), seg: 0, frac: 0, t: y } : null),
+    nearest: (_x: number, y: number, max: number) => (Math.abs(y) <= max ? { dist: Math.abs(y), seg: 0, frac: 0, t: y } : null),
     at: () => ({ h: 0, bank: 0, width: 7, kerb: 0 }),
   } as unknown as SegmentIndex;
   const opts = { vergeWidth: 1.5 };
@@ -260,7 +260,7 @@ describe("meshes", () => {
     const ring = rect(16, 10);
     const nodes = buildBuildings([house({ ring, roof: "flat" })], () => 0);
     const panes = named(nodes, "WINDOWS_");
-    expect(panes.length).toBeGreaterThan(0);
+    expect(panes).not.toHaveLength(0);
     for (const m of panes) {
       expect(m.material).toBe("window");
       expect(m.castShadows).toBe(false);
