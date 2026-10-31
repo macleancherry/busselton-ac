@@ -1,7 +1,7 @@
 // Browser-side tile fetching: Terrarium elevation tiles for the DEM, and
 // aerial imagery tiles composited into one texture per terrain chunk.
 
-import { DemGrid, demTilesFor, type HeightFn } from "../core/elevation";
+import { DemGrid, decodeTerrariumTile, demTilesFor, type HeightFn } from "../core/elevation";
 import { applyColours, matchColours, type ColourTransform } from "../core/colour";
 import { encodeDdsDxt1 } from "../core/dds";
 import { tilesCovering, type Bounds, type LngLat, type LocalProjection } from "../core/geo";
@@ -330,15 +330,8 @@ async function terrariumHeights(url: string): Promise<Float32Array | null> {
   return decodeTerrarium(pixels(bmp));
 }
 
-/** Terrarium RGB to metres; fully transparent pixels (no data) are NaN. */
-export function decodeTerrarium(rgba: Uint8ClampedArray | Uint8Array): Float32Array {
-  const out = new Float32Array(rgba.length / 4);
-  for (let i = 0; i < out.length; i++) {
-    const r = rgba[i * 4], g = rgba[i * 4 + 1], b = rgba[i * 4 + 2], a = rgba[i * 4 + 3];
-    out[i] = a === 0 ? NaN : r * 256 + g + b / 256 - 32768;
-  }
-  return out;
-}
+/** Terrarium RGB to metres; fully transparent pixels (no data) are NaN. The one decoder lives in core/elevation.ts. */
+export const decodeTerrarium = decodeTerrariumTile;
 
 /** The (ox, oy) sub-tile, 2^up to a side, of a 256 x 256 tile, resampled (bilinear) to 256 x 256. */
 export function upsample(parent: Float32Array, ox: number, oy: number, up: number): Float32Array {
@@ -450,12 +443,15 @@ async function loadTerrarium(
     list.map(async ({ x, y }) => {
       const bmp = await loadBitmap(TERRARIUM_URL(z, x, y));
       onTile?.(++done, list.length);
-      // Missing tiles are ocean: sea level.
-      const rgba = bmp ? pixels(bmp) : new Uint8ClampedArray(256 * 256 * 4).fill(128);
+      // A missing tile (404, or a host given up on) is no data: transparent, so the grid fills it
+      // from its neighbours. (Filling with 128s read as a 128.5 m plateau.)
+      const rgba = bmp ? pixels(bmp) : new Uint8ClampedArray(256 * 256 * 4);
       return { x, y, rgba };
     }),
   );
-  return DemGrid.fromTiles(proj, z, tiles).sample;
+  const grid = DemGrid.fromTiles(proj, z, tiles);
+  if (grid.filled) console.warn(`DEM: ${grid.filled} Terrarium cells had no data and were filled from their neighbours`);
+  return grid.sample;
 }
 
 /**

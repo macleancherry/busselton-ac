@@ -26,7 +26,7 @@ import { cspTreeAngle, horizonTree, plantTree } from "./treePick";
 import { MODEL_NAMES, treeModel } from "./treeModels";
 import { ZoneMap, type LandcoverPolygon } from "./zones";
 import { asLayout, dummiesKn5 } from "./layouts";
-import { BACKDROP_CHUNK, backdropHeight, buildBackdropChunk, planBackdrop } from "./backdrop";
+import { BACKDROP_CHUNK, backdropSurface, buildBackdropChunk, planBackdrop } from "./backdrop";
 import { writeFastLaneAi } from "./aiSpline";
 import { outlinePng, previewPng, readme, slugify, streetMap, surfacesIni, trackMap, uiTrackJson, type TrackMeta } from "./acFiles";
 import type { HeightFn } from "./elevation";
@@ -47,7 +47,7 @@ import { decodeOwnPng, encodePng } from "./png";
 import { buildMarkings, type DiscreteMark } from "./markings";
 import { kerbsideForTrack, type KerbTags } from "./kerbside";
 import { withBayBands, type BayBox } from "./bayLanes";
-import { buildTerrainChunk, makeTerrainFn, meshTop, planTerrainChunks, type TerrainChunk } from "./terrain";
+import { buildTerrainChunk, isStreetNode, makeTerrainFn, meshTop, planTerrainChunks, streetCeiling, underStreets, type TerrainChunk } from "./terrain";
 import { PHYSICS_GROUND, ROAD_SURFACE, sceneGround, SINK, topSurface } from "./sceneGround";
 import { footOnRoad, onRoadFrom } from "./poleSpot";
 import { clearBays, feetNear } from "./padClear";
@@ -1326,13 +1326,7 @@ export async function buildTrack(
   // across the route's raised verge, and where the ground bulges, it came up through the street.
   // The return fills at street mouths are street too (1STREET_RETFILL): on a hillside the ground
   // came up through them by a metre (Cape Leeuwin).
-  const isStreet = (n: Kn5Node): boolean => n.kind === "mesh" ? /^1(STREET|UNPAVED)/.test(n.name) : n.children.some(isStreet);
-  const underStreets = streetCeiling([...sideStreets, ...kerbReturns.filter(isStreet), ...netNodes], opts.terrainStep);
-  const groundAt = (x: number, y: number) => {
-    const t = terrainAt(x, y);
-    const top = underStreets(x, y);
-    return top !== null && t.h > top - 0.04 ? { ...t, h: top - 0.04 } : t;
-  };
+  const groundAt = underStreets(terrainAt, streetCeiling([...sideStreets, ...kerbReturns.filter(isStreetNode), ...netNodes], opts.terrainStep));
   const terrainNodes: Kn5Node[] = [];
   for (const [i, chunk] of chunks.entries()) {
     await progress("Building road and terrain meshes", i / chunks.length);
@@ -1340,8 +1334,9 @@ export async function buildTrack(
     if (mesh) terrainNodes.push(mesh);
   }
   const backdropNodes: Kn5Node[] = [];
-  // The horizon is held under the detailed terrain where they overlap (backdrop.ts).
-  const farGround = (x: number, y: number) => backdropHeight(farDem, index, opts, x, y, area ? cover : undefined, (px, py) => terrainAt(px, py).h);
+  // The horizon is held under the detailed terrain where they overlap (backdrop.ts). Things beyond
+  // the base stand on the horizon mesh as drawn, not the point height between its 20 m nodes.
+  const farGround = backdropSurface(farDem, index, opts, area ? cover : undefined, (px, py) => terrainAt(px, py).h);
   for (const chunk of backdrop) {
     const mesh = buildBackdropChunk(chunk, farDem, index, opts, textured.has(chunk.key), area ? cover : undefined, (x, y) => terrainAt(x, y).h);
     if (mesh) backdropNodes.push(mesh);
@@ -2259,50 +2254,3 @@ function pointInside(x: number, y: number, ring: [number, number][]): boolean {
   return inside;
 }
 
-/**
- * Busselton fork: the lowest street surface within `reach` metres of a point (local x, y), or null
- * away from streets. From the built street meshes (AC coordinates), on a 1 m grid.
- */
-function streetCeiling(meshes: Kn5Node[], reach: number): (x: number, y: number) => number | null {
-  const C = 1;
-  const grid = new Map<number, number>();
-  const key = (i: number, j: number) => i * 1_000_003 + j;
-  const walk = (n: Kn5Node) => {
-    if (n.kind !== "mesh") return n.children.forEach(walk);
-    const p = n.positions, ix = n.indices;
-    for (let t = 0; t < ix.length; t += 3) {
-      const a = ix[t] * 3, b = ix[t + 1] * 3, c = ix[t + 2] * 3;
-      // Local x = AC x, local y = -AC z.
-      const ax = p[a], ay = -p[a + 2], bx = p[b], by = -p[b + 2], cx = p[c], cy = -p[c + 2];
-      const den = (by - cy) * (ax - cx) + (cx - bx) * (ay - cy);
-      if (Math.abs(den) < 1e-9) continue;
-      for (let i = Math.floor(Math.min(ax, bx, cx) / C); i <= Math.floor(Math.max(ax, bx, cx) / C); i++) {
-        for (let j = Math.floor(Math.min(ay, by, cy) / C); j <= Math.floor(Math.max(ay, by, cy) / C); j++) {
-          // The cell's middle, clamped into the triangle by barycentric weights.
-          const x = (i + 0.5) * C, y = (j + 0.5) * C;
-          let w1 = ((by - cy) * (x - cx) + (cx - bx) * (y - cy)) / den, w2 = ((cy - ay) * (x - cx) + (ax - cx) * (y - cy)) / den;
-          let w3 = 1 - w1 - w2;
-          if (w1 < -0.5 || w2 < -0.5 || w3 < -0.5) continue;
-          w1 = Math.max(0, w1); w2 = Math.max(0, w2); w3 = Math.max(0, w3);
-          const sum = w1 + w2 + w3;
-          const h = (w1 * p[a + 1] + w2 * p[b + 1] + w3 * p[c + 1]) / sum;
-          const k = key(i, j), old = grid.get(k);
-          if (old === undefined || h < old) grid.set(k, h);
-        }
-      }
-    }
-  };
-  meshes.forEach(walk);
-  const r = Math.ceil(reach / C);
-  return (x, y) => {
-    const i0 = Math.floor(x / C), j0 = Math.floor(y / C);
-    let best: number | null = null;
-    for (let i = i0 - r; i <= i0 + r; i++) {
-      for (let j = j0 - r; j <= j0 + r; j++) {
-        const h = grid.get(key(i, j));
-        if (h !== undefined && (best === null || h < best) && Math.hypot((i + 0.5) * C - x, (j + 0.5) * C - y) <= reach + C) best = h;
-      }
-    }
-    return best;
-  };
-}

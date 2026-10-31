@@ -1,347 +1,469 @@
-// Terrain: a regular grid in square chunks, kept only within `corridor`
-// metres of the road. Heights come from the DEM, pulled down to the road
-// level near the road so it sits on an embankment or in a cutting the way a
-// real road does, and dropped just below the asphalt and verges so they never
-// z-fight or poke through.
+// The drivable corridor's ground: which square chunks to build, the finished ground height
+// anywhere (the DEM pulled to the road, sunk just under it, blended back out), the ceiling the
+// built side streets put on it, the chunk meshes (with flat-ground simplification), and the
+// highest drawn grid height at a point. Written fresh from docs/specs/terrain.md.
 
-import type { HeightFn } from "./elevation";
-import type { Kn5MeshNode } from "./kn5";
-import { MeshBuilder } from "./mesh";
 import type { Area } from "./area";
-import type { BuildOptions } from "./options";
-import type { RoadPlan, SegmentIndex } from "./road";
-import { outerRadius, ringHeight, toOpening, vergeOuterRadius } from "./roundabout";
+import type { HeightFn } from "./elevation";
 import { KERB_H, STRIP_EXTRA } from "./kerbs";
+import { MAX_MESH_VERTICES, type Kn5MeshNode, type Kn5Node } from "./kn5";
+import { MeshBuilder } from "./mesh";
+import type { BuildOptions } from "./options";
+import type { Nearest, RoadPlan, SegmentIndex } from "./road";
+import { outerRadius, ringHeight, toOpening, vergeOuterRadius } from "./roundabout";
 
-export interface TerrainChunk {
-  key: string;
-  minX: number;
-  minY: number;
-  maxX: number;
-  maxY: number;
-}
+/** A square of ground, local metres. Keys start with `t` (backdrop keys with `b`). */
+export interface TerrainChunk { key: string; minX: number; minY: number; maxX: number; maxY: number }
+/** Ground height and distance to the route's centreline (Infinity when far; 0 on a ring's disc). */
+export interface TerrainSample { h: number; dist: number }
+export type TerrainFn = (x: number, y: number) => TerrainSample;
 
-const BELOW_VERGE = 0.25;
+/** Ground beside a gravel verge sits this far under the road edge. */
+export const BELOW_VERGE = 0.25;
+/** Added (times the kerb fraction) behind a kerb: the ground ends 3 cm under the nature strip. */
+export const KERB_LIFT = BELOW_VERGE + KERB_H - 0.03;
+const LOD_TOL = 0.02;
+const LOD_TOL_FAR = 0.05;
+const LOD_FAR = 40;
+/** First level block, cells a side. */
+const K = 4;
+/** Second level group, blocks a side. */
+const S = 4;
+/** The ground stays this far under a built street. */
+export const STREET_GAP = 0.04;
+/** Street raster cell, metres. */
+const STREET_CELL = 1;
 
-export function planTerrainChunks(plan: RoadPlan, index: SegmentIndex, opts: BuildOptions, area: Area | null = null): TerrainChunk[] {
-  const size = opts.chunkSize;
-  const reach = opts.corridor + size * 0.75;
-  const xs = plan.samples.map((s) => s.pos[0]), ys = plan.samples.map((s) => s.pos[1]);
-  if (area) xs.push(area.minX, area.maxX), ys.push(area.minY, area.maxY);
-  const x0 = Math.floor((Math.min(...xs) - opts.corridor) / size), x1 = Math.floor((Math.max(...xs) + opts.corridor) / size);
-  const y0 = Math.floor((Math.min(...ys) - opts.corridor) / size), y1 = Math.floor((Math.max(...ys) + opts.corridor) / size);
-  const chunks: TerrainChunk[] = [];
-  for (let cy = y0; cy <= y1; cy++) {
-    for (let cx = x0; cx <= x1; cx++) {
-      const minX = cx * size, minY = cy * size;
-      // Busselton fork: and every chunk touching the area.
-      if (!index.nearest(minX + size / 2, minY + size / 2, reach) && !(area && area.signed(minX + size / 2, minY + size / 2) < size * 0.75)) continue;
-      chunks.push({ key: `t${String(chunks.length).padStart(3, "0")}`, minX, minY, maxX: minX + size, maxY: minY + size });
-    }
-  }
-  return chunks;
-}
-
+const clamp01 = (v: number) => (v < 0 ? 0 : v > 1 ? 1 : v);
 const smoothstep = (x: number) => {
-  const t = Math.max(0, Math.min(1, x));
+  const t = clamp01(x);
   return t * t * (3 - 2 * t);
 };
 
-export interface TerrainSample {
-  h: number;
-  /** Distance to the road centreline (Infinity when beyond the corridor). */
-  dist: number;
+// ---------------------------------------------------------------------------------------------
+// 1. Chunks
+
+export function planTerrainChunks(plan: RoadPlan, index: SegmentIndex, opts: BuildOptions, area: Area | null = null): TerrainChunk[] {
+  const size = opts.chunkSize, pad = opts.corridor;
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (const s of plan.samples) {
+    minX = Math.min(minX, s.pos[0]); maxX = Math.max(maxX, s.pos[0]);
+    minY = Math.min(minY, s.pos[1]); maxY = Math.max(maxY, s.pos[1]);
+  }
+  if (area) {
+    minX = Math.min(minX, area.minX); maxX = Math.max(maxX, area.maxX);
+    minY = Math.min(minY, area.minY); maxY = Math.max(maxY, area.maxY);
+  }
+  if (!Number.isFinite(minX)) return [];
+  const reach = opts.corridor + 0.75 * size;
+  const out: TerrainChunk[] = [];
+  for (let j = Math.floor((minY - pad) / size); j <= Math.floor((maxY + pad) / size); j++) {
+    for (let i = Math.floor((minX - pad) / size); i <= Math.floor((maxX + pad) / size); i++) {
+      const cx = (i + 0.5) * size, cy = (j + 0.5) * size;
+      const keep = index.nearest(cx, cy, reach) !== null || (area !== null && area.signed(cx, cy) < 0.75 * size);
+      if (!keep) continue;
+      out.push({ key: "t" + String(out.length).padStart(3, "0"), minX: i * size, minY: j * size, maxX: (i + 1) * size, maxY: (j + 1) * size });
+    }
+  }
+  return out;
 }
 
-/** The finished ground height anywhere: DEM blended into the road. */
-export function makeTerrainFn(plan: RoadPlan, index: SegmentIndex, dem: HeightFn, opts: BuildOptions): (x: number, y: number) => TerrainSample {
-  const lastSeg = index.segmentCount - 1;
-  const road = roadTerrain(plan, index, dem, opts, lastSeg);
-  return (x, y) => {
-    const fromRoad = road(x, y);
-    // A roundabout is a level disc; near one, whichever edge is closer wins.
-    for (const rb of plan.roundabouts) {
-      const d = Math.hypot(x - rb.c[0], y - rb.c[1]);
-      const Ro = outerRadius(rb);
-      const edge = vergeOuterRadius(rb, opts);
-      if (d > edge + opts.terrainBlend) continue;
-      // Where a road joins the ring there is no kerb or verge: the ground stays under the road,
-      // tapering back to kerb height over the same 2 m the kerb mesh does. Without this the
-      // ramp up to the kerb poked through the mouths, a lip at every entry and exit.
-      const open = Math.max(0, Math.min(1, (toOpening(rb, Ro, Math.atan2(y - rb.c[1], x - rb.c[0])) - 0.5) / 2));
-      const sunk = ringHeight(rb, Ro) - opts.terrainUnderRoad;
-      const kerbBase = ringHeight(rb, Ro) - BELOW_VERGE + (rb.kerbed ? BELOW_VERGE + KERB_H - 0.03 : 0);
-      const base = sunk + (kerbBase - sunk) * open;
-      if (d <= edge) {
-        let h = underRoad(ringHeight(rb, Math.min(d, Ro)), base, edge - d, opts);
-        // On an arm, under whichever surface is lower.
-        if (open < 1 && fromRoad.dist <= fromRoad.inner) h = Math.min(h, fromRoad.h);
-        return { h, dist: Math.min(fromRoad.dist, 0) };
-      }
-      if (fromRoad.dist <= fromRoad.inner) return fromRoad;
-      const f = smoothstep((d - edge) / opts.terrainBlend);
-      const h = kerbBase + (dem(x, y) - kerbBase) * f;
-      // Blend toward whichever feature pulls the ground further from the DEM.
-      const ground = dem(x, y);
-      return Math.abs(h - ground) > Math.abs(fromRoad.h - ground) ? { h, dist: Math.min(fromRoad.dist, d) } : fromRoad;
-    }
-    return fromRoad;
-  };
-}
+// ---------------------------------------------------------------------------------------------
+// 2. The ground function
 
 /**
- * Ground under the road, verges and kerbs: dropped below them so it never
- * pokes through, rising in a straight line over the last two grid cells to meet
- * the ground beyond. A full drop right up to the edge would drag the grid's
- * next cell down with it, a ditch along the road; a straight ramp is exactly
- * what the grid draws, so the ground lands where it is meant to.
+ * Ground from `beyond` (at the made surface's inner edge) down to `under` under the surface two
+ * grid steps in, a straight ramp over exactly two cells, then level.
  */
 function underRoad(surface: number, beyond: number, fromEdge: number, opts: BuildOptions): number {
-  const k = Math.min(1, Math.max(0, fromEdge) / (2 * opts.terrainStep));
+  const k = clamp01(fromEdge / (2 * opts.terrainStep));
   return beyond + (surface - opts.terrainUnderRoad - beyond) * k;
 }
 
-function roadTerrain(plan: RoadPlan, index: SegmentIndex, dem: HeightFn, opts: BuildOptions, lastSeg: number) {
-  return (x: number, y: number): TerrainSample & { inner: number } => {
-    const ground = dem(x, y);
-    const n = index.nearest(x, y, opts.corridor + opts.terrainBlend + 10);
-    if (!n) return { h: ground, dist: Infinity, inner: 0 };
-    const v = index.at(n);
-    const half = v.width / 2;
-    // Behind a kerb the ground starts at nature strip height, past the strip.
-    const inner = half + opts.vergeWidth + (v.kerb > 0 ? STRIP_EXTRA : 0);
+interface RouteSample extends TerrainSample {
+  /** Under the route's made surface (road, verge, kerb, strip). */
+  under: boolean;
+}
+
+export function makeTerrainFn(plan: RoadPlan, index: SegmentIndex, dem: HeightFn, opts: BuildOptions): TerrainFn {
+  const reach = opts.corridor + opts.terrainBlend + 10;
+  const samples = plan.samples;
+  const lastSeg = index.segmentCount - 1;
+  const crownAt = (n: Nearest): number => {
+    const a = samples[n.seg].crown ?? opts.crown;
+    const b = samples[(n.seg + 1) % samples.length].crown ?? opts.crown;
+    return a + (b - a) * n.frac;
+  };
+
+  const route = (x: number, y: number, ground: number): RouteSample => {
+    const n = index.nearest(x, y, reach);
+    if (!n) return { h: ground, dist: Infinity, under: false };
+    const at = index.at(n);
+    const half = at.width / 2;
+    const inner = half + opts.vergeWidth + (at.kerb > 0 ? STRIP_EXTRA : 0);
     const tc = Math.max(-half, Math.min(half, n.t));
-    const edge = v.h + v.bank * tc - opts.crown * Math.abs(tc);
-    const beyondEnd = !plan.closed && ((n.seg === 0 && n.frac === 0) || (n.seg === lastSeg && n.frac === 1));
-    const base = edge - BELOW_VERGE + (BELOW_VERGE + KERB_H - 0.03) * v.kerb;
-    if (!beyondEnd && n.dist <= inner) return { h: underRoad(edge, base, inner - n.dist, opts), dist: n.dist, inner };
+    const edge = at.h + at.bank * tc - crownAt(n) * Math.abs(tc);
+    const base = edge - BELOW_VERGE + KERB_LIFT * at.kerb;
+    const pastEnd = !plan.closed && ((n.seg === 0 && n.frac === 0) || (n.seg === lastSeg && n.frac === 1));
+    if (!pastEnd && n.dist <= inner) return { h: underRoad(edge, base, inner - n.dist, opts), dist: n.dist, under: true };
     const f = smoothstep((n.dist - inner) / opts.terrainBlend);
-    return { h: base + (ground - base) * f, dist: n.dist, inner };
+    return { h: base + (ground - base) * f, dist: n.dist, under: false };
+  };
+
+  const rings = plan.roundabouts;
+  return (x, y) => {
+    const ground = dem(x, y);
+    const r = route(x, y, ground);
+    if (!rings.length) return { h: r.h, dist: r.dist };
+    let disc: number | null = null; // lowest disc height among rings the point is on
+    let best = r.h, bestOff = Math.abs(r.h - ground);
+    let dist = r.dist;
+    for (const rb of rings) {
+      const dx = x - rb.c[0], dy = y - rb.c[1];
+      const d = Math.hypot(dx, dy);
+      const Ro = outerRadius(rb), E = vergeOuterRadius(rb, opts);
+      if (d > E + opts.terrainBlend) continue;
+      // How closed the ring's edge is here: 0 in a mouth (no kerb or verge), 1 from 2.5 m away.
+      const closed = clamp01((toOpening(rb, Ro, Math.atan2(dy, dx)) - 0.5) / 2);
+      const rim = ringHeight(rb, Ro);
+      const sunk = rim - opts.terrainUnderRoad;
+      const kerbBase = rim - BELOW_VERGE + (rb.kerbed ? KERB_LIFT : 0);
+      const base = sunk + (kerbBase - sunk) * closed;
+      if (d <= E) {
+        let h = underRoad(ringHeight(rb, Math.min(d, Ro)), base, E - d, opts);
+        if (closed < 1 && r.under) h = Math.min(h, r.h);
+        disc = disc === null ? h : Math.min(disc, h);
+        continue;
+      }
+      // Blend ring: the route's made surface wins outright.
+      dist = Math.min(dist, Math.max(0, d - Ro));
+      if (r.under) continue;
+      const h = base + (ground - base) * smoothstep((d - E) / opts.terrainBlend);
+      const off = Math.abs(h - ground);
+      if (off > bestOff) { best = h; bestOff = off; }
+    }
+    if (disc !== null) return { h: disc, dist: 0 };
+    return { h: best, dist };
   };
 }
 
-/** Largest height error a level-of-detail block may make, metres: tighter near the road, where kerbs, paths and driveways sit a few centimetres up. */
-const LOD_TOL = 0.02, LOD_TOL_FAR = 0.05, LOD_FAR = 40;
+// ---------------------------------------------------------------------------------------------
+// 3. Ground under side streets
+
+/** A node that is, or holds, a street surface mesh (`1STREET...`, `1UNPAVED...`). */
+export const isStreetNode = (n: Kn5Node): boolean =>
+  n.kind === "mesh" ? /^1(STREET|UNPAVED)/.test(n.name) : n.children.some(isStreetNode);
+
+/**
+ * The lowest built street surface within `reach` metres of a point (local x, y), or null away from
+ * streets, from the meshes given (AC coordinates; every mesh in them counts, so filter first, e.g.
+ * with `isStreetNode`). Rasterised on a 1 m grid keeping the lowest height per cell.
+ */
+export function streetCeiling(meshes: Kn5Node[], reach: number): (x: number, y: number) => number | null {
+  const cells = new Map<number, number>();
+  const key = (i: number, j: number) => (i + 2_000_000) * 4_000_000 + (j + 2_000_000);
+  const C = STREET_CELL;
+  const add = (m: Kn5MeshNode) => {
+    const p = m.positions, idx = m.indices;
+    for (let t = 0; t + 2 < idx.length; t += 3) {
+      const a = idx[t] * 3, b = idx[t + 1] * 3, c = idx[t + 2] * 3;
+      const x1 = p[a], y1 = -p[a + 2], h1 = p[a + 1];
+      const x2 = p[b], y2 = -p[b + 2], h2 = p[b + 1];
+      const x3 = p[c], y3 = -p[c + 2], h3 = p[c + 1];
+      const den = (y2 - y3) * (x1 - x3) + (x3 - x2) * (y1 - y3);
+      if (Math.abs(den) < 1e-9) continue;
+      const i0 = Math.floor(Math.min(x1, x2, x3) / C), i1 = Math.floor(Math.max(x1, x2, x3) / C);
+      const j0 = Math.floor(Math.min(y1, y2, y3) / C), j1 = Math.floor(Math.max(y1, y2, y3) / C);
+      for (let i = i0; i <= i1; i++) {
+        const px = (i + 0.5) * C;
+        for (let j = j0; j <= j1; j++) {
+          const py = (j + 0.5) * C;
+          let w1 = ((y2 - y3) * (px - x3) + (x3 - x2) * (py - y3)) / den;
+          let w2 = ((y3 - y1) * (px - x3) + (x1 - x3) * (py - y3)) / den;
+          let w3 = 1 - w1 - w2;
+          if (w1 < -0.5 || w2 < -0.5 || w3 < -0.5) continue;
+          w1 = Math.max(0, w1); w2 = Math.max(0, w2); w3 = Math.max(0, w3);
+          const h = (w1 * h1 + w2 * h2 + w3 * h3) / (w1 + w2 + w3);
+          const k = key(i, j), old = cells.get(k);
+          if (old === undefined || h < old) cells.set(k, h);
+        }
+      }
+    }
+  };
+  const walk = (n: Kn5Node): void => (n.kind === "mesh" ? add(n) : n.children.forEach(walk));
+  meshes.forEach(walk);
+  const r = Math.ceil(reach / C);
+  return (x, y) => {
+    if (!cells.size) return null;
+    const ci = Math.floor(x / C), cj = Math.floor(y / C);
+    let low: number | null = null;
+    for (let i = ci - r; i <= ci + r; i++) {
+      for (let j = cj - r; j <= cj + r; j++) {
+        const h = cells.get(key(i, j));
+        if (h === undefined || (low !== null && h >= low)) continue;
+        if (Math.hypot((i + 0.5) * C - x, (j + 0.5) * C - y) <= reach + C) low = h;
+      }
+    }
+    return low;
+  };
+}
+
+/** The ground held `gap` under the street ceiling wherever it would come up closer; only ever lowers. */
+export function underStreets(terrain: TerrainFn, ceiling: (x: number, y: number) => number | null, gap = STREET_GAP): TerrainFn {
+  return (x, y) => {
+    const t = terrain(x, y);
+    const top = ceiling(x, y);
+    return top !== null && t.h > top - gap ? { h: top - gap, dist: t.dist } : t;
+  };
+}
+
+// ---------------------------------------------------------------------------------------------
+// 4. Chunk meshes
+
+/** Grid cells a side and the real step for a chunk side (the step isn't exactly `terrainStep`). */
+function gridOf(size: number, terrainStep: number): { cells: number; step: number } {
+  const cells = Math.max(1, Math.round(size / terrainStep));
+  return { cells, step: size / cells };
+}
 
 export function buildTerrainChunk(
   chunk: TerrainChunk,
-  terrain: (x: number, y: number) => TerrainSample,
+  terrain: TerrainFn,
   opts: BuildOptions,
   textured: boolean,
   area: Area | null = null,
-  /** Busselton fork: true near a side street, where the ground keeps the near tolerance (streets lie on it). */
   nearStreet?: (x: number, y: number) => boolean,
 ): Kn5MeshNode | null {
   const size = chunk.maxX - chunk.minX;
-  const cells = Math.max(1, Math.round(size / opts.terrainStep));
-  const step = size / cells;
-  const N = cells + 1;
-  // Heights on a grid padded by one node each side, for seamless normals.
-  const P = N + 2;
-  const hs = new Float32Array(P * P);
-  const inside = new Uint8Array(P * P);
-  const dists = new Float32Array(P * P);
-  const tight = new Uint8Array(P * P);
-  for (let j = 0; j < P; j++) {
-    for (let i = 0; i < P; i++) {
-      const x = chunk.minX + (i - 1) * step, y = chunk.minY + (j - 1) * step;
+  const { cells, step } = gridOf(size, opts.terrainStep);
+  const verts = (cells + 1) * (cells + 1);
+  if (verts > MAX_MESH_VERTICES) {
+    throw new Error(
+      `terrain chunk ${chunk.key}: a ${step.toFixed(2)} m grid over ${size} m needs ${verts} vertices, over the kn5 limit of ${MAX_MESH_VERTICES}. `
+      + `Raise terrainStep (at least ${(size / (Math.floor(Math.sqrt(MAX_MESH_VERTICES)) - 1)).toFixed(2)} m) or lower chunkSize.`,
+    );
+  }
+  const N = cells + 1; // nodes a side
+  const P = cells + 3; // padded nodes a side (one extra all round, for normals)
+  const ph = new Float64Array(P * P);
+  const dist = new Float64Array(N * N);
+  const inside = new Uint8Array(N * N);
+  const tight = new Uint8Array(N * N);
+  for (let pj = 0; pj < P; pj++) {
+    for (let pi = 0; pi < P; pi++) {
+      const i = pi - 1, j = pj - 1;
+      const x = chunk.minX + i * step, y = chunk.minY + j * step;
       const s = terrain(x, y);
-      hs[j * P + i] = s.h;
-      inside[j * P + i] = s.dist <= opts.corridor || (area && area.inside(x, y)) ? 1 : 0;
-      dists[j * P + i] = s.dist;
-      if (nearStreet && nearStreet(x, y)) tight[j * P + i] = 1;
+      ph[pj * P + pi] = s.h;
+      if (i < 0 || j < 0 || i > cells || j > cells) continue;
+      const n = j * N + i;
+      dist[n] = s.dist;
+      inside[n] = s.dist <= opts.corridor || (area?.inside(x, y) ?? false) ? 1 : 0;
+      tight[n] = nearStreet?.(x, y) ? 1 : 0;
     }
   }
-  const id = (i: number, j: number) => (j + 1) * P + (i + 1);
+  const H = (i: number, j: number) => ph[(j + 1) * P + (i + 1)];
+  const cellIn = (i: number, j: number) =>
+    inside[j * N + i] && inside[j * N + i + 1] && inside[(j + 1) * N + i] && inside[(j + 1) * N + i + 1];
 
-  const quadIn = (i: number, j: number) => inside[id(i, j)] && inside[id(i + 1, j)] && inside[id(i, j + 1)] && inside[id(i + 1, j + 1)];
+  let any = false;
+  for (let j = 0; j < cells && !any; j++) for (let i = 0; i < cells; i++) if (cellIn(i, j)) { any = true; break; }
+  if (!any) return null;
 
-  // Level of detail: away from the road, a K x K block of cells that is flat
-  // enough (every node within LOD_TOL of the plane through its corners) is
-  // drawn as one fan from its centre node instead of 2 K^2 triangles. Its
-  // boundary keeps the in-between nodes along any edge it shares with fine
-  // cells or another chunk, so there are no T-junctions and no cracks.
-  const K = 4;
-  const B = opts.terrainLod ? Math.floor(cells / K) : 0;
-  const coarse = new Uint8Array(B * B);
-  for (let bj = 0; bj < B; bj++) {
-    for (let bi = 0; bi < B; bi++) {
-      const i0 = bi * K, j0 = bj * K;
-      let ok = true;
-      const h00 = hs[id(i0, j0)], h10 = hs[id(i0 + K, j0)], h01 = hs[id(i0, j0 + K)], h11 = hs[id(i0 + K, j0 + K)];
-      for (let j = j0; ok && j <= j0 + K; j++) {
-        for (let i = i0; ok && i <= i0 + K; i++) {
-          if (i < i0 + K && j < j0 + K && !quadIn(i, j)) ok = false;
-          else if (dists[id(i, j)] < opts.terrainLodNear) ok = false;
-          else {
-            const u = (i - i0) / K, v = (j - j0) / K;
-            const flat = h00 * (1 - u) * (1 - v) + h10 * u * (1 - v) + h01 * (1 - u) * v + h11 * u * v;
-            if (Math.abs(hs[id(i, j)] - flat) > (dists[id(i, j)] < LOD_FAR || tight[id(i, j)] ? LOD_TOL : (opts.terrainLodFarTol ?? LOD_TOL_FAR))) ok = false;
-          }
+  // Level of detail: 0 fine, 1 first-level coarse block, 2 in a second-level super block.
+  const B = Math.floor(cells / K);
+  const state = new Uint8Array(B * B);
+  const stateAt = (bi: number, bj: number) => (bi < 0 || bj < 0 || bi >= B || bj >= B ? 0 : state[bj * B + bi]);
+  if (opts.terrainLod && B > 0) {
+    const farTol = opts.terrainLodFarTol ?? LOD_TOL_FAR;
+    const tolAt = (i: number, j: number) => (dist[j * N + i] < LOD_FAR || tight[j * N + i] ? LOD_TOL : farTol);
+    const fits = (i0: number, j0: number, n: number) => fanFits(H, tolAt, i0, j0, n);
+    for (let bj = 0; bj < B; bj++) {
+      for (let bi = 0; bi < B; bi++) {
+        const i0 = bi * K, j0 = bj * K;
+        let ok = true;
+        for (let j = j0; j < j0 + K && ok; j++) for (let i = i0; i < i0 + K && ok; i++) if (!cellIn(i, j)) ok = false;
+        for (let j = j0; j <= j0 + K && ok; j++) for (let i = i0; i <= i0 + K && ok; i++) if (dist[j * N + i] < opts.terrainLodNear) ok = false;
+        if (ok && fits(i0, j0, K)) state[bj * B + bi] = 1;
+      }
+    }
+    const B2 = Math.floor(B / S);
+    for (let gj = 0; gj < B2; gj++) {
+      for (let gi = 0; gi < B2; gi++) {
+        let ok = true;
+        for (let bj = gj * S; bj < gj * S + S && ok; bj++) for (let bi = gi * S; bi < gi * S + S && ok; bi++) if (state[bj * B + bi] !== 1) ok = false;
+        const i0 = gi * S * K, j0 = gj * S * K, n = S * K;
+        for (let j = j0; j <= j0 + n && ok; j++) for (let i = i0; i <= i0 + n && ok; i++) if (dist[j * N + i] < LOD_FAR) ok = false;
+        if (ok && fits(i0, j0, n)) {
+          for (let bj = gj * S; bj < gj * S + S; bj++) for (let bi = gi * S; bi < gi * S + S; bi++) state[bj * B + bi] = 2;
         }
       }
-      coarse[bj * B + bi] = ok ? 1 : 0;
     }
   }
-  const isCoarse = (bi: number, bj: number) => bi >= 0 && bj >= 0 && bi < B && bj < B && coarse[bj * B + bi] === 1;
-  const inCoarse = (i: number, j: number) => isCoarse(Math.floor(i / K), Math.floor(j / K)) && i < B * K && j < B * K;
 
-  // Busselton fork: a second level. Well away from the road, a 4 x 4 group of coarse blocks that is
-  // flat as a whole (every node within the far tolerance of the plane through the group's corners)
-  // is one fan too: big flat back yards and paddocks in an area build were most of its triangles.
-  const S = 4, KS = K * S;
-  const B2 = opts.terrainLod ? Math.floor(B / S) : 0;
-  const sup = new Uint8Array(B2 * B2);
-  for (let sj = 0; sj < B2; sj++) {
-    for (let si = 0; si < B2; si++) {
-      let ok = true;
-      for (let bj = sj * S; ok && bj < sj * S + S; bj++) for (let bi = si * S; ok && bi < si * S + S; bi++) if (!isCoarse(bi, bj)) ok = false;
-      const i0 = si * KS, j0 = sj * KS;
-      const h00 = hs[id(i0, j0)], h10 = hs[id(i0 + KS, j0)], h01 = hs[id(i0, j0 + KS)], h11 = hs[id(i0 + KS, j0 + KS)];
-      for (let j = j0; ok && j <= j0 + KS; j++) {
-        for (let i = i0; ok && i <= i0 + KS; i++) {
-          if (dists[id(i, j)] < LOD_FAR) { ok = false; break; }
-          const u = (i - i0) / KS, v = (j - j0) / KS;
-          const flat = h00 * (1 - u) * (1 - v) + h10 * u * (1 - v) + h01 * (1 - u) * v + h11 * u * v;
-          if (Math.abs(hs[id(i, j)] - flat) > (tight[id(i, j)] ? LOD_TOL : (opts.terrainLodFarTol ?? LOD_TOL_FAR))) ok = false;
-        }
-      }
-      sup[sj * B2 + si] = ok ? 1 : 0;
-    }
-  }
-  const isSuper = (si: number, sj: number) => si >= 0 && sj >= 0 && si < B2 && sj < B2 && sup[sj * B2 + si] === 1;
-  const inSuper = (bi: number, bj: number) => isSuper(Math.floor(bi / S), Math.floor(bj / S)) && bi < B2 * S && bj < B2 * S;
+  // Vertices: only nodes a triangle uses.
+  const mb = new MeshBuilder();
+  const normals: number[] = [];
+  const vid = new Int32Array(N * N).fill(-1);
+  const v = (i: number, j: number): number => {
+    const n = j * N + i;
+    if (vid[n] >= 0) return vid[n];
+    const x = chunk.minX + i * step, y = chunk.minY + j * step;
+    const dx = (H(i + 1, j) - H(i - 1, j)) / (2 * step);
+    const dy = (H(i, j + 1) - H(i, j - 1)) / (2 * step);
+    const l = Math.hypot(dx, dy, 1);
+    normals.push(-dx / l, -dy / l, 1 / l);
+    vid[n] = textured ? mb.vertex([x, y, H(i, j)], i / cells, 1 - j / cells) : mb.vertex([x, y, H(i, j)], x / 10, -y / 10);
+    return vid[n];
+  };
 
-  const used = new Uint8Array(N * N);
-  const quads: number[] = [];
+  const blockOf = (i: number, j: number) => {
+    const bi = Math.floor(i / K), bj = Math.floor(j / K);
+    return bi < B && bj < B ? stateAt(bi, bj) : 0;
+  };
+  // Fine cells.
   for (let j = 0; j < cells; j++) {
     for (let i = 0; i < cells; i++) {
-      if (inCoarse(i, j) || !quadIn(i, j)) continue;
-      quads.push(i, j);
-      used[j * N + i] = used[j * N + i + 1] = used[(j + 1) * N + i] = used[(j + 1) * N + i + 1] = 1;
+      if (!cellIn(i, j) || blockOf(i, j) !== 0) continue;
+      const a = v(i, j), b = v(i + 1, j), c = v(i + 1, j + 1), d = v(i, j + 1);
+      if ((i + j) % 2 === 0) { mb.tri(a, b, c); mb.tri(a, c, d); }
+      else { mb.tri(a, b, d); mb.tri(b, c, d); }
     }
   }
-  // Each coarse block's boundary loop (counter-clockwise from above) and centre.
-  const fans: number[][] = [];
+  // A fan from the centre round a block's boundary loop (counter-clockwise from above).
+  // keep(edge, k) says whether edge node k (1..n-1) stays; corners always do.
+  const fan = (i0: number, j0: number, n: number, keep: (edge: number, k: number) => boolean) => {
+    const loop: number[] = [];
+    for (let e = 0; e < 4; e++) {
+      for (let k = 0; k < n; k++) {
+        if (k > 0 && !keep(e, k)) continue;
+        const [i, j] = edgeNode(i0, j0, n, e, k);
+        loop.push(v(i, j));
+      }
+    }
+    const c = v(i0 + n / 2, j0 + n / 2);
+    for (let m = 0; m < loop.length; m++) mb.tri(c, loop[m], loop[(m + 1) % loop.length]);
+  };
+  // Block across each edge: south, east, north, west.
+  const across = (bi: number, bj: number, e: number, off: number): [number, number] =>
+    e === 0 ? [bi + off, bj - 1] : e === 1 ? [bi + 1, bj + off] : e === 2 ? [bi - off, bj + 1] : [bi - 1, bj - off];
   for (let bj = 0; bj < B; bj++) {
     for (let bi = 0; bi < B; bi++) {
-      if (!isCoarse(bi, bj) || inSuper(bi, bj)) continue;
-      const i0 = bi * K, j0 = bj * K;
-      const loop: [number, number][] = [];
-      // Edges: south (j0, i rising), east (i0+K, j rising), north (j0+K, i falling), west (i0, j falling).
-      const edges: [number, number, number, number, boolean][] = [
-        [i0, j0, 1, 0, isCoarse(bi, bj - 1)],
-        [i0 + K, j0, 0, 1, isCoarse(bi + 1, bj)],
-        [i0 + K, j0 + K, -1, 0, isCoarse(bi, bj + 1)],
-        [i0, j0 + K, 0, -1, isCoarse(bi - 1, bj)],
-      ];
-      for (const [si, sj, di, dj, both] of edges) {
-        for (let k = 0; k < K; k++) {
-          if (k > 0 && both) continue; // a coarse neighbour: corners only
-          loop.push([si + di * k, sj + dj * k]);
-        }
-      }
-      const c: [number, number] = [i0 + K / 2, j0 + K / 2];
-      for (const [i, j] of [...loop, c]) used[j * N + i] = 1;
-      fans.push([c[0], c[1], ...loop.flat()]);
+      if (state[bj * B + bi] !== 1) continue;
+      fan(bi * K, bj * K, K, (e) => stateAt(...across(bi, bj, e, 0)) === 0);
     }
   }
-  // The second level's fans. Along each edge a node is kept wherever the block beside it has one:
-  // every node beside fine cells, every K beside a coarse block, only the corners beside another
-  // second-level block (whose coarse blocks aren't drawn, so they don't count as coarse there).
-  const kind = (bi: number, bj: number) => (inSuper(bi, bj) ? 2 : isCoarse(bi, bj) ? 1 : 0);
-  for (let sj = 0; sj < B2; sj++) {
-    for (let si = 0; si < B2; si++) {
-      if (!isSuper(si, sj)) continue;
-      const i0 = si * KS, j0 = sj * KS;
-      const loop: [number, number][] = [];
-      // [start i, start j, di, dj, the neighbouring block row/column across this edge]
-      const edges: [number, number, number, number][] = [[i0, j0, 1, 0], [i0 + KS, j0, 0, 1], [i0 + KS, j0 + KS, -1, 0], [i0, j0 + KS, 0, -1]];
-      edges.forEach(([sI, sJ, di, dj], e) => {
-        // The neighbour's kind beside the segment from node k to node k + 1.
-        const beside = (k: number) => {
-          if (k < 0 || k >= KS) return 2;
-          const ci = Math.min(sI + di * k, sI + di * (k + 1)), cj = Math.min(sJ + dj * k, sJ + dj * (k + 1));
-          const bi = e === 1 ? si * S + S : e === 3 ? si * S - 1 : Math.floor(ci / K);
-          const bj = e === 0 ? sj * S - 1 : e === 2 ? sj * S + S : Math.floor(cj / K);
-          return kind(bi, bj);
-        };
-        const needs = (t: number, k: number) => t === 0 || (t === 1 && k % K === 0);
-        for (let k = 0; k < KS; k++) {
-          if (k > 0 && !needs(beside(k), k) && !needs(beside(k - 1), k)) continue;
-          loop.push([sI + di * k, sJ + dj * k]);
+  const B2 = Math.floor(B / S);
+  for (let gj = 0; gj < B2; gj++) {
+    for (let gi = 0; gi < B2; gi++) {
+      const bi0 = gi * S, bj0 = gj * S;
+      if (state[bj0 * B + bi0] !== 2) continue;
+      // Along edge e, the block beside segment k..k+1 is the (floor(k / K))-th along that edge.
+      // Walking an edge in loop order: south W->E, east S->N, north E->W, west N->S.
+      const besideState = (e: number, seg: number) => {
+        const m = Math.floor(seg / K);
+        const off = e === 0 || e === 1 ? m : S - 1 - m;
+        const [bi, bj] = e === 0 ? [bi0 + off, bj0 - 1] : e === 1 ? [bi0 + S, bj0 + off] : e === 2 ? [bi0 + off, bj0 + S] : [bi0 - 1, bj0 + off];
+        return stateAt(bi, bj);
+      };
+      fan(gi * S * K, gj * S * K, S * K, (e, k) => {
+        for (const seg of [k - 1, k]) {
+          const st = besideState(e, seg);
+          if (st === 0) return true;
+          if (st === 1 && k % K === 0) return true;
         }
+        return false;
       });
-      const c: [number, number] = [i0 + KS / 2, j0 + KS / 2];
-      for (const [i, j] of [...loop, c]) used[j * N + i] = 1;
-      fans.push([c[0], c[1], ...loop.flat()]);
     }
   }
-  if (!quads.length && !fans.length) return null;
 
-  const mb = new MeshBuilder();
-  mb.normals = [];
-  const vi = new Int32Array(N * N).fill(-1);
-  for (let j = 0; j < N; j++) {
-    for (let i = 0; i < N; i++) {
-      if (!used[j * N + i]) continue;
-      const x = chunk.minX + i * step, y = chunk.minY + j * step;
-      const u = textured ? i / cells : x / 10;
-      const v = textured ? 1 - j / cells : -y / 10;
-      vi[j * N + i] = mb.vertex([x, y, hs[id(i, j)]], u, v);
-      const dx = (hs[id(i + 1, j)] - hs[id(i - 1, j)]) / (2 * step);
-      const dy = (hs[id(i, j + 1)] - hs[id(i, j - 1)]) / (2 * step);
-      const l = Math.hypot(dx, dy, 1);
-      mb.normals.push(-dx / l, -dy / l, 1 / l);
-    }
-  }
-  for (let q = 0; q < quads.length; q += 2) {
-    const i = quads[q], j = quads[q + 1];
-    const a = vi[j * N + i], b = vi[j * N + i + 1], c = vi[(j + 1) * N + i + 1], d = vi[(j + 1) * N + i];
-    // y grows north, so a-b-c-d runs counter-clockwise seen from above.
-    if ((i + j) % 2 === 0) mb.quad(a, b, c, d);
-    else mb.quad(b, c, d, a);
-  }
-  for (const f of fans) {
-    const c = vi[f[1] * N + f[0]];
-    const n = (f.length - 2) / 2;
-    for (let k = 0; k < n; k++) {
-      const a = vi[f[3 + k * 2] * N + f[2 + k * 2]], b = vi[f[3 + ((k + 1) % n) * 2] * N + f[2 + ((k + 1) % n) * 2]];
-      mb.tri(c, a, b);
-    }
-  }
-  const material = textured ? `terrain_${chunk.key}` : "grass";
-  return mb.toKn5(`1GRASS_${chunk.key}`, material);
+  mb.normals = normals;
+  return mb.toKn5(`1GRASS_${chunk.key}`, textured ? `terrain_${chunk.key}` : "grass");
+}
+
+/** Node k (0..n-1) along a block's edge e (0 south W->E, 1 east S->N, 2 north E->W, 3 west N->S). */
+function edgeNode(i0: number, j0: number, n: number, e: number, k: number): [number, number] {
+  return e === 0 ? [i0 + k, j0] : e === 1 ? [i0 + n, j0 + k] : e === 2 ? [i0 + n - k, j0 + n] : [i0, j0 + n - k];
 }
 
 /**
- * The highest the terrain mesh can be at (x, y): it is drawn on a grid of `step`
- * (chunks start on multiples of the chunk size), and between nodes either diagonal may
- * split a cell, so take the higher of the two triangle readings. Things laid on the
- * ground (paths) sit on this rather than the exact ground function, which can dip
- * between nodes where two rules meet (a road's verge and a ring's).
+ * Whether an n x n block drawn as a fan from its centre fits the true node heights: every node within
+ * its tolerance of the drawn surface, whichever of its edge nodes end up kept (corners always are).
+ * The fan's quarter towards each edge is fixed; a node in it reads the line from the centre to where
+ * that ray meets the edge, and the edge's drawn height there is a straight line between some kept
+ * node at or before it and some at or after it. Every such pair is tried, so the answer holds for
+ * any choice the neighbours force.
  */
-export function meshTop(terrain: (x: number, y: number) => TerrainSample, opts: BuildOptions): (x: number, y: number) => number {
-  const size = opts.chunkSize;
-  const step = size / Math.max(1, Math.round(size / opts.terrainStep));
-  const cache = new Map<string, number>();
+function fanFits(
+  H: (i: number, j: number) => number,
+  tolAt: (i: number, j: number) => number,
+  i0: number, j0: number, n: number,
+): boolean {
+  const c = n / 2;
+  const hc = H(i0 + c, j0 + c);
+  for (let b = 0; b <= n; b++) {
+    for (let a = 0; a <= n; a++) {
+      if (a === c && b === c) continue;
+      const dx = a - c, dy = b - c;
+      const m = Math.max(Math.abs(dx), Math.abs(dy));
+      const s = m / c; // fraction from centre to edge
+      // The edge the ray meets, and the position along it (0..n in that edge's own index order).
+      let edge: (k: number) => number;
+      let q: number;
+      if (Math.abs(dx) >= Math.abs(dy)) {
+        const ei = dx > 0 ? n : 0;
+        q = c + (dy * c) / m;
+        edge = (k) => H(i0 + ei, j0 + k);
+      } else {
+        const ej = dy > 0 ? n : 0;
+        q = c + (dx * c) / m;
+        edge = (k) => H(i0 + k, j0 + ej);
+      }
+      const truth = H(i0 + a, j0 + b), tol = tolAt(i0 + a, j0 + b);
+      const lo = Math.floor(q + 1e-9), hi = Math.ceil(q - 1e-9);
+      for (let l = lo; l >= 0; l--) {
+        const hl = edge(l);
+        for (let r = Math.max(hi, l); r <= n; r++) {
+          const qh = r === l ? hl : hl + ((edge(r) - hl) * (q - l)) / (r - l);
+          const drawn = hc + (qh - hc) * s;
+          if (Math.abs(drawn - truth) > tol) return false;
+        }
+      }
+    }
+  }
+  return true;
+}
+
+// ---------------------------------------------------------------------------------------------
+// 5. Highest drawn ground
+
+/**
+ * The highest the full-resolution terrain grid can be at a point: the higher of the two triangle
+ * readings in its cell, so never under the mesh whichever diagonal a chunk drew. Reads the terrain
+ * function given (track.ts passes the analytic one) on the grid every chunk uses.
+ */
+export function meshTop(terrain: TerrainFn, opts: BuildOptions): (x: number, y: number) => number {
+  const { step } = gridOf(opts.chunkSize, opts.terrainStep);
+  const cache = new Map<number, number>();
   const node = (i: number, j: number) => {
-    const k = `${i},${j}`;
+    const k = (i + 2_000_000) * 4_000_000 + (j + 2_000_000);
     let h = cache.get(k);
     if (h === undefined) {
-      h = terrain(i * step, j * step).h;
       if (cache.size > 200_000) cache.clear();
+      h = terrain(i * step, j * step).h;
       cache.set(k, h);
     }
     return h;
   };
   return (x, y) => {
-    const i = Math.floor(x / step), j = Math.floor(y / step);
-    const u = x / step - i, v = y / step - j;
+    const fx = x / step, fy = y / step;
+    const i = Math.floor(fx), j = Math.floor(fy);
+    const u = fx - i, w = fy - j;
     const h00 = node(i, j), h10 = node(i + 1, j), h01 = node(i, j + 1), h11 = node(i + 1, j + 1);
-    // Split along (0,0)-(1,1), then along (1,0)-(0,1).
-    const a = u >= v ? h00 + (h10 - h00) * u + (h11 - h10) * v : h00 + (h01 - h00) * v + (h11 - h01) * u;
-    const b = u + v <= 1 ? h00 + (h10 - h00) * u + (h01 - h00) * v : h11 + (h01 - h11) * (1 - u) + (h10 - h11) * (1 - v);
+    // Split (0,0)-(1,1).
+    const a = u >= w ? h00 + u * (h10 - h00) + w * (h11 - h10) : h00 + u * (h11 - h01) + w * (h01 - h00);
+    // Split (1,0)-(0,1).
+    const b = u + w <= 1 ? h00 + u * (h10 - h00) + w * (h01 - h00) : h11 + (1 - u) * (h01 - h11) + (1 - w) * (h10 - h11);
     return Math.max(a, b);
   };
 }
