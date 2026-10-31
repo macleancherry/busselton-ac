@@ -205,7 +205,9 @@ export function treeList(trees: PlacedTree[]): string {
     "configure: brightness variance = 0.12",
     "configure: fake shadow = 0.6",
   ];
-  for (const t of [...trees].sort((a, b) => a.model.localeCompare(b.model))) {
+  // By model, then by place, so the list doesn't depend on the order the trees came in.
+  const byPlace = (a: PlacedTree, b: PlacedTree) => a.pos[0] - b.pos[0] || a.pos[2] - b.pos[2] || a.pos[1] - b.pos[1];
+  for (const t of [...trees].sort((a, b) => a.model.localeCompare(b.model) || byPlace(a, b))) {
     lines.push(`tree: ${t.model}; pos=${t.pos[0].toFixed(2)}, ${t.pos[1].toFixed(2)}, ${t.pos[2].toFixed(2)}; angle=${t.angle.toFixed(0)}; size=${t.size.toFixed(2)}`);
   }
   return lines.join("\r\n") + "\r\n";

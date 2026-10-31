@@ -3,7 +3,7 @@
 // tiles) and in Node tests (synthetic terrain).
 
 import { buildPaths, footPathTexture, sharedPathTexture, type PathLine } from "./paths";
-import { pickSpecies, TREE_SPECIES, treeSpeciesAtlas } from "./treeSprites";
+import { TREE_SPECIES, treeSpeciesAtlas } from "./treeSprites";
 import { FENCE_COLOURS, fenceTexture, frontWallTexture, hedgeTexture, mulchTexture, shrubAtlas } from "./houseTextures";
 import { buildLots, shrub } from "./lots";
 import { buildParkedCars, carTexture, paintFor } from "./parkedCars";
@@ -22,7 +22,7 @@ import jettyTrainScript from "./lua/jetty_train.lua?raw";
 import { jettyTrainLua } from "./jettyTrain";
 import { buildRaceFlags, flagMaterial, RACE_FLAG_MATERIAL, raceFlagTexture, takeRaceFlags } from "./flags";
 import { treeList, writeTreeBin } from "./cspTrees";
-import { CARD_FOR, MODEL_FOR, pickWeighted, speciesWeightsAt } from "./treeZones";
+import { cspTreeAngle, horizonTree, plantTree } from "./treePick";
 import { MODEL_NAMES, treeModel } from "./treeModels";
 import { ZoneMap, type LandcoverPolygon } from "./zones";
 import { asLayout, dummiesKn5 } from "./layouts";
@@ -55,7 +55,7 @@ import { buildBayPads, placeParked, type BayQuad, type PhotoCar, type PlacedCar 
 import { armcoNeeds, buildArmco } from "./armco";
 import { BARRIERS, barrierTexture, detailTexture, normalFromHeight, windowTexture, flatNormalTexture, GROUND_TILE, groundDetail, groundMask, type GroundKind, mapsTexture, paintTexture, sealTexture, type SealKind, garageTexture, grassTexture, concreteTexture, postTexture, railTexture, solidTexture, vergeTexture } from "./textures";
 import {
-  buildGuardRails, buildGuidePosts, buildTrees, treeTrunks, filterTrees, railNeeds, rng, treeSpotsFromImagery, type TreeSpot,
+  buildGuardRails, buildGuidePosts, buildTrees, treeTrunks, filterTrees, railNeeds, placeRandom, treeSpotsFromImagery, type TreeSpot,
 } from "./scenery";
 import { buildBuildings, centroid, detectBuildings, filterBuildings, fromOsm, houseRoof, isRectangle, plainHouse, pointInRing, ringArea, usedFinishes, type Building } from "./buildings";
 import { dressBuilding, FACADES, facadeTexture, ROOF_COLOURS, roofTexture } from "./buildingStyles";
@@ -1363,8 +1363,6 @@ export async function buildTrack(
   const offRings = (spots: TreeSpot[]) => spots.filter((t) => !inRoundabout(plan, t.x, t.y, opts.vergeWidth + 3));
   const offStreets = (spots: TreeSpot[]) => spots.filter((t) => streetIndex.clearance(t.x, t.y) > 1.5);
   // Local species: she-oaks and Norfolk pines on the coast, peppermints on kerbed town streets, tuarts in the bush.
-  const speciesRand = rng(4242);
-  const zoneRand = rng(5151);
   // Town: kerb and gutter within ~150 m along the road (kerbs are only built where the photo shows them).
   const FORESHORE = 120;
   const kerbedNear = plan.samples.map((_, i) => {
@@ -1375,20 +1373,18 @@ export async function buildTrack(
     }
     return false;
   });
-  const planted0 = filterTrees(treeSpots, index, opts, opts.maxTrees, area ? cover : undefined).map((t) => {
-    const n = index.nearest(t.x, t.y, opts.corridor + 10);
-    const town = !!n && kerbedNear[n.seg];
-    const foreshore = ocean.length > 0 && sea.near(t.x, t.y, FORESHORE);
-    // Busselton fork: out of town and off the foreshore, the landscape zone picks the tree (or thins it out).
-    if (zones && !town && !foreshore) return zones.tree(t, treeModels, speciesRand());
-    const variant = pickSpecies(speciesRand(), !!t.coastal, town, foreshore);
-    // Busselton fork: with CSP trees and no zones, bush trees (not planted streets or foreshore) by place (treeZones.ts).
-    if (opts.cspTrees && !town && !foreshore) {
-      const sp = pickWeighted(speciesWeightsAt(...proj.toLngLat([t.x, t.y]), { coastal: !!t.coastal }), zoneRand());
-      return { ...t, variant: CARD_FOR[sp], model: MODEL_NAMES.indexOf(MODEL_FOR[sp]) };
-    }
-    return { ...t, variant };
-  }).filter((t): t is TreeSpot => t !== null);
+  // Busselton fork: species, zone and size by each tree's own position (treePick.ts).
+  const plantCtx = {
+    zones, models: treeModels, cspTrees: !!opts.cspTrees,
+    where: (t: TreeSpot) => {
+      const n = index.nearest(t.x, t.y, opts.corridor + 10);
+      return { town: !!n && kerbedNear[n.seg], foreshore: ocean.length > 0 && sea.near(t.x, t.y, FORESHORE) };
+    },
+    toLngLat: (x: number, y: number) => proj.toLngLat([x, y]) as [number, number],
+  };
+  const planted0 = filterTrees(treeSpots, index, opts, opts.maxTrees, area ? cover : undefined)
+    .map((t) => plantTree(t, plantCtx))
+    .filter((t): t is TreeSpot => t !== null);
   // A zone's species and size change the crown, so keep it clear of the road again.
   const planted = zones ? filterTrees(planted0, index, opts, opts.maxTrees, area ? cover : undefined) : planted0;
   const treesKept = offStreets(offRings(planted)).filter((t) => !cleared(t.x, t.y, true));
@@ -1400,8 +1396,8 @@ export async function buildTrack(
   const farStep = Math.max(1, far.length / 3000);
   const horizonTrees = buildTrees(
     Array.from({ length: Math.floor(far.length / farStep) }, (_, i) => far[Math.floor(i * farStep)])
-      .map((t) => ({ ...t, scale: t.scale * 1.15, variant: pickSpecies(speciesRand(), !!t.coastal, false) }))
-      .flatMap((t) => (zones ? zones.tree(t, TREE_SPECIES.map((s) => s.name), speciesRand()) ?? [] : [t])),
+      .map((t) => horizonTree(t, zones, TREE_SPECIES.map((s) => s.name)))
+      .filter((t): t is TreeSpot => t !== null),
     (x, y) => farGround(x, y) - 0.6,
     "HORIZONTREES",
     // Out on the coarse horizon mesh: sunk well in, as they always were.
@@ -1843,7 +1839,8 @@ export async function buildTrack(
   const islandNodes: Kn5MeshNode[] = [];
   const islandShrubs = new MeshBuilder();
   islandShrubs.normals = [];
-  const shrubRand = rng(515);
+  // Salt for the shrubs' draws (random.ts placeRandom), +0..5 for each draw.
+  const SALT_SHRUB = 0x5b00;
   let islandCount = 0;
   for (const { chunk, rings } of islandsFound) {
     const ok = rings.filter((ring) => ring.every(([x, y]) => {
@@ -1861,9 +1858,11 @@ export async function buildTrack(
       const top = Math.max(...ring.map(([x, y]) => ground(x, y))) + 0.15;
       for (let x = Math.min(...xs) + 0.8; x < Math.max(...xs) - 0.8; x += 1.8) {
         for (let y = Math.min(...ys) + 0.8; y < Math.max(...ys) - 0.8; y += 1.8) {
-          const px = x + (shrubRand() - 0.5) * 0.8, py = y + (shrubRand() - 0.5) * 0.8;
-          if (!pointInRing(px, py, ring) || shrubRand() < 0.35 || islandShrubs.vertexCount > 60000) continue;
-          shrub(islandShrubs, [px, py], 0.6 + shrubRand() * 0.6, shrubRand() < 0.5 ? 0 : 1, shrubRand() * Math.PI, () => top);
+          // Busselton fork: each shrub's draws from its grid point (random.ts), not the island order.
+          const d = (k: number) => placeRandom(x, y, SALT_SHRUB + k);
+          const px = x + (d(0) - 0.5) * 0.8, py = y + (d(1) - 0.5) * 0.8;
+          if (!pointInRing(px, py, ring) || d(2) < 0.35 || islandShrubs.vertexCount > 60000) continue;
+          shrub(islandShrubs, [px, py], 0.6 + d(3) * 0.6, d(4) < 0.5 ? 0 : 1, d(5) * Math.PI, () => top);
         }
       }
     }
@@ -2039,9 +2038,8 @@ export async function buildTrack(
     const modelOf = (t: { variant: number; model?: number }) => t.model ?? t.variant;
     const used = [...new Set(all.map(modelOf))].filter((v) => v >= 0 && v < MODEL_NAMES.length);
     for (const v of used) cspTreeFiles[`${slug}/extension/trees/${MODEL_NAMES[v]}.bin`] = writeTreeBin(treeModel(v));
-    const r = rng(7);
     cspTreeFiles[`${slug}/extension/trees/trees.txt`] = enc.encode(treeList(all.filter((t) => used.includes(modelOf(t))).map((t) => ({
-      model: `${MODEL_NAMES[modelOf(t)]}.bin`, pos: toAc(t.x, t.y, ground(t.x, t.y) - 0.1), angle: r() * 360, size: t.scale,
+      model: `${MODEL_NAMES[modelOf(t)]}.bin`, pos: toAc(t.x, t.y, ground(t.x, t.y) - 0.1), angle: cspTreeAngle(t.x, t.y), size: t.scale,
     }))));
   }
   await progress("Writing track files");
