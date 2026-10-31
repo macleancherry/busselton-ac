@@ -259,7 +259,10 @@ function readFeatureTile(tile: VectorTile, tx: number, ty: number): TileFeatures
 
 export interface TilePolygon { rings: LngLat[][]; edge: boolean[][] }
 
-interface CoastTile { ocean: TilePolygon[]; piers: TilePolygon[]; beaches: TilePolygon[]; landcover: LandcoverPolygon[] }
+interface CoastTile { ocean: TilePolygon[]; piers: TilePolygon[]; beaches: TilePolygon[]; landcover: LandcoverPolygon[]; water: TilePolygon[] }
+
+/** Busselton fork: inland water no tree may stand in (OpenMapTiles water classes other than the ocean and pools). */
+const INLAND_WATER = new Set(["lake", "river", "pond", "dock", "reservoir", "basin", "lagoon", "water"]);
 
 const LANDCOVER = new Set(["wood", "forest", "wetland", "farmland", "grass", "sand", "rock"]);
 
@@ -284,20 +287,21 @@ export async function fetchCoast(bbox: [number, number, number, number]): Promis
       return null;
     }
   }));
-  const out: CoastTile = { ocean: [], piers: [], beaches: [], landcover: [] };
+  const out: CoastTile = { ocean: [], piers: [], beaches: [], landcover: [], water: [] };
   for (const s of slots) {
     if (!s) continue;
     out.ocean.push(...s.ocean);
     out.piers.push(...s.piers);
     out.beaches.push(...s.beaches);
     out.landcover.push(...s.landcover);
+    out.water.push(...s.water);
   }
   if (missing > 0) warnMissing(`${missing} coast tiles (sea, piers, beaches)`);
   return out;
 }
 
 function readCoastTile(tile: VectorTile, tx: number, ty: number): CoastTile {
-  const out: CoastTile = { ocean: [], piers: [], beaches: [], landcover: [] };
+  const out: CoastTile = { ocean: [], piers: [], beaches: [], landcover: [], water: [] };
   const read = (
     layer: VectorTileLayer | undefined,
     keep: (p: Record<string, unknown>) => boolean,
@@ -333,6 +337,7 @@ function readCoastTile(tile: VectorTile, tx: number, ty: number): CoastTile {
   };
   const L = tile.layers;
   read(L.water, (p) => p.class === "ocean", out.ocean);
+  read(L.water, (p) => INLAND_WATER.has(String(p.class)), out.water);
   read(L.transportation, (p) => p.class === "pier", out.piers);
   read(L.landcover, (p) => p.class === "sand" && (p.subclass === "beach" || p.subclass === undefined || p.subclass === null), out.beaches);
   read(L.landcover, (p) => LANDCOVER.has(String(p.class)), [], (poly, p) => {

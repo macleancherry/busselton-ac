@@ -130,6 +130,8 @@ export interface BuildOptions {
   poleClear?: boolean;
   /** Tree cards use trees.dds with its own mip chain and bled colour (treeAtlasMips.ts), not trees.png. On unless false. */
   treeMips?: boolean;
+  /** No trees on water, wetland, beaches and sand, groynes, jetties or the shore strip (shoreClear.ts); ships extension/shore_mask.png. On unless false. */
+  shoreClear?: boolean;
 
   // Road surface, markings, kerbs, parking
   roadSurface: "auto" | "asphalt" | "chipseal" | "photo";
@@ -171,7 +173,7 @@ export const OPTIONAL_OPTION_KEYS: readonly (keyof BuildOptions)[] = Object.free
   "origin", "area", "layout", "unsealed", "gravelRoads", "networkCore",
   "terrainLodFarTol", "photoSea", "zones", "pureTuning", "rainHollows",
   "cspTrees", "houseStyle", "clears", "armco", "farmland", "farmRoadsides", "wavingFlags",
-  "jettyTrain", "trackSounds", "poleClear",
+  "jettyTrain", "trackSounds", "poleClear", "raceway", "treeMips", "shoreClear",
   "kerbside", "laneBayClear", "parkedBays", "padClear", "trafficLights",
   "aiKeepLeft", "streetsValid", "challenges", "timeTrialSectors", "driftZones",
 ] as const);

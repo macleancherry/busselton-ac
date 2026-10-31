@@ -91,6 +91,7 @@ import { buildSideStreets, LineIndex, traceSideStreets, planSideStreets, streetS
 import { networkPreview } from "./network/preview";
 import { planJunctionCore, type JunctionCore } from "./network/phase1";
 import { treeAtlasTexture } from "./treeAtlasMips";
+import { ShoreMask } from "./shoreClear";
 
 /** Progress callback; a returned promise is awaited, which lets a UI repaint. */
 export type Progress = (stage: string, fraction?: number) => void | Promise<void>;
@@ -157,7 +158,7 @@ export interface DataSources {
   drawSigns?: SignDrawer;
   /** Busselton fork: landmarks built as layers after the base (landmarkLayer.ts): the automatic test photographs them. */
   landmarks?: { name: string; at: LngLat }[];
-  coast?: { ocean: { rings: LngLat[][]; edge: boolean[][] }[]; piers: { rings: LngLat[][]; edge: boolean[][] }[]; beaches?: { rings: LngLat[][]; edge: boolean[][] }[]; landcover?: LandcoverPolygon[] };
+  coast?: { ocean: { rings: LngLat[][]; edge: boolean[][] }[]; piers: { rings: LngLat[][]; edge: boolean[][] }[]; beaches?: { rings: LngLat[][]; edge: boolean[][] }[]; landcover?: LandcoverPolygon[]; water?: { rings: LngLat[][]; edge: boolean[][] }[] };
   /** Busselton fork: vineyards and paddocks beside the road (services/landcover.ts; farm.ts builds them). */
   farmland?: FarmPolygon[];
   /** Busselton fork: what stands on the jetties (osm.ts fetchPierFeatures; jetty.ts builds it). */
@@ -514,6 +515,22 @@ export async function buildTrack(
   } : null;
   const beaches = opts.sea ? (sources.coast?.beaches ?? []).map(toCoast) : [];
   const sea = new SeaMask(ocean, farBounds.minX, farBounds.minY, farBounds.maxX, farBounds.maxY);
+  // Busselton fork: where no tree may stand: water, wetland, sand, groynes, jetties, the shore strip (shoreClear.ts).
+  const landcoverOf = (cls: string) => (sources.coast?.landcover ?? []).filter((l) => l.cls === cls).map((l) => toCoast({ rings: l.rings, edge: l.rings.map((r) => r.map(() => true)) }));
+  const shoreInput = {
+    ocean,
+    water: (sources.coast?.water ?? []).map(toCoast),
+    wetlands: landcoverOf("wetland"),
+    beaches: [...beaches, ...landcoverOf("sand")],
+    piers,
+    groynes: (sources.osm?.groynes ?? []).map((l) => l.map((p) => proj.toLocal(p))),
+  };
+  const anyShore = Object.values(shoreInput).some((l) => l.length > 0);
+  // Over the horizon too (its trees), at 2 m or coarser so it stays near 4 million cells. None inland.
+  const shore = opts.shoreClear === false || !anyShore ? null : new ShoreMask(shoreInput, farBounds.minX, farBounds.minY, farBounds.maxX, farBounds.maxY, {
+    cell: Math.max(2, Math.ceil(Math.sqrt(((farBounds.maxX - farBounds.minX) * (farBounds.maxY - farBounds.minY)) / 4e6))),
+  });
+  const offShore = <T extends { x: number; y: number }>(spots: T[]): T[] => (shore ? spots.filter((t) => !shore.hitsAround(t.x, t.y, 1)) : spots);
   const dem = ocean.length ? withSeabed(landDem, sea) : landDem;
   const farDem = ocean.length ? withSeabed(landFarDem, sea) : landFarDem;
   // Busselton fork: landscape zones (zones.ts) choose tree species and density, the ground detail mix and the verge colour.
@@ -1292,12 +1309,12 @@ export async function buildTrack(
     .filter((t): t is TreeSpot => t !== null);
   // A zone's species and size change the crown, so keep it clear of the road again.
   const planted = zones ? filterTrees(planted0, index, opts, opts.maxTrees, area ? cover : undefined) : planted0;
-  const treesKept = offStreets(offRings(planted)).filter((t) => !cleared(t.x, t.y, true));
+  const treesKept = offShore(offStreets(offRings(planted)).filter((t) => !cleared(t.x, t.y, true)));
   // Busselton fork: with CSP trees on, the trees go in CSP's tree list instead of the kn5 (below).
   const trees = opts.cspTrees ? [] : buildTrees(treesKept, ground, "TREES");
   const trunks = treeTrunks(treesKept, ground);
   // Tree lines on the horizon: canopy in the far photo, out to 1 km, as cheap unshadowed sprites.
-  const far = farTreeSpots.filter((t) => !inCover(t.x, t.y, -5) && cover(t.x, t.y) < 1000 && !sea.has(t.x, t.y));
+  const far = offShore(farTreeSpots.filter((t) => !inCover(t.x, t.y, -5) && cover(t.x, t.y) < 1000 && !sea.has(t.x, t.y)));
   const farStep = Math.max(1, far.length / 3000);
   const horizonTrees = buildTrees(
     Array.from({ length: Math.floor(far.length / farStep) }, (_, i) => far[Math.floor(i * farStep)])
@@ -1718,6 +1735,8 @@ export async function buildTrack(
     }
     for (let i = houseTrees.length - 1; i >= 0; i--) if (cleared(houseTrees[i].x, houseTrees[i].y, true)) houseTrees.splice(i, 1);
   }
+  // Busselton fork: front-yard and landmark trees off the water and the sand too (shoreClear.ts).
+  if (shore) for (let i = houseTrees.length - 1; i >= 0; i--) if (shore.hitsAround(houseTrees[i].x, houseTrees[i].y, 1)) houseTrees.splice(i, 1);
   // One ground per building (onBaseRing): 2 cm into the base's ground, or out on the horizon mesh, sunk 40 cm as before.
   // The base's ground for a footprint is the mesh's (ground.forRing): a corner past the terrain mesh's
   // edge doesn't take the analytic terrain under it.
@@ -2013,6 +2032,11 @@ export async function buildTrack(
         plan.samples.map((s) => [s.pos[0], -s.pos[1]] as [number, number]).concat(plan.closed ? [[plan.samples[0].pos[0], -plan.samples[0].pos[1]]] : []));
       return { [`${slug}/extension/street_map.png`]: sm.png, [`${slug}/extension/street_map.ini`]: enc.encode(sm.ini) };
     })(),
+    // Busselton fork: where nothing may stand, for scripts/check/shore_check.ts (shoreClear.ts).
+    ...(shore ? (() => {
+      const f = shore.files();
+      return { [`${slug}/extension/shore_mask.png`]: f.png, [`${slug}/extension/shore_mask.ini`]: enc.encode(f.ini) };
+    })() : {}),
     [`${slug}/ui/ui_track.json`]: enc.encode(uiTrackJson(trackMeta, {
       length: timedLength(), width: meanWidth, pitboxes: opts.pitCount, closed: plan.closed, centre, traffic: opts.traffic,
     })),
