@@ -13,11 +13,12 @@
 //
 // Trees fail on any of it. Buildings, shops, furniture and parked cars fail on the sea, water, wetland
 // and groynes, and are only listed on the seawall rocks, sand, beach, strip and jetty (real buildings
-// stand right behind the revetment; cafes and lamps line the foreshore).
+// stand right behind the revetment; cafes and lamps line the foreshore), and where the mask marks an
+// OSM-mapped building over water ("mapped": a boatshed, a kiosk on a pier; waterBuildings.ts).
 import type { Kn5Node } from "./kn5";
 import { SHORE_CLASSES } from "./shoreClear";
 
-export type Where = "sea" | "water" | "wetland" | "jetty" | "groyne" | "beach" | "sand" | "strip" | "seawall";
+export type Where = "sea" | "water" | "wetland" | "jetty" | "groyne" | "beach" | "sand" | "strip" | "seawall" | "mapped";
 export interface ShoreHit { kind: "tree" | "other"; group: string; mesh: string; x: number; y: number; where: Where; fails: boolean }
 export interface ShoreMaskData { x0: number; y0: number; cell: number; w: number; h: number; classes: string[]; value: (c: number, r: number) => number }
 export interface ShoreReport { trees: number; others: number; hits: ShoreHit[]; failed: number; byWhere: Record<string, { trees: number; others: number }> }
@@ -106,9 +107,11 @@ export function checkShore(models: Kn5Node[], mask?: ShoreMaskData): ShoreReport
     return v ? ((mask.classes[v - 1] ?? SHORE_CLASSES[v]) as Where) : null;
   };
   const whereAt = (x: number, y: number): Where | null => {
+    const m = fromMask(x, y);
+    // An OSM-mapped building over water (waterBuildings.ts): real, so it stands.
+    if (m === "mapped") return m;
     if (sea.has(x, y)) return "sea";
     if (rocks.has(x, y)) return "seawall";
-    const m = fromMask(x, y);
     if (m) return m;
     if (jetty.has(x, y)) return "jetty";
     return null;

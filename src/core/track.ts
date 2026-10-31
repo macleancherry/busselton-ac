@@ -100,6 +100,7 @@ import { isKerbedStreet, type GraphStreet } from "./network/streets";
 import { buildStreetMeshes, tuckedJoin, type MeshStreet } from "./network/streetMesh";
 import { treeAtlasTexture } from "./treeAtlasMips";
 import { ShoreMask } from "./shoreClear";
+import { onWater } from "./waterBuildings";
 import { softenKerbFaces } from "./kerbAo";
 
 /** Progress callback; a returned promise is awaited, which lets a UI repaint. */
@@ -550,6 +551,7 @@ export async function buildTrack(
   const shore = opts.shoreClear === false || !anyShore ? null : new ShoreMask(shoreInput, farBounds.minX, farBounds.minY, farBounds.maxX, farBounds.maxY, {
     cell: Math.max(2, Math.ceil(Math.sqrt(((farBounds.maxX - farBounds.minX) * (farBounds.maxY - farBounds.minY)) / 4e6))),
   });
+  const shoreAt = (x: number, y: number): string | null => (shore ? shore.at(x, y) : sea.has(x, y) ? "sea" : null);
   const offShore = <T extends { x: number; y: number }>(spots: T[]): T[] => (shore ? spots.filter((t) => !shore.hitsAround(t.x, t.y, 1)) : spots);
   const dem = ocean.length ? withSeabed(landDem, sea) : landDem;
   const farDem = ocean.length ? withSeabed(landFarDem, sea) : landFarDem;
@@ -862,7 +864,10 @@ export async function buildTrack(
     .filter((b) => {
       const [cx, cy] = centroid(b.ring);
       return !onJetty(cx, cy) && !(jettyFeatures?.buildings.some((o) => pointInRing(cx, cy, o.pts) && o.pts.some(([x, y]) => onJetty(x, y) || sea.has(x, y))));
-    });
+    })
+    // Busselton fork: no generated or detected building on water; mapped ones stand, marked (waterBuildings.ts).
+    .filter((b) => b.source === "osm" || !onWater(b.ring, shoreAt));
+  if (shore) for (const b of kept) if (b.source === "osm" && onWater(b.ring, shoreAt)) shore.mark(b.ring, "mapped");
   dressBuildings(kept, {
     roadEdge: (x, y) => {
       const n = index.nearest(x, y, 40);

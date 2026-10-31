@@ -13,8 +13,12 @@ import { SeaMask, type CoastPolygon } from "./coast";
 import { distanceField } from "./photoSea";
 import { encodePng } from "./png";
 
-/** Cell classes, in priority order (a cell keeps the first that applies). */
-export const SHORE_CLASSES = ["", "sea", "water", "wetland", "jetty", "groyne", "beach", "sand", "strip"] as const;
+/**
+ * Cell classes, in priority order (a cell keeps the first that applies). "mapped" is stamped over
+ * the rest afterwards (mark): an OSM-mapped building standing over water (a boatshed, a kiosk on a
+ * pier), real, so the shore check lets it stand; nothing grows there either.
+ */
+export const SHORE_CLASSES = ["", "sea", "water", "wetland", "jetty", "groyne", "beach", "sand", "strip", "mapped"] as const;
 export type ShoreClass = Exclude<(typeof SHORE_CLASSES)[number], "">;
 const CODE = Object.fromEntries(SHORE_CLASSES.map((c, i) => [c, i])) as Record<(typeof SHORE_CLASSES)[number], number>;
 
@@ -138,6 +142,34 @@ export class ShoreMask {
       const r = r0 + dr, c = c0 + dc;
       if (r < 0 || c < 0 || r >= this.h || c >= this.w) continue;
       if (Math.hypot(this.x0 + (c + 0.5) * this.cell - x, this.y0 + (r + 0.5) * this.cell - y) <= radius) into[r * this.w + c] = 1;
+    }
+  }
+
+  /**
+   * Stamps a footprint as `cls` over whatever is there: every cell whose middle is inside the ring,
+   * and the cells under its corners and its middle (a footprint smaller than a cell still gets one).
+   */
+  mark(ring: Vec2[], cls: ShoreClass): void {
+    if (ring.length < 3) return;
+    const code = CODE[cls];
+    const setAt = (x: number, y: number) => {
+      const c = Math.floor((x - this.x0) / this.cell), r = Math.floor((y - this.y0) / this.cell);
+      if (c >= 0 && r >= 0 && c < this.w && r < this.h) this.cells[r * this.w + c] = code;
+    };
+    let mx = 0, my = 0;
+    for (const [x, y] of ring) { setAt(x, y); mx += x; my += y; }
+    setAt(mx / ring.length, my / ring.length);
+    const xs = ring.map((p) => p[0]), ys = ring.map((p) => p[1]);
+    const c0 = Math.max(0, Math.floor((Math.min(...xs) - this.x0) / this.cell)), c1 = Math.min(this.w - 1, Math.floor((Math.max(...xs) - this.x0) / this.cell));
+    const r0 = Math.max(0, Math.floor((Math.min(...ys) - this.y0) / this.cell)), r1 = Math.min(this.h - 1, Math.floor((Math.max(...ys) - this.y0) / this.cell));
+    for (let r = r0; r <= r1; r++) for (let c = c0; c <= c1; c++) {
+      const x = this.x0 + (c + 0.5) * this.cell, y = this.y0 + (r + 0.5) * this.cell;
+      let inside = false;
+      for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+        const [xi, yi] = ring[i], [xj, yj] = ring[j];
+        if ((yi > y) !== (yj > y) && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) inside = !inside;
+      }
+      if (inside) this.cells[r * this.w + c] = code;
     }
   }
 
