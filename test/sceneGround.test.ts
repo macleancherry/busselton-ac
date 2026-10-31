@@ -126,6 +126,28 @@ describe("ground check", () => {
     expect(r.off).toEqual([]);
   });
 
+  it("judges a wall running off the terrain mesh's edge right at that edge (Cape Naturaliste)", () => {
+    // Terrain only east of x = 0.3, climbing 16 % east. A 10 m wall from x -5 to 5 with its foot 2 cm
+    // under the lowest ground along it, which is at the mesh's edge. The half-metre steps from -5 land
+    // on 0 (no mesh) and 0.5 (ground 4.8 cm higher than at the edge): every step was "sunk 6 cm".
+    const edge = square("1GRASS_t000", 0.3, -50, 50, 50, (x) => 10 + 0.16 * x);
+    const mb = new MeshBuilder();
+    const z0 = 10 + 0.16 * 0.3 - 0.02;
+    const i = mb.vertexCount;
+    mb.vertex([-5, 20, z0], 0, 0); mb.vertex([5, 20, z0], 1, 0); mb.vertex([5, 20, z0 + 3], 1, 1); mb.vertex([-5, 20, z0 + 3], 0, 1);
+    mb.quad(i, i + 1, i + 2, i + 3);
+    const r = checkGround(group("track", [group("TERRAIN", [edge]), group("BUILDINGS", [mb.toKn5("1WALL_BLD_brick_000", "brick")])]));
+    expect(r.checked.BUILDINGS).toBe(1);
+    expect(r.off).toEqual([]);
+    // Truly sunk (10 cm under the edge) is still caught.
+    const sunk = new MeshBuilder();
+    sunk.vertex([-5, 20, z0 - 0.08], 0, 0); sunk.vertex([5, 20, z0 - 0.08], 1, 0); sunk.vertex([5, 20, z0 + 3], 1, 1); sunk.vertex([-5, 20, z0 + 3], 0, 1);
+    sunk.quad(0, 1, 2, 3);
+    const s = checkGround(group("track", [group("TERRAIN", [edge]), group("BUILDINGS", [sunk.toKn5("1WALL_BLD_brick_000", "brick")])]));
+    expect(s.off.map((o) => o.kind)).toEqual(["sunk"]);
+    expect(s.off[0].off).toBeCloseTo(-0.1, 2);
+  });
+
   it("finds parked cars over the route's road", () => {
     const car = (y: number) => {
       const mb = new MeshBuilder();

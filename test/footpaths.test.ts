@@ -1,7 +1,7 @@
 // Tests for the photo footpaths, crossovers and letterboxes, written from docs/specs/footpaths.md.
 import { describe, expect, it } from "vitest";
 import { buildVergeConcrete, isConcrete, laybacks, letterboxes, readVerge, type VergeConcrete } from "../src/core/footpaths";
-import { KERB_BACK, KERB_H, LAYBACK } from "../src/core/kerbs";
+import { KERB_BACK } from "../src/core/kerbs";
 import type { RoadPlan, RoadSample } from "../src/core/road";
 import { SINK } from "../src/core/sceneGround";
 import type { Kn5MeshNode } from "../src/core/kn5";
@@ -180,7 +180,7 @@ describe("buildVergeConcrete", () => {
     const dv = verts(drives[0]);
     const inner = dv.filter((v) => Math.abs(Math.abs(v.y) - (W / 2 + KERB_BACK)) < 1e-4 && v.ny > 0.5);
     expect(inner.length).toBeGreaterThan(0);
-    for (const v of inner) expect(v.h - under(v.x, v.y)).toBeCloseTo(-KERB_H * LAYBACK + 0.005, 4);
+    for (const v of inner) expect(v.h - under(v.x, v.y)).toBeCloseTo(0.005, 4); // `under` is laid back there already (stripGround)
     const outerLeft = dv.filter((v) => v.y > 0 && Math.abs(v.y - (W / 2 + STRIP)) < 1e-4 && v.ny > 0.5);
     expect(outerLeft.length).toBeGreaterThan(0);
     for (const v of outerLeft) expect(v.h - under(v.x, v.y)).toBeCloseTo(0.04, 4);
@@ -216,7 +216,9 @@ describe("buildVergeConcrete", () => {
   it("slab UVs: across 0 to 1, a joint every 3 m", () => {
     const [m] = buildVergeConcrete(plan, verge(), under).filter((x) => x.name.startsWith("1STREET_PATH_"));
     for (let i = 0; i < m.uvs.length / 2; i++) {
-      expect([0, 1]).toContain(m.uvs[i * 2]);
+      // Across: 0 at the band's inner edge to 1 at its outer edge (the top is a grid of small cells).
+      const y = -m.positions[i * 3 + 2], [d0, d1] = y > 0 ? [2, 3.5] : [5, 6.2];
+      expect(m.uvs[i * 2]).toBeCloseTo((Math.abs(y) - W / 2 - d0) / (d1 - d0), 4);
       expect(m.uvs[i * 2 + 1]).toBeCloseTo(m.positions[i * 3] / 3, 4); // s = x on this road
     }
   });

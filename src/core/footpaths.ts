@@ -6,13 +6,14 @@
 // crossover also lays the kerb back (the kerb builder takes `laybacks`) and gets a letterbox.
 //
 // Heights: the slabs are part of the ground, so they stand on `under`, the ground as it was before
-// they were added. Letterboxes stand on the full ground. Neither is worked out here.
+// they were added (stripGround: the nature strip as the kerb module builds it). Letterboxes stand on
+// the full ground.
 
 import type { Vec2 } from "./geo";
 import { MAX_MESH_VERTICES, type Kn5MeshNode } from "./kn5";
-import { KERB_H, KERB_BACK, LAYBACK } from "./kerbs";
+import { KERB_BACK, STRIP_EXTRA, stripRise } from "./kerbs";
 import { type Vec3, MeshBuilder } from "./mesh";
-import type { RoadSample, RoadPlan } from "./road";
+import { surfaceHeight, type RoadSample, type RoadPlan, type SegmentIndex } from "./road";
 import { pad, chunkRanges } from "./roadMesh";
 import type { Piece } from "./furniture";
 import { SINK } from "./sceneGround";
@@ -212,6 +213,40 @@ export function laybacks(n: number, verge: VergeConcrete): [number[], number[]] 
   return marks;
 }
 
+/* ---------------- the ground under the slabs ---------------- */
+
+/**
+ * The ground under the verge concrete before it's added: the nature strip as the kerb builder makes
+ * it (kerbs.ts stripRise: kerb top at the kerb's back, laid back at a driveway, rising to the strip's
+ * outer edge), blended between the two samples either side, and `beyond` past the strip. It used to
+ * be the road edge plus a full kerb right across, so a footpath crossing a driveway stood up to 13 cm
+ * over the laid-back strip.
+ */
+export function stripGround(
+  plan: RoadPlan,
+  index: SegmentIndex,
+  crown: number,
+  vergeWidth: number,
+  kerbs: [number[], number[]],
+  drops: [number[], number[]] | undefined,
+  beyond: Ground,
+): Ground {
+  const n = plan.samples.length;
+  const stripOuter = vergeWidth + STRIP_EXTRA;
+  return (x, y) => {
+    const near = index.nearest(x, y, stripOuter + 30);
+    if (!near) return beyond(x, y);
+    const at = index.at(near);
+    const d = near.dist - at.width / 2;
+    if (d > stripOuter) return beyond(x, y);
+    const side = near.t >= 0 ? 1 : -1, k = side === 1 ? 0 : 1;
+    const e = surfaceHeight({ ...plan.samples[near.seg], h: at.h, bank: at.bank, width: at.width }, (side * at.width) / 2, crown);
+    const rise = (r: number) => stripRise(kerbs[k][r] ?? 0, drops?.[k][r] ?? 0, Math.max(0, d), vergeWidth);
+    const r0 = near.seg, r1 = (near.seg + 1) % n;
+    return e + rise(r0) + (rise(r1) - rise(r0)) * near.frac;
+  };
+}
+
 /* ---------------- slabs ---------------- */
 
 const SLAB_RISE = 0.04;
@@ -219,12 +254,15 @@ const EDGE_BELOW = 0.03;
 const LAY_LIFT = 0.005;
 const JOINT = 3;
 
-/** One end of a slab: inner and outer points with the top height at each. */
+/** Longest side of a cell of slab top, metres: the strip under it bends along its quads' diagonals. */
+const CELL = 0.5;
+
+/** One end of a slab: inner and outer points, how far the top stands over `under` at each, distance along. */
 interface Section {
   inner: Vec2;
   outer: Vec2;
-  zIn: number;
-  zOut: number;
+  liftIn: number;
+  liftOut: number;
   s: number;
 }
 
@@ -239,37 +277,67 @@ function quadFacing(mb: MeshBuilder, a: number, b: number, c: number, d: number,
   else mb.quad(a, d, c, b);
 }
 
-/** A slab between two sections: the top, and an edge face down each long side. */
+const lerp2 = (a: Vec2, b: Vec2, f: number): Vec2 => [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f];
+
+/** Cells along and across a slab between two sections (at most CELL metres a side). */
+function slabGrid(A: Section, B: Section): [number, number] {
+  const along = Math.max(Math.hypot(B.inner[0] - A.inner[0], B.inner[1] - A.inner[1]), Math.hypot(B.outer[0] - A.outer[0], B.outer[1] - A.outer[1]));
+  const across = Math.max(Math.hypot(A.outer[0] - A.inner[0], A.outer[1] - A.inner[1]), Math.hypot(B.outer[0] - B.inner[0], B.outer[1] - B.inner[1]));
+  return [Math.max(1, Math.ceil(along / CELL - 1e-9)), Math.max(1, Math.ceil(across / CELL - 1e-9))];
+}
+
+/** Vertices a slab between two sections takes. */
+function slabVerts(A: Section, B: Section): number {
+  const [nv, nu] = slabGrid(A, B);
+  return (nv + 1) * (nu + 1) + 4 * (nv + 1);
+}
+
+/**
+ * A slab between two sections: the top, and an edge face down each long side. The top is a grid of
+ * cells no more than CELL a side, every vertex its lift over `under`, so it follows the strip where
+ * that bends inside one sample's span (a driveway's layback starting or ending).
+ */
 function slab(mb: MeshBuilder, A: Section, B: Section, under: Ground): void {
+  const [nv, nu] = slabGrid(A, B);
   const va = A.s / JOINT, vb = B.s / JOINT;
-  const t0 = mb.vertex([A.inner[0], A.inner[1], A.zIn], 0, va);
-  const t1 = mb.vertex([B.inner[0], B.inner[1], B.zIn], 0, vb);
-  const t2 = mb.vertex([B.outer[0], B.outer[1], B.zOut], 1, vb);
-  const t3 = mb.vertex([A.outer[0], A.outer[1], A.zOut], 1, va);
-  quadFacing(mb, t0, t1, t2, t3, [0, 0, 1]);
+  const at = (f: number, u: number): Vec2 => lerp2(lerp2(A.inner, A.outer, u), lerp2(B.inner, B.outer, u), f);
+  const lift = (f: number, u: number) => {
+    const li = A.liftIn + (B.liftIn - A.liftIn) * f, lo = A.liftOut + (B.liftOut - A.liftOut) * f;
+    return li + (lo - li) * u;
+  };
+  const top: number[][] = [];
+  for (let j = 0; j <= nv; j++) {
+    const f = j / nv, row: number[] = [];
+    for (let k = 0; k <= nu; k++) {
+      const u = k / nu, p = at(f, u);
+      row.push(mb.vertex([p[0], p[1], under(p[0], p[1]) + lift(f, u)], u, va + (vb - va) * f));
+    }
+    top.push(row);
+  }
+  for (let j = 0; j < nv; j++) for (let k = 0; k < nu; k++) quadFacing(mb, top[j][k], top[j + 1][k], top[j + 1][k + 1], top[j][k + 1], [0, 0, 1]);
   // Outward across the slab (inner to outer), horizontal.
   const ox = (A.outer[0] + B.outer[0] - A.inner[0] - B.inner[0]) / 2, oy = (A.outer[1] + B.outer[1] - A.inner[1] - B.inner[1]) / 2;
   const ol = Math.hypot(ox, oy) || 1;
   const out: Vec3 = [ox / ol, oy / ol, 0];
-  const edge = (pa: Vec2, za: number, pb: Vec2, zb: number, u: number, want: Vec3) => {
-    const a0 = mb.vertex([pa[0], pa[1], under(pa[0], pa[1]) - EDGE_BELOW], u, va);
-    const b0 = mb.vertex([pb[0], pb[1], under(pb[0], pb[1]) - EDGE_BELOW], u, vb);
-    const b1 = mb.vertex([pb[0], pb[1], zb], u, vb);
-    const a1 = mb.vertex([pa[0], pa[1], za], u, va);
-    quadFacing(mb, a0, b0, b1, a1, want);
+  const edge = (u: 0 | 1, want: Vec3) => {
+    const lo: number[] = [], hi: number[] = [];
+    for (let j = 0; j <= nv; j++) {
+      const f = j / nv, p = at(f, u), g = under(p[0], p[1]), v = va + (vb - va) * f;
+      lo.push(mb.vertex([p[0], p[1], g - EDGE_BELOW], u, v));
+      hi.push(mb.vertex([p[0], p[1], g + lift(f, u)], u, v));
+    }
+    for (let j = 0; j < nv; j++) quadFacing(mb, lo[j], lo[j + 1], hi[j + 1], hi[j], want);
   };
-  edge(A.inner, A.zIn, B.inner, B.zIn, 0, [-out[0], -out[1], 0]);
-  edge(A.outer, A.zOut, B.outer, B.zOut, 1, out);
+  edge(0, [-out[0], -out[1], 0]);
+  edge(1, out);
 }
-
-const VERTS_PER_SLAB = 12;
 
 /** Builders that move on before the kn5 vertex limit, named `<base>_NNN`. */
 class Slabs {
   private list: MeshBuilder[] = [new MeshBuilder()];
-  get current(): MeshBuilder {
+  current(verts: number): MeshBuilder {
     let mb = this.list[this.list.length - 1];
-    if (mb.vertexCount + VERTS_PER_SLAB > MAX_MESH_VERTICES) this.list.push((mb = new MeshBuilder()));
+    if (mb.vertexCount + verts > MAX_MESH_VERTICES) this.list.push((mb = new MeshBuilder()));
     return mb;
   }
   nodes(name: (k: number) => string): Kn5MeshNode[] {
@@ -291,7 +359,7 @@ export function buildVergeConcrete(plan: RoadPlan, verge: VergeConcrete, under: 
   const section = (i: number, side: 0 | 1, d0: number, d1: number): Section => {
     const s: RoadSample = samples[i % n];
     const inner = edgePoint(s, side, d0), outer = edgePoint(s, side, d1);
-    return { inner, outer, zIn: under(inner[0], inner[1]) + SLAB_RISE, zOut: under(outer[0], outer[1]) + SLAB_RISE, s: sAt(i) };
+    return { inner, outer, liftIn: SLAB_RISE, liftOut: SLAB_RISE, s: sAt(i) };
   };
   chunkRanges(plan).forEach((range, ci) => {
     const [a, b] = range;
@@ -317,13 +385,17 @@ export function buildVergeConcrete(plan: RoadPlan, verge: VergeConcrete, under: 
     return {
       inner,
       outer,
-      zIn: under(inner[0], inner[1]) - KERB_H * LAYBACK + LAY_LIFT,
-      zOut: under(outer[0], outer[1]) + SLAB_RISE,
+      // `under` is the strip as built, already laid back at the crossover's samples.
+      liftIn: LAY_LIFT,
+      liftOut: SLAB_RISE,
       s: s.s,
     };
   };
   for (const d of verge.drives) {
-    for (let i = d.i0; i < d.i1 && i + 1 < n; i++) slab(drives.current, driveSection(i, d), driveSection(i + 1, d), under);
+    for (let i = d.i0; i < d.i1 && i + 1 < n; i++) {
+      const A = driveSection(i, d), B = driveSection(i + 1, d);
+      slab(drives.current(slabVerts(A, B)), A, B, under);
+    }
   }
   meshes.push(...drives.nodes((k) => `1STREET_DRIVE_${pad(k)}`));
   return meshes;

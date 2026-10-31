@@ -205,6 +205,20 @@ export function kerbProfile(smp: RoadSample, side: 1 | -1, k: number, drop: numb
   return pieces.reverse().map((p) => ({ mesh: p.mesh, a: [-p.b[0], p.b[1]], b: [-p.a[0], p.a[1]], ua: p.ub, ub: p.ua }));
 }
 
+/**
+ * The strip's top `d` metres out from the road edge, as kerbProfile builds it, over the road edge's
+ * height: the kerb top (laid back at a driveway) at the kerb's back, rising straight to the strip's
+ * outer edge. k: kerb amount, drop: driveway layback (each 0 to 1). Footpaths and crossovers stand on
+ * this, so at a layback they come down with the strip instead of floating over it.
+ */
+export function stripRise(k: number, drop: number, d: number, vergeWidth: number): number {
+  const tIn = KERB_BACK * k, tOut = vergeWidth + STRIP_EXTRA;
+  const top = KERB_H * k * (1 - LAYBACK * drop);
+  const out = KERB_H * k + STRIP_RISE * k - VERGE_DROP * (1 - k);
+  if (d <= tIn) return top;
+  return top + ((out - top) * (Math.min(d, tOut) - tIn)) / (tOut - tIn);
+}
+
 // --- Meshes along the route -----------------------------------------------------------------
 
 export function buildKerbs(

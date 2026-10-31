@@ -163,20 +163,36 @@ export function checkGround(root: Kn5Node, opts: { tolerance?: number; ground?: 
     let judged = 0;
     for (const [r, pc] of pieces) {
       let gapLo = Infinity, gapHi = -Infinity, at: [number, number] = [0, 0];
-      const sample = (x: number, y: number, h: number) => {
+      /** Judges one point of the base; false where no ground mesh is under it. */
+      const sample = (x: number, y: number, h: number): boolean => {
         const g = ground(x, y);
-        if (g === null) return;
+        if (g === null) return false;
         const d = h - g;
         if (Math.abs(d) < Math.abs(gapLo) || gapLo === Infinity) at = [x, y];
         gapLo = Math.min(gapLo, d);
         gapHi = Math.max(gapHi, d);
+        return true;
       };
       for (const v of pc.verts) if (H[v] <= pc.lo + tol) sample(X[v], Y[v], H[v]);
       for (const [a, b] of baseEdges.get(r) ?? []) {
-        const n = Math.floor(Math.hypot(X[b] - X[a], Y[b] - Y[a]) / 0.5);
-        for (let k = 1; k < n; k++) {
+        const n = Math.max(1, Math.floor(Math.hypot(X[b] - X[a], Y[b] - Y[a]) / 0.5));
+        const pt = (f: number): [number, number, number] => [X[a] + (X[b] - X[a]) * f, Y[a] + (Y[b] - Y[a]) * f, H[a] + (H[b] - H[a]) * f];
+        let was = ground(X[a], Y[a]) !== null;
+        for (let k = 1; k <= n; k++) {
           const f = k / n;
-          sample(X[a] + (X[b] - X[a]) * f, Y[a] + (Y[b] - Y[a]) * f, H[a] + (H[b] - H[a]) * f);
+          const is = k < n ? sample(...pt(f)) : ground(X[b], Y[b]) !== null;
+          // Where the edge runs off the ground meshes (a building past the terrain's edge), also judge
+          // it right at the meshes' edge: on a slope the half-metre steps can miss the one stretch it
+          // stands on, and its lowest ground is often right there.
+          if (is !== was) {
+            let lo = (k - 1) / n, hi = f;
+            for (let i = 0; i < 8; i++) {
+              const mid = (lo + hi) / 2, p = pt(mid);
+              if ((ground(p[0], p[1]) !== null) === was) lo = mid; else hi = mid;
+            }
+            sample(...pt(was ? lo : hi));
+          }
+          was = is;
         }
       }
       if (gapLo === Infinity) { state.set(pc, null); continue; }

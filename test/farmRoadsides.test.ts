@@ -1,10 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { planRoad, SegmentIndex } from "../src/core/road";
 import { withDefaults } from "../src/core/options";
-import { buildFarmRoadsides, farmTextures, FENCE_BACK, findDriveways, gridProfile, isFarmDrive, placeCattleGrids, type FarmLine } from "../src/core/farmRoadsides";
+import { buildFarmRoadsides, farmTextures, FENCE_BACK, findDriveways, gateLeaf, gridProfile, isFarmDrive, placeCattleGrids, type FarmLine } from "../src/core/farmRoadsides";
 import { buildTrack, type DataSources } from "../src/core/track";
 import { DemGrid } from "../src/core/elevation";
-import { readKn5, type Kn5MeshNode, type Kn5Node } from "../src/core/kn5";
+import { checkGround } from "../src/core/groundCheck";
+import { IDENTITY, readKn5, type Kn5MeshNode, type Kn5Node } from "../src/core/kn5";
 import type { LngLat, Vec2 } from "../src/core/geo";
 
 // A 7 m country road running east along y = 0 (left of travel is north, +y).
@@ -141,6 +142,68 @@ describe("buildFarmRoadsides", () => {
     expect(r.nodes).toHaveLength(0);
   });
 });
+
+describe("farm gates and fences on a slope (Cape Naturaliste)", () => {
+  const group = (name: string, children: Kn5Node[]): Kn5Node => ({ kind: "node", name, transform: IDENTITY, children });
+  const judge = (nodes: Kn5Node[], g: (x: number, y: number) => number) =>
+    checkGround(group("t", [group("FARMROAD", nodes.filter((n) => n.name.startsWith("FURNITURE")))]), { ground: (x, y) => g(x, y) }).off;
+  const one: FarmLine[] = [{ cls: "track", pts: [[100, 0], [100, 40]] }];
+
+  it("stands every post, wire and leaf on the ground over a steep grade and a bank past the fence", () => {
+    // 15 % along the road, and the paddock rising 40 % from just past the fence line.
+    const g = (x: number, y: number) => 0.15 * x + 0.4 * Math.max(0, Math.abs(y) - (3.5 + fenceE + 0.5));
+    for (let seed = 0; seed < 12; seed++) {
+      const lines: FarmLine[] = [{ cls: "track", pts: [[60 + seed * 23.3, 0], [60 + seed * 23.3, 40]] }];
+      const res = buildFarmRoadsides({ lines, cattleGrids: [], plan, index, opts, ground: g });
+      expect(res.drives.length).toBe(1);
+      expect(judge(res.nodes, g)).toEqual([]);
+    }
+  });
+
+  it("strings no wire from a gate post that isn't there", () => {
+    const g = (x: number) => 0.1 * x;
+    const gate = findDriveways(one, plan, index, opts)[0].gate!;
+    // Post B (east of the gate) stands on something: blocked within a metre of it.
+    const postB: Vec2 = [gate[0] + 2.5, gate[1]];
+    const blocked = (x: number, y: number) => Math.hypot(x - postB[0], y - postB[1]) < 1;
+    const res = buildFarmRoadsides({ lines: one, cattleGrids: [], plan, index, opts, ground: g, blocked });
+    const wire = byNameIn(res.nodes, /^FURNITURE_FARM_WIRE_/).flatMap(verts);
+    expect(wire.length).toBeGreaterThan(0);
+    for (const [x, y] of wire) expect(Math.hypot(x - postB[0], y - postB[1])).toBeGreaterThan(1);
+    expect(judge(res.nodes, g)).toEqual([]);
+  });
+
+  it("runs each strand from post to post at the same height over the ground at both", () => {
+    const g = (x: number) => 0.2 * x;
+    const res = buildFarmRoadsides({ lines: one, cattleGrids: [], plan, index, opts, ground: g });
+    const wire = byNameIn(res.nodes, /^FURNITURE_FARM_WIRE_/).flatMap(verts);
+    const lifts = wire.map(([x, , z]) => z - g(x));
+    // Four strands, 0.3 to 1.05 m up (and their 8 mm thickness), wherever along the span.
+    for (const h of lifts) expect([0.3, 0.55, 0.8, 1.05].some((s) => Math.abs(h - s) < 0.006)).toBe(true);
+    expect(judge(res.nodes, g)).toEqual([]);
+  });
+});
+
+describe("gateLeaf", () => {
+  const post: Vec2 = [0, 10], fdir: Vec2 = [1, 0], dir: Vec2 = [0, 1];
+  const never = () => false;
+  it("swings open where the paddock is level", () => {
+    const leaf = gateLeaf(post, fdir, dir, 4, [Math.PI / 2, 0], () => 0, never)!;
+    expect(leaf[1]).toBeCloseTo(1, 6);
+  });
+  it("stays shut where the paddock rises behind the fence", () => {
+    const leaf = gateLeaf(post, fdir, dir, 4, [Math.PI / 2, 0], (_x, y) => 0.3 * Math.max(0, y - 10), never)!;
+    expect(leaf[0]).toBeCloseTo(1, 6);
+  });
+  it("hangs no leaf where it fits no way, or something stands in its way", () => {
+    expect(gateLeaf(post, fdir, dir, 4, [Math.PI / 2, 0], (x, y) => 0.3 * Math.max(0, y - 10) + 0.1 * x, never)).toBeNull();
+    expect(gateLeaf(post, fdir, dir, 4, [Math.PI / 2, 0], () => 0, (x, y) => x > 1 || y > 11)).toBeNull();
+  });
+});
+
+function byNameIn(nodes: Kn5MeshNode[], re: RegExp): Kn5MeshNode[] {
+  return nodes.filter((n) => re.test(n.name));
+}
 
 function meshes(n: Kn5Node): Kn5MeshNode[] {
   return n.kind === "mesh" ? [n] : n.children.flatMap(meshes);
