@@ -53,6 +53,7 @@ import { withBayBands, type BayBox } from "./bayLanes";
 import { buildTerrainChunk, isStreetNode, makeTerrainFn, meshTop, planTerrainChunks, streetCeiling, underStreets, type TerrainChunk } from "./terrain";
 import { PHYSICS_GROUND, ROAD_SURFACE, sceneGround, SINK, topSurface } from "./sceneGround";
 import { footOnRoad, onRoadFrom } from "./poleSpot";
+import { clearPieces } from "./pieceClear";
 import { clearBays, feetNear } from "./padClear";
 import { BAY_ASPHALT, bayHeight } from "./bayGround";
 import { ASPHALT, offAsphaltAt } from "./parkedCheck";
@@ -1567,7 +1568,7 @@ export async function buildTrack(
     textures.push({ name: "signart.png", data: atlas.data });
     materials.push({ ...material("signart", "signart.png", { ambient: 0.55, diffuse: 0.45, specular: 0.15, exp: 20 }), shader: "ksPerPixelAT", alphaTested: true });
   }
-  const furniture = buildPieces(pieces, atlas);
+  const furniture = buildPieces(clearPieces(pieces, poleOnRoad, ground).pieces, atlas);
   // Houses: the wall facing the street (frontage houses know theirs; for the
   // rest it's the wall nearest a road), then the fences and garden that go with it.
   const roadGap = (x: number, y: number) => {
