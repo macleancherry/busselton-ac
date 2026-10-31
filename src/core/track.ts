@@ -13,7 +13,6 @@ import { trafficJson, type TrafficRoad } from "./traffic";
 import { townCentreFromMap, zoneRoads } from "./trafficZones";
 import autotestLua from "./lua/autotest.lua?raw";
 import { buildGroynes, buildPiers, pierDeckZ, SEA_LEVEL, buildSea, jettyLights, buildSeawall, deckTexture, rockTexture, SeaMask, seaTexture, withSeabed, type CoastPolygon } from "./coast";
-import type { GroundDetail, GroundLayer } from "./ground";
 import { BeachLook, buildPhotoSea, buildShoreFoam, foamMaterial, foamTexture, sandDetailTexture, seaSurfaceMaterial, seaSurfaceTexture, withSandDetail, type SeaPhoto } from "./photoSea";
 import { aiHintsIni, buildAiLine } from "./aiLine";
 import { Area, areaRings, makeCover } from "./area";
@@ -162,8 +161,6 @@ export interface DataSources {
   farmland?: FarmPolygon[];
   /** Busselton fork: what stands on the jetties (osm.ts fetchPierFeatures; jetty.ts builds it). */
   jetty?: { railways: LngLat[][]; platforms: { pts: LngLat[]; shelter: boolean }[]; buildings: { pts: LngLat[]; name: string }[] };
-  /** Tiled ground detail textures for ksMultilayer terrain (lawn, rough, sand, litter); null to keep plain photo terrain. */
-  groundDetails?(): Promise<Record<GroundLayer, GroundDetail> | null>;
   /** Credit line for the imagery source(s), written into the README; read after imagery is fetched. */
   imageryCredit?: string | (() => string);
   /** Busselton fork: credit line for the elevation model(s) used (e.g. GA's 5 m DEM for WA); empty or absent = the global terrain tiles. */

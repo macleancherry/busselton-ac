@@ -128,7 +128,6 @@ If you change the box, update `STATE_DEMS.wa.box` in `src/services/tiles.ts` to 
 | Aerial photos (fallback) | Esri World Imagery | Personal use |
 | Roads, buildings, names | OpenStreetMap, via OpenFreeMap | ODbL |
 | Signs and poles (optional) | Mapillary | CC BY-SA, don't publish tracks with it |
-| Ground detail textures | ambientCG | CC0 |
 
 Fine for racing with your mates. Don't publish or sell tracks built with the aerial photos or Mapillary data. For a version you could share publicly, set imagery to Off and leave Mapillary out.
 
