@@ -25,6 +25,7 @@ import { withDefaults, type BuildOptions } from "./options";
 import { planRoad, type RoadPlan } from "./road";
 import type { LngLat, LocalProjection } from "./geo";
 import { simplify } from "./polyline";
+import { pitLaneFiles } from "./pitLane";
 import { clearAiPoint, junctionsOn, type GridAvoid } from "./gridSlots";
 
 type Vec2 = [number, number];
@@ -418,6 +419,8 @@ export function layoutFiles(world: World, layout: LayoutSpec, trackObjects: (pla
       dummy("AC_TIME_0_R", [ahead[0] - left[0] * 5, h0, -(ahead[1] - left[1] * 5)], f3),
     );
     files[`${slug}/layout_${layout.id}.kn5`] = dummiesKn5(layout.id, dummies);
+    // A pit lane past the first AI box, and the ideal line (pitLane.ts).
+    if (ai.length > 1) Object.assign(files, pitLaneFiles(base, ai, files[`${base}/ai/fast_lane.ai`], dummies, closed));
     const challenges = layoutChallengesIni(layout.name, null, (p) => proj.toLocal(p), (x, y) => height(x, y) ?? spots[0].h ?? 0, layout.challenges);
     if (challenges) files[`${base}/data/challenges.ini`] = enc.encode(challenges);
     // Busselton fork: cruise mode (cruise.ts): in free roam every landmark is a sight.
@@ -440,6 +443,8 @@ export function layoutFiles(world: World, layout: LayoutSpec, trackObjects: (pla
     // The grid on a straight, clear of the world's roundabouts and of the streets that meet the route.
     const dummies = trackObjects(plan, opts, worldAvoid(world, plan.samples.map((smp) => smp.pos)));
     files[`${slug}/layout_${layout.id}.kn5`] = dummiesKn5(layout.id, dummies);
+    // A pit lane past the grid's boxes, and the ideal line (pitLane.ts).
+    Object.assign(files, pitLaneFiles(base, ai, files[`${base}/ai/fast_lane.ai`], dummies, plan.closed));
     const ground = (x: number, y: number) => height(x, y) ?? hs[0];
     // Busselton fork: the layout's hand-picked checkpoints and, point to point, its time trial.
     const challenges = layoutChallengesIni(layout.name, { plan, dummies }, (p) => proj.toLocal(p), ground, layout.challenges, opts.timeTrialSectors);

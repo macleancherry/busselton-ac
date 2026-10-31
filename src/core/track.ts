@@ -29,6 +29,7 @@ import { BACKDROP_CHUNK, backdropSurface, buildBackdropChunk, planBackdrop } fro
 import { writeFastLaneAi } from "./aiSpline";
 import { gridFront, gridSlot, GRID_GAP, type GridAvoid } from "./gridSlots";
 import { keepLeftOffsets } from "./keepLeft";
+import { pitLaneFiles } from "./pitLane";
 import { outlinePng, previewPng, readme, slugify, streetMap, surfacesIni, trackMap, uiTrackJson, type TrackMeta } from "./acFiles";
 import type { HeightFn } from "./elevation";
 import { boundsOf, LocalProjection, type Bounds, type LngLat, type Vec2 } from "./geo";
@@ -1960,6 +1961,8 @@ export async function buildTrack(
     ...(sounds?.length && soundsBy === "lua" ? { [`${slug}/extension/${SOUND_SCRIPT}`]: enc.encode(soundLua(sounds)) } : {}),
     [`${slug}/${slug}.kn5`]: kn5,
     [`${slug}/ai/fast_lane.ai`]: ai,
+    // Busselton fork: a pit lane past the grid's boxes, and the ideal line (pitLane.ts).
+    ...pitLaneFiles(slug, aiPoints, ai, trackObjects(plan, opts, gridAvoid), plan.closed),
     [`${slug}/data/ai_hints.ini`]: enc.encode(aiHintsIni(aiPoints, (d) => {
       const last = aiPoints[aiPoints.length - 1], total = last.distance + last.length;
       return speedAt(Math.min(nS - 1, Math.max(0, Math.round((d / total) * (nS - 1)))));

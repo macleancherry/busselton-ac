@@ -24,6 +24,9 @@ describe("layouts", () => {
     expect(keys).toContain(`${slug}/sprint/ai/fast_lane.ai`);
     expect(keys).toContain(`${slug}/sprint/data/surfaces.ini`);
     expect(keys).toContain(`${slug}/sprint/map.png`);
+    // A pit lane past the grid and the ideal line (pitLane.ts), so AC finds both.
+    expect(readFastLaneAi(r.files[`${slug}/sprint/ai/pit_lane.ai`]).length).toBeGreaterThan(10);
+    expect(keys).toContain(`${slug}/sprint/data/ideal_line.ai`);
     expect(keys).toContain(`${slug}/ui/sprint/ui_track.json`);
     expect(keys).toContain(`${slug}/models_sprint.ini`);
     expect(keys).not.toContain(`${slug}/ai/fast_lane.ai`);
@@ -40,7 +43,7 @@ describe("layouts", () => {
     expect(height(x, y)!).toBeGreaterThan(9);
     expect(height(x, y)!).toBeLessThan(11);
     const short = layoutFiles(world2, { id: "short", name: "Short", coords: route.slice(5, 30) }, trackObjects);
-    expect(Object.keys(short)).toEqual(expect.arrayContaining([`${slug}/short/ai/fast_lane.ai`, `${slug}/layout_short.kn5`, `${slug}/ui/short/ui_track.json`, `${slug}/models_short.ini`]));
+    expect(Object.keys(short)).toEqual(expect.arrayContaining([`${slug}/short/ai/pit_lane.ai`, `${slug}/short/data/ideal_line.ai`, `${slug}/short/ai/fast_lane.ai`, `${slug}/layout_short.kn5`, `${slug}/ui/short/ui_track.json`, `${slug}/models_short.ini`]));
     const start = readKn5(short[`${slug}/layout_short.kn5`]).root.children.find((c) => c.name === "AC_START_0")!;
     const t = (start as { transform: number[] }).transform;
     // On the road: the world's road height there, plus the spawn lift.
@@ -50,6 +53,7 @@ describe("layouts", () => {
     const roam = layoutFiles(world2, { id: "roam", name: "Free Roam", spawns: [{ at: ll(200, 0), heading: 90 }, { at: ll(600, 0), heading: 270 }] }, trackObjects);
     expect(dummyNames(roam[`${slug}/layout_roam.kn5`])).toEqual(expect.arrayContaining(["AC_START_0", "AC_PIT_1", "AC_TIME_0_L"]));
     expect(roam[`${slug}/roam/ai/fast_lane.ai`]).toBe(world2.mainAi);
+    expect(readFastLaneAi(roam[`${slug}/roam/ai/pit_lane.ai`]).length).toBeGreaterThan(10);
     // AI Flood: more pit boxes on the AI line, as many as ui_track.json says, each on the road.
     const roamNames = dummyNames(roam[`${slug}/layout_roam.kn5`]);
     const pits = roamNames.filter((n) => n.startsWith("AC_PIT_"));
