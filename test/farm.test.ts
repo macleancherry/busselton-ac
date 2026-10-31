@@ -192,7 +192,7 @@ describe("farmland in a build", () => {
       widthAt: () => 7,
       farmland: [vineyard],
     };
-    const base = { name: "Farm", imageryZoom: 0, corridor: 70, horizon: 0, trees: 0, buildings: false, raceDress: false, origin: ll(200, 0) };
+    const base = { name: "Farm", imageryZoom: 0, corridor: 70, horizon: 0, trees: 0, buildings: false, origin: ll(200, 0) };
     const built = await buildTrack(route, { ...base, farmland: true }, sources);
     const got = names(built.model.root);
     expect(got.some((n) => n.startsWith("VINES_"))).toBe(true);

@@ -18,7 +18,6 @@ const MAX_HEIGHT = 8192;
 const FONT_STACK = `"Arial Narrow", "Helvetica Neue", Arial, sans-serif`;
 
 const bold = (px: number) => `bold ${px}px ${FONT_STACK}`;
-const italicBold = (px: number) => `italic bold ${px}px ${FONT_STACK}`;
 
 /** Fixed box sizes (w, h) by kind; street is sized by its text. */
 const SIZES: Record<Exclude<ArtRequest["kind"], "street">, [number, number]> = {
@@ -34,10 +33,6 @@ const SIZES: Record<Exclude<ArtRequest["kind"], "street">, [number, number]> = {
   bus: [128, 160],
   info: [160, 160],
   gate: [480, 150],
-  banner: [768, 128],
-  feather: [128, 448],
-  lights: [320, 128],
-  flag: [160, 112],
   back: [32, 32],
 };
 
@@ -475,63 +470,6 @@ function drawPiece(ctx: Ctx, item: ArtRequest, w: number, h: number): void {
       ctx.strokeRect(6, 6, w - 12, h - 12);
       ctx.fillStyle = "#f4f4f4";
       fittedText(ctx, text, cx, cy, bold, finish ? 60 : 90, 420);
-      break;
-    }
-    case "banner": {
-      const ink = item.ink || "#fff";
-      ctx.fillStyle = item.colour || "#c8102e";
-      ctx.fillRect(0, 0, w, h);
-      ctx.fillStyle = ink;
-      ctx.fillRect(0, 10, w, 4);
-      ctx.fillRect(0, h - 14, w, 4);
-      fittedText(ctx, text.toUpperCase(), cx, cy, italicBold, 88, w - 60);
-      break;
-    }
-    case "feather": {
-      ctx.beginPath();
-      ctx.moveTo(4, h - 4);
-      ctx.lineTo(4, 44);
-      ctx.quadraticCurveTo(4, 4, 48, 6);
-      ctx.quadraticCurveTo(w - 4, 14, w - 4, 70);
-      ctx.quadraticCurveTo(w - 10, h * 0.6, w * 0.4, h - 4);
-      ctx.closePath();
-      ctx.fillStyle = item.colour || "#c8102e";
-      ctx.fill();
-      ctx.save();
-      ctx.translate(w * 0.42, h / 2 + 10);
-      ctx.rotate(-Math.PI / 2);
-      ctx.fillStyle = item.ink || "#fff";
-      fittedText(ctx, text.toUpperCase(), 0, 0, italicBold, 56, h - 120);
-      ctx.restore();
-      break;
-    }
-    case "lights": {
-      roundRect(ctx, 0, 0, w, h, 10);
-      ctx.fillStyle = "#111";
-      ctx.fill();
-      for (let row = 0; row < 2; row++) {
-        ctx.fillStyle = row ? "#3a0d0b" : "#e0261b";
-        for (let i = 0; i < 5; i++) {
-          ctx.beginPath();
-          ctx.arc(cx + (i - 2) * 60, cy + (row ? 30 : -30), 22, 0, Math.PI * 2);
-          ctx.fill();
-        }
-      }
-      break;
-    }
-    case "flag": {
-      if (text === "chequered") {
-        chequer(ctx, 0, 0, 8, 6, w / 8, h / 6);
-      } else if (text === "blue") {
-        ctx.fillStyle = "#1f4fbf";
-        ctx.fillRect(0, 0, w, h);
-        polygon(ctx, [[0, h - 22], [w - 30, 0], [w, 0], [w, 22], [30, h], [0, h]]);
-        ctx.fillStyle = "#f4d000";
-        ctx.fill();
-      } else {
-        ctx.fillStyle = text === "green" ? "#1f9a3a" : "#f4d000";
-        ctx.fillRect(0, 0, w, h);
-      }
       break;
     }
     case "back":

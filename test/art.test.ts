@@ -24,8 +24,7 @@ describe("sign art layout", () => {
   const SIZES: [ArtKind, number, number][] = [
     ["poi", 384, 160], ["tourist", 384, 160], ["speed", 160, 192], ["stop", 160, 160], ["giveway", 160, 140],
     ["warning", 160, 160], ["chevron", 128, 160], ["noentry", 160, 160], ["keepleft", 128, 160], ["bus", 128, 160],
-    ["info", 160, 160], ["gate", 480, 150], ["banner", 768, 128], ["feather", 128, 448], ["lights", 320, 128],
-    ["flag", 160, 112], ["back", 32, 32],
+    ["info", 160, 160], ["gate", 480, 150], ["back", 32, 32],
   ];
 
   it("sizes each kind per the table", () => {
@@ -70,7 +69,7 @@ describe("sign art layout", () => {
   it("uses the smallest power-of-two height of at least 64", () => {
     expect(layoutArt([{ key: "b", kind: "back" }], measure).height).toBe(64);
     expect(layoutArt([{ key: "s", kind: "stop" }], measure).height).toBe(256); // 4 + 160 + 4
-    expect(layoutArt([{ key: "f", kind: "flag" }], measure).height).toBe(128); // 4 + 112 + 4
+    expect(layoutArt([{ key: "s", kind: "street", text: "x" }], measure).height).toBe(128); // 4 + 64 + 4
   });
 
   it("gives half-pixel-inset cells that don't overlap", () => {
@@ -138,7 +137,7 @@ describe("sign art layout", () => {
   });
 
   it("refuses an atlas taller than 8192", () => {
-    const many: ArtRequest[] = Array.from({ length: 300 }, (_, i) => ({ key: `f${i}`, kind: "feather" as const }));
+    const many: ArtRequest[] = Array.from({ length: 300 }, (_, i) => ({ key: `g${i}`, kind: "gate" as const, text: "START" }));
     expect(() => layoutArt(many, measure)).toThrow(/300 pieces/);
   });
 });

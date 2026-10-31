@@ -265,7 +265,7 @@ describe("in a build", () => {
       widthAt: () => 7,
       paths: [{ kind: "shared", pts: [ll(50, 15), ll(550, 18)] }, { kind: "foot", pts: [ll(100, -14), ll(500, -20)] }],
     };
-    const built = await buildTrack(route, { name: "Paths", imageryZoom: 0, corridor: 40, horizon: 400, trees: 0, buildings: false, raceDress: false, origin: ll(300, 0) as [number, number] }, sources);
+    const built = await buildTrack(route, { name: "Paths", imageryZoom: 0, corridor: 40, horizon: 400, trees: 0, buildings: false, origin: ll(300, 0) as [number, number] }, sources);
     const all: Kn5MeshNode[] = [];
     const walk = (n: Kn5Node) => (n.kind === "mesh" ? all.push(n) : n.children.forEach(walk));
     walk(built.model.root);

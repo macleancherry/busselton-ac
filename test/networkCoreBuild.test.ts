@@ -29,7 +29,7 @@ const sources: DataSources = {
   },
   osm: { buildings: [], guardRails: [], roundaboutRings: [{ pts: ring }], poles: [], lamps: [], powerLines: [], barriers: [], groynes: [] },
 };
-const opts = { name: "Net Core", imageryZoom: 0, corridor: 30, horizon: 0, trees: 0, buildings: false, raceDress: false, origin: ll(300, 0) as [number, number], area: [ll(-20, -40), ll(620, -40), ll(620, 200), ll(-20, 200)] as [number, number][] };
+const opts = { name: "Net Core", imageryZoom: 0, corridor: 30, horizon: 0, trees: 0, buildings: false, origin: ll(300, 0) as [number, number], area: [ll(-20, -40), ll(620, -40), ll(620, 200), ll(-20, 200)] as [number, number][] };
 const names = (n: Kn5Node): string[] => (n.kind === "mesh" ? [n.name] : n.children.flatMap(names));
 
 describe("networkCore in an area build", () => {

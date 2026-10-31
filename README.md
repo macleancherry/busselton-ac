@@ -17,7 +17,7 @@ v0.7: driven in game, tested by an AI driver on the workstation. To install, dra
 
 ## What this fork adds
 
-On top of upstream's builder (roads, roundabouts, building types, ground detail, signs, race-day dressing):
+On top of upstream's builder (roads, roundabouts, building types, ground detail, signs):
 
 - **WA data.** Landgate's free Locate mosaic for imagery anywhere in WA, and Geoscience Australia's 5 m bare-earth DEM from Busselton to Ludlow, shipped in `public/dem/wa`.
 - **Headless builds.** `scripts/headless/build-track.mjs` builds a track from a route file in headless Chromium: the same code as the UI, no clicking. It retries map data and stops if any is still missing ("MISSING DATA"), so a build never comes out quietly different. Downloads are cached in `out/cache` (14 days; `NO_CACHE=1` for fresh data), so a rebuild takes about half the time.

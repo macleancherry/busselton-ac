@@ -4,18 +4,16 @@
 
 export type ArtKind =
   | "street" | "poi" | "tourist" | "speed" | "stop" | "giveway" | "warning" | "chevron"
-  | "noentry" | "keepleft" | "bus" | "info" | "back" | "gate" | "banner" | "feather" | "lights" | "flag";
+  | "noentry" | "keepleft" | "bus" | "info" | "back" | "gate";
 
 /** One piece of art. `key` is its identity: geometry refers to art by key. */
 export interface ArtRequest {
   key: string;
   kind: ArtKind;
-  /** What it shows, or a hint for the kind (e.g. "left", "kangaroo", "chequered"). */
+  /** What it shows, or a hint for the kind (e.g. "left", "kangaroo", "FINISH"). */
   text?: string;
-  /** CSS colour: the panel of a poi, the background of a banner or feather. */
+  /** CSS colour: the panel of a poi. */
   colour?: string;
-  /** CSS colour of sponsor lettering (banner, feather). */
-  ink?: string;
 }
 
 /** Where a piece landed in the atlas: UVs with v = 0 at the top, and width / height in pixels. */

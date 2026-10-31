@@ -197,7 +197,7 @@ describe("in a build", () => {
     };
     const area: [number, number][] = [ll(-20, -60), ll(620, -60), ll(620, 200), ll(-20, 200)];
     const built = await buildTrack(route, {
-      name: "Ground", imageryZoom: 0, corridor: 50, horizon: 300, trees: 0, raceDress: false, origin: ll(300, 0) as [number, number],
+      name: "Ground", imageryZoom: 0, corridor: 50, horizon: 300, trees: 0, origin: ll(300, 0) as [number, number],
       area, traffic: true, streetSigns: true, landmarks: true, guidePosts: true, banking: false,
     }, sources);
     const r = checkGround(built.model.root);

@@ -20,7 +20,7 @@ import { Area, areaRings, makeCover } from "./area";
 import { buildJettyPrecinct, JETTY_MATERIALS, type JettyFeatures } from "./jetty";
 import jettyTrainScript from "./lua/jetty_train.lua?raw";
 import { jettyTrainLua } from "./jettyTrain";
-import { buildRaceFlags, flagMaterial, RACE_FLAG_MATERIAL, raceFlagTexture, takeRaceFlags } from "./flags";
+import { flagMaterial } from "./flags";
 import { treeList, writeTreeBin } from "./cspTrees";
 import { cspTreeAngle, horizonTree, plantTree } from "./treePick";
 import { MODEL_NAMES, treeModel } from "./treeModels";
@@ -84,7 +84,6 @@ import { ArtList, type ArtRenderer } from "./art";
 import { challengeFiles } from "./challengeFiles";
 import { cruiseFiles } from "./cruise";
 import { buildPieces, gateSigns, kangarooSigns, landmarks, mergeSightings, seenFeatures, streetSigns } from "./furniture";
-import { barrierConcreteTexture, catchFenceTexture, crowdTexture, raceDressing, tyreWallTexture } from "./raceDress";
 import { carParkLights, placeUtilities } from "./utilities";
 import { buildVergeConcrete, laybacks, letterboxes, readVerge } from "./footpaths";
 import { findLines, paintCandidates, type ImageLine } from "./paintLines";
@@ -247,8 +246,8 @@ export interface TrackResult {
     streetLights: number;
     /** Car park light poles (two lanterns each). */
     carParkLights: number;
-    /** Race-day dressing: metres of barrier, a grandstand or not, people. */
-    race: { barrierMetres: number; grandstand: boolean; spectators: number } | null;
+    /** Never set (race dressing was deleted); the old browser UI still reads it, so it goes with the UI. */
+    race?: { barrierMetres: number; grandstand: boolean; spectators: number } | null;
     /** Footpath read off the photo, metres (both sides), and driveway crossovers. */
     footpathMetres: number;
     driveways: number;
@@ -1484,28 +1483,6 @@ export async function buildTrack(
   const jettyPrecinct = jettyFeatures ? buildJettyPrecinct(jettyFeatures, pierDeckZ(shoreGround, sea), onJetty, SEA_LEVEL) : { nodes: [], footprints: [] };
   // Signs and street furniture; their artwork is drawn in one atlas.
   const art = new ArtList();
-  // Race day: barriers, fences, banners, gantries, a grandstand and crowds where the road is the race.
-  const race = opts.raceDress ? raceDressing(plan, opts, art, {
-    ground,
-    blocked: (x, y) => {
-      const n = index.nearest(x, y, 30);
-      return (!!n && n.dist < index.at(n).width / 2 + 0.2) || streetIndex.clearance(x, y) < 0.8 || kept.some((b) => pointInRing(x, y, b.ring));
-    },
-  }, opts.sponsors) : null;
-  if (race) {
-    const plainLight = { ambient: 0.45, diffuse: 0.45, specular: 0.05, exp: 10 };
-    addScenery("race_concrete.png", barrierConcreteTexture(), material("race_concrete", "race_concrete.png", plainLight));
-    addScenery("race_tyres.png", tyreWallTexture(), material("race_tyres", "race_tyres.png", { ambient: 0.4, diffuse: 0.4, specular: 0.1, exp: 15 }));
-    addScenery("marshal.png", solidTexture([236, 110, 24]), material("marshal", "marshal.png", plainLight));
-    const cutout = (name: string, png: Uint8Array, light = { ambient: 0.5, diffuse: 0.4, specular: 0.05, exp: 10 }) =>
-      addScenery(`${name}.png`, png, { ...material(name, `${name}.png`, light), shader: "ksPerPixelAT", alphaTested: true });
-    cutout("race_fence", catchFenceTexture(), { ambient: 0.45, diffuse: 0.45, specular: 0.3, exp: 30 });
-    cutout("race_crowd", crowdTexture(false));
-    cutout("race_spectators", crowdTexture(true));
-  }
-  // Busselton fork: the marshal flags as cloth that waves (flags.ts), not printed faces.
-  const raceFlags = race && opts.wavingFlags !== false ? takeRaceFlags(race.pieces) : null;
-  if (raceFlags?.flags.length) addScenery("flag_race.png", raceFlagTexture(), flagMaterial(RACE_FLAG_MATERIAL, "flag_race.png"));
   const pieces = [
     ...(opts.streetSigns ? streetSigns(streetPlan, plan, opts, art, ground, poleOnRoad) : []),
     ...(opts.landmarks ? landmarks((sources.pois ?? []).map((p) => ({ ...p, at: proj.toLocal(p.at) })), plan, index, opts, art,
@@ -1515,8 +1492,7 @@ export async function buildTrack(
     ...seenFeatures((sources.seen ?? []).map((f) => ({ ...f, at: proj.toLocal(f.at) }))
       .filter((f) => !(signals && /^object--traffic-light/.test(f.value) && signalSites.some((st) => Math.hypot(st.c[0] - f.at[0], st.c[1] - f.at[1]) < 35))),
     plan, index, opts, art, ground, poleOnRoad),
-    // The race gantries replace the plain START and FINISH signs.
-    ...(race ? raceFlags?.rest ?? race.pieces : gateSigns(plan, opts, art, ground)),
+    ...gateSigns(plan, opts, art, ground),
     // Busselton fork: kangaroo signs out of town (not on kerbed streets, limit 80 or more).
     ...(opts.streetSigns ? kangarooSigns(plan, opts, art, (i) => town[i] === 0 && speedAt(i) >= 80 && !kerbedNear[i],
       (i, side) => mouth(side, plan.samples[i].s) || mouthList.some((j) => j.side === side && Math.abs(j.s - plan.samples[i].s) < j.width / 2 + 6), ground) : []),
@@ -1803,7 +1779,6 @@ export async function buildTrack(
         group("SIDESTREETS", sideStreets),
         group("JUNCTIONS", netNodes),
         group("FURNITURE", furniture),
-        group("RACE", [...(race?.nodes ?? []), ...buildRaceFlags(raceFlags?.flags ?? [])]),
         group("WIRES", utilities.wires),
         group("ROUNDABOUTS", [...ringsClear.nodes, ...shrubs, ...ringWalls]),
         group("MARKINGS", markings),
@@ -2158,7 +2133,6 @@ export async function buildTrack(
       driveways: verge?.drives.length ?? 0,
       streetLights: utilities.lights.length,
       carParkLights: carPark.lights.length / 2,
-      race: race?.stats ?? null,
       streetSigns: pieces.filter((p) => p.kind === "blade").length,
       signs: pieces.filter((p) => p.kind === "face").length,
       railMetres: needs.reduce((n, side) => n + side.filter(Boolean).length * opts.spacing, 0),

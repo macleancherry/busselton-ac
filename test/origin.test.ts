@@ -8,7 +8,7 @@ const mx = 111_320 * Math.cos((lat0 * Math.PI) / 180);
 const route: LngLat[] = [];
 for (let x = 0; x <= 800; x += 20) route.push([lng0 + x / mx, lat0]);
 const sources: DataSources = { dem: async (proj, bounds, z) => DemGrid.fromFunction(proj, z, bounds, () => 10).sample, widthAt: () => 7 };
-const opts = { name: "Origin", imageryZoom: 0, corridor: 30, horizon: 0, trees: 0, buildings: false, raceDress: false };
+const opts = { name: "Origin", imageryZoom: 0, corridor: 30, horizon: 0, trees: 0, buildings: false };
 
 describe("fixed map origin", () => {
   it("keeps the map where it is when the route changes", { timeout: 60_000 }, async () => {

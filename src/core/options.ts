@@ -12,7 +12,6 @@
 
 import type { ChallengesOption } from "./challenges";
 import type { LngLat } from "./geo";
-import { DEFAULT_SPONSORS } from "./sponsors";
 
 export interface BuildOptions {
   // Road shape and size
@@ -129,9 +128,9 @@ export interface BuildOptions {
   trackSounds?: boolean | "lua" | "fmod";
   /** On unless false. */
   poleClear?: boolean;
-  raceDress: boolean;
-  /** Comma-separated sponsor names. */
-  sponsors: string;
+  /** Ignored (race dressing was deleted); the old browser UI still sends them, so they go with the UI. */
+  raceDress?: boolean;
+  sponsors?: string;
 
   // Road surface, markings, kerbs, parking
   roadSurface: "auto" | "asphalt" | "chipseal" | "photo";
@@ -173,7 +172,7 @@ export const OPTIONAL_OPTION_KEYS: readonly (keyof BuildOptions)[] = Object.free
   "origin", "area", "layout", "unsealed", "gravelRoads", "networkCore",
   "terrainLodFarTol", "photoSea", "zones", "pureTuning", "rainHollows",
   "cspTrees", "houseStyle", "clears", "armco", "farmland", "farmRoadsides", "wavingFlags",
-  "jettyTrain", "trackSounds", "poleClear",
+  "jettyTrain", "trackSounds", "poleClear", "raceDress", "sponsors",
   "kerbside", "laneBayClear", "parkedBays", "padClear", "trafficLights",
   "aiKeepLeft", "streetsValid", "challenges", "timeTrialSectors", "driftZones",
 ] as const);
@@ -225,8 +224,6 @@ const defaults: RequiredFields<BuildOptions> = {
   sideStreets: true,
   guardRails: true,
   guidePosts: true,
-  raceDress: false,
-  sponsors: DEFAULT_SPONSORS,
 
   roadSurface: "auto",
   markings: true,
