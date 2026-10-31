@@ -5,6 +5,15 @@
 -- pixel = (X + X_OFFSET) / SCALE_FACTOR, Z likewise). On a track without them the window says so.
 --
 -- The map follows your car, north up. Scroll in the window (or the + and - buttons) to zoom.
+-- Under the map: the time of day, with -1h and +1h buttons that move CSP's weather clock (the same
+-- call CSP Debug's time buttons make). In a test run, test_clock.lua sets the time run-test.ps1 asked for.
+
+local testClock = require('test_clock')
+testClock.init()
+
+function script.update(dt)
+  testClock.update(dt)
+end
 
 local mapPath, iniOk, status = nil, false, ''
 local W, H, scale, xOff, zOff = 0, 0, 1, 0, 0
@@ -102,6 +111,15 @@ function windowMain(dt)
   if ui.button('+') then zoom = math.max(0.25, zoom / 1.5) end
   ui.sameLine()
   ui.text(string.format('  %.0f m across', w * zoom * scale))
+  local now = testClock.now()
+  if now then
+    ui.sameLine()
+    ui.text('   ' .. testClock.hhmm(now))
+    ui.sameLine()
+    if ui.button('-1h') then testClock.shift(-3600) end
+    ui.sameLine()
+    if ui.button('+1h') then testClock.shift(3600) end
+  end
   if ui.windowHovered() then
     local wheel = ui.mouseWheel()
     if wheel > 0 then zoom = math.max(0.25, zoom / 1.2) elseif wheel < 0 then zoom = math.min(8, zoom * 1.2) end

@@ -21,15 +21,26 @@
   The car is an everyday hatch (the Abarth 500 that comes with AC) driven at AI level 75, so the
   test drives a town street the way a person would, not flat out in a race car. -Car and -AiLevel
   change them (-Car "" keeps the car from the last session Content Manager started).
-  -Night drives at 22:00 (-Time sets another time, e.g. -Time 19:30 for dusk). Two ways, as CSP
-  versions differ (CSP's weather FX must be on: AC alone stops at 18:00):
+  -Night drives at 22:00 (-Time sets another time, e.g. -Time 10:00 for daylight, 19:30 for dusk).
+  Three ways, as CSP versions differ (CSP's weather FX must be on: AC alone stops at 18:00):
     1. race.ini as Content Manager writes it: SUN_ANGLE unclamped (22:00 is 144; CM's
        Game.ConditionProperties.GetSunAngle in gro-ove/actools doesn't clamp, AC does, CSP reads the
-       full angle), and none of the keys an earlier CM session may have left that override the time.
-    2. In retest 3 (CSP 0.2.12-preview1, Pure 2.57) weather FX still started at the PC's clock
-       ("Weather FX: start time=..." in the CSP log), so race.ini's [BUSSELTON_TEST] TIME also tells the
-       track script the time, and it moves CSP's weather clock there when the drive starts
-       (ac.setWeatherTimeOffset, as CSP Debug's time buttons do) and logs a "clock ..." note.
+       full angle).
+    2. A forced date and time, the way Content Manager forces one for a CSP new mode whose manifest
+       has FORCE_DATETIME (gro-ove/actools AcManager.Tools/GameProperties/NewModeDetails.cs):
+       [LIGHTING] __CM_DATE = a Unix timestamp, __CM_DATE_USE_TIME = 1. We write today (the track's
+       date) at the time asked for, in UTC, using the track's time zone (__TRACK_TIMEZONE_OFFSET, as
+       CM's TrackDetails.cs writes it; 8 h for WA when CM hasn't). In retests 3 and 4 (CSP
+       0.2.12-preview1 b3467, Pure 2.57, pureCtrl) weather FX started at the PC's clock ("Weather FX:
+       start time=..." in the CSP log) whatever SUN_ANGLE said; this is the key CSP reads for a
+       time it must not change.
+    3. If the clock is still off when AC is running, the Busselton Map app moves CSP's weather clock
+       there (ac.setWeatherTimeOffset, as CSP Debug's time buttons do; CSP gives that call to Lua apps
+       but not to track scripts, so autotest.lua's own try was nil in retest 4), from race.ini's
+       [BUSSELTON_TEST] TIME. Both scripts log "clock ..." notes, and the summary below prints them
+       with CSP's start time, so a run that stays at the wrong time says why. -SkipInstall doesn't
+       reinstall the apps: run one normal install after pulling.
+  In game, the Busselton Map window has the time with -1h and +1h buttons (CSP Debug has the same).
   -Weather sets race.ini's weather by name.
   -Rain drives in the rain: race.ini's weather becomes a rain weather from content\weather (the first
   of heavy rain, rain, then anything with "rain" in its name; -Weather names one instead). The track
@@ -186,6 +197,16 @@ function Set-Ini([string[]]$lines, [string]$section, [string]$key, [string]$valu
   if (-not $seen) { $out.Add(""); $out.Add("[$section]"); $out.Add("$key=$value") }
   return ,$out.ToArray()
 }
+# race.ini's [LIGHTING] __CM_DATE for a forced time of day: a Unix timestamp (UTC) for the track's
+# date at that local time. $timeOfDay is seconds after the track's local midnight, $tz the track's
+# offset from UTC in seconds, $utcNow the PC's clock in UTC. E.g. 22:00 in WA (tz 28800) on
+# 31 Oct 2026 is 1793455200 (14:00 UTC); test/autotestLua.test.ts checks the same sum.
+function Get-BusseltonForcedDate([int]$timeOfDay, [int]$tz, [DateTime]$utcNow) {
+  $localDate = $utcNow.AddSeconds($tz).Date
+  $epoch = New-Object DateTime 1970, 1, 1, 0, 0, 0, ([DateTimeKind]::Utc)
+  $sinceEpoch = [DateTime]::SpecifyKind($localDate, [DateTimeKind]::Utc) - $epoch
+  return [long]$sinceEpoch.TotalSeconds + $timeOfDay - $tz
+}
 $backup = "$raceIni.before-test"
 Copy-Item $raceIni $backup -Force
 $ini = Get-Content $raceIni
@@ -227,15 +248,29 @@ if ($Cars -gt 0) {
 # Keys an earlier Content Manager session may have left that override the time of day: a CSP new
 # mode's forced date and time (__CM_DATE with __CM_DATE_USE_TIME=1, CM's NewModeDetails.cs), a picked
 # date (WeatherSpecificDate.cs) and a weather's lighting backup (__CM_UNCLAMPED_SUN_ANGLE,
-# WeatherSpecificLightingHelper.cs). CM's Game.ClearUpIniFile drops the same ones.
+# WeatherSpecificLightingHelper.cs). CM's Game.ClearUpIniFile drops the same ones. A -Time run
+# writes __CM_DATE and __CM_DATE_USE_TIME again below.
 foreach ($k in "__CM_DATE", "__CM_DATE_USE_TIME", "__CM_UNCLAMPED_SUN_ANGLE") { $ini = Remove-Ini $ini "LIGHTING" $k }
 # And a time from a test run that never got to restore race.ini.
 $ini = Remove-Ini $ini "BUSSELTON_TEST" "TIME"
 if ($null -ne $sunAngle) {
-  # As Content Manager writes it: unclamped (AC clamps to 08:00..18:00 itself; CSP reads the full angle).
+  # The track's time zone, as CM's TrackDetails.cs writes it (seconds east of UTC); every Busselton
+  # AC track is in WA (UTC+8, no daylight saving) when CM hasn't written one.
+  $tz = 0
+  if (-not [int]::TryParse((Get-Ini $ini "LIGHTING" "__TRACK_TIMEZONE_OFFSET"), [ref]$tz)) {
+    $tz = 28800
+    foreach ($kv in @(@("__TRACK_TIMEZONE_OFFSET", "28800"), @("__TRACK_TIMEZONE_BASE_OFFSET", "28800"), @("__TRACK_TIMEZONE_DTS", "0"))) {
+      $ini = Set-Ini $ini "LIGHTING" $kv[0] $kv[1]
+    }
+  }
+  $cmDate = Get-BusseltonForcedDate $timeOfDay $tz ([DateTime]::UtcNow)
   foreach ($kv in @(
+    # 1. As Content Manager writes it: unclamped (AC clamps to 08:00..18:00 itself; CSP reads the full angle).
     @("LIGHTING", "SUN_ANGLE", $sunAngle.ToString("0.00", $inv)), @("LIGHTING", "TIME_MULT", "1"),
-    # The track script moves CSP's weather clock here if weather FX started elsewhere (see .NOTES).
+    # 2. A forced date and time, as CM writes it for a new mode's FORCE_DATETIME (see .NOTES).
+    @("LIGHTING", "__CM_DATE", "$cmDate"), @("LIGHTING", "__CM_DATE_USE_TIME", "1"),
+    # 3. The Busselton Map app (and the track script, where CSP lets it) moves CSP's weather clock
+    # here if weather FX started elsewhere anyway (see .NOTES).
     @("BUSSELTON_TEST", "TIME", "$timeOfDay")
   )) { $ini = Set-Ini $ini $kv[0] $kv[1] $kv[2] }
 }
@@ -433,6 +468,14 @@ Write-Host ("  started:   " + ($(if ($start) { $start } else { "no BTEST lines: 
 Write-Host ("  finished:  " + ($(if ($finish) { $finish } else { "no finish line (timed out or crashed)" })))
 Write-Host "  off-road events: $off"
 if ($env0) { Write-Host ("  time of day: " + (($env0 -split ',', 11)[10])) }
+if ($Time) {
+  # Where CSP's weather FX started, and what the app and the track script did about it.
+  $wfx = Get-ChildItem (Join-Path $dest "logs") -Recurse -File | Select-String -Pattern 'Weather FX: start time=' -SimpleMatch | Select-Object -First 1
+  Write-Host ("  weather FX: " + ($(if ($wfx) { $wfx.Line -replace '^.*?(Weather FX: start time=)', '$1' } else { "no start time in the CSP log (is weather FX on?)" })))
+  $clockNotes = @($lines | Where-Object { $_ -match '^BTEST,note,' -and $_ -match 'clock' } | ForEach-Object { ($_ -split ',', 11)[10] })
+  if ($clockNotes.Count) { $clockNotes | ForEach-Object { Write-Host "  $_" } }
+  else { Write-Host "  no clock notes: neither the Busselton Map app nor the track script logged one (is the app installed and on?)" -ForegroundColor Yellow }
+}
 if ($Rain) {
   $rainNow = if ($env0) { [regex]::Match((($env0 -split ',', 11)[10]), 'rain=([\d.?]+)').Groups[1].Value } else { "" }
   if (-not $rainNow -or $rainNow -eq "?") { Write-Host "  rain: not logged (CSP too old, or the env line is missing)" -ForegroundColor Yellow }

@@ -20,7 +20,10 @@
 -- when the drive starts, the script moves CSP's weather clock there with ac.setWeatherTimeOffset
 -- (the call CSP's own CSP Debug app makes for its time buttons: acc-lua-internal
 -- included-apps/CspDebug/CspDebug.lua), because in retest 3 (CSP 0.2.12-preview1, Pure 2.57) weather FX
--- started at the PC's clock whatever race.ini said. It logs a "clock ..." note either way.
+-- started at the PC's clock whatever race.ini said. CSP only gives that call to Lua apps and tools
+-- (it was nil here in retest 4), so the Busselton Map app (apps/lua/BusseltonMap/test_clock.lua)
+-- does the same; whichever gets there first stores 'moved' under ac.store('busselton.clock') and the
+-- other leaves the clock alone. It logs a "clock ..." note either way.
 
 local MAX_TIME = 480
 local MIN_TIME = 480
@@ -151,12 +154,21 @@ local function clockOff()
 end
 
 -- Night runs: move CSP's weather clock to the time asked for when it's more than 5 minutes off.
+local CLOCK_KEY = 'busselton.clock' -- shared with the Busselton Map app (test_clock.lua)
 local function setClock()
   if not TARGET_TIME then return end
+  local okL, by = pcall(ac.load, CLOCK_KEY)
+  if okL and by == 'moved' then log('note', 'clock: set by the Busselton Map app') return end
   local delta, now = clockOff()
   if not delta then log('note', 'clock: the game time is unreadable, left as it is') return end
   if math.abs(delta) < 300 then return end
+  if type(ac.setWeatherTimeOffset) ~= 'function' then
+    log('note', string.format('clock move from %s to %s failed: track scripts have no ac.setWeatherTimeOffset on this CSP (the Busselton Map app moves it)',
+      hhmm(now), hhmm(TARGET_TIME)))
+    return
+  end
   local ok, err = pcall(ac.setWeatherTimeOffset, delta, true)
+  if ok then pcall(ac.store, CLOCK_KEY, 'moved') end
   log('note', ok and string.format('clock moved from %s to %s', hhmm(now), hhmm(TARGET_TIME))
     or string.format('clock move from %s to %s failed: %s', hhmm(now), hhmm(TARGET_TIME), clean(err)))
 end

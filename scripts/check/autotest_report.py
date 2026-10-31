@@ -472,10 +472,10 @@ def main():
         print(f"night run (asked for {info['time'] or 'night'})")
         h = env_hours(rows)
         env = next((r for r in rows if r["kind"] == "env"), None)
-        # The track script's own clock fix (autotest.lua: "clock moved from ... to ...", or why it couldn't).
+        # The clock fix (autotest.lua "clock ...", the Busselton Map app "clock (app): ..."), or why it failed.
         for r in rows:
             if r["kind"] == "note" and r["note"].startswith("clock"):
-                print(f"  track script: {r['note']}")
+                print(f"  {r['note']}")
         if h is None:
             print("  the game's time of day wasn't logged (no env line): can't tell it was night")
         elif not is_night_hour(h):
