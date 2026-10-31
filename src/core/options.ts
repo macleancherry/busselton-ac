@@ -283,6 +283,11 @@ export interface BuildOptions {
    */
   poleClear?: boolean;
   /**
+   * Busselton fork: leave out the car park bays (and their pads and cars) that would cover the foot
+   * of a pole, wall, fence or building already placed (padClear.ts). On unless false.
+   */
+  padClear?: boolean;
+  /**
    * Busselton fork: the network-first road core (src/core/network, docs/specs/road-network.md),
    * phase 1. In an area build, the network's junctions and roundabouts are built as one surface each
    * (1ROAD_J / 1STREET_J, with kerbs, islands and give-way lines) in place of the old ring,

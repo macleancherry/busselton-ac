@@ -72,11 +72,13 @@ All heights from `ground` at the pole's or lamp post's own foot.
 
 ## Car park lights (`carParkLights`)
 
-**Inputs:** aisle lines (local), `ground`, `blocked(x, y)` (road, aisle, street, parked car, building, outside the built area), and the lights already placed (so they keep their distance).
+**Inputs:** aisle lines (local), `ground`, `blocked(x, y)` (road, aisle, street, parked car, building, outside the built area), the lights already placed (so they keep their distance), and optionally `onRoad(x, y)` (poleSpot.ts `OnRoad`, the same test the street lights get).
 
 - Along each aisle, a pole every 35 m, the first 17 m in; the distance to the next pole carries across the aisle's segments.
 - Each pole 9 m off the aisle's centre, alternating left and right (the alternation runs across all aisles in order).
+- With `onRoad`, a pole whose foot (0.4 m round) is on a built drivable mesh moves to the nearest clear spot within 3 m (`clearSpot`, further from its aisle first), or is skipped. (OSM aisles and streets don't always match the built asphalt: poles stood on side streets.)
 - Skip if blocked, or within 20 m of any light already placed (including the street lights passed in).
+- Car park bays are laid after the lights: a bay that would cover a light's foot is left out (padClear.ts), not the light.
 - An 0.18 m steel pole from SINK below ground to 8.2 m. Two arms, each way across the aisle, from the pole's centre 1.5 m out, 8.02 to 8.11 m, `steel`. Under each arm's end a lantern, 0.8 m along the arm by 0.35 m, centred 1.1 m out (its outer end flush with the arm's end), 7.9 to 8.06 m; a light position 5 cm under each. Lanterns must sit wholly under an arm: the ground check fails any lamp head not joined to a pole standing on the ground (poleCheck.ts).
 - Returns pieces and light positions.
 - The alternation and the 20 m rule depend on input order: sort aisles by position (for example by their first vertex) first.

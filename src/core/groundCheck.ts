@@ -142,10 +142,18 @@ export function checkGround(root: Kn5Node, opts: { tolerance?: number; ground?: 
       pc.y0 = Math.min(pc.y0, Y[v]); pc.y1 = Math.max(pc.y1, Y[v]);
     }
     // Each piece's base: its lowest vertices and the edges between them, against the ground.
+    // Each edge once, whichever way round its triangles list it (an edge only one triangle has, like
+    // a wall's bottom, was dropped when listed high id to low, and the base was judged without it).
     const baseEdges = new Map<number, [number, number][]>();
-    for (const [a, b] of edges) {
+    const seenEdge = new Set<number>();
+    for (const [e0, e1] of edges) {
+      const a = Math.min(e0, e1), b = Math.max(e0, e1);
+      if (a === b) continue;
       const r = find(a), pc = pieceOf.get(r)!;
-      if (H[a] <= pc.lo + tol && H[b] <= pc.lo + tol && a < b) {
+      if (H[a] <= pc.lo + tol && H[b] <= pc.lo + tol) {
+        const k = a * X.length + b;
+        if (seenEdge.has(k)) continue;
+        seenEdge.add(k);
         const list = baseEdges.get(r);
         if (list) list.push([a, b]); else baseEdges.set(r, [[a, b]]);
       }

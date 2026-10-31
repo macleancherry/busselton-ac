@@ -129,16 +129,25 @@ export interface CarSeat {
   z: number;
   pitch: number;
   roll: number;
+  /** How far the deepest tyre goes into its ground, metres (0 when every tyre is on or over it). */
+  sink: number;
 }
 
 /** A parked car tilts with the ground under its wheels up to this much (1 in 10); past it, it sits level on the lowest wheel. */
 export const MAX_TILT = 0.1;
+/** Where the ground under the wheels is twisted, how far a tyre may go into it before the car is lifted, metres. */
+export const TYRE_SINK = 0.03;
+/** The most a car is lifted off its lowest wheel's ground to keep the others out of theirs, metres. */
+export const MAX_LIFT = 0.06;
 
 /**
  * How a car sits on `ground`: tilted to the plane through its four wheels' ground (least squares,
- * at most MAX_TILT each way), then lowered until no wheel is off the ground; the tyres are 2 cm above
- * the base, so the lowest one (against the plane) touches. A car on a slope or a crowned bay used to
- * sit level on its lowest wheel with the other three in the surface.
+ * at most MAX_TILT each way), then set on the lowest wheel's ground; the tyres are 2 cm above the
+ * base, so that tyre touches. A car on a slope or a crowned bay used to sit level on its lowest wheel
+ * with the other three in the surface. Where the ground under the wheels is twisted (no plane goes
+ * through all four: a pad running off an aisle's edge onto a dip), a tyre on the high corner went
+ * 8 cm into it, so the car is lifted until no tyre is more than TYRE_SINK in, when MAX_LIFT is enough; `sink`
+ * says how deep the deepest tyre still goes (track.ts leaves out a car with one over TYRE_SINK).
  */
 export function carSeat(car: ParkedCar, ground: HeightFn): CarSeat {
   const [fx, fy] = car.dir;
@@ -146,8 +155,12 @@ export function carSeat(car: ParkedCar, ground: HeightFn): CarSeat {
   const F = WHEELS[0][0], S = WHEELS[0][1];
   const clamp = (v: number) => Math.max(-MAX_TILT, Math.min(MAX_TILT, v));
   const pitch = clamp((g[0] + g[1] - g[2] - g[3]) / (4 * F)), roll = clamp((g[0] - g[1] + g[2] - g[3]) / (4 * S));
-  const z = Math.min(...WHEELS.map(([f, s], k) => g[k] - pitch * f - roll * s)) - 0.02;
-  return { z, pitch, roll };
+  const rest = WHEELS.map(([f, s], k) => g[k] - pitch * f - roll * s);
+  const lo = Math.min(...rest), hi = Math.max(...rest);
+  // Past saving (a step, a kerb), it stays on its lowest wheel: no tyre in the air.
+  const lift = hi - TYRE_SINK - lo;
+  const tyres = lift > 0 && lift <= MAX_LIFT ? lo + lift : lo;
+  return { z: tyres - 0.02, pitch, roll, sink: Math.max(0, hi - tyres) };
 }
 
 /** Visual cars (PARKED_CARS) and their invisible collision boxes (1WALL_CAR), on `ground` (sceneGround.ts). */
