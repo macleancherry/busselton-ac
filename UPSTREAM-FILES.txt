@@ -33,7 +33,6 @@ src/core/raceDress.ts
 src/core/road.ts
 src/core/roadMesh.ts
 src/core/roundabout.ts
-src/core/scenery.ts
 src/core/sideStreets.ts
 src/core/sponsors.ts
 src/core/spurs.ts
@@ -75,7 +74,6 @@ test/origin.test.ts
 test/paintLines.test.ts
 test/raceDress.test.ts
 test/roundabout.test.ts
-test/scenery.test.ts
 test/session.test.ts
 test/spurs.test.ts
 test/streets.test.ts

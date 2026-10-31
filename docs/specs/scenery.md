@@ -147,3 +147,41 @@ The pipeline then clears needs at roundabouts, side-street mouths and kerbed edg
 
 - **Generic W-beam rails (`buildGuardRails`).** The country preset uses Armco (`armco.ts`, the fork's own) for everything; W-beam is only reached by routes with `armco: false` (boranup-drive, collie-motorplex) and town routes, where kerbed edges remove the need anyway. Every Busselton town build reports 0 m of rail. Option: make Armco the only rail builder and delete this one. `railNeeds` is still used (Armco starts from it), so keep or rewrite that part.
 - **`TRUNK` table as a separate list**: fold into `TREE_SPECIES` (above).
+
+## Additions from the call sites (rewrite session, 31 Oct 2026)
+
+Found while writing the new module from the call sites, the tree modules and the commit messages (the old file stayed closed). They override anything above that disagrees.
+
+### Signatures the callers rely on
+
+- `treeSpotsFromImagery(rgba, size, chunk, density)`: `chunk` is the terrain chunk's local bounds (`minX..maxX`, `minY..maxY`); pixel row 0 is the chunk's north edge (`maxY`).
+- `filterTrees(spots, index, opts, maxTrees, cover?)`: `cover(x, y)` is the build's coverage distance (`makeCover`): a spot beyond the corridor is kept when `cover(x, y) <= corridor - 3`. Uses `opts.corridor`, `opts.vergeWidth`; road width from `index.at(nearest).width`.
+- `buildTrees(spots, ground, prefix = "TREES", sink = SINK)`: the fourth argument is how far the base goes in. The horizon trees pass 0.3 m with their own ground (the far mesh minus 0.6 m); everyone else takes the default.
+- `treeTrunks(spots, ground)`.
+- `railNeeds(plan, opts, ground, osmRails, index)`: track.ts passes the analytic terrain here, not the scene ground (the rails' need is about the land falling away, decided before Armco takes over). The module doesn't care which.
+- `buildGuardRails(plan, opts, needs, ground)` returns `{ rails, posts }` (the same shape as `armco.ts` `buildArmco`): track.ts clears the collidable rails off the route (`keepOffRoute(rails.rails, ...)`) and adds the posts as they are. `buildGuidePosts(plan, opts, mask, ground)` returns a list. `ground` is the scene ground (a plain `(x, y) => metres` is enough). Zero needs give empty lists.
+- The other builders return `Kn5MeshNode[]`; callers map over them (e.g. `castShadows: false` on the horizon trees).
+- `rng` stays importable from `scenery.ts` even when it moves to a shared module (re-export), and so do `box` and `ChunkedMesh`, so no caller has to change.
+
+### Species and models (trees from the zones and CSP work)
+
+- `TreeSpot` is `{ x, y, scale, variant, model?, coastal? }`. `variant` is normally a card index into `TREE_SPECIES` (0 peppermint, 1 she-oak, 2 Norfolk pine, 3 tuart, 4 palm). `model` (optional) is a CSP tree model index into `treeModels.ts` `MODEL_NAMES` (`peppermint, sheoak, norfolk, tuart, palm, karri, marri`); the first five are in the same order as the cards.
+- **With landscape zones and CSP trees both on, `variant` can be a model index of 5 (karri) or 6 (marri)**: `ZoneMap.tree` picks from `MODEL_NAMES` and writes the pick into `variant`. Those models have no card. For crown size (filtering) and trunk width they use the card that stands in for them, the tuart's (`treeZones.ts` `CARD_FOR`: karri, marri and jarrah use 3). So the size lookup is: a card index uses that card; a model index past the cards uses the tuart card; anything else (negative, past the models) falls back to card 0. Sprite meshes are only built for these trees when CSP trees are off, in which case `variant` is always a card, but the same lookup applies.
+- Export the per-variant lookups (crown radius, trunk width, card) so other modules use the same numbers; `CROWN_RADIUS` (per card, from `TREE_SPECIES`) stays exported.
+
+### Mesh helpers
+
+- `new ChunkedMesh(perItem)`: `perItem` is the vertex count `next()` assumes when called with no argument (armco 40, parked cars 24, jetty sleepers 20, jetty rails 16 although each rail piece is a 20-vertex box). `next(verts = perItem)` returns the builder to draw into. Keep a small safety margin under `MAX_MESH_VERTICES` so a caller that underestimates by a few vertices (the jetty rails) can't overflow a mesh.
+- `box(mb, ...)` writes explicit normals into `mb.normals`. Callers either hand it a builder from `ChunkedMesh` (normals on) or one they set `normals = []` on; raceDress clears `normals` to `null` before writing so face normals are used. If `box` gets a fresh builder with `normals === null` and no vertices, it turns explicit normals on; with vertices already in it and no normals, it adds none (face normals then apply).
+- Side UV override: an optional array of up to four `[u0, u1]` pairs, one per side (side order as above); a missing entry uses 0 to 1.
+
+### Determinism (the rules this rewrite adds, gathered)
+
+- Random choices that belong to a place are seeded by its position (rounded to 10 cm) plus a salt, never by where it falls in a list: photo cells (seed from the cell centre's world position), tree rotation (from the tree's position), the cap's thinning (sorted by position first).
+- `rng(seed)` is a new generator, so every caller's sequences change (house styles, frontage, lots, paths, race dress, farm roadsides, species picks in track.ts). The first build after this rewrite differs from the accepted base; accept a new base deliberately.
+- Callers that still draw from one sequence in list order (track.ts `speciesRand`, `zoneRand`, the CSP tree angles `rng(7)`) aren't this module's to fix; moving them to the position hash is a follow-up for track.ts.
+
+### Kn5 node flags
+
+- Trees: `castShadows: true`. Trunks: `renderable: false`, `castShadows: false`, material `wall`. Rails: `castShadows: true`, material `rail`. Rail posts: material `steel`. Guide posts: material `guidepost`.
+- Names use three-digit numbering (`roadMesh.ts` `pad`): `TREES_000`, `1WALL_TREE_000`, `1WALL_RAIL_L_000`, `RAILPOSTS_000`, `GUIDEPOSTS_000`. `groundCheck.ts` skips `1WALL_RAIL` and `1WALL_TREE`; `cull.ts` matches `GUIDEPOSTS` and `RAILPOSTS`; `poleCheck.ts` reads the `GUIDEPOSTS` group.
