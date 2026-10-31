@@ -39,6 +39,8 @@ export interface TreeSpecies {
 }
 
 const W = 2560, H = 1024, CELL = 512;
+/** The atlas size, pixels: one 512 x 1024 cell per species, side by side. */
+export const ATLAS_W = W, ATLAS_H = H;
 
 export const TREE_SPECIES: TreeSpecies[] = [
   { name: "peppermint", u0: 0, u1: 0.2, height: 9, crown: 4.5, trunk: 0.45 },

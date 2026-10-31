@@ -9,6 +9,13 @@ import { haversine, type LngLat } from "./geo";
 export interface OsmWayGeom {
   id: number;
   pts: LngLat[];
+  /** The way's OSM highway tag, when it has one. */
+  highway?: string;
+}
+
+/** True when every way is OSM highway=raceway: a circuit, painted with edge lines only (markings.ts). */
+export function allRaceway(ways: OsmWayGeom[]): boolean {
+  return ways.length > 0 && ways.every((w) => w.highway === "raceway");
 }
 
 export interface WayRouteOptions {

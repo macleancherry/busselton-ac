@@ -9,6 +9,15 @@
    "specFile": "routes/landmarks/cape_naturaliste_cottages.json",
    "name": "Cape Naturaliste keepers' cottages",
    "facing": 29
+  },
+  {
+   "at": [
+    115.018705,
+    -33.537391
+   ],
+   "specFile": "routes/landmarks/cape_naturaliste_lighthouse.json",
+   "name": "Cape Naturaliste Lighthouse",
+   "facing": 165
   }
  ]
 }

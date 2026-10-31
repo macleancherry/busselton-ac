@@ -209,11 +209,17 @@ describe("loadDem", () => {
     const waUrls = log.map((r) => r.url).filter((u) => u.includes("/dem/wa/"));
     expect(waUrls.sort()).toEqual([`/dem/wa/15/${px}/${py}.png`, `/dem/wa/15/${px + 1}/${py}.png`]);
     expect(used).toEqual(new Set(["wa"]));
-    // Middle of the WA tile: 3 m; its top rows and the non-PNG tile: Terrarium's 10 m.
+    // Middle of the WA tile: 3 m. Its top rows and the non-PNG tile come from Terrarium's 10 m,
+    // shifted down to meet the WA heights at the seam (demSeam.ts): near 3 m by the seam, rising away from it.
     const at = (gx: number, gy: number) => proj.pixelToLocal([gx, gy], 15);
     expect(h(...at(px * 256 + 128, py * 256 + 128))).toBeCloseTo(3, 3);
-    expect(h(...at(px * 256 + 128, py * 256 + 0.6))).toBeCloseTo(10, 3);
-    expect(h(...at((px + 1) * 256 + 128, py * 256 + 128))).toBeCloseTo(10, 3);
+    const top = h(...at(px * 256 + 128, py * 256 + 0.6));
+    expect(top).toBeGreaterThan(2.5);
+    expect(top).toBeLessThan(5);
+    const beside = h(...at((px + 1) * 256 + 4, py * 256 + 128)), further = h(...at((px + 1) * 256 + 128, py * 256 + 128));
+    expect(beside).toBeLessThan(5);
+    expect(further).toBeGreaterThan(beside);
+    expect(further).toBeLessThanOrEqual(10);
     expect(dataWarnings).toEqual([]);
   });
 

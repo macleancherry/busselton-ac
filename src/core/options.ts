@@ -132,10 +132,16 @@ export interface BuildOptions {
   trackSounds?: boolean | "lua" | "fmod";
   /** On unless false. */
   poleClear?: boolean;
+  /** Tree cards use trees.dds with its own mip chain and bled colour (treeAtlasMips.ts), not trees.png. On unless false. */
+  treeMips?: boolean;
+  /** No trees on water, wetland, beaches and sand, groynes, jetties or the shore strip (shoreClear.ts); ships extension/shore_mask.png. On unless false. */
+  shoreClear?: boolean;
 
   // Road surface, markings, kerbs, parking
   roadSurface: "auto" | "asphalt" | "chipseal" | "photo";
   markings: boolean;
+  /** A circuit (OSM highway=raceway): edge lines and start/finish only, no dividing line, RRPMs or photo-read lines. Off when absent; set from the route's raceway ways. */
+  raceway?: boolean;
   kerbs: boolean;
   /** Kerbside bays and bike lanes; off when absent (needs markings). */
   kerbside?: boolean;
@@ -171,7 +177,7 @@ export const OPTIONAL_OPTION_KEYS: readonly (keyof BuildOptions)[] = Object.free
   "origin", "area", "layout", "unsealed", "gravelRoads", "networkCore",
   "terrainLodFarTol", "photoSea", "zones", "pureTuning", "rainHollows",
   "cspTrees", "houseStyle", "clears", "armco", "farmland", "farmRoadsides", "wavingFlags",
-  "jettyTrain", "swimJetties", "jettyKinds", "trackSounds", "poleClear",
+  "jettyTrain", "swimJetties", "jettyKinds", "trackSounds", "poleClear", "raceway", "treeMips", "shoreClear",
   "kerbside", "laneBayClear", "parkedBays", "padClear", "trafficLights",
   "aiKeepLeft", "streetsValid", "challenges", "timeTrialSectors", "driftZones",
 ] as const);

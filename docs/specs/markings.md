@@ -12,6 +12,8 @@ Paints the route's markings as their own thin geometry, laid 15 mm above the cro
 4. **Lines read off the aerial photo** at their measured offsets, solid or dashed in phase with the real ones, white or yellow. Where the photo has spoken, it decides, including "no lines here".
 5. **Transverse marks and symbols** street-level imagery saw: stop lines, give-way lines, zebra crossings, arrows, painted words and numbers, bicycle symbols; plus the start and finish lines of a timed point-to-point route.
 
+**Circuits** (`opts.raceway`, set when every OSM way a route follows is `highway=raceway`, or by the route's `build.raceway`): edge lines and the start and finish only. No dividing line, no RRPMs, no photo lines (generated edge lines everywhere instead) and no street-level marks.
+
 Traffic keeps left: vehicles travelling forward along the route (increasing distance s) are on its left, positive lateral offset t.
 
 Coordinates are local metres, x east, y north, z up; `MeshBuilder.toKn5` converts to AC axes (x, z, -y). Tests read AC positions: x, height, minus north.

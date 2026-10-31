@@ -140,7 +140,8 @@ async function build(input: BuildInput): Promise<void> {
   lastWarnings = [];
   progressText = "";
 
-  const opts: Partial<BuildOptions> = { ...headlessOptions(input.name, input.options), ...(input.build ?? {}) };
+  // A circuit on OSM highway=raceway ways is painted as a circuit (edge lines only), unless the route says otherwise.
+  const opts: Partial<BuildOptions> = { ...headlessOptions(input.name, input.options), ...(current.route.raceway ? { raceway: true } : {}), ...(input.build ?? {}) };
   const job: BuildJob = {
     coords: current.route.coords,
     roundabouts: current.route.roundabouts,

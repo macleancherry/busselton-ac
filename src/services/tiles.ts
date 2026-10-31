@@ -4,6 +4,7 @@
 //
 // Written from docs/specs/tiles.md. The URLs below are cache and snapshot keys: keep them byte for byte.
 
+import { blendSeam } from "../core/demSeam";
 import { applyColours, matchColours, type ColourTransform } from "../core/colour";
 import { encodeDdsDxt1 } from "../core/dds";
 import { DemGrid, decodeTerrariumTile, demTilesFor, type HeightFn } from "../core/elevation";
@@ -396,16 +397,10 @@ export async function loadDem(
   }
   if (!found.length) return terrarium;
 
-  for (const t of tiles) {
-    for (let row = 0; row < TILE; row++) {
-      for (let col = 0; col < TILE; col++) {
-        const i = row * TILE + col;
-        if (usable(t.heights[i])) continue;
-        const [x, y] = proj.pixelToLocal([t.x * TILE + col + 0.5, t.y * TILE + row + 0.5], z);
-        t.heights[i] = terrarium(x, y);
-      }
-    }
-  }
+  // Busselton fork: the rest from Terrarium, joined to the state model without a step (demSeam.ts).
+  const mpp = (40075016.686 * Math.cos((lat * Math.PI) / 180)) / (TILE * 2 ** z);
+  const dropped = blendSeam(tiles, (gx, gy) => terrarium(...proj.pixelToLocal([gx + 0.5, gy + 0.5], z)), mpp);
+  if (dropped) console.warn(`elevation: ${dropped} cells at the edge of the state model replaced (demSeam.ts)`);
   for (const k of found) used?.add(k);
   return DemGrid.fromHeights(proj, z, tiles).sample;
 }

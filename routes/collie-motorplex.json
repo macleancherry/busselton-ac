@@ -33,7 +33,8 @@
   "corridor": 60,
   "armco": false,
   "farmRoadsides": false,
-  "aiKeepLeft": false
+  "aiKeepLeft": false,
+  "raceway": true
  },
  "ways": [
   89374807,

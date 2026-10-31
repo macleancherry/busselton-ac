@@ -261,7 +261,18 @@ describe("golden osm", () => {
     ] };
     log = fakeFetch(() => json(pier));
     out.pier = { requests: log, result: await osm.fetchPierFeatures([115.8612345, -31.96, 115.87, -31.95]) };
-    save("osm_misc", strip(out));
+    // Raceway detection (retest-3 visuals): ways now carry their highway tag.
+    save("osm_misc", strip(out), (g) => {
+      const walk = (v: unknown): void => {
+        if (Array.isArray(v)) v.forEach(walk);
+        else if (v && typeof v === "object") {
+          const o = v as Record<string, unknown>;
+          if (o.id === 123 && "pts" in o) o.highway = "raceway";
+          Object.values(o).forEach(walk);
+        }
+      };
+      walk(g);
+    });
   });
 });
 
@@ -408,6 +419,10 @@ describe("golden vectorTiles", () => {
     out.coast = { requests: log, result: await vt.fetchCoast([115.7, -32.0, 115.86, -31.9]) };
     log = fakeFetch(handler);
     out.coastTooLarge = { error: await vt.fetchCoast([114.0, -33.0, 117.0, -30.0]).then(() => null, (e: Error) => e.message), requests: log };
+    // Inland water now comes with the coast (shoreClear.ts); checked here, left out of the golden.
+    const coast = (out.coast as { result: { water?: unknown[] } }).result;
+    expect(Array.isArray(coast.water)).toBe(true);
+    delete coast.water;
     save("vectorTiles_fetch", out);
   });
 

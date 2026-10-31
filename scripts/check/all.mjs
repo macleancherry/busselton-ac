@@ -4,7 +4,7 @@
 //
 // Runs: check_build (spikes, heights), budget, layout_check (when it has layouts), dump_surface then
 // surface_check and street_ground, path_ground, ground_check (placed things on the ground, parked cars
-// off the roads), parked_check (parked cars in bays, on asphalt, not overlapping), traffic_check and lane_bay_check (when it has traffic). Exits non-zero if any fails.
+// off the roads), shore_check (no trees on water, sand, groynes or jetties; nothing on water), parked_check (parked cars in bays, on asphalt, not overlapping), traffic_check and lane_bay_check (when it has traffic). Exits non-zero if any fails.
 // The headline numbers (triangles, AI off the road per layout, tilt, edge steps, ground through
 // streets, traffic loose ends) go in the JSON, so scripts/upgrade/base.mjs can compare two builds.
 
@@ -65,6 +65,10 @@ summary.offGround = num(r.text, /off the ground \(over \d+ cm\): (\d+)/);
 summary.parkedOnRoad = num(r.text, /parked cars on a road: (\d+)/);
 summary.looseLamps = num(r.text, /lamp heads not on a pole: (\d+)/);
 summary.polesOnRoad = num(r.text, /poles on the road: (\d+)/);
+r = run("shore", "npx", ["tsx", "scripts/check/shore_check.ts", `out/${slug}.zip`]);
+results.push(r);
+summary.treesOnShore = num(r.text, /trees on the shore: (\d+)/);
+summary.sceneryOnWater = num(r.text, /other scenery on water: (\d+)/);
 r = run("parked", "npx", ["tsx", "scripts/check/parked_check.ts", `out/${slug}.zip`]);
 results.push(r);
 summary.parkedOverlapping = num(r.text, /overlapping cars: (\d+)/);

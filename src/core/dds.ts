@@ -258,10 +258,10 @@ function writeAlphaBlock(out: Uint8Array, at: number): void {
   }
 }
 
-function encode(rgba: Pixels, width: number, height: number, dxt5: boolean): Uint8Array {
+function encode(rgba: Pixels, width: number, height: number, dxt5: boolean, given?: Level[]): Uint8Array {
   checkInput(rgba, width, height);
   const blockBytes = dxt5 ? 16 : 8;
-  const sizes = mipSizes(width, height);
+  const sizes: [number, number][] = given ? given.map((l) => [l.w, l.h]) : mipSizes(width, height);
   let total = HEADER_BYTES;
   for (const [w, h] of sizes) total += levelBytes(w, h, blockBytes);
   const out = new Uint8Array(total);
@@ -283,7 +283,8 @@ function encode(rgba: Pixels, width: number, height: number, dxt5: boolean): Uin
   let at = HEADER_BYTES;
   let lv: Level = { w: width, h: height, px: rgba };
   for (let m = 0; m < sizes.length; m++) {
-    if (m > 0) lv = halve(lv);
+    if (given) lv = given[m];
+    else if (m > 0) lv = halve(lv);
     const bw = Math.ceil(lv.w / 4);
     const bh = Math.ceil(lv.h / 4);
     for (let by = 0; by < bh; by++) {
@@ -308,6 +309,21 @@ export function encodeDdsDxt1(rgba: Pixels, width: number, height: number): Uint
 /** DXT5 (smooth alpha) .dds file with every mip level down to 1 x 1. */
 export function encodeDdsDxt5(rgba: Pixels, width: number, height: number): Uint8Array {
   return encode(rgba, width, height, true);
+}
+
+/**
+ * DXT5 .dds file with the caller's own mip levels (the first at full size, each next one half the
+ * last, rounded down, at least 1): for atlases that mustn't be box-filtered across their cells.
+ */
+export function encodeDdsDxt5Levels(levels: Level[]): Uint8Array {
+  if (!levels.length) throw new Error("DDS: no levels");
+  levels.forEach((l, m) => {
+    checkInput(l.px, l.w, l.h);
+    if (m > 0 && (l.w !== Math.max(1, levels[m - 1].w >> 1) || l.h !== Math.max(1, levels[m - 1].h >> 1))) {
+      throw new Error(`DDS: level ${m} is ${l.w} x ${l.h}, not half of level ${m - 1}`);
+    }
+  });
+  return encode(levels[0].px, levels[0].w, levels[0].h, true, levels);
 }
 
 /** Decodes mip level 0 of a DXT1 or DXT5 .dds file to RGBA, top row first. */
