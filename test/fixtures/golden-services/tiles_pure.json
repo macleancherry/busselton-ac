@@ -1,0 +1,200 @@
+{
+ "IMAGERY": {
+  "esri": {
+   "label": "Esri World Imagery",
+   "template": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+   "credit": "Esri World Imagery (Esri, Maxar, Earthstar Geographics, and the GIS User Community)",
+   "maxZoom": 19
+  },
+  "qld": {
+   "label": "Queensland Government",
+   "template": "https://spatial-img.information.qld.gov.au/arcgis/rest/services/Basemaps/LatestStateProgram_AllUsers/ImageServer/tile/{z}/{y}/{x}",
+   "credit": "State of Queensland aerial imagery (latest public State Program; includes material (c) Planet Labs)",
+   "maxZoom": 20
+  },
+  "nsw": {
+   "label": "NSW Government",
+   "template": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/{z}/{y}/{x}",
+   "credit": "NSW Spatial Services imagery ((c) Department of Customer Service NSW)",
+   "maxZoom": 21
+  },
+  "wa": {
+   "label": "Landgate WA (Locate)",
+   "template": "https://services.slip.wa.gov.au/public/rest/services/SLIP_Public_Services/Locate/ImageServer/exportImage?bbox={bbox}&bboxSR=3857&imageSR=3857&size=256,256&format=jpg&interpolation=RSP_BilinearInterpolation&f=image",
+   "credit": "Locate mosaic (c) Western Australian Land Information Authority (Landgate), personal use",
+   "maxZoom": 20
+  }
+ },
+ "DEM_CREDIT": {
+  "qld": "Elevation: Queensland Digital Elevation Model (c) State of Queensland; (c) Commonwealth of Australia (Geoscience Australia)",
+  "nsw": "Elevation: NSW 5 m elevation (c) Department of Customer Service NSW (Spatial Services)",
+  "vic": "Elevation: Vicmap Elevation 10 m DEM (c) State of Victoria (Department of Transport and Planning)",
+  "wa": "Elevation: Digital Elevation Model of Australia derived from LiDAR 5 m grid (c) Commonwealth of Australia (Geoscience Australia), CC BY 4.0"
+ },
+ "DEM_LABEL": {
+  "qld": "Qld",
+  "nsw": "NSW",
+  "vic": "Vic",
+  "wa": "WA 5 m"
+ },
+ "tileBbox": [
+  "-20037508.343,-20037508.343,20037508.343,20037508.343",
+  "0.000,0.000,20037508.343,20037508.343",
+  "-16280475.529,-2504688.543,-15028131.257,-1252344.271",
+  "12992689.631,-3692902.148,12992727.849,-3692863.929"
+ ],
+ "tileUrl": {
+  "esri/0/0/0": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/0/0/0",
+  "esri/12/3412/2412": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/12/2412/3412",
+  "esri/19/432123/310456": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/19/310456/432123",
+  "esri/20/864246/620913": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/20/620913/864246",
+  "qld/0/0/0": "https://spatial-img.information.qld.gov.au/arcgis/rest/services/Basemaps/LatestStateProgram_AllUsers/ImageServer/tile/0/0/0",
+  "qld/12/3412/2412": "https://spatial-img.information.qld.gov.au/arcgis/rest/services/Basemaps/LatestStateProgram_AllUsers/ImageServer/tile/12/2412/3412",
+  "qld/19/432123/310456": "https://spatial-img.information.qld.gov.au/arcgis/rest/services/Basemaps/LatestStateProgram_AllUsers/ImageServer/tile/19/310456/432123",
+  "qld/20/864246/620913": "https://spatial-img.information.qld.gov.au/arcgis/rest/services/Basemaps/LatestStateProgram_AllUsers/ImageServer/tile/20/620913/864246",
+  "nsw/0/0/0": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/0/0/0",
+  "nsw/12/3412/2412": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/12/2412/3412",
+  "nsw/19/432123/310456": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/19/310456/432123",
+  "nsw/20/864246/620913": "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/20/620913/864246",
+  "wa/0/0/0": "https://services.slip.wa.gov.au/public/rest/services/SLIP_Public_Services/Locate/ImageServer/exportImage?bbox=-20037508.343,-20037508.343,20037508.343,20037508.343&bboxSR=3857&imageSR=3857&size=256,256&format=jpg&interpolation=RSP_BilinearInterpolation&f=image",
+  "wa/12/3412/2412": "https://services.slip.wa.gov.au/public/rest/services/SLIP_Public_Services/Locate/ImageServer/exportImage?bbox=13345293.642,-3571137.961,13355077.582,-3561354.022&bboxSR=3857&imageSR=3857&size=256,256&format=jpg&interpolation=RSP_BilinearInterpolation&f=image",
+  "wa/19/432123/310456": "https://services.slip.wa.gov.au/public/rest/services/SLIP_Public_Services/Locate/ImageServer/exportImage?bbox=12992689.631,-3692902.148,12992766.068,-3692825.711&bboxSR=3857&imageSR=3857&size=256,256&format=jpg&interpolation=RSP_BilinearInterpolation&f=image",
+  "wa/20/864246/620913": "https://services.slip.wa.gov.au/public/rest/services/SLIP_Public_Services/Locate/ImageServer/exportImage?bbox=12992689.631,-3692902.148,12992727.849,-3692863.929&bboxSR=3857&imageSR=3857&size=256,256&format=jpg&interpolation=RSP_BilinearInterpolation&f=image"
+ },
+ "chains": {
+  "perth": {
+   "auto": [
+    "wa",
+    "esri"
+   ],
+   "esri": [
+    "esri"
+   ],
+   "nsw": [
+    "nsw",
+    "esri"
+   ],
+   "wa": [
+    "wa",
+    "esri"
+   ]
+  },
+  "capes": {
+   "auto": [
+    "wa",
+    "esri"
+   ],
+   "esri": [
+    "esri"
+   ],
+   "nsw": [
+    "nsw",
+    "esri"
+   ],
+   "wa": [
+    "wa",
+    "esri"
+   ]
+  },
+  "sydney": {
+   "auto": [
+    "nsw",
+    "esri"
+   ],
+   "esri": [
+    "esri"
+   ],
+   "nsw": [
+    "nsw",
+    "esri"
+   ],
+   "wa": [
+    "wa",
+    "esri"
+   ]
+  },
+  "brisbane": {
+   "auto": [
+    "qld",
+    "esri"
+   ],
+   "esri": [
+    "esri"
+   ],
+   "nsw": [
+    "nsw",
+    "esri"
+   ],
+   "wa": [
+    "wa",
+    "esri"
+   ]
+  },
+  "border": {
+   "auto": [
+    "qld",
+    "nsw",
+    "esri"
+   ],
+   "esri": [
+    "esri"
+   ],
+   "nsw": [
+    "nsw",
+    "esri"
+   ],
+   "wa": [
+    "wa",
+    "esri"
+   ]
+  },
+  "wellington": {
+   "auto": [
+    "esri"
+   ],
+   "esri": [
+    "esri"
+   ],
+   "nsw": [
+    "nsw",
+    "esri"
+   ],
+   "wa": [
+    "wa",
+    "esri"
+   ]
+  },
+  "darwin": {
+   "auto": [
+    "esri"
+   ],
+   "esri": [
+    "esri"
+   ],
+   "nsw": [
+    "nsw",
+    "esri"
+   ],
+   "wa": [
+    "wa",
+    "esri"
+   ]
+  },
+  "melbourne": {
+   "auto": [
+    "esri"
+   ],
+   "esri": [
+    "esri"
+   ],
+   "nsw": [
+    "nsw",
+    "esri"
+   ],
+   "wa": [
+    "wa",
+    "esri"
+   ]
+  }
+ }
+}

@@ -1,0 +1,898 @@
+{
+ "route": {
+  "requests": [
+   {
+    "method": "GET",
+    "url": "https://router.project-osrm.org/route/v1/driving/115.840000,-31.960000;115.844000,-31.958500;115.844568,-31.961235?overview=full&geometries=geojson&steps=true&continue_straight=true",
+    "body": ""
+   }
+  ],
+  "result": {
+   "coords": [
+    [
+     115.84,
+     -31.96
+    ],
+    [
+     115.8401,
+     -31.96
+    ],
+    [
+     115.84020000000001,
+     -31.96
+    ],
+    [
+     115.8403,
+     -31.96
+    ],
+    [
+     115.8404,
+     -31.96
+    ],
+    [
+     115.8405,
+     -31.96
+    ],
+    [
+     115.84060000000001,
+     -31.96
+    ],
+    [
+     115.8407,
+     -31.96
+    ],
+    [
+     115.8408,
+     -31.96
+    ],
+    [
+     115.8409,
+     -31.96
+    ],
+    [
+     115.84100000000001,
+     -31.96
+    ],
+    [
+     115.8411,
+     -31.96
+    ],
+    [
+     115.8412,
+     -31.96
+    ],
+    [
+     115.8413,
+     -31.96
+    ],
+    [
+     115.84140000000001,
+     -31.96
+    ],
+    [
+     115.8415,
+     -31.96
+    ],
+    [
+     115.8416,
+     -31.96
+    ],
+    [
+     115.8417,
+     -31.96
+    ],
+    [
+     115.8418,
+     -31.96
+    ],
+    [
+     115.84190000000001,
+     -31.96
+    ],
+    [
+     115.842,
+     -31.96
+    ],
+    [
+     115.844,
+     -31.9599
+    ],
+    [
+     115.844,
+     -31.9598
+    ],
+    [
+     115.844,
+     -31.9597
+    ],
+    [
+     115.844,
+     -31.959600000000002
+    ],
+    [
+     115.844,
+     -31.959500000000002
+    ],
+    [
+     115.844,
+     -31.959400000000002
+    ],
+    [
+     115.844,
+     -31.959300000000002
+    ],
+    [
+     115.844,
+     -31.9592
+    ],
+    [
+     115.844,
+     -31.9591
+    ],
+    [
+     115.844,
+     -31.959
+    ],
+    [
+     115.844,
+     -31.9589
+    ],
+    [
+     115.844,
+     -31.9588
+    ],
+    [
+     115.844,
+     -31.9587
+    ],
+    [
+     115.844,
+     -31.9586
+    ],
+    [
+     115.844,
+     -31.9585
+    ],
+    [
+     115.844,
+     -31.9586
+    ],
+    [
+     115.844,
+     -31.9587
+    ],
+    [
+     115.844,
+     -31.9588
+    ],
+    [
+     115.844,
+     -31.9589
+    ],
+    [
+     115.844,
+     -31.959
+    ],
+    [
+     115.844,
+     -31.9591
+    ],
+    [
+     115.844,
+     -31.9592
+    ],
+    [
+     115.844,
+     -31.959300000000002
+    ],
+    [
+     115.844,
+     -31.959400000000002
+    ],
+    [
+     115.844,
+     -31.959500000000002
+    ],
+    [
+     115.844,
+     -31.959600000000002
+    ],
+    [
+     115.844,
+     -31.9597
+    ],
+    [
+     115.844,
+     -31.9598
+    ],
+    [
+     115.844,
+     -31.9599
+    ],
+    [
+     115.844,
+     -31.96
+    ],
+    [
+     115.8421,
+     -31.96
+    ],
+    [
+     115.8422,
+     -31.96
+    ],
+    [
+     115.84230000000001,
+     -31.96
+    ],
+    [
+     115.8424,
+     -31.96
+    ],
+    [
+     115.8425,
+     -31.96
+    ],
+    [
+     115.8426,
+     -31.96
+    ],
+    [
+     115.84270000000001,
+     -31.96
+    ],
+    [
+     115.8428,
+     -31.96
+    ],
+    [
+     115.8429,
+     -31.96
+    ],
+    [
+     115.843,
+     -31.96
+    ],
+    [
+     115.8431,
+     -31.96
+    ],
+    [
+     115.84320000000001,
+     -31.96
+    ],
+    [
+     115.8433,
+     -31.96
+    ],
+    [
+     115.8434,
+     -31.96
+    ],
+    [
+     115.8435,
+     -31.96
+    ],
+    [
+     115.84360000000001,
+     -31.96
+    ],
+    [
+     115.8437,
+     -31.96
+    ],
+    [
+     115.8438,
+     -31.96
+    ],
+    [
+     115.8439,
+     -31.96
+    ],
+    [
+     115.84400000000001,
+     -31.96
+    ]
+   ],
+   "distance": 1234.5,
+   "roundabouts": [
+    {
+     "location": [
+      115.8415,
+      -31.96
+     ],
+     "arc": [
+      [
+       115.8414,
+       -31.96
+      ],
+      [
+       115.8416,
+       -31.96
+      ]
+     ]
+    },
+    {
+     "location": [
+      115.844,
+      -31.9588
+     ],
+     "arc": [
+      [
+       115.844,
+       -31.9589
+      ],
+      [
+       115.844,
+       -31.9587
+      ]
+     ]
+    },
+    {
+     "location": [
+      115.8435,
+      -31.96
+     ],
+     "arc": []
+    }
+   ],
+   "uturns": [
+    [
+     115.844,
+     -31.9585
+    ],
+    [
+     115.9,
+     -31.9
+    ]
+   ],
+   "trimmed": []
+  }
+ },
+ "routeNoSpur": {
+  "requests": [
+   {
+    "method": "GET",
+    "url": "https://router.project-osrm.org/route/v1/driving/115.840000,-31.960000;115.844000,-31.960000?overview=full&geometries=geojson&steps=true&continue_straight=true",
+    "body": ""
+   }
+  ],
+  "result": {
+   "coords": [
+    [
+     115.84,
+     -31.96
+    ],
+    [
+     115.8401,
+     -31.96
+    ],
+    [
+     115.84020000000001,
+     -31.96
+    ],
+    [
+     115.8403,
+     -31.96
+    ],
+    [
+     115.8404,
+     -31.96
+    ],
+    [
+     115.8405,
+     -31.96
+    ],
+    [
+     115.84060000000001,
+     -31.96
+    ],
+    [
+     115.8407,
+     -31.96
+    ],
+    [
+     115.8408,
+     -31.96
+    ],
+    [
+     115.8409,
+     -31.96
+    ],
+    [
+     115.84100000000001,
+     -31.96
+    ],
+    [
+     115.8411,
+     -31.96
+    ],
+    [
+     115.8412,
+     -31.96
+    ],
+    [
+     115.8413,
+     -31.96
+    ],
+    [
+     115.84140000000001,
+     -31.96
+    ],
+    [
+     115.8415,
+     -31.96
+    ],
+    [
+     115.8416,
+     -31.96
+    ],
+    [
+     115.8417,
+     -31.96
+    ],
+    [
+     115.8418,
+     -31.96
+    ],
+    [
+     115.84190000000001,
+     -31.96
+    ],
+    [
+     115.842,
+     -31.96
+    ],
+    [
+     115.8421,
+     -31.96
+    ],
+    [
+     115.8422,
+     -31.96
+    ],
+    [
+     115.84230000000001,
+     -31.96
+    ],
+    [
+     115.8424,
+     -31.96
+    ],
+    [
+     115.8425,
+     -31.96
+    ],
+    [
+     115.8426,
+     -31.96
+    ],
+    [
+     115.84270000000001,
+     -31.96
+    ],
+    [
+     115.8428,
+     -31.96
+    ],
+    [
+     115.8429,
+     -31.96
+    ],
+    [
+     115.843,
+     -31.96
+    ],
+    [
+     115.8431,
+     -31.96
+    ],
+    [
+     115.84320000000001,
+     -31.96
+    ],
+    [
+     115.8433,
+     -31.96
+    ],
+    [
+     115.8434,
+     -31.96
+    ],
+    [
+     115.8435,
+     -31.96
+    ],
+    [
+     115.84360000000001,
+     -31.96
+    ],
+    [
+     115.8437,
+     -31.96
+    ],
+    [
+     115.8438,
+     -31.96
+    ],
+    [
+     115.8439,
+     -31.96
+    ],
+    [
+     115.84400000000001,
+     -31.96
+    ]
+   ],
+   "distance": 1234.5,
+   "roundabouts": [
+    {
+     "location": [
+      115.8415,
+      -31.96
+     ],
+     "arc": [
+      [
+       115.8414,
+       -31.96
+      ],
+      [
+       115.8416,
+       -31.96
+      ]
+     ]
+    },
+    {
+     "location": [
+      115.844,
+      -31.9588
+     ],
+     "arc": [
+      [
+       115.844,
+       -31.9589
+      ],
+      [
+       115.844,
+       -31.9587
+      ]
+     ]
+    }
+   ],
+   "uturns": [],
+   "trimmed": []
+  }
+ },
+ "routeError": {
+  "requests": [
+   {
+    "method": "GET",
+    "url": "https://router.project-osrm.org/route/v1/driving/1.123457,2.000000;3.000000,4.000000?overview=full&geometries=geojson&steps=true&continue_straight=true",
+    "body": ""
+   }
+  ],
+  "error": "Impossible route between points"
+ },
+ "routeError502": {
+  "error": "Routing failed (HTTP 502)"
+ },
+ "search": {
+  "requests": [
+   {
+    "method": "GET",
+    "url": "https://photon.komoot.io/api/?q=Kings+Park&limit=6&lon=115.8512&lat=-31.9557",
+    "body": ""
+   }
+  ],
+  "result": [
+   {
+    "label": "Kings Park",
+    "detail": "Fraser Ave, Perth, Western Australia, Australia",
+    "lngLat": [
+     115.83,
+     -31.96
+    ],
+    "extent": [
+     115.82,
+     -31.95,
+     115.84,
+     -31.97
+    ]
+   },
+   {
+    "label": "Hay St",
+    "detail": "Perth, Australia",
+    "lngLat": [
+     115.86,
+     -31.95
+    ]
+   },
+   {
+    "label": "Perth",
+    "detail": "Perth",
+    "lngLat": [
+     115.87,
+     -31.94
+    ]
+   },
+   {
+    "label": "Unnamed",
+    "detail": "",
+    "lngLat": [
+     115.88,
+     -31.93
+    ]
+   }
+  ]
+ },
+ "searchNoNear": {
+  "requests": [
+   {
+    "method": "GET",
+    "url": "https://photon.komoot.io/api/?q=a+b%26c&limit=6",
+    "body": ""
+   }
+  ],
+  "result": [
+   {
+    "label": "Kings Park",
+    "detail": "Fraser Ave, Perth, Western Australia, Australia",
+    "lngLat": [
+     115.83,
+     -31.96
+    ],
+    "extent": [
+     115.82,
+     -31.95,
+     115.84,
+     -31.97
+    ]
+   },
+   {
+    "label": "Hay St",
+    "detail": "Perth, Australia",
+    "lngLat": [
+     115.86,
+     -31.95
+    ]
+   },
+   {
+    "label": "Perth",
+    "detail": "Perth",
+    "lngLat": [
+     115.87,
+     -31.94
+    ]
+   },
+   {
+    "label": "Unnamed",
+    "detail": "",
+    "lngLat": [
+     115.88,
+     -31.93
+    ]
+   }
+  ]
+ },
+ "reverse": {
+  "requests": [
+   {
+    "method": "GET",
+    "url": "https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=16&lat=-31.95&lon=115.8512345678",
+    "body": ""
+   }
+  ],
+  "result": {
+   "road": "Hay St",
+   "town": "Perth",
+   "country": "Australia"
+  }
+ },
+ "reverse2": {
+  "requests": [
+   {
+    "method": "GET",
+    "url": "https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=16&lat=-31.123456&lon=115.1",
+    "body": ""
+   }
+  ],
+  "result": {
+   "road": "R",
+   "town": "V",
+   "country": "Au"
+  }
+ },
+ "wayGeoms": {
+  "requests": [
+   {
+    "method": "POST",
+    "url": "https://overpass-api.de/api/interpreter",
+    "body": "data=%5Bout%3Ajson%5D%5Btimeout%3A40%5D%3Bway%28id%3A123%2C456%29%3Bout+tags+geom%3B"
+   },
+   {
+    "method": "POST",
+    "url": "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
+    "body": "data=%5Bout%3Ajson%5D%5Btimeout%3A40%5D%3Bway%28id%3A123%2C456%29%3Bout+tags+geom%3B"
+   },
+   {
+    "method": "POST",
+    "url": "https://overpass.private.coffee/api/interpreter",
+    "body": "data=%5Bout%3Ajson%5D%5Btimeout%3A40%5D%3Bway%28id%3A123%2C456%29%3Bout+tags+geom%3B"
+   }
+  ],
+  "result": [
+   {
+    "id": 123,
+    "pts": [
+     [
+      115.849,
+      -31.95
+     ],
+     [
+      115.85,
+      -31.95
+     ]
+    ]
+   },
+   {
+    "id": 456,
+    "pts": [
+     [
+      115.85,
+      -31.95
+     ],
+     [
+      115.851,
+      -31.95
+     ]
+    ]
+   }
+  ]
+ },
+ "wayGeomsMissing": {
+  "error": "OSM way 789 not found (deleted, or a wrong id)"
+ },
+ "wayGeomsMissing1": {
+  "error": "OSM way 789 not found (deleted, or a wrong id)"
+ },
+ "wayGeomsBad": {
+  "error": "\"ways\" must be OSM way ids (whole numbers), not 1.5, -2",
+  "errorEmpty": "\"ways\" must be OSM way ids (whole numbers)"
+ },
+ "routeWays": {
+  "requests": [
+   {
+    "method": "POST",
+    "url": "https://overpass-api.de/api/interpreter",
+    "body": "data=%5Bout%3Ajson%5D%5Btimeout%3A40%5D%3Bway%28id%3A123%2C456%29%3Bout+tags+geom%3B"
+   },
+   {
+    "method": "POST",
+    "url": "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
+    "body": "data=%5Bout%3Ajson%5D%5Btimeout%3A40%5D%3Bway%28id%3A123%2C456%29%3Bout+tags+geom%3B"
+   },
+   {
+    "method": "POST",
+    "url": "https://overpass.private.coffee/api/interpreter",
+    "body": "data=%5Bout%3Ajson%5D%5Btimeout%3A40%5D%3Bway%28id%3A123%2C456%29%3Bout+tags+geom%3B"
+   }
+  ],
+  "result": {
+   "coords": [
+    [
+     115.8492,
+     -31.95
+    ],
+    [
+     115.85,
+     -31.95
+    ],
+    [
+     115.8508,
+     -31.95
+    ]
+   ],
+   "distance": 150.9602582947905,
+   "roundabouts": [],
+   "uturns": [],
+   "trimmed": []
+  }
+ },
+ "pier": {
+  "requests": [
+   {
+    "method": "POST",
+    "url": "https://overpass-api.de/api/interpreter",
+    "body": "data=%5Bout%3Ajson%5D%5Btimeout%3A40%5D%3B%28%0A++++way%28-31.960000%2C115.861234%2C-31.950000%2C115.870000%29%5Brailway%7E%22%5E%28narrow_gauge%7Cminiature%7Clight_rail%7Ctram%7Crail%29%24%22%5D%3B%0A++++way%28-31.960000%2C115.861234%2C-31.950000%2C115.870000%29%5Brailway%3Dplatform%5D%3B%0A++++way%28-31.960000%2C115.861234%2C-31.950000%2C115.870000%29%5Bpublic_transport%3Dplatform%5D%3B%0A++++way%28-31.960000%2C115.861234%2C-31.950000%2C115.870000%29%5Bbuilding%5D%3B%0A++%29%3Bout+tags+geom%3B"
+   },
+   {
+    "method": "POST",
+    "url": "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
+    "body": "data=%5Bout%3Ajson%5D%5Btimeout%3A40%5D%3B%28%0A++++way%28-31.960000%2C115.861234%2C-31.950000%2C115.870000%29%5Brailway%7E%22%5E%28narrow_gauge%7Cminiature%7Clight_rail%7Ctram%7Crail%29%24%22%5D%3B%0A++++way%28-31.960000%2C115.861234%2C-31.950000%2C115.870000%29%5Brailway%3Dplatform%5D%3B%0A++++way%28-31.960000%2C115.861234%2C-31.950000%2C115.870000%29%5Bpublic_transport%3Dplatform%5D%3B%0A++++way%28-31.960000%2C115.861234%2C-31.950000%2C115.870000%29%5Bbuilding%5D%3B%0A++%29%3Bout+tags+geom%3B"
+   },
+   {
+    "method": "POST",
+    "url": "https://overpass.private.coffee/api/interpreter",
+    "body": "data=%5Bout%3Ajson%5D%5Btimeout%3A40%5D%3B%28%0A++++way%28-31.960000%2C115.861234%2C-31.950000%2C115.870000%29%5Brailway%7E%22%5E%28narrow_gauge%7Cminiature%7Clight_rail%7Ctram%7Crail%29%24%22%5D%3B%0A++++way%28-31.960000%2C115.861234%2C-31.950000%2C115.870000%29%5Brailway%3Dplatform%5D%3B%0A++++way%28-31.960000%2C115.861234%2C-31.950000%2C115.870000%29%5Bpublic_transport%3Dplatform%5D%3B%0A++++way%28-31.960000%2C115.861234%2C-31.950000%2C115.870000%29%5Bbuilding%5D%3B%0A++%29%3Bout+tags+geom%3B"
+   }
+  ],
+  "result": {
+   "railways": [
+    [
+     [
+      115.86,
+      -31.952
+     ],
+     [
+      115.861,
+      -31.952
+     ]
+    ]
+   ],
+   "platforms": [
+    {
+     "pts": [
+      [
+       115.86,
+       -31.95
+      ],
+      [
+       115.861,
+       -31.95
+      ]
+     ],
+     "shelter": true
+    },
+    {
+     "pts": [
+      [
+       115.86,
+       -31.951
+      ],
+      [
+       115.861,
+       -31.951
+      ]
+     ],
+     "shelter": false
+    }
+   ],
+   "buildings": [
+    {
+     "pts": [
+      [
+       115.86,
+       -31.953
+      ],
+      [
+       115.861,
+       -31.953
+      ],
+      [
+       115.861,
+       -31.954
+      ]
+     ],
+     "name": "Shed"
+    },
+    {
+     "pts": [
+      [
+       115.86,
+       -31.955
+      ],
+      [
+       115.861,
+       -31.955
+      ],
+      [
+       115.861,
+       -31.956
+      ]
+     ],
+     "name": ""
+    }
+   ]
+  }
+ }
+}

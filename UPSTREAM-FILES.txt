@@ -20,7 +20,6 @@ src/ui/main.ts
 src/ui/preview.ts
 src/ui/session.ts
 src/ui/style.css
-test/demtiles.test.ts
 test/gates.test.ts
 test/kangaroo.test.ts
 test/origin.test.ts
