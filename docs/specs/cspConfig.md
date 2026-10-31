@@ -135,7 +135,7 @@ then, only when `opts.hollows` is present (even an empty list), the lines of `ho
 **6. Thin two-sided shadows (Upstream, fork added `fence_?` and `shrubs`).**
 ```
 [SHADER_REPLACEMENT_0]
-MATERIALS = barrier_colorbond, barrier_paling, signart, trees, fence_?, shrubs, race_fence, race_crowd, race_spectators
+MATERIALS = barrier_colorbond, barrier_paling, signart, trees, fence_?, shrubs
 DOUBLE_FACE_SHADOW_BIASED = 1
 ```
 
@@ -364,7 +364,7 @@ The ext_config lists name materials other modules create. Renaming a material el
 
 - Ground photo (grass, dry season, rough in rain, relief, bounced light): `terrain_?`, `strip_photo_?`, `sidestrips_photo`, `returns_photo`, `rbphoto_?`, `grass`, `verge`, `backdrop_?` (dry season and rough only).
 - Roads and hard surfaces: `road_?`, `side_photo_?`, `concrete`, `paint?` / `paint`, `paint_yellow`, `path_?`, `rrpm`.
-- Others: `window`, `glass`, `signart`, `steel`, `lamp`, `shop_sign`, `shop_window`, `trees`, `shrubs`, `hedge`, `barrier_hedge`, `barrier_?`, `barrier_colorbond`, `barrier_paling`, `fence_?`, `frontwall_?`, `mulch`, `sea`, `jetty_?`, `vine_leaf`, `race_fence`, `race_crowd`, `race_spectators`; bakery adds `sea_photo?`, `shore_foam`.
+- Others: `window`, `glass`, `signart`, `steel`, `lamp`, `shop_sign`, `shop_window`, `trees`, `shrubs`, `hedge`, `barrier_hedge`, `barrier_?`, `barrier_colorbond`, `barrier_paling`, `fence_?`, `frontwall_?`, `mulch`, `sea`, `jetty_?`, `vine_leaf`; bakery adds `sea_photo?`, `shore_foam`.
 
 `?` is CSP's wildcard. A list item matching no material is harmless.
 
