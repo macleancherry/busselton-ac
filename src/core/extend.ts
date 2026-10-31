@@ -1,107 +1,123 @@
-// Run-up and run-off for point-to-point roads. The timed section is the
-// road between the two pins; the car needs room before the start line to
-// line up a grid (and get rolling for a flying lap), and room after the
-// finish to brake. Both are added along the real streets the route starts
-// and ends on, following them on through junctions where a street carries
-// straight on, and continuing straight ahead where the street ends.
+// Run-up and run-off for point-to-point routes: lengthens the route at both
+// ends along the streets it starts and ends on (round their bends, and on to
+// a street joining end to end), then straight ahead where no street carries
+// on. Reports where the original start and finish sit on the longer path.
+//
+// Written from docs/specs/extend.md.
 
 import type { Vec2 } from "./geo";
 
-/** How far the route is extended before its start and after its finish, metres. */
+/** The extended path, and the arc lengths along it (m) of the original first and last points. */
 export interface Extension {
   path: Vec2[];
-  /** Distance along `path` (polyline metres) of the original start and finish. */
   startAt: number;
   finishAt: number;
 }
 
-const SNAP = 10; // a street within this distance of the end carries it on
-const JOIN = 4; // chain onto another street whose end is this close
+/** First search radius from the path's end to a street, m. */
+const SNAP = 10;
+/** Radius for chaining on to the next street, m. */
+const JOIN = 4;
+/** Straight-on point spacing, m. */
 const STEP = 2;
+/** How far back along the path the end heading is measured, m. */
+const LOOK_BACK = 15;
+/** A street must be within about 37 degrees of the heading (either way along it). */
+const ALIGN = 0.8;
+/** Score weight of misalignment against distance. */
+const ALIGN_WEIGHT = 20;
+const EPS = 1e-6;
 
-function len(a: Vec2, b: Vec2): number {
-  return Math.hypot(b[0] - a[0], b[1] - a[1]);
+export function pathLength(path: Vec2[]): number {
+  let L = 0;
+  for (let i = 1; i < path.length; i++) L += Math.hypot(path[i][0] - path[i - 1][0], path[i][1] - path[i - 1][1]);
+  return L;
 }
 
-function unit(a: Vec2, b: Vec2): Vec2 {
-  const l = len(a, b) || 1;
-  return [(b[0] - a[0]) / l, (b[1] - a[1]) / l];
+function unit(dx: number, dy: number): Vec2 {
+  const l = Math.hypot(dx, dy);
+  return l > 0 ? [dx / l, dy / l] : [0, 0];
 }
 
-/** Point `d` metres back from the end of a path (or its first point). */
-function back(path: Vec2[], d: number): Vec2 {
-  let acc = 0;
+/** The point `back` metres before the path's end, measured along it (the first point if shorter). */
+function pointBack(path: Vec2[], back: number): Vec2 {
+  let left = back;
   for (let i = path.length - 1; i > 0; i--) {
-    const l = len(path[i], path[i - 1]);
-    if (acc + l >= d) {
-      const f = (d - acc) / l;
-      return [path[i][0] + (path[i - 1][0] - path[i][0]) * f, path[i][1] + (path[i - 1][1] - path[i][1]) * f];
+    const a = path[i - 1], b = path[i];
+    const l = Math.hypot(b[0] - a[0], b[1] - a[1]);
+    if (l >= left && l > 0) {
+      const f = left / l;
+      return [b[0] + (a[0] - b[0]) * f, b[1] + (a[1] - b[1]) * f];
     }
-    acc += l;
+    left -= l;
   }
   return path[0];
 }
 
-/**
- * Carries a path on from its last point for `want` metres: along a street
- * heading the same way where there is one, otherwise straight on.
- */
+/** Points continuing `path` beyond its last point for `want` metres (not including the last point). */
 export function carryOn(path: Vec2[], lines: Vec2[][], want: number): Vec2[] {
+  if (want <= 0) return [];
+  if (path.length === 0 || pathLength(path) === 0) throw new Error("Route has no length to extend");
   const out: Vec2[] = [];
-  let at = path[path.length - 1];
-  let dir = unit(back(path, Math.min(15, pathLength(path))), at);
+  let at: Vec2 = path[path.length - 1];
+  const back = pointBack(path, LOOK_BACK);
+  let dir = unit(at[0] - back[0], at[1] - back[1]);
   let got = 0;
-  const used = new Set<Vec2[]>();
-  let snap = SNAP;
-  while (got < want - 1e-6) {
-    // The street under the end, followed the way the road is heading.
-    let best: { line: Vec2[]; seg: number; f: number; fwd: boolean; score: number } | null = null;
-    for (const line of lines) {
-      if (used.has(line)) continue;
-      for (let i = 1; i < line.length; i++) {
-        const a = line[i - 1], b = line[i];
-        const L = len(a, b);
-        if (L < 1e-6) continue;
-        const f = Math.max(0, Math.min(1, ((at[0] - a[0]) * (b[0] - a[0]) + (at[1] - a[1]) * (b[1] - a[1])) / (L * L)));
-        const d = Math.hypot(at[0] - (a[0] + (b[0] - a[0]) * f), at[1] - (a[1] + (b[1] - a[1]) * f));
-        if (d > snap) continue;
-        const u = unit(a, b), dot = u[0] * dir[0] + u[1] * dir[1];
-        if (Math.abs(dot) < 0.8) continue;
-        const score = d + (1 - Math.abs(dot)) * 20;
-        if (!best || score < best.score) best = { line, seg: i, f, fwd: dot > 0, score };
+  const used = new Set<number>();
+  let first = true;
+
+  while (got < want - EPS) {
+    const radius = first ? SNAP : JOIN;
+    first = false;
+    let best: { line: number; seg: number; foot: Vec2; dot: number; score: number } | null = null;
+    for (let li = 0; li < lines.length; li++) {
+      if (used.has(li)) continue;
+      const line = lines[li];
+      for (let k = 0; k + 1 < line.length; k++) {
+        const a = line[k], b = line[k + 1];
+        const dx = b[0] - a[0], dy = b[1] - a[1];
+        const L = Math.hypot(dx, dy);
+        if (L < EPS) continue;
+        const f = Math.max(0, Math.min(1, ((at[0] - a[0]) * dx + (at[1] - a[1]) * dy) / (L * L)));
+        const foot: Vec2 = [a[0] + dx * f, a[1] + dy * f];
+        const d = Math.hypot(at[0] - foot[0], at[1] - foot[1]);
+        const dot = (dx / L) * dir[0] + (dy / L) * dir[1];
+        if (d > radius || Math.abs(dot) < ALIGN) continue;
+        const score = d + (1 - Math.abs(dot)) * ALIGN_WEIGHT;
+        if (!best || score < best.score) best = { line: li, seg: k, foot, dot, score };
       }
     }
     if (!best) break;
     used.add(best.line);
-    // Walk along it from the foot of the end point.
-    const { line, seg, f, fwd } = best;
-    const a = line[seg - 1], b = line[seg];
-    const pts: Vec2[] = [[a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f]];
-    if (fwd) for (let i = seg; i < line.length; i++) pts.push(line[i]);
-    else for (let i = seg - 1; i >= 0; i--) pts.push(line[i]);
+    const line = lines[best.line];
+    const walk: Vec2[] = [best.foot];
+    if (best.dot > 0) for (let k = best.seg + 1; k < line.length; k++) walk.push(line[k]);
+    else for (let k = best.seg; k >= 0; k--) walk.push(line[k]);
+
     let prev = at;
-    for (const p of pts) {
-      const l = len(prev, p);
-      if (l < 1e-6) continue;
+    for (let w = 0; w < walk.length; w++) {
+      const p = walk[w];
+      const l = Math.hypot(p[0] - prev[0], p[1] - prev[1]);
+      if (l <= EPS) continue;
+      // The hop onto the street (w = 0) never sets the heading: it can point sideways.
+      const step = unit(p[0] - prev[0], p[1] - prev[1]);
       if (got + l >= want) {
-        const k = (want - got) / l;
-        const q: Vec2 = [prev[0] + (p[0] - prev[0]) * k, prev[1] + (p[1] - prev[1]) * k];
-        dir = unit(prev, q);
-        out.push(q);
+        const r = want - got;
+        out.push([prev[0] + step[0] * r, prev[1] + step[1] * r]);
+        if (w > 0) dir = step;
         got = want;
-        prev = q;
+        prev = out[out.length - 1];
         break;
       }
-      dir = unit(prev, p);
       out.push(p);
+      if (w > 0) dir = step;
       got += l;
       prev = p;
     }
     at = prev;
-    snap = JOIN;
   }
-  // Straight on for whatever is left.
-  for (let d = STEP; got < want - 1e-6; d += STEP) {
+
+  while (got < want - EPS) {
     const step = Math.min(STEP, want - got);
     at = [at[0] + dir[0] * step, at[1] + dir[1] * step];
     out.push(at);
@@ -110,17 +126,10 @@ export function carryOn(path: Vec2[], lines: Vec2[][], want: number): Vec2[] {
   return out;
 }
 
-export function pathLength(path: Vec2[]): number {
-  let l = 0;
-  for (let i = 1; i < path.length; i++) l += len(path[i - 1], path[i]);
-  return l;
-}
-
-/** Adds `before` metres ahead of the start and `after` metres past the finish. */
+/** Lengthens a point-to-point path by `before` metres at its start and `after` at its end. */
 export function extendRoute(path: Vec2[], lines: Vec2[][], before: number, after: number): Extension {
   const head = before > 0 ? carryOn(path.slice().reverse(), lines, before).reverse() : [];
   const tail = after > 0 ? carryOn(path, lines, after) : [];
-  const full = [...head, ...path, ...tail];
   const startAt = pathLength([...head, path[0]]);
-  return { path: full, startAt, finishAt: startAt + pathLength(path) };
+  return { path: [...head, ...path, ...tail], startAt, finishAt: startAt + pathLength(path) };
 }
