@@ -314,7 +314,7 @@ try {
   mkdirSync(out, { recursive: true });
   if (mainLayout) {
     log("layouts:", [mainLayout.id, ...spec.layouts.map((l) => l.id)].join(", "));
-    const extra = await page.evaluate(async ({ layouts, options, mainId, mainTraffic, name, landmarks }) => {
+    const extra = await page.evaluate(async ({ layouts, options, mainId, mainTraffic, mainMarks, name, landmarks }) => {
       const { route, routeWays } = await import("/src/services/osm.ts");
       const { layoutFiles } = await import("/src/core/layouts.ts");
       const { trackObjects } = await import("/src/core/track.ts");
@@ -355,10 +355,33 @@ try {
       }
       const mainSrc = r.files[`${r.slug}/${mainId}/data/traffic.json`];
       if (mainSrc && mainTraffic) files[`${r.slug}/${mainId}/data/traffic.json`] = b64(new TextEncoder().encode(trafficForSetting(new TextDecoder().decode(mainSrc), mainTraffic)));
-      return files;
-    }, { layouts: spec.layouts, options: { ...(spec.build ?? {}) }, mainId: mainLayout.id, mainTraffic: spec.layout?.traffic, name: spec.name, landmarks });
+      // Busselton fork: course markings (courseMarks.ts) into each race layout's own files: the main
+      // drive's and every layout with pins, never a spawns layout (free roam). build.courseMarks turns
+      // them on; a layout's own "courseMarks" (false, or settings) overrides it.
+      const drop = [];
+      const marked = [{ id: mainId, opt: mainMarks ?? options.courseMarks }, ...layouts.filter((l) => l.pins && !l.spawns).map((l) => ({ id: l.id, opt: l.courseMarks ?? options.courseMarks }))].filter((m) => m.opt);
+      if (marked.length && ti) {
+        const { courseMarkLayout, surfaceProbe } = await import("/src/core/courseMarks.ts");
+        const unb64 = (t) => Uint8Array.from(atob(t), (ch) => ch.charCodeAt(0));
+        const mark = { slug: r.slug, probe: surfaceProbe(r.model), lines: world.lines, rings: world.rings, bays: world.bays };
+        for (const m of marked) {
+          const own = {};
+          const prefixes = [`${r.slug}/${m.id}/`, `${r.slug}/layout_${m.id}.kn5`, `${r.slug}/ui/${m.id}/`];
+          for (const [k, v] of Object.entries(files)) if (prefixes.some((p) => k.startsWith(p))) own[k] = unb64(v);
+          for (const [k, v] of Object.entries(r.files)) if (!(k in own) && prefixes.some((p) => k.startsWith(p))) own[k] = v;
+          const before = new Set(Object.keys(own));
+          const res = courseMarkLayout(own, mark, m.id, m.opt);
+          if (!res) continue;
+          for (const [k, v] of Object.entries(own)) files[k] = b64(v);
+          for (const k of before) if (!(k in own)) { delete files[k]; drop.push(k); }
+          console.log(`course marks ${m.id}: ${JSON.stringify({ ...res.summary, list: undefined })}`);
+        }
+      }
+      return { files, drop };
+    }, { layouts: spec.layouts, options: { ...(spec.build ?? {}) }, mainId: mainLayout.id, mainTraffic: spec.layout?.traffic, mainMarks: spec.layout?.courseMarks, name: spec.name, landmarks });
     const files = unzipSync(new Uint8Array(zipBytes));
-    for (const [k, v] of Object.entries(extra)) files[k] = new Uint8Array(Buffer.from(v, "base64"));
+    for (const [k, v] of Object.entries(extra.files)) files[k] = new Uint8Array(Buffer.from(v, "base64"));
+    for (const k of extra.drop) delete files[k];
     zipBytes = Buffer.from(zipSync(files, { level: 6 }));
   }
   if (layers.length) {

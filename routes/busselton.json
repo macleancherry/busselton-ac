@@ -51,6 +51,8 @@
   "traffic": true,
   "aiKeepLeft": true,
   "aiRings": true,
+  "courseMarks": true,
+  "_courseMarksNote": "Course markings (src/core/courseMarks.ts) on the race layouts: foreshore, town and sights. Never free roam (a spawns layout). Those layouts ship without traffic for now.",
   "origin": [
    115.3403,
    -33.6506
