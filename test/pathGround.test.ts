@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { MeshBuilder } from "../src/core/mesh";
 import type { Kn5MeshNode } from "../src/core/kn5";
-import { buildPaths, LIFT } from "../src/core/paths";
+import { buildPaths, columnsOf, LIFT } from "../src/core/paths";
 import { topSurface } from "../src/core/sceneGround";
 import { Area } from "../src/core/area";
 import { backdropHeight, buildBackdropChunk } from "../src/core/backdrop";
@@ -223,6 +223,27 @@ describe("the horizon stays under the detailed terrain", () => {
     for (let k = 0; k < p.length; k += 3) {
       if (cover(p[k]) <= opts.corridor) expect(p[k + 1]).toBeLessThanOrEqual(detail() - 1);
     }
+  });
+});
+
+describe("a path's vertices across", () => {
+  it("takes a vertex where the ribbon would float over a dip, as where the ground comes up", () => {
+    // Flat ground, then a kerb's sloped strip under the right edge (a footpath along a street):
+    // its edges alone would bridge 9 cm over the flat middle.
+    const g = [2.257, 2.25, 2.245, 2.31, 2.41];
+    const cols = columnsOf(g);
+    expect(cols.length).toBeGreaterThan(2);
+    const at = (c: number) => {
+      for (let k = 0; k < cols.length - 1; k++) {
+        const a = cols[k], b = cols[k + 1];
+        if (c >= a && c <= b) return g[a] + ((g[b] - g[a]) * (c - a)) / (b - a);
+      }
+      return g[c];
+    };
+    for (let c = 0; c < g.length; c++) expect(at(c) - g[c]).toBeLessThanOrEqual(0.02 + 1e-9);
+    // Flat or evenly sloped ground still takes just the edges.
+    expect(columnsOf([2, 2, 2, 2, 2])).toEqual([0, 4]);
+    expect(columnsOf([2, 2.1, 2.2, 2.3, 2.4])).toEqual([0, 4]);
   });
 });
 

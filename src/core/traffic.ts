@@ -53,6 +53,11 @@ export interface TrafficRoad {
    * clear them (Margaret River). Never less room than `width` gives.
    */
   widths?: number[];
+  /**
+   * Busselton fork: a divided road built as one street with a median (networkCore phase 2): the
+   * median's width, inside `width`. Layouts' AI lines take the carriageway on their left (layouts.ts).
+   */
+  median?: number;
 }
 
 export interface TrafficRoundabout {

@@ -12,6 +12,7 @@
 // (asLayout); every other layout is a route over roads the world already has, or a set of spawn
 // points for free roam, laid on the world's own road surface (layoutFiles).
 import { aiHintsIni, buildAiLine } from "./aiLine";
+import { KERB_ROOM, laneOffset } from "./keepLeft";
 import type { BayBox } from "./bayLanes";
 import { layoutChallengesIni } from "./challengeFiles";
 import { cruiseLayoutIni, cruiseSights, limitsByPercent } from "./cruise";
@@ -147,6 +148,13 @@ export interface World {
   lines?: Vec2[][];
   /** Each line's speed limit, km/h, for the layouts' AI hints. */
   speeds?: number[];
+  /**
+   * Busselton fork: each line's asphalt width and, for a divided road built as one line down its
+   * median (networkCore), the median's width. A layout's route on such a line is pulled onto the
+   * carriageway on its left instead of the median (carriagewayOffset).
+   */
+  widths?: number[];
+  medians?: (number | undefined | null)[];
   /** Busselton fork: landmarks the automatic test photographs as it drives past (landmarkShots.ts). */
   landmarks?: Landmark[];
   /** The world's roundabouts: centre, outer edge and (when known) island edge, local metres. */
@@ -173,20 +181,41 @@ class LineGrid {
     });
   }
 
-  nearest(p: Vec2): { q: Vec2; d: number; line: number } | null {
-    let best: { q: Vec2; d: number; line: number } | null = null;
+  nearest(p: Vec2): { q: Vec2; d: number; line: number; dir: Vec2 } | null {
+    let best: { q: Vec2; d: number; line: number; dir: Vec2 } | null = null;
     for (const [a, b, k] of this.grid.get(`${Math.floor(p[0] / this.cell)},${Math.floor(p[1] / this.cell)}`) ?? []) {
       const dx = b[0] - a[0], dy = b[1] - a[1];
       const t = Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / (dx * dx + dy * dy || 1)));
       const q: Vec2 = [a[0] + dx * t, a[1] + dy * t];
       const d = Math.hypot(q[0] - p[0], q[1] - p[1]);
-      if (d <= this.reach && (!best || d < best.d)) best = { q, d, line: k };
+      const L = Math.hypot(dx, dy) || 1;
+      if (d <= this.reach && (!best || d < best.d)) best = { q, d, line: k, dir: [dx / L, dy / L] };
     }
     return best;
   }
 }
 
-/** Moves each point onto the nearest centreline within `reach` metres (not near a roundabout). */
+/**
+ * Busselton fork: how far the middle of a divided road's carriageway is from the road's midline
+ * (its median's middle), for a road `width` wide in all with a `median` that wide (network/ribbons.ts
+ * does the same); 0 for an undivided road. With `keepLeft` (the keep-left offset the line will get
+ * on top, metres), less by however much of it the carriageway has no room for: the line ends up
+ * at least KERB_ROOM from the carriageway's left edge.
+ */
+export function carriagewayOffset(width: number, median: number | undefined | null, keepLeft = 0): number {
+  if (median === undefined || median === null || !(median > 0) || !(width > median)) return 0;
+  const cw = (width - median) / 2;
+  const room = Math.max(0, cw / 2 - KERB_ROOM);
+  return Math.max(0, median / 2 + cw / 2 - Math.max(0, keepLeft - room));
+}
+
+/**
+ * Moves each point onto the nearest centreline within `reach` metres (not near a roundabout). With
+ * `offsets` (metres per line, carriagewayOffset), a point on a divided road's midline goes onto the
+ * middle of the carriageway on the left of its direction of travel (Australia keeps left): the
+ * route's keep-left offset then works within that carriageway, as it does on a carriageway mapped
+ * as its own one-way street.
+ */
 /**
  * Moves AI line points that have no drivable surface under them onto the nearest one within 5 m,
  * half a metre in from its edge, then redoes the distances and directions. The smoothed line
@@ -234,11 +263,24 @@ export function keepOnSurface<T extends { position: [number, number, number]; di
   return ai;
 }
 
-export function snapToLines(pts: Vec2[], lines: Vec2[][], rings: { c: Vec2; rOut: number }[] = [], reach = 8): Vec2[] {
+export function snapToLines(pts: Vec2[], lines: Vec2[][], rings: { c: Vec2; rOut: number }[] = [], reach = 8, offsets?: number[]): Vec2[] {
   const grid = new LineGrid(lines, reach);
-  return pts.map((p) => {
+  return pts.map((p, i) => {
     if (rings.some((r) => Math.hypot(p[0] - r.c[0], p[1] - r.c[1]) < r.rOut + 6)) return p;
-    return grid.nearest(p)?.q ?? p;
+    const n = grid.nearest(p);
+    if (!n) return p;
+    const off = offsets?.[n.line] ?? 0;
+    if (!(off > 0)) return n.q;
+    // The direction of travel here, from the route's own neighbours.
+    const a = pts[Math.max(0, i - 1)], b = pts[Math.min(pts.length - 1, i + 1)];
+    const tx = b[0] - a[0], ty = b[1] - a[1];
+    if (Math.hypot(tx, ty) < 1e-6) return n.q;
+    // Only along the road (a route crossing the divided road keeps its point on the midline).
+    const along = (n.dir[0] * tx + n.dir[1] * ty) / Math.hypot(tx, ty);
+    if (Math.abs(along) < 0.7) return n.q;
+    const s = along > 0 ? 1 : -1;
+    const left: Vec2 = [-n.dir[1] * s, n.dir[0] * s];
+    return [n.q[0] + left[0] * off, n.q[1] + left[1] * off];
   });
 }
 
@@ -275,7 +317,11 @@ function routeAi(world: World, coords: LngLat[], opts: BuildOptions, height: (x:
   // Planned with the world's roundabouts (aiRings.ts): the route's arc round each stays a circle
   // instead of being smoothed into a wiggle that flicks out of the ring.
   const rings = world.rings ?? [];
-  const plan = planRoad(world.lines?.length ? snapToLines(dense, world.lines, rings) : local, opts, undefined, ringCircles(rings));
+  // A divided road built as one line down its median: onto the carriageway on the left.
+  // The line's keep-left offset (buildAiLine) comes on top: the plan's width is the build's own.
+  const keep = opts.aiKeepLeft ? laneOffset(opts.widthOverride > 0 ? opts.widthOverride : opts.defaultWidth) : 0;
+  const offsets = world.lines?.map((_, k) => carriagewayOffset(world.widths?.[k] ?? 0, world.medians?.[k], keep));
+  const plan = planRoad(world.lines?.length ? snapToLines(dense, world.lines, rings, 8, offsets) : local, opts, undefined, ringCircles(rings));
   const hs = fillHeights(plan.samples.map((s) => height(s.pos[0], s.pos[1])), 0);
   plan.samples.forEach((s, i) => { s.h = hs[i]; s.bank = 0; });
   // On the surface, the kinks that leaves eased out, then radii and speeds from the line itself,

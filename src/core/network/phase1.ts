@@ -117,6 +117,13 @@ export function networkGraph(
 const STREET_LIFT = 0.1;
 const CROWN_EASE = 8;
 const EASE = 15;
+/**
+ * Phase 3b: how far a junction's outline may leave its contour when simplified, metres (kerbs, strips
+ * and gutters have a row per outline vertex, so this sets most of their triangles)...
+ */
+export const OUTLINE_TOL = 0.03;
+/** ...and how far its surface may leave its height field between vertices (as the streets: THIN_TOL). */
+export const SURFACE_TOL = 0.006;
 
 export function planJunctionCore(input: JunctionCoreInput): JunctionCore {
   const t0 = Date.now();
@@ -177,16 +184,16 @@ export function planJunctionCore(input: JunctionCoreInput): JunctionCore {
   const n = route?.samples.length ?? 0;
   for (const j of matched) {
     const fail = (reason: string) => failures.push({ node: j.node, at: j.centre, reason });
-    let outline = junctionOutline(j, j.legs.map((l) => l.cap), input.outlineStep ?? 0.4);
+    let outline = junctionOutline(j, j.legs.map((l) => l.cap), input.outlineStep ?? 0.4, OUTLINE_TOL);
     // A cap the outline can't splice (it cuts a neighbouring leg's fillet): move it out, up to 8 m.
     for (let tries = 0; typeof outline === "string" && tries < 4; tries++) {
       const m = /^cap (\d+) /.exec(outline);
       if (!m || !j.retrim?.(Number(m[1]), 2)) break;
-      outline = junctionOutline(j, j.legs.map((l) => l.cap), input.outlineStep ?? 0.4);
+      outline = junctionOutline(j, j.legs.map((l) => l.cap), input.outlineStep ?? 0.4, OUTLINE_TOL);
     }
     // A cap whose outward strip meets another leg further out: only the outline near the cap is its own.
     if (typeof outline === "string" && /cuts the outline twice/.test(outline)) {
-      const o2 = junctionOutline(j, j.legs.map((l) => l.cap), input.outlineStep ?? 0.4, 0.02, 3);
+      const o2 = junctionOutline(j, j.legs.map((l) => l.cap), input.outlineStep ?? 0.4, OUTLINE_TOL, 3);
       if (typeof o2 !== "string") outline = o2;
     }
     if (typeof outline === "string") { fail(outline); continue; }
@@ -263,8 +270,8 @@ export function planJunctionCore(input: JunctionCoreInput): JunctionCore {
   }
   for (const pj of kept) {
     pj.field = capField(pj.j, route, input.terrain, { streetLift: STREET_LIFT });
-    // Refined where the field curves (a roundabout's fall, route legs blending in) to 3 mm; a plane needs none.
-    pj.surface = junctionSurface(pj.outline, pj.field.planar && !pj.j.ring ? undefined : pj.field.h);
+    // Refined where the field curves (a roundabout's fall, route legs blending in) to SURFACE_TOL; a plane needs none.
+    pj.surface = junctionSurface(pj.outline, pj.field.planar && !pj.j.ring ? undefined : pj.field.h, SURFACE_TOL);
   }
   // Junctions by 20 m cell, for the nearest one to a point.
   const NEAR = 3;

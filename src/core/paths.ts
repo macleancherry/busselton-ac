@@ -71,18 +71,22 @@ const acrossOf = (half: number) => {
 
 /**
  * Which of the points across get a vertex: the two edges, and then whichever point the ground
- * comes up through the ribbon most at, until none does (by more than UNDER). Sorted, left to
- * right; each vertex is at the ground under it.
+ * comes up through the ribbon most at (by more than UNDER), or the ribbon floats over most at (by
+ * more than MERGE_HEIGHT), until none is left. Sorted, left to right; each vertex is at the ground
+ * under it.
  */
 export function columnsOf(g: number[]): number[] {
   const m = g.length - 1;
   const cols = [0, m];
   for (;;) {
-    let worst = -1, by = UNDER;
+    // Ground up through the ribbon (more than UNDER), or the ribbon floating over a dip in the
+    // ground (more than MERGE_HEIGHT: a path along a kerb's sloped strip, one edge up the slope).
+    let worst = -1, by = 0;
     for (let c = 1; c < m; c++) {
       if (cols.includes(c)) continue;
       const over = g[c] - ribbonAt(cols, g, c);
-      if (over > by) { by = over; worst = c; }
+      const bad = over > UNDER ? over - UNDER : -over > MERGE_HEIGHT ? -over - MERGE_HEIGHT : 0;
+      if (bad > by) { by = bad; worst = c; }
     }
     if (worst < 0) return cols;
     cols.push(worst);
