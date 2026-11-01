@@ -1,203 +1,257 @@
 {
- "note": "Landmarks built from their own spec (src/core/specHouse.ts), loaded by any route that lists this file in \"looks\". \"at\" is the middle of each building's blocks (outbuildings left out). \"facing\" is the compass bearing the front faces (else it faces the nearest road).",
- "houses": [
-  {
-   "at": [
-    115.342594,
-    -33.647256
-   ],
-   "specFile": "routes/landmarks/rocky_ridge.json",
-   "name": "Rocky Ridge Brewing Co",
-   "facing": 345
-  },
-  {
-   "at": [
-    115.346152,
-    -33.645527
-   ],
-   "specFile": "routes/landmarks/hilton_garden_inn.json",
-   "name": "Hilton Garden Inn Busselton",
-   "facing": 335
-  },
-  {
-   "at": [
-    115.345723,
-    -33.645068
-   ],
-   "specFile": "routes/landmarks/visitor_centre.json",
-   "name": "Busselton Visitor Centre",
-   "facing": 111
-  },
-  {
-   "at": [
-    115.349816,
-    -33.652538
-   ],
-   "specFile": "routes/landmarks/busselton_museum.json",
-   "name": "Busselton Museum",
-   "facing": 347
-  },
-  {
-   "at": [
-    115.345216,
-    -33.646675
-   ],
-   "specFile": "routes/landmarks/esplanade_hotel.json",
-   "name": "Esplanade Hotel",
-   "facing": 346
-  },
-  {
-   "at": [
-    115.343484,
-    -33.647133
-   ],
-   "specFile": "routes/landmarks/old_courthouse.json",
-   "name": "Old Courthouse",
-   "facing": 76
-  },
-  {
-   "at": [
-    115.345426,
-    -33.644643
-   ],
-   "specFile": "routes/landmarks/the_goose.json",
-   "name": "The Goose",
-   "facing": 166
-  },
-  {
-   "at": [
-    115.343434,
-    -33.645187
-   ],
-   "specFile": "routes/landmarks/foreshore_cafes.json",
-   "name": "Kyst and Sandbox",
-   "facing": 205
-  },
-  {
-   "at": [
-    115.329073,
-    -33.650602
-   ],
-   "specFile": "routes/landmarks/yacht_club.json",
-   "name": "Geographe Bay Yacht Club",
-   "facing": 346
-  },
-  {
-   "at": [
-    115.344454,
-    -33.65188
-   ],
-   "specFile": "routes/landmarks/orana_cinemas.json",
-   "name": "Orana Cinemas",
-   "facing": 167
-  },
-  {
-   "at": [
-    115.345603,
-    -33.652773
-   ],
-   "specFile": "routes/landmarks/st_marys.json",
-   "name": "St Mary's Anglican Church",
-   "facing": 270
-  },
-  {
-   "at": [
-    115.346398,
-    -33.647204
-   ],
-   "specFile": "routes/landmarks/pioneer_cemetery.json",
-   "name": "Busselton Pioneer Cemetery",
-   "facing": 346
-  },
-  {
-   "at": [
-    115.347919,
-    -33.651811
-   ],
-   "specFile": "routes/landmarks/fire_station.json",
-   "name": "Busselton Volunteer Fire and Rescue",
-   "facing": 346
-  },
-  {
-   "at": [
-    115.349885,
-    -33.648262
-   ],
-   "specFile": "routes/landmarks/busselton_bowling_club.json",
-   "name": "Busselton Bowling Club",
-   "facing": 166.5
-  },
-  {
-   "at": [
-    115.344886,
-    -33.652301
-   ],
-   "specFile": "routes/landmarks/victoria_square_memorial.json",
-   "name": "Busselton War Memorial, Victoria Square",
-   "facing": 0
-  },
-  {
-   "at": [
-    115.344206,
-    -33.6508
-   ],
-   "specFile": "routes/landmarks/mitchell_park.json",
-   "name": "Mitchell Park shelters",
-   "facing": 90
-  },
-  {
-   "at": [
-    115.347507,
-    -33.651197
-   ],
-   "specFile": "routes/landmarks/japanese_friendship_garden.json",
-   "name": "Japanese Friendship Garden gate",
-   "facing": 168
-  },
-  {
-   "at": [
-    115.345288,
-    -33.651794
-   ],
-   "specFile": "routes/landmarks/the_tav.json",
-   "name": "The Tav (Vasse Tavern)",
-   "facing": 256
-  },
-  {
-   "at": [
-    115.341789,
-    -33.652997
-   ],
-   "specFile": "routes/landmarks/ship_inn.json",
-   "name": "The Ship Inn",
-   "facing": 0
-  },
-  {
-   "at": [
-    115.341955,
-    -33.652897
-   ],
-   "specFile": "routes/landmarks/ship_inn_stables.json",
-   "name": "The Ship Inn (stables wing)",
-   "facing": 350
-  },
-  {
-   "at": [
-    115.345327,
-    -33.650686
-   ],
-   "specFile": "routes/landmarks/banksia_tavern.json",
-   "name": "The Banksia Tavern",
-   "facing": 170
-  },
-  {
-   "at": [
-    115.347801,
-    -33.646069
-   ],
-   "specFile": "routes/landmarks/kookaburra_caravan_park.json",
-   "name": "Busselton Jetty Tourist Park (the old Kookaburra Caravan Park)",
-   "facing": 350
-  }
- ]
+  "note": "Landmarks built from their own spec (src/core/specHouse.ts), loaded by any route that lists this file in \"looks\". \"at\" is the middle of each building's blocks (outbuildings left out). \"facing\" is the compass bearing the front faces (else it faces the nearest road).",
+  "houses": [
+    {
+      "at": [
+        115.342594,
+        -33.647256
+      ],
+      "specFile": "routes/landmarks/rocky_ridge.json",
+      "name": "Rocky Ridge Brewing Co",
+      "facing": 345
+    },
+    {
+      "at": [
+        115.346152,
+        -33.645527
+      ],
+      "specFile": "routes/landmarks/hilton_garden_inn.json",
+      "name": "Hilton Garden Inn Busselton",
+      "facing": 335
+    },
+    {
+      "at": [
+        115.345723,
+        -33.645068
+      ],
+      "specFile": "routes/landmarks/visitor_centre.json",
+      "name": "Busselton Visitor Centre",
+      "facing": 111
+    },
+    {
+      "at": [
+        115.349816,
+        -33.652538
+      ],
+      "specFile": "routes/landmarks/busselton_museum.json",
+      "name": "Busselton Museum",
+      "facing": 347
+    },
+    {
+      "at": [
+        115.345216,
+        -33.646675
+      ],
+      "specFile": "routes/landmarks/esplanade_hotel.json",
+      "name": "Esplanade Hotel",
+      "facing": 346
+    },
+    {
+      "at": [
+        115.343484,
+        -33.647133
+      ],
+      "specFile": "routes/landmarks/old_courthouse.json",
+      "name": "Old Courthouse",
+      "facing": 76
+    },
+    {
+      "at": [
+        115.345426,
+        -33.644643
+      ],
+      "specFile": "routes/landmarks/the_goose.json",
+      "name": "The Goose",
+      "facing": 166
+    },
+    {
+      "at": [
+        115.343434,
+        -33.645187
+      ],
+      "specFile": "routes/landmarks/foreshore_cafes.json",
+      "name": "Kyst and Sandbox",
+      "facing": 205
+    },
+    {
+      "at": [
+        115.329073,
+        -33.650602
+      ],
+      "specFile": "routes/landmarks/yacht_club.json",
+      "name": "Geographe Bay Yacht Club",
+      "facing": 346
+    },
+    {
+      "at": [
+        115.344454,
+        -33.65188
+      ],
+      "specFile": "routes/landmarks/orana_cinemas.json",
+      "name": "Orana Cinemas",
+      "facing": 167
+    },
+    {
+      "at": [
+        115.345603,
+        -33.652773
+      ],
+      "specFile": "routes/landmarks/st_marys.json",
+      "name": "St Mary's Anglican Church",
+      "facing": 270
+    },
+    {
+      "at": [
+        115.346398,
+        -33.647204
+      ],
+      "specFile": "routes/landmarks/pioneer_cemetery.json",
+      "name": "Busselton Pioneer Cemetery",
+      "facing": 346
+    },
+    {
+      "at": [
+        115.347919,
+        -33.651811
+      ],
+      "specFile": "routes/landmarks/fire_station.json",
+      "name": "Busselton Volunteer Fire and Rescue",
+      "facing": 346
+    },
+    {
+      "at": [
+        115.349885,
+        -33.648262
+      ],
+      "specFile": "routes/landmarks/busselton_bowling_club.json",
+      "name": "Busselton Bowling Club",
+      "facing": 166.5
+    },
+    {
+      "at": [
+        115.344886,
+        -33.652301
+      ],
+      "specFile": "routes/landmarks/victoria_square_memorial.json",
+      "name": "Busselton War Memorial, Victoria Square",
+      "facing": 0
+    },
+    {
+      "at": [
+        115.344206,
+        -33.6508
+      ],
+      "specFile": "routes/landmarks/mitchell_park.json",
+      "name": "Mitchell Park shelters",
+      "facing": 90
+    },
+    {
+      "at": [
+        115.347507,
+        -33.651197
+      ],
+      "specFile": "routes/landmarks/japanese_friendship_garden.json",
+      "name": "Japanese Friendship Garden gate",
+      "facing": 168
+    },
+    {
+      "at": [
+        115.345288,
+        -33.651794
+      ],
+      "specFile": "routes/landmarks/the_tav.json",
+      "name": "The Tav (Vasse Tavern)",
+      "facing": 256
+    },
+    {
+      "at": [
+        115.341789,
+        -33.652997
+      ],
+      "specFile": "routes/landmarks/ship_inn.json",
+      "name": "The Ship Inn",
+      "facing": 0
+    },
+    {
+      "at": [
+        115.341955,
+        -33.652897
+      ],
+      "specFile": "routes/landmarks/ship_inn_stables.json",
+      "name": "The Ship Inn (stables wing)",
+      "facing": 350
+    },
+    {
+      "at": [
+        115.345327,
+        -33.650686
+      ],
+      "specFile": "routes/landmarks/banksia_tavern.json",
+      "name": "The Banksia Tavern",
+      "facing": 170
+    },
+    {
+      "at": [
+        115.347801,
+        -33.646069
+      ],
+      "specFile": "routes/landmarks/kookaburra_caravan_park.json",
+      "name": "Busselton Jetty Tourist Park (the old Kookaburra Caravan Park)",
+      "facing": 350
+    },
+    {
+      "at": [
+        115.344011,
+        -33.647167
+      ],
+      "specFile": "routes/landmarks/saltwater.json",
+      "name": "Saltwater",
+      "facing": 257
+    },
+    {
+      "at": [
+        115.343834,
+        -33.646879
+      ],
+      "specFile": "routes/landmarks/artgeo.json",
+      "name": "Old Agricultural Bank (ArtGeo)",
+      "facing": 257
+    },
+    {
+      "at": [
+        115.344051,
+        -33.647589
+      ],
+      "specFile": "routes/landmarks/weld_theatre.json",
+      "name": "Weld Theatre",
+      "facing": 257
+    },
+    {
+      "at": [
+        115.344375,
+        -33.650381
+      ],
+      "specFile": "routes/landmarks/fire_station_bar.json",
+      "name": "The Fire Station (bar)",
+      "facing": 76
+    },
+    {
+      "at": [
+        115.346486,
+        -33.644534
+      ],
+      "specFile": "routes/landmarks/surf_club_west.json",
+      "name": "Surf Life Saving Club and Youth building (west)",
+      "facing": 235
+    },
+    {
+      "at": [
+        115.346752,
+        -33.644474
+      ],
+      "specFile": "routes/landmarks/surf_club_east.json",
+      "name": "Surf Life Saving Club and Youth building (east)",
+      "facing": 171
+    }
+  ]
 }

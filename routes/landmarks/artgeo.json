@@ -1,0 +1,285 @@
+{
+ "note": "Former Office of the Department of Agriculture (1931 Agricultural Bank; ArtGeo Gallery), 7 Queen St on the Marine Tce corner, State Register 00405. Part of the Saltwater project: the City is turning it into the centre's bar and restaurant. From the Landgate aerial (Oct 2026), a 2021 Mapillary view from the roundabout and the inHerit record: red stretcher-bond brick under a hipped terracotta tile roof with boxed eaves, the narrow end to Queen St with a symmetrical front of two big twelve-pane windows and a cream rendered porch (arched sides), a rendered frieze lettered AGRICULTURE WESTERN AUSTRALIA, six sash windows down each side, a rendered chimney on the south side. The small dark-roofed back-of-house block behind it (Saltwater's admin) rides along as an outbuilding. Plain lettering only. Metres: x left to right as seen from Queen St (north to south), y back (east) from the porch front.",
+ "wallHeight": 4.6,
+ "setback": 6.0,
+ "road": {
+  "width": 12,
+  "verge": 3.0
+ },
+ "lawn": "#7f8b52",
+ "sunFrom": [
+  -0.6,
+  -0.5,
+  0.9
+ ],
+ "cameras": {
+  "street": {
+   "eye": [
+    -4.0,
+    -8.0,
+    1.6
+   ],
+   "look": [
+    8.0,
+    6.0,
+    3.2
+   ],
+   "lens": 26
+  },
+  "aerial": {
+   "eye": [
+    -22.0,
+    -28.0,
+    26
+   ],
+   "look": [
+    8.0,
+    14.0,
+    1
+   ],
+   "lens": 28
+  }
+ },
+ "walls": {
+  "kind": "brick",
+  "colour": "#8e4a36"
+ },
+ "finishes": {
+  "cream": {
+   "kind": "render",
+   "colour": "#e8dfc6"
+  },
+  "admin": {
+   "kind": "cladding",
+   "colour": "#cfcabd"
+  }
+ },
+ "trim": "#e8dfc6",
+ "roof": {
+  "pitch": 28,
+  "colour": "#b8613f",
+  "eaves": 0.5
+ },
+ "blocks": [
+  {
+   "name": "bank",
+   "x0": 0.4,
+   "x1": 12.6,
+   "y0": 2.4,
+   "y1": 24.0,
+   "roof": "hip"
+  },
+  {
+   "name": "porch",
+   "x0": 4.6,
+   "x1": 8.4,
+   "y0": 0.0,
+   "y1": 2.4,
+   "roof": "none",
+   "wallHeight": 4.3,
+   "walls": "cream"
+  },
+  {
+   "name": "chimney",
+   "x0": 12.1,
+   "x1": 13.0,
+   "y0": 19.0,
+   "y1": 19.9,
+   "roof": "none",
+   "wallHeight": 7.4,
+   "walls": "cream",
+   "outbuilding": true
+  },
+  {
+   "name": "admin",
+   "x0": 0.0,
+   "x1": 11.0,
+   "y0": 34.0,
+   "y1": 40.0,
+   "roof": "hip",
+   "pitch": 5,
+   "wallHeight": 3.6,
+   "walls": "admin",
+   "roofColour": "#4b4c46",
+   "eaves": 0.3,
+   "outbuilding": true
+  }
+ ],
+ "panels": [
+  {
+   "x0": 0.3,
+   "x1": 12.7,
+   "y0": 2.3,
+   "y1": 2.42,
+   "z0": 0.0,
+   "z1": 0.55,
+   "walls": "cream"
+  },
+  {
+   "x0": 0.3,
+   "x1": 12.7,
+   "y0": 2.3,
+   "y1": 2.42,
+   "z0": 3.75,
+   "z1": 4.6,
+   "walls": "cream"
+  }
+ ],
+ "windows": [
+  {
+   "facing": "front",
+   "wall": 2.38,
+   "at": 2.3,
+   "width": 1.5,
+   "height": 2.3,
+   "sill": 0.9
+  },
+  {
+   "facing": "front",
+   "wall": 2.38,
+   "at": 10.7,
+   "width": 1.5,
+   "height": 2.3,
+   "sill": 0.9
+  },
+  {
+   "facing": "left",
+   "wall": 0.38,
+   "at": 5.5,
+   "width": 1.0,
+   "height": 1.9,
+   "sill": 1.0
+  },
+  {
+   "facing": "right",
+   "wall": 12.62,
+   "at": 5.5,
+   "width": 1.0,
+   "height": 1.9,
+   "sill": 1.0
+  },
+  {
+   "facing": "left",
+   "wall": 0.38,
+   "at": 8.8,
+   "width": 1.0,
+   "height": 1.9,
+   "sill": 1.0
+  },
+  {
+   "facing": "right",
+   "wall": 12.62,
+   "at": 8.8,
+   "width": 1.0,
+   "height": 1.9,
+   "sill": 1.0
+  },
+  {
+   "facing": "left",
+   "wall": 0.38,
+   "at": 12.1,
+   "width": 1.0,
+   "height": 1.9,
+   "sill": 1.0
+  },
+  {
+   "facing": "right",
+   "wall": 12.62,
+   "at": 12.1,
+   "width": 1.0,
+   "height": 1.9,
+   "sill": 1.0
+  },
+  {
+   "facing": "left",
+   "wall": 0.38,
+   "at": 15.4,
+   "width": 1.0,
+   "height": 1.9,
+   "sill": 1.0
+  },
+  {
+   "facing": "right",
+   "wall": 12.62,
+   "at": 15.4,
+   "width": 1.0,
+   "height": 1.9,
+   "sill": 1.0
+  },
+  {
+   "facing": "left",
+   "wall": 0.38,
+   "at": 18.7,
+   "width": 1.0,
+   "height": 1.9,
+   "sill": 1.0
+  },
+  {
+   "facing": "right",
+   "wall": 12.62,
+   "at": 18.7,
+   "width": 1.0,
+   "height": 1.9,
+   "sill": 1.0
+  },
+  {
+   "facing": "left",
+   "wall": 0.38,
+   "at": 22.0,
+   "width": 1.0,
+   "height": 1.9,
+   "sill": 1.0
+  },
+  {
+   "facing": "right",
+   "wall": 12.62,
+   "at": 22.0,
+   "width": 1.0,
+   "height": 1.9,
+   "sill": 1.0
+  }
+ ],
+ "doors": [
+  {
+   "type": "front",
+   "x0": 5.85,
+   "x1": 7.15,
+   "y": -0.04,
+   "height": 2.9,
+   "z0": 0.3,
+   "colour": "#3a2a22"
+  }
+ ],
+ "signs": [
+  {
+   "x0": 0.6,
+   "x1": 4.4,
+   "y": 2.24,
+   "z0": 3.85,
+   "z1": 4.45,
+   "text": "AGRICULTURE",
+   "colour": "#e8dfc6",
+   "ink": "#1d1b1a"
+  },
+  {
+   "x0": 8.6,
+   "x1": 12.4,
+   "y": 2.24,
+   "z0": 3.85,
+   "z1": 4.45,
+   "text": "WESTERN AUSTRALIA",
+   "colour": "#e8dfc6",
+   "ink": "#1d1b1a"
+  }
+ ],
+ "paving": [
+  {
+   "x0": 0.0,
+   "y0": -6.0,
+   "x1": 13.0,
+   "y1": 0.0,
+   "colour": "#cbc6bb",
+   "kind": "brick"
+  }
+ ]
+}

@@ -1,0 +1,273 @@
+{
+ "note": "Busselton Surf Life Saving Club and the City's Youth and Community Activities Building (one building, opened 2018, designed by D'Agostino and Luff), on the foreshore east of the jetty base, beside the skate park and the youth precinct, with the Marine Tce car park to the south-west. From the Landgate aerial (Oct 2026) and 2021 Mapillary views from the car park; no close photo, so wall finishes, openings and heights are guesses. The real building fans out in about six skewed blades round a grey-roofed spine; specHouse blocks are square, so it is drawn as two specs (surf_club_west and surf_club_east), each square to its own blades, and the blades' skew (up to about 18 degrees) is lost. White walls and white low-pitched Colorbond roofs with solar arrays (dark slabs on the roof). This spec: the west half, the three blades facing the car park and the beach path, and the spine. Front = the south-west ends toward the car park. Plain lettering only. Metres: x left to right as seen from the car park (south-east to north-west), y back (north-east) from the front ends.",
+ "wallHeight": 7.0,
+ "setback": 10.0,
+ "road": {
+  "width": 7,
+  "verge": 3.0
+ },
+ "lawn": "#86a24a",
+ "sunFrom": [
+  -0.4,
+  0.6,
+  0.9
+ ],
+ "cameras": {
+  "street": {
+   "eye": [
+    29.5,
+    -16.0,
+    1.6
+   ],
+   "look": [
+    17.5,
+    12.0,
+    4.5
+   ],
+   "lens": 26
+  },
+  "aerial": {
+   "eye": [
+    41.5,
+    -38.0,
+    36
+   ],
+   "look": [
+    17.5,
+    16.0,
+    2
+   ],
+   "lens": 30
+  }
+ },
+ "walls": {
+  "kind": "render",
+  "colour": "#ecebe6"
+ },
+ "finishes": {
+  "glass": {
+   "kind": "render",
+   "colour": "#2e3a42"
+  },
+  "spine": {
+   "kind": "cladding",
+   "colour": "#d9dad6"
+  }
+ },
+ "trim": "#d8d8d4",
+ "roof": {
+  "pitch": 4,
+  "colour": "#eef0ec",
+  "eaves": 0.5
+ },
+ "blocks": [
+  {
+   "name": "blade_a",
+   "x0": 0.0,
+   "x1": 12.0,
+   "y0": 5.0,
+   "y1": 25.0,
+   "wallHeight": 7.5
+  },
+  {
+   "name": "blade_b",
+   "x0": 12.0,
+   "x1": 24.5,
+   "y0": 1.0,
+   "y1": 25.0,
+   "wallHeight": 8.5
+  },
+  {
+   "name": "blade_c",
+   "x0": 24.5,
+   "x1": 33.5,
+   "y0": 0.0,
+   "y1": 21.0,
+   "wallHeight": 6.3
+  },
+  {
+   "name": "spine",
+   "x0": 3.5,
+   "x1": 27.5,
+   "y0": 25.0,
+   "y1": 31.5,
+   "roof": "gable",
+   "pitch": 12,
+   "wallHeight": 8.8,
+   "walls": "spine",
+   "roofColour": "#9ea3a3"
+  }
+ ],
+ "panels": [
+  {
+   "x0": 0.5,
+   "x1": 11.5,
+   "y0": 4.94,
+   "y1": 5.02,
+   "z0": 3.9,
+   "z1": 7.0,
+   "walls": "glass"
+  },
+  {
+   "x0": 12.5,
+   "x1": 24.0,
+   "y0": 0.94,
+   "y1": 1.02,
+   "z0": 4.9,
+   "z1": 8.0,
+   "walls": "glass"
+  },
+  {
+   "x0": -0.08,
+   "x1": 0.0,
+   "y0": 6.0,
+   "y1": 24.0,
+   "z0": 3.9,
+   "z1": 7.0,
+   "walls": "glass"
+  }
+ ],
+ "windows": [
+  {
+   "facing": "front",
+   "wall": -0.04,
+   "at": 26.5,
+   "width": 1.6,
+   "height": 1.4,
+   "sill": 1.0
+  }
+ ],
+ "doors": [
+  {
+   "type": "roller",
+   "x0": 1.5,
+   "x1": 5.1,
+   "y": 5.0,
+   "height": 3.2,
+   "colour": "#cfd2d0"
+  },
+  {
+   "type": "roller",
+   "x0": 5.9,
+   "x1": 9.5,
+   "y": 5.0,
+   "height": 3.2,
+   "colour": "#cfd2d0"
+  },
+  {
+   "type": "roller",
+   "x0": 13.1,
+   "x1": 16.7,
+   "y": 1.0,
+   "height": 3.2,
+   "colour": "#cfd2d0"
+  },
+  {
+   "type": "roller",
+   "x0": 17.7,
+   "x1": 21.3,
+   "y": 1.0,
+   "height": 3.2,
+   "colour": "#cfd2d0"
+  },
+  {
+   "type": "front",
+   "x0": 28.5,
+   "x1": 29.9,
+   "y": -0.04,
+   "height": 2.4,
+   "colour": "#3a4248"
+  }
+ ],
+ "awnings": [
+  {
+   "x0": 3.9,
+   "x1": 6.1,
+   "y0": 6.0,
+   "y1": 21.0,
+   "z": 7.95,
+   "thickness": 0.06,
+   "colour": "#1e2834"
+  },
+  {
+   "x0": 6.5,
+   "x1": 8.7,
+   "y0": 6.0,
+   "y1": 21.0,
+   "z": 7.95,
+   "thickness": 0.06,
+   "colour": "#1e2834"
+  }
+ ],
+ "signs": [
+  {
+   "x0": 12.9,
+   "x1": 23.5,
+   "y": 0.9,
+   "z0": 3.6,
+   "z1": 4.4,
+   "text": "BUSSELTON SURF LIFE SAVING CLUB",
+   "colour": "#ecebe6",
+   "ink": "#c0262d"
+  }
+ ],
+ "fences": [
+  {
+   "x0": 33.5,
+   "y0": 6.0,
+   "x1": 38.0,
+   "y1": 6.0,
+   "height": 2.0,
+   "colour": "#8a8f8f",
+   "open": true
+  },
+  {
+   "x0": 38.0,
+   "y0": 6.0,
+   "x1": 38.0,
+   "y1": 13.5,
+   "height": 2.0,
+   "colour": "#8a8f8f",
+   "open": true
+  },
+  {
+   "x0": 38.0,
+   "y0": 13.5,
+   "x1": 33.5,
+   "y1": 13.5,
+   "height": 2.0,
+   "colour": "#8a8f8f",
+   "open": true
+  }
+ ],
+ "paving": [
+  {
+   "x0": -0.5,
+   "y0": -4.0,
+   "x1": 33.5,
+   "y1": 5.0,
+   "colour": "#d2c7ae",
+   "kind": "concrete"
+  }
+ ],
+ "trees": [
+  {
+   "x": -2.5,
+   "y": 2.0,
+   "height": 9,
+   "spread": 4
+  },
+  {
+   "x": -3.0,
+   "y": 16.0,
+   "height": 9,
+   "spread": 4
+  },
+  {
+   "x": -2.5,
+   "y": 28.0,
+   "height": 9,
+   "spread": 4
+  }
+ ]
+}

@@ -1,0 +1,203 @@
+{
+ "note": "The Weld Theatre (Weld Hall Theatre, from 1874; Victorian Italianate, brick, corrugated iron roof; inHerit), 13 Queen St on the Adelaide St corner, kept beside Saltwater and joined to it behind (City of Busselton: an upgraded back of house, a scene dock leveller and a new covered courtyard behind the old theatre). From the Landgate aerial (Oct 2026); no photo of the street front was found, so the front, colours and the parapet are guesses. A hipped hall with its ridge along Queen St, a gabled entrance porch pushing out to the street, a taller gabled stage house behind and a gabled side wing to Adelaide St; behind them the two long low roofs of the back-of-house and the covered courtyard, marked as outbuildings. Plain lettering only. Metres: x left to right as seen from Queen St (north to south), y back (east) from the porch front.",
+ "wallHeight": 6.0,
+ "setback": 6.0,
+ "road": {
+  "width": 12,
+  "verge": 3.0
+ },
+ "lawn": "#7f8b52",
+ "sunFrom": [
+  -0.6,
+  -0.5,
+  0.9
+ ],
+ "cameras": {
+  "street": {
+   "eye": [
+    1.5,
+    -9.0,
+    1.6
+   ],
+   "look": [
+    15.5,
+    7.0,
+    4
+   ],
+   "lens": 24
+  },
+  "aerial": {
+   "eye": [
+    -16.5,
+    -41.0,
+    34
+   ],
+   "look": [
+    15.5,
+    16.0,
+    1
+   ],
+   "lens": 30
+  }
+ },
+ "walls": {
+  "kind": "brick",
+  "colour": "#9a5a44"
+ },
+ "finishes": {
+  "cream": {
+   "kind": "render",
+   "colour": "#e6dcc2"
+  },
+  "back": {
+   "kind": "cladding",
+   "colour": "#cfcabd"
+  }
+ },
+ "trim": "#e6dcc2",
+ "roof": {
+  "pitch": 25,
+  "colour": "#c9cdcf",
+  "eaves": 0.35
+ },
+ "blocks": [
+  {
+   "name": "porch",
+   "x0": 10.5,
+   "x1": 16.5,
+   "y0": 0.0,
+   "y1": 6.5,
+   "roof": "gable",
+   "wallHeight": 5.0,
+   "pitch": 30,
+   "walls": "cream"
+  },
+  {
+   "name": "hall",
+   "x0": 6.5,
+   "x1": 24.5,
+   "y0": 6.5,
+   "y1": 17.0,
+   "roof": "hip",
+   "wallHeight": 6.5
+  },
+  {
+   "name": "stage",
+   "x0": 15.5,
+   "x1": 23.5,
+   "y0": 17.0,
+   "y1": 22.0,
+   "roof": "gable",
+   "wallHeight": 8.5
+  },
+  {
+   "name": "side_wing",
+   "x0": 24.5,
+   "x1": 29.5,
+   "y0": 12.0,
+   "y1": 19.0,
+   "roof": "gable",
+   "wallHeight": 4.8
+  },
+  {
+   "name": "courtyard_roof",
+   "x0": 0.0,
+   "x1": 30.5,
+   "y0": 23.0,
+   "y1": 30.0,
+   "roof": "hip",
+   "pitch": 4,
+   "wallHeight": 4.5,
+   "walls": "back",
+   "outbuilding": true
+  },
+  {
+   "name": "back_of_house",
+   "x0": 0.0,
+   "x1": 30.5,
+   "y0": 31.0,
+   "y1": 38.0,
+   "roof": "hip",
+   "pitch": 4,
+   "wallHeight": 5.0,
+   "walls": "back",
+   "outbuilding": true
+  }
+ ],
+ "panels": [
+  {
+   "x0": 10.4,
+   "x1": 16.6,
+   "y0": -0.1,
+   "y1": 0.02,
+   "z0": 4.6,
+   "z1": 5.0,
+   "walls": "cream"
+  }
+ ],
+ "windows": [
+  {
+   "facing": "front",
+   "wall": -0.02,
+   "at": 11.4,
+   "width": 0.8,
+   "height": 2.0,
+   "sill": 1.0
+  },
+  {
+   "facing": "front",
+   "wall": -0.02,
+   "at": 15.6,
+   "width": 0.8,
+   "height": 2.0,
+   "sill": 1.0
+  },
+  {
+   "facing": "front",
+   "wall": 6.48,
+   "at": 8.1,
+   "width": 1.0,
+   "height": 2.6,
+   "sill": 1.2
+  },
+  {
+   "facing": "front",
+   "wall": 6.48,
+   "at": 20.3,
+   "width": 1.0,
+   "height": 2.6,
+   "sill": 1.2
+  },
+  {
+   "facing": "front",
+   "wall": 6.48,
+   "at": 23.1,
+   "width": 1.0,
+   "height": 2.6,
+   "sill": 1.2
+  }
+ ],
+ "doors": [
+  {
+   "type": "front",
+   "x0": 12.7,
+   "x1": 14.3,
+   "y": -0.04,
+   "height": 2.8,
+   "z0": 0.15,
+   "colour": "#3a2a22"
+  }
+ ],
+ "signs": [
+  {
+   "x0": 11.5,
+   "x1": 15.5,
+   "y": -0.14,
+   "z0": 3.3,
+   "z1": 3.85,
+   "text": "WELD THEATRE",
+   "colour": "#e6dcc2",
+   "ink": "#3a2420"
+  }
+ ]
+}

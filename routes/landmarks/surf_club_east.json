@@ -1,0 +1,182 @@
+{
+ "note": "Busselton Surf Life Saving Club and the City's Youth and Community Activities Building (one building, opened 2018, designed by D'Agostino and Luff), on the foreshore east of the jetty base, beside the skate park and the youth precinct, with the Marine Tce car park to the south-west. From the Landgate aerial (Oct 2026) and 2021 Mapillary views from the car park; no close photo, so wall finishes, openings and heights are guesses. The real building fans out in about six skewed blades round a grey-roofed spine; specHouse blocks are square, so it is drawn as two specs (surf_club_west and surf_club_east), each square to its own blades, and the blades' skew (up to about 18 degrees) is lost. White walls and white low-pitched Colorbond roofs with solar arrays (dark slabs on the roof). This spec: the east half, the three blades toward the skate park and the youth precinct lawn (the youth and community side, by its rooms to the precinct; not confirmed). Front = south, to the skate park path. No sign: its wording isn't known. Metres: x left to right as seen from the south (west to east), y back (north) from the front.",
+ "wallHeight": 6.5,
+ "setback": 8.0,
+ "road": {
+  "width": 4,
+  "verge": 3.0
+ },
+ "lawn": "#86a24a",
+ "sunFrom": [
+  -0.4,
+  0.6,
+  0.9
+ ],
+ "cameras": {
+  "street": {
+   "eye": [
+    24.0,
+    -18.0,
+    1.6
+   ],
+   "look": [
+    10.0,
+    12.0,
+    4
+   ],
+   "lens": 26
+  },
+  "aerial": {
+   "eye": [
+    30.0,
+    -34.0,
+    30
+   ],
+   "look": [
+    10.0,
+    16.0,
+    2
+   ],
+   "lens": 30
+  }
+ },
+ "walls": {
+  "kind": "render",
+  "colour": "#ecebe6"
+ },
+ "finishes": {
+  "glass": {
+   "kind": "render",
+   "colour": "#2e3a42"
+  }
+ },
+ "trim": "#d8d8d4",
+ "roof": {
+  "pitch": 4,
+  "colour": "#eef0ec",
+  "eaves": 0.5
+ },
+ "blocks": [
+  {
+   "name": "blade_e",
+   "x0": 4.0,
+   "x1": 19.0,
+   "y0": 0.0,
+   "y1": 13.0,
+   "wallHeight": 6.3
+  },
+  {
+   "name": "blade_d",
+   "x0": 0.0,
+   "x1": 23.0,
+   "y0": 13.0,
+   "y1": 21.0,
+   "wallHeight": 8.0
+  },
+  {
+   "name": "blade_f",
+   "x0": 0.0,
+   "x1": 13.0,
+   "y0": 21.0,
+   "y1": 32.5,
+   "wallHeight": 7.0
+  }
+ ],
+ "panels": [
+  {
+   "x0": 5.0,
+   "x1": 18.0,
+   "y0": -0.06,
+   "y1": 0.02,
+   "z0": 0.3,
+   "z1": 3.0,
+   "walls": "glass"
+  },
+  {
+   "x0": 19.5,
+   "x1": 22.5,
+   "y0": 12.94,
+   "y1": 13.02,
+   "z0": 0.5,
+   "z1": 7.0,
+   "walls": "glass"
+  }
+ ],
+ "windows": [
+  {
+   "facing": "right",
+   "wall": 23.02,
+   "at": 15.0,
+   "width": 2.0,
+   "height": 1.8,
+   "sill": 1.0
+  },
+  {
+   "facing": "right",
+   "wall": 23.02,
+   "at": 18.5,
+   "width": 2.0,
+   "height": 1.8,
+   "sill": 1.0
+  }
+ ],
+ "doors": [
+  {
+   "type": "front",
+   "x0": 7.0,
+   "x1": 8.8,
+   "y": -0.08,
+   "height": 2.6,
+   "z0": 0.05,
+   "colour": "#3a4248"
+  },
+  {
+   "type": "front",
+   "x0": 13.0,
+   "x1": 14.8,
+   "y": -0.08,
+   "height": 2.6,
+   "z0": 0.05,
+   "colour": "#3a4248"
+  }
+ ],
+ "awnings": [
+  {
+   "x0": 4.0,
+   "x1": 6.2,
+   "y0": 23.0,
+   "y1": 29.0,
+   "z": 7.5,
+   "thickness": 0.06,
+   "colour": "#1e2834"
+  },
+  {
+   "x0": 6.6,
+   "x1": 8.8,
+   "y0": 23.0,
+   "y1": 29.0,
+   "z": 7.5,
+   "thickness": 0.06,
+   "colour": "#1e2834"
+  },
+  {
+   "x0": 9.2,
+   "x1": 11.4,
+   "y0": 23.0,
+   "y1": 29.0,
+   "z": 7.5,
+   "thickness": 0.06,
+   "colour": "#1e2834"
+  }
+ ],
+ "paving": [
+  {
+   "x0": 2.0,
+   "y0": -5.0,
+   "x1": 22.0,
+   "y1": 0.0,
+   "colour": "#d2c7ae",
+   "kind": "concrete"
+  }
+ ]
+}
