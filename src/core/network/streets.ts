@@ -27,6 +27,13 @@ export interface GraphStreet {
   median?: number;
   /** One carriageway of a divided road (the route is the other): 1 the edge's left one, -1 its right. */
   half?: 1 | -1;
+  /**
+   * Built from an edge inside a junction (a short link between merged junction nodes, a splitter leg).
+   * A junction the network takes covers it (its quads are skipped there); one it can't take leaves
+   * the street to carry the road, as the old side streets did. Left out, a refused junction was a
+   * 13 m hole in the road (the sights layout's grid stood in one).
+   */
+  internal?: true;
 }
 
 /** A street meeting the route's edge (sideStreets.ts's Junction). */
@@ -79,7 +86,7 @@ export function planGraphStreets(g: Graph, o: GraphStreetOptions): { streets: Gr
   interface Piece { e: NetEdge; dense: P2[]; s0: number; width: number; oneway?: 1 | -1; median?: number; half?: 1 | -1 }
   const pieces: Piece[] = [];
   for (const e of g.edges) {
-    if (e.internal || e.layer !== 0 || !BUILT.test(e.cls) || e.pts.length < 2) continue;
+    if (e.layer !== 0 || !BUILT.test(e.cls) || e.pts.length < 2) continue;
     const width = streetWidth(e);
     const cum = lengths(e.pts);
     if (cum[cum.length - 1] < 1) continue;
@@ -189,6 +196,7 @@ export function planGraphStreets(g: Graph, o: GraphStreetOptions): { streets: Gr
           ...(e.service ? { service: e.service } : {}), ...(e.surface ? { surface: e.surface } : {}),
           ...(pc.median !== undefined && pc.median > 0.3 ? { median: pc.median } : {}),
           ...(pc.half ? { half: pc.half } : {}),
+          ...(e.internal ? { internal: true as const } : {}),
         });
       }
       i = j;

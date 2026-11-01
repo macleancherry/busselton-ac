@@ -75,7 +75,49 @@ const MOUTH_BLEND = 10;
 /** A street edge this close to the joined surface takes its height. */
 const PROX = 3;
 
-interface Row { p: P2; d: P2; left: P2; w: number; s: number }
+interface Row {
+  p: P2; d: P2; left: P2; w: number; s: number;
+  /** One of the street's own points (not an extra row): its index in `pts`. */
+  own?: number;
+}
+
+/** Heights along a street within this of a straight line between two rows let the rows between go, metres. */
+export const THIN_TOL = 0.006;
+/** The longest a street quad gets when rows are thinned, metres. */
+export const THIN_SPAN = 24;
+
+/**
+ * Which rows to keep (indices, first and last included): every row in `fixed`, and between them as
+ * few as keep each row's `values` (heights) within `tol` of the straight line between the kept rows
+ * either side, by distance along (`s`), with no kept span longer than `maxSpan`. Busselton is flat:
+ * a street's extra rows every 3 m were mostly on one slope, and its kerbs, strips and gutters (10
+ * triangles a row a side) were 120k of the build's triangles.
+ */
+export function thinRows(s: number[], values: number[][], fixed: boolean[], tol = THIN_TOL, maxSpan = THIN_SPAN): number[] {
+  const n = s.length;
+  if (n <= 2) return s.map((_, k) => k);
+  const keep = [0];
+  let a = 0;
+  while (a < n - 1) {
+    // The furthest b with every row between a and b on the line from a to b.
+    let b = a + 1;
+    for (let c = a + 2; c < n; c++) {
+      if (fixed[c - 1] || s[c] - s[a] > maxSpan) break;
+      const span = s[c] - s[a] || 1e-9;
+      let ok = true;
+      for (let m = a + 1; m < c && ok; m++) {
+        const f = (s[m] - s[a]) / span;
+        const va = values[a], vc = values[c], vm = values[m];
+        for (let q = 0; q < vm.length; q++) if (Math.abs(vm[q] - (va[q] + (vc[q] - va[q]) * f)) > tol) { ok = false; break; }
+      }
+      if (!ok) break;
+      b = c;
+    }
+    keep.push(b);
+    a = b;
+  }
+  return keep;
+}
 
 /** The street's rows: its own points plus extra ones every `step` metres. */
 export function streetRows(st: MeshStreet, step = 3): Row[] {
@@ -86,7 +128,7 @@ export function streetRows(st: MeshStreet, step = 3): Row[] {
   const dirAt = (k: number): P2 => (k > 0 && k < n - 1 ? unit(sub(pts[k + 1], pts[k - 1])) : k === 0 ? unit(sub(pts[1], pts[0])) : unit(sub(pts[n - 1], pts[n - 2])));
   for (let k = 0; k < n; k++) {
     const d = dirAt(k);
-    rows.push({ p: pts[k], d, left: [-d[1], d[0]], w: wAt(k), s: cum[k] });
+    rows.push({ p: pts[k], d, left: [-d[1], d[0]], w: wAt(k), s: cum[k], own: k });
     if (k === n - 1) continue;
     const L = cum[k + 1] - cum[k];
     const m = Math.ceil(L / step);
@@ -119,8 +161,8 @@ export function buildStreetMeshes(streets: MeshStreet[], o: StreetMeshOptions): 
   let triangles = 0;
 
   streets.forEach((st, si) => {
-    const rows = streetRows(st);
-    const n = rows.length;
+    let rows = streetRows(st);
+    let n = rows.length;
     if (n < 2) return;
     const total = rows[n - 1].s;
     const choice = o.material(si);
@@ -144,15 +186,64 @@ export function buildStreetMeshes(streets: MeshStreet[], o: StreetMeshOptions): 
       if (r === null) return draped;
       return draped + (r - draped) * w;
     };
-    const quadOn = rows.slice(0, -1).map((r, k) => !o.skip?.(st, r.s, rows[k + 1].s));
+    let quadOn = rows.slice(0, -1).map((r, k) => !o.skip?.(st, r.s, rows[k + 1].s));
     if (!quadOn.some(Boolean)) return;
     // Carriageways: [offset of the centre, width] per row; a divided road has two.
     const med = st.median && st.median > 0.3 ? st.median : 0;
     const ways: { off: (r: Row) => number; width: (r: Row) => number; side: 0 | 1 | -1 }[] = med
       ? ([1, -1] as const).map((side) => ({ side, off: (r: Row) => side * (med / 2 + (r.w - med) / 4), width: (r: Row) => (r.w - med) / 2 }))
       : [{ side: 0, off: () => 0, width: (r: Row) => r.w }];
-    const edgeZ: Map<string, number> = new Map();
     const edgePoint = (r: Row, wi: number, e: 1 | -1): P2 => add(r.p, mul(r.left, ways[wi].off(r) + (e * ways[wi].width(r)) / 2));
+    const kerbedHere = o.kerbed(si);
+    // Kerbs go on the outer edges only (a divided road's inner edges face the median).
+    const kerbEdges: [number, 1 | -1][] = [];
+    for (let wi = 0; wi < ways.length; wi++) for (const e of [1, -1] as const) if (ways[wi].side === 0 || e === ways[wi].side) kerbEdges.push([wi, e]);
+    /** Whether each row's edge gets a kerb (before the ramps), on the rows and quads given. */
+    const kerbRaw = (rs: Row[], qOn: boolean[], wi: number, e: 1 | -1) => rs.map((r, k) => {
+      if (dJoin(r.s) < r.w / 2 + 3) return 0;
+      const x = edgePoint(r, wi, e);
+      const out = mul(r.left, e);
+      if (o.clear && o.clear(add(x, mul(out, KERB_BACK + 0.3)), si) < 0.3) return 0;
+      if (o.clear && o.clear(add(x, mul(out, 0.05)), si) < 0.05) return 0;
+      return (k > 0 && qOn[k - 1]) || (k < rs.length - 1 && qOn[k]) ? 1 : 0;
+    });
+    // Thin the rows where nothing changes (graph streets have a point every 2 m, and extra rows every
+    // 3 m between). Mouths (joins), where its quads start or stop (junction caps) and where a kerb
+    // starts, stops or ramps stay; between them, only the rows its edges need, in plan and height.
+    {
+      // Near a mouth, or beside the route, the street blends to the route's surface: every row stays there.
+      const nearRoute = (r: Row) => !!o.joinGap && ways.some((_, wi) => ([1, -1] as const).some((e) => o.joinGap!(edgePoint(r, wi, e)) < PROX + 0.5));
+      const fixed = rows.map((r, k) => dJoin(r.s) < MOUTH_BLEND + 2 || (k > 0 && k < n - 1 && quadOn[k - 1] !== quadOn[k]) || nearRoute(r));
+      if (kerbedHere) {
+        for (const [wi, e] of kerbEdges) {
+          const raw = kerbRaw(rows, quadOn, wi, e);
+          raw.forEach((v, k) => {
+            if ((k > 0 && raw[k - 1] !== v) || (k < n - 1 && raw[k + 1] !== v)) fixed[k] = true;
+            // In a kerb's ramp: within RAMP of a row without one.
+            if (v && !fixed[k]) for (let q = 0; q < n; q++) if (!raw[q] && Math.abs(rows[q].s - rows[k].s) < RAMP + 1e-6) { fixed[k] = true; break; }
+          });
+        }
+      }
+      const values = rows.map((r) => {
+        const v: number[] = [];
+        for (let wi = 0; wi < ways.length; wi++) {
+          for (const e of [1, -1] as const) {
+            const x = edgePoint(r, wi, e);
+            v.push(x[0], x[1], zEdge(x, r.s));
+            // The strip's back follows the ground there.
+            if (kerbedHere) { const back = add(x, mul(r.left, e * STRIP)); v.push(o.ground(back[0], back[1])); }
+          }
+        }
+        return v;
+      });
+      const keep = thinRows(rows.map((r) => r.s), values, fixed);
+      if (keep.length < n) {
+        quadOn = keep.slice(0, -1).map((k, q) => quadOn.slice(k, keep[q + 1]).every(Boolean));
+        rows = keep.map((k) => rows[k]);
+        n = rows.length;
+      }
+    }
+    const edgeZ: Map<string, number> = new Map();
     const zOfEdge = (k: number, wi: number, e: 1 | -1) => {
       const key = `${k},${wi},${e}`;
       let z = edgeZ.get(key);
@@ -178,21 +269,11 @@ export function buildStreetMeshes(streets: MeshStreet[], o: StreetMeshOptions): 
       }
     }
     // Kerbs along the outer edges: amount per row, ramped over 1.5 m where it stops.
-    const kerbedHere = o.kerbed(si);
     if (kerbedHere) {
       let any = false;
-      for (let wi = 0; wi < ways.length; wi++) {
-        for (const e of [1, -1] as const) {
-          // Outer edges only (a divided road's inner edges face the median).
-          if (ways[wi].side !== 0 && e !== ways[wi].side) continue;
-          const raw = rows.map((r, k) => {
-            if (dJoin(r.s) < r.w / 2 + 3) return 0;
-            const x = edgePoint(r, wi, e);
-            const out = mul(r.left, e);
-            if (o.clear && o.clear(add(x, mul(out, KERB_BACK + 0.3)), si) < 0.3) return 0;
-            if (o.clear && o.clear(add(x, mul(out, 0.05)), si) < 0.05) return 0;
-            return (k > 0 && quadOn[k - 1]) || (k < n - 1 && quadOn[k]) ? 1 : 0;
-          });
+      for (const [wi, e] of kerbEdges) {
+        {
+          const raw = kerbRaw(rows, quadOn, wi, e);
           // Distance along to the nearest row without a kerb.
           const amt = rows.map((r) => {
             let d = Infinity;

@@ -151,7 +151,7 @@ export async function placeScenery(
   // 6. Footpaths and shared paths, off every road surface.
   let pathMeshes: Kn5MeshNode[] = [];
   if (opts.paths && sources.paths) {
-    const pathOnRoad = onRoadFrom(topSurface([...rm.roadMeshes.road, ...rm.sideStreets, ...gm.kerbsClear.nodes, ...gm.ringsClear.nodes], PATH_BLOCK));
+    const pathOnRoad = onRoadFrom(topSurface(gm.built, PATH_BLOCK));
     const serviceIndex = new LineIndex((sources.streets?.lines ?? [])
       .filter((l) => /^(service|parking_aisle)/.test(l.cls) && l.brunnel !== "bridge" && l.brunnel !== "tunnel")
       .map((l) => ({ pts: ctx.line(l.pts), width: 5 })));

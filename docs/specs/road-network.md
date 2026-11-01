@@ -195,3 +195,14 @@ Behind `networkCore`, in an area build. Code: `dual.ts` (divided roads collapsed
 - Outlines in pieces (10): crowded caps against a neighbour's fillet.
 - Kerbside bays, footpaths and nature-strip photos along the new streets; the old kerb returns at the mouths the old core keeps.
 - A full build and the checks (`all.mjs`, `traffic_check.py`, `layout_check.ts`, `budget.ts`, the AI test) with it on; street dress adds about 125k triangles.
+
+## Phase 3 (2 Nov 2026): the checks pass with it on
+
+The first full Busselton build with `networkCore` failed budget (1.61M triangles), ground (550 pieces), paths (125 cells) and layouts (4 spots of the sights grid). What was wrong, and what changed:
+
+- **The checks didn't see the network's meshes.** `groundCheck.ts` judged scenery against the ground groups without `JUNCTIONS`, so everything placed on a junction, a street's kerb or strip, or a splitter top counted as floating. `JUNCTIONS` is a ground group now (the pole check already read it). Placement was right: the build's scene ground already had the network's meshes.
+- **Paths ran over junctions.** The path block (`PATH_BLOCK`, the surfaces a path is cut at) was the old core's road, streets, kerbs and rings only. The build's road-like surfaces are now one list (`GroundMeshes.built`, network included) for paths, poles and parked cars.
+- **Parked cars over a kerb's face.** A car park pad laid over a junction's strip rose 30 cm in a car's length; `carSeat` looked at the tyres' middles only, so their ends were 5 to 11 cm in. It now lifts (or leaves out) a car by the ground under each tyre's whole length.
+- **Terrain held under kerbs and strips.** The terrain is kept under the street surfaces (`streetCeiling`); it was given the network's dress too, so it was pulled down 3 to 14 cm under every strip and lost its level of detail there (61k triangles). Only drivable network meshes count now (`isNetSurfaceNode`).
+- **Streets thinned.** Graph streets have a point every 2 m and rows every 3 m; on Busselton's flat ground most were on one line. `thinRows` keeps a row only where an edge (plan or height) leaves the straight line between its neighbours by more than 6 mm, at most 24 m apart, and always at mouths, beside the route, at junction caps and where a kerb starts, stops or ramps. On the cached data: street dress 124k to 64k triangles, street surfaces 10k fewer.
+- **A refused junction left a hole.** Edges inside a junction (merge links, splitter legs) weren't streets, so where the network refused the junction nobody built them (a 13 m gap on the sights grid). They're streets now (`internal`), skipped wholly under a junction the network takes (`innerUnderJunction`, also no traffic lane there), and left out of junction matching, so the junctions taken are the same as before.

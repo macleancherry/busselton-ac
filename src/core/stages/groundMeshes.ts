@@ -9,7 +9,7 @@ import type { Kn5MeshNode } from "../kn5";
 import { onRoadFrom } from "../poleSpot";
 import { buildWalls } from "../roadMesh";
 import { ROAD_SURFACE, sceneGround, topSurface, type SceneGround } from "../sceneGround";
-import { buildTerrainChunk, isStreetNode, streetCeiling, underStreets } from "../terrain";
+import { buildTerrainChunk, isNetSurfaceNode, isStreetNode, streetCeiling, underStreets } from "../terrain";
 import type { BuildContext } from "./context";
 import type { Ground } from "./ground";
 import type { Imagery } from "./imagery";
@@ -29,6 +29,12 @@ export interface GroundMeshes {
   kerbsClear: { nodes: Kn5MeshNode[]; dropped: number };
   ringsClear: { nodes: Kn5MeshNode[]; dropped: number };
   ground: SceneGround;
+  /**
+   * The built road surfaces, kerbs and rings: the route's road, side streets, kerbs and returns kept
+   * off the route, rings, and networkCore's junctions and street dress. Scenery that keeps off roads
+   * (paths, poles, parked cars) reads these, so none misses the network's meshes.
+   */
+  built: Kn5MeshNode[];
   /** On the built road (poles and posts keep off), unless poleClear is false. */
   poleOnRoad: ((x: number, y: number) => boolean) | undefined;
 }
@@ -38,7 +44,7 @@ export async function buildGroundMeshes(
 ): Promise<GroundMeshes> {
   const { opts, area } = ctx;
   const plan = rp.plan, index = g.index;
-  const groundAt = underStreets(g.terrainAt, streetCeiling([...rm.sideStreets, ...rm.kerbReturns.filter(isStreetNode), ...rn.netNodes], opts.terrainStep));
+  const groundAt = underStreets(g.terrainAt, streetCeiling([...rm.sideStreets, ...rm.kerbReturns.filter(isStreetNode), ...rn.netNodes.filter(isNetSurfaceNode)], opts.terrainStep));
   const terrainNodes: Kn5MeshNode[] = [];
   for (let i = 0; i < g.chunks.length; i++) {
     await progress("Building road and terrain meshes", i / g.chunks.length);
@@ -58,9 +64,8 @@ export async function buildGroundMeshes(
   const km = rm.kerbMeshes;
   const kerbsClear = keepOffRoute([...km.gutter, ...km.kerb, ...km.strip, ...rm.kerbReturns, ...rm.vergeConcrete], onRoad);
   const ringsClear = keepOffRoute(rn.ringNodes, onRoad);
-  const ground = sceneGround([...rm.roadMeshes.road, ...rm.roadMeshes.verge, ...rm.sideStreets, ...kerbsClear.nodes, ...ringsClear.nodes, ...rn.netNodes, ...terrainNodes], g.terrainH);
-  const poleOnRoad = opts.poleClear !== false
-    ? onRoadFrom(topSurface([...rm.roadMeshes.road, ...rm.sideStreets, ...kerbsClear.nodes, ...ringsClear.nodes, ...rn.netNodes], ROAD_SURFACE))
-    : undefined;
-  return { terrainNodes, backdropNodes, farGround, walls, onRoad, kerbsClear, ringsClear, ground, poleOnRoad };
+  const built = [...rm.roadMeshes.road, ...rm.sideStreets, ...kerbsClear.nodes, ...ringsClear.nodes, ...rn.netNodes];
+  const ground = sceneGround([...built, ...rm.roadMeshes.verge, ...terrainNodes], g.terrainH);
+  const poleOnRoad = opts.poleClear !== false ? onRoadFrom(topSurface(built, ROAD_SURFACE)) : undefined;
+  return { terrainNodes, backdropNodes, farGround, walls, onRoad, kerbsClear, ringsClear, ground, built, poleOnRoad };
 }

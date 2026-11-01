@@ -73,11 +73,23 @@ async function run(zipPath: string | undefined) {
   mkdirSync(resolve(outDir, "work"), { recursive: true });
 
   // Renders first (render_track reads the zip itself).
+  // A failed render (no Blender found, Blender killed for memory) no longer loses the numbers: they're
+  // still measured and written, the sheet shows the views it has, and the run exits non-zero.
   if (!args.includes("--no-render")) {
-    const cmd = ["tsx", resolve(root, "scripts/blender/render_track.ts"), resolve(zipPath), "--route", resolve(root, bench.route), "--out", outDir,
-      "--samples", flag("--samples") ?? "16", "--res", flag("--res") ?? "960x540", ...toRender.flatMap((v) => ["--view", `${v.name}=${v.view}`])];
-    const r = spawnSync("npx", cmd, { stdio: "inherit", cwd: root });
-    if (r.status !== 0) throw new Error(`render_track failed (${r.status ?? r.error})`);
+    const blender = process.env.BLENDER ?? "blender";
+    const found = blender.includes("/") ? existsSync(blender) : spawnSync("sh", ["-c", `command -v ${blender}`]).status === 0;
+    if (!found) {
+      console.error(`no Blender at "${blender}": set BLENDER to Blender or a Python with bpy (docs/benchmarks.md). Numbers only.`);
+      process.exitCode = 1;
+    } else {
+      const cmd = ["tsx", resolve(root, "scripts/blender/render_track.ts"), resolve(zipPath), "--route", resolve(root, bench.route), "--out", outDir,
+        "--samples", flag("--samples") ?? "16", "--res", flag("--res") ?? "960x540", ...toRender.flatMap((v) => ["--view", `${v.name}=${v.view}`])];
+      const r = spawnSync("npx", cmd, { stdio: "inherit", cwd: root });
+      if (r.status !== 0) {
+        console.error(`render_track failed (${r.status ?? r.error}${r.signal ? `, ${r.signal}` : ""}); going on with the numbers`);
+        process.exitCode = 1;
+      }
+    }
   }
 
   // The numbers: objects from the base's merged meshes, measured against its physics surface.
