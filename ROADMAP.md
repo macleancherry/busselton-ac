@@ -74,6 +74,7 @@ What makes polishing cheap. First, because every landmark after it is quicker.
 - 🔨 **Landmarks** ([docs/landmarks.md](docs/landmarks.md)):
   - ✅ built as layers (22): the jetty precinct, Rocky Ridge, the Esplanade Hotel, The Goose, the Old Courthouse group, the Hilton Garden Inn, the Visitor Centre, the Busselton Museum, Kyst and Sandbox, Sea Play on the Bay, Transition, the yacht club, Orana Cinemas, The Tav, the Ship Inn, the Banksia Tavern, St Mary's, the Pioneer Cemetery, the fire station, the bowling club, Victoria Square, Mitchell Park, the Japanese garden gate
   - specced but outside the built area: Churchill Park, Barnard Park
+  - ⬜ to do: **Shelter Brewing Co, high detail** (Mac, 1 Nov): the large dark sawtooth-roofed brewery on the foreshore, about 100 m from The Goose. Not a spec landmark: a full Blender detail layer like Transition (`routes/layers/`), with the sawtooth roof, glazing, deck and beer garden, signage as plain lettering, and the forecourt and paths, from aerial plus web reference photos (references only). Renders for Mac before it goes in the base.
   - ⬜ to do: the Kookaburra Caravan Park; the Barrel sculpture (not found on the ground)
   - private landmarks: listed in `routes/private/landmarks/` (photos of their street faces still needed)
 - 🔨 **Houses from the photo walk:** spec houses from Mac's street photos (`scripts/houses/photo_walk.py`), street by street. Waiting on the first street of photos.
