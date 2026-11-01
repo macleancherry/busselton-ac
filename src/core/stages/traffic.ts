@@ -3,6 +3,7 @@
 // the traffic lights. Only with traffic on.
 
 import { withBayBands } from "../bayLanes";
+import type { StreetRibbon } from "../network/ribbons";
 import type { Vec2 } from "../geo";
 import type { JunctionCore } from "../network/phase1";
 import { innerRadius, outerRadius } from "../roundabout";
@@ -75,7 +76,9 @@ export function trafficFor(ctx: BuildContext, rp: RoutePlan, g: Ground, st: Stre
   // No traffic up car park aisles and driveways. networkCore's lanes on its surfaces.
   const netGround = net?.streetGround((x, y) => g.terrainAt(x, y).h);
   const laneZ = (p: Vec2, fallback: number) => net?.surfaceAt(p) ?? fallback;
-  const streetRoads: (TrafficRoad & { cls?: string })[] = st.streetPlan.streets.filter((s) => !NO_TRAFFIC_SERVICE.test(s.service ?? "")).map((s) => ({
+  // A link inside a junction the network takes is under its surface: no lane of its own there.
+  const underJunction = (s: StreetRibbon) => !!net?.innerUnderJunction(s);
+  const streetRoads: (TrafficRoad & { cls?: string })[] = st.streetPlan.streets.filter((s) => !NO_TRAFFIC_SERVICE.test(s.service ?? "") && !underJunction(s)).map((s) => ({
     pts: s.pts, h: s.pts.map(([x, y]) => laneZ([x, y], (netGround ? netGround(x, y) : g.terrainAt(x, y).h) + 0.1)), width: s.width, speed: 50,
     ...(s.oneway ? { oneway: s.oneway } : {}),
     // A traced street's own widths, the ones its bays were painted for (traffic.ts).

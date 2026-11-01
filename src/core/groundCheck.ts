@@ -2,7 +2,8 @@
 // recommendation 2; scripts/check/ground_check.ts runs it on a build's zip.)
 //
 // The ground is the base's physics meshes, the same ones scenery is placed on (sceneGround.ts):
-// road, verge, kerbs and strips, side streets, roundabouts, terrain, car park islands. Placed things
+// road, verge, kerbs and strips, side streets, roundabouts, networkCore's junctions, terrain, car park
+// islands. Placed things
 // are every mesh in the scenery groups (furniture, traffic lights, trees, buildings, shops, fences,
 // farm, farm roadsides, paths, lots, rails' posts, guide posts, parked cars).
 //
@@ -20,8 +21,11 @@ import type { Kn5Node } from "./kn5";
 import { ROUTE_ROAD } from "./parkedClear";
 import { PHYSICS_GROUND, topSurface, type SurfaceFn } from "./sceneGround";
 
-/** Groups whose physics meshes are the ground. */
-export const SURFACE_GROUPS = new Set(["ROAD", "SIDESTREETS", "VERGE", "KERBS", "ROUNDABOUTS", "TERRAIN", "CARPARKS"]);
+/**
+ * Groups whose physics meshes are the ground: the same meshes the build places scenery on
+ * (stages/groundMeshes.ts), networkCore's junctions and street dress (JUNCTIONS) included.
+ */
+export const SURFACE_GROUPS = new Set(["ROAD", "SIDESTREETS", "VERGE", "KERBS", "ROUNDABOUTS", "JUNCTIONS", "TERRAIN", "CARPARKS"]);
 /** Groups of placed things, checked whole. */
 export const PLACED_GROUPS = new Set(["FURNITURE", "TRAFFICLIGHTS", "TREES", "BUILDINGS", "SHOPS", "FENCES", "FARM", "FARMROAD", "PATHS", "LOTS", "RAILS", "GUIDEPOSTS", "PARKED_CARS"]);
 /** Placed things inside ground groups: the roundabout island trees. */

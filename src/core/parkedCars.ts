@@ -124,6 +124,9 @@ function addCar(mb: MeshBuilder, car: ParkedCar, seat: CarSeat): void {
 /** Where the tyres touch the ground: along the car, and to its left. */
 const WHEELS: [number, number][] = [[1.4, 0.74], [1.4, -0.74], [-1.4, 0.74], [-1.4, -0.74]];
 
+/** Half a tyre's length along the car (the wheel blocks' radius), metres. */
+const TYRE_RUN = 0.33;
+
 /** How a car sits: its base height at the middle, and its rise per metre forward (pitch) and to its left (roll). */
 export interface CarSeat {
   z: number;
@@ -156,11 +159,17 @@ export function carSeat(car: ParkedCar, ground: HeightFn): CarSeat {
   const clamp = (v: number) => Math.max(-MAX_TILT, Math.min(MAX_TILT, v));
   const pitch = clamp((g[0] + g[1] - g[2] - g[3]) / (4 * F)), roll = clamp((g[0] - g[1] + g[2] - g[3]) / (4 * S));
   const rest = WHEELS.map(([f, s], k) => g[k] - pitch * f - roll * s);
-  const lo = Math.min(...rest), hi = Math.max(...rest);
+  // The highest ground under any tyre's whole length (TYRE_RUN either side of its middle), not just
+  // its middle: a pad laid up a kerb's face (networkCore's junction strips run into car parks) rose
+  // 30 cm in a car's length, and tyres level at their middles were 5 to 11 cm into it at their ends.
+  const ends = WHEELS.flatMap(([f, s]) => [-TYRE_RUN, TYRE_RUN].map((df) =>
+    ground(car.at[0] + fx * (f + df) - fy * s, car.at[1] + fy * (f + df) + fx * s) - pitch * (f + df) - roll * s));
+  const lo = Math.min(...rest), hi = Math.max(...rest, ...ends);
   // Past saving (a step, a kerb), it stays on its lowest wheel: no tyre in the air.
   const lift = hi - TYRE_SINK - lo;
   const tyres = lift > 0 && lift <= MAX_LIFT ? lo + lift : lo;
-  return { z: tyres - 0.02, pitch, roll, sink: Math.max(0, hi - tyres) };
+  const sink = hi - tyres;
+  return { z: tyres - 0.02, pitch, roll, sink: Math.max(0, sink) };
 }
 
 /** Visual cars (PARKED_CARS) and their invisible collision boxes (1WALL_CAR), on `ground` (sceneGround.ts). */

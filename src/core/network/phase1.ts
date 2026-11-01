@@ -82,6 +82,8 @@ export interface JunctionCore {
   handlesRing: (k: number) => boolean;
   /** buildSideStreets' hook: leave out the quad of street `st` from arc s0 to s1. */
   streetSkip: (st: StreetRibbon, s0: number, s1: number) => boolean;
+  /** A street built from an inner edge (merge link, splitter leg) of a junction taken: wholly under it. */
+  innerUnderJunction: (st: StreetRibbon) => boolean;
   /** The ground streets drape on, eased to each junction at its caps. */
   streetGround: (base: HeightAt) => HeightAt;
   /** buildKerbs' noRamp keys: the route kerb ends square at a junction's cap. */
@@ -123,7 +125,12 @@ export function planJunctionCore(input: JunctionCoreInput): JunctionCore {
   const graphMode = !!input.graph;
   const graph = input.graph ?? buildGraph(waysFromStreets(input.lines, input.rings), input.mergeMax ? { mergeMax: input.mergeMax } : {});
   const route = input.route;
-  const { junctions: matched, failures } = matchJunctions(graph, route, input.streets, input.builtRings, {
+  // Streets built from edges inside a junction (streets.ts `internal`: merge links, splitter legs) are
+  // for a junction that can't be taken; matching works as if they weren't there (a junction's shape
+  // would take in an inner edge that has a street).
+  const isInternal = (st: StreetRibbon) => !!(st as StreetRibbon & { internal?: true }).internal;
+  const forMatch = input.streets.map((st) => (isInternal(st) ? { ...st, pts: [], edge: undefined } : st));
+  const { junctions: matched, failures } = matchJunctions(graph, route, forMatch, input.builtRings, {
     inArea: input.inArea, routeRowOk: input.routeRowOk, streetOk: input.streetOk,
   });
   // A ribbon part that stays (not one cut away for this junction) but runs into its surface: the other
@@ -239,6 +246,9 @@ export function planJunctionCore(input: JunctionCoreInput): JunctionCore {
     for (const c of mine) { if (!keptCaps.has(c.street)) keptCaps.set(c.street, []); keptCaps.get(c.street)!.push(c); }
     kept.push(pj);
   }
+  // Inner edges (merge links, splitter legs) of the junctions taken, and the streets built from them.
+  const keptInner = new Set(kept.flatMap((pj) => graph.nodes[pj.j.node]?.inner ?? []));
+  const underKept = (st: StreetRibbon) => isInternal(st) && st.edge !== undefined && keptInner.has(st.edge);
   // The route's crown eases out over the last 8 m before each cap (the spec's cross-section rule), so
   // every cap is a straight line; then each junction's field and surface.
   if (route) for (const pj of kept) for (const l of pj.j.legs) if (l.kind === "route") {
@@ -418,7 +428,10 @@ export function planJunctionCore(input: JunctionCoreInput): JunctionCore {
     coversRouteRow: (i) => n > 0 && covered[((i % n) + n) % n] === 1,
     routeSInside: (s) => sSpans.some(([a, b]) => (a < b ? s > a && s < b : s > a || s < b)),
     handlesRing: (k) => ringSet.has(k),
+    innerUnderJunction: underKept,
     streetSkip: (st, s0, s1) => {
+      // A street from an inner edge of a junction taken: the junction is the road there.
+      if (underKept(st)) return true;
       const mid = (s0 + s1) / 2;
       for (const [a, b] of cuts.get(st) ?? []) if (mid > a && mid < b) return true;
       // Anything else of a street inside a junction (a link inside a merged junction, a splitter leg).
@@ -476,7 +489,7 @@ export function planJunctionCore(input: JunctionCoreInput): JunctionCore {
     let best = Infinity;
     segGridMade ??= makeSegGrid();
     for (const [si, k] of segGridMade.get(`${Math.floor(p[0] / 10)},${Math.floor(p[1] / 10)}`) ?? []) {
-      if (skip.has(si)) continue;
+      if (skip.has(si) || underKept(input.streets[si])) continue;
       const st = input.streets[si];
       const a = st.pts[k], b = st.pts[k + 1];
       const ab = sub(b, a), L2 = dot(ab, ab) || 1e-12;

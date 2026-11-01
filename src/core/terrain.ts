@@ -155,6 +155,15 @@ export const isStreetNode = (n: Kn5Node): boolean =>
   n.kind === "mesh" ? /^1(STREET|UNPAVED)/.test(n.name) : n.children.some(isStreetNode);
 
 /**
+ * A drivable surface mesh of networkCore's (junction surfaces, streets, their gutters: `1ROAD_J...`,
+ * `1STREET...`, `1ROAD_GUTTER_J...`), not its kerbs, strips, islands or medians. Their skirts go
+ * 60 cm down into the ground, and holding the terrain under them dug a trench along every kerbed
+ * street and cost 60k terrain triangles (the trench broke the terrain's level of detail).
+ */
+export const isNetSurfaceNode = (n: Kn5Node): boolean =>
+  n.kind === "mesh" ? /^1(ROAD|STREET|UNPAVED)/.test(n.name) : n.children.some(isNetSurfaceNode);
+
+/**
  * The lowest built street surface within `reach` metres of a point (local x, y), or null away from
  * streets, from the meshes given (AC coordinates; every mesh in them counts, so filter first, e.g.
  * with `isStreetNode`). Rasterised on a 1 m grid keeping the lowest height per cell.

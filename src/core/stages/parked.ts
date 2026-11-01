@@ -117,7 +117,8 @@ export function finishParked(
   const ground = gm.ground;
   const group = (name: string, children: Kn5MeshNode[] | Kn5GroupNode[]): Kn5GroupNode => ({ kind: "node", name, transform: IDENTITY, children });
   const cleared = clearParked(p1.parked, {
-    road: topSurface([...rm.roadMeshes.road, ...gm.kerbsClear.nodes, ...gm.ringsClear.nodes], ROUTE_ROAD),
+    // The route's road, networkCore's junctions on it included (not side streets: a gravel one is 1UNSEALED too).
+    road: topSurface([...rm.roadMeshes.road, ...gm.kerbsClear.nodes, ...gm.ringsClear.nodes, ...rn.netNodes], ROUTE_ROAD),
     street: (x, y) => p1.through.clearance(x, y),
     rings: rp.plan.roundabouts.map((rb) => ({ c: rb.c, r: outerRadius(rb) })),
     ...(tf ? { lane: laneDistance(tf.trafficText) } : {}),
@@ -132,7 +133,7 @@ export function finishParked(
       parked = res.cars;
       if (p1.placed) p1.placed.dropped.blocked += res.dropped;
     }
-    const asphaltBuilt = [...rm.roadMeshes.road, ...rm.sideStreets, ...gm.kerbsClear.nodes, ...gm.ringsClear.nodes, ...rn.netNodes];
+    const asphaltBuilt = gm.built;
     const pads = bayQuads.length ? buildBayPads(bayQuads, ground, bayHeight(ground, topSurface(asphaltBuilt, BAY_ASPHALT))) : [];
     if (pads.length) model.root.children.push(group("CARPARKS", pads));
     const padTop = pads.length ? topSurface(pads) : null;
