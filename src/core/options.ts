@@ -157,6 +157,11 @@ export interface BuildOptions {
   padClear?: boolean;
   /** On unless false. */
   trafficLights?: boolean;
+  /**
+   * Busselton fork: shop, cafe, pub and hotel names from their own Overpass query as well as the map
+   * tiles' POIs (the tiles drop low-ranked ones), for shop signs. On unless false.
+   */
+  shopNamesOverpass?: boolean;
 
   // AI, traffic, game files
   traffic: boolean;
@@ -186,7 +191,7 @@ export const OPTIONAL_OPTION_KEYS: readonly (keyof BuildOptions)[] = Object.free
   "terrainLodFarTol", "photoSea", "zones", "pureTuning", "rainHollows",
   "cspTrees", "houseStyle", "clears", "armco", "farmland", "farmRoadsides", "wavingFlags",
   "jettyTrain", "swimJetties", "jettyKinds", "trackSounds", "poleClear", "raceway", "treeMips", "shoreClear",
-  "kerbside", "laneBayClear", "parkedBays", "padClear", "trafficLights",
+  "kerbside", "laneBayClear", "parkedBays", "padClear", "trafficLights", "shopNamesOverpass",
   "aiKeepLeft", "aiRings", "streetsValid", "challenges", "timeTrialSectors", "driftZones",
 ] as const);
 

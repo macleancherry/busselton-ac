@@ -14,7 +14,7 @@ import { material, type Light } from "../materials";
 import { encodePng } from "../png";
 import { ringTouches, SINK } from "../sceneGround";
 import type { TreeSpot } from "../scenery";
-import { buildShopfronts, findShopfronts, shopSignTexture, shopWindowTexture, type Shopfront } from "../shops";
+import { buildShopfronts, findShopfronts, mergeShopPois, shopSignTexture, shopWindowTexture, type Shopfront } from "../shops";
 import { buildSpecHouse } from "../specHouse";
 import { surfaceTexture } from "../surfaceTextures";
 import { solidTexture } from "../textures";
@@ -221,7 +221,9 @@ export function buildHouses(ctx: BuildContext, g: Ground, bp: BuildingPlan, gm: 
   // Shop fronts: verandahs, windows and signs on buildings with a shop (not on one a layer replaces).
   const homeSet = new Set(homes);
   const shopfronts = opts.buildings ? findShopfronts(
-    shown.filter((b) => !ctx.clears.length || !ctx.cleared(...centroid(b.ring))), bp.pois, roadGap, buildingGround, (b) => homeSet.has(b), groundForBuilding,
+    shown.filter((b) => !ctx.clears.length || !ctx.cleared(...centroid(b.ring))),
+    mergeShopPois(bp.pois, (sources.shopPois ?? []).map((p) => ({ ...p, at: ctx.toLocal(p.at) }))),
+    roadGap, buildingGround, (b) => homeSet.has(b), groundForBuilding,
   ) : [];
   const shopMeshes = buildShopfronts(shopfronts, buildingGround);
   if (shopMeshes.length) {

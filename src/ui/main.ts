@@ -26,6 +26,7 @@ export interface BuildInput {
   token: string;
   houseLooks?: BuildJob["houseLooks"];
   landmarks?: { name: string; at: [number, number] }[];
+  shopNames?: BuildJob["shopNames"];
 }
 
 export interface HeadlessApp {
@@ -151,6 +152,7 @@ async function build(input: BuildInput): Promise<void> {
     placeMeta: current.placeMeta,
     houseLooks: input.houseLooks,
     landmarks: input.landmarks,
+    shopNames: input.shopNames,
   };
   let outcome: BuildOutcome;
   try {

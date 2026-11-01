@@ -1,0 +1,26 @@
+{
+  "_note": "Hand-listed shop names for places OpenStreetMap doesn't have (or the map tiles drop), read by the build from the route's \"shopNames\" (scripts/headless/build-track.mjs). Each goes on the sign of the building it's in or just next to; a hand-listed name wins its stretch of a shop front. Plain lettering only, no logos. Positions are inside the OSM building footprint at the address, placed by hand (1 Nov 2026); refine them when a photo pins the exact shop.",
+  "shops": [
+    {
+      "name": "Burger Bones",
+      "at": [115.34459, -33.64966],
+      "address": "55 Queen St (the laneway shops on the east side, just north of Kent St)",
+      "source": "https://perthisok.com/eat-drink/best-restaurants-busselton (55 Queen St); https://www.broadsheet.com.au/perth/busselton/restaurants/burger-bones (on the main strip next to Mono, now Merchant & Maker at 55 Queen St: https://fivesenses.com.au/blogs/news/southwest-gems-merchant-maker)",
+      "confidence": "address confirmed; the exact shop along the strip is approximate (within about 10 m)"
+    },
+    {
+      "name": "Alberta's",
+      "at": [115.34468, -33.64958],
+      "address": "3/55 Queen St (down the laneway, behind Burger Bones)",
+      "source": "https://www.northwesttelegraph.com.au/lifestyle/perth-breakfast-brunch/perth-breakfast-brunch-albertas-busselton-c-7307325 (3/55 Queen St); https://wagoodfoodguide.com/now-open-albertas/",
+      "confidence": "address confirmed; the exact shop along the strip is approximate (within about 10 m)"
+    },
+    {
+      "name": "Busselton Pavilion",
+      "at": [115.34325, -33.65036],
+      "address": "Busselton Central, 30 Kent St (the Kent St side of the centre)",
+      "source": "https://tix.cinefestoz.com/Venues/Busselton-Pavilion (30 Kent St); https://perthisok.com/eat-drink/best-restaurants-busselton (Busselton Central, 30 Kent St)",
+      "confidence": "address confirmed; which part of the Kent St frontage is a guess: check against a photo"
+    }
+  ]
+}

@@ -259,6 +259,9 @@
  "looks": [
   "routes/landmarks/looks.json"
  ],
+ "shopNames": [
+  "routes/landmarks/shop_names.json"
+ ],
  "layers": [
   "routes/layers"
  ]

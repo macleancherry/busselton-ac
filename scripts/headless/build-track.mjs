@@ -185,6 +185,15 @@ try {
     landmarks = looks.filter((h) => h.specFile).map((h) => ({ name: h.name ?? basename(h.specFile, ".json"), at: h.at }));
     houseLooks = looks.filter((h) => !h.specFile);
   }
+  // Hand-listed shop names for places OpenStreetMap lacks: the route's "shopNames" files (e.g.
+  // routes/landmarks/shop_names.json, [{ name, at: [lng, lat] }]) and SHOP_NAMES=file,file. A name
+  // goes on the sign of the building it's in (or just next to).
+  const shopNameFiles = [...(spec.shopNames ?? []), ...(process.env.SHOP_NAMES ? process.env.SHOP_NAMES.split(",") : [])];
+  const shopNames = shopNameFiles.flatMap((f) => {
+    const l = JSON.parse(readFileSync(resolve(root, f.trim()), "utf8"));
+    return (l.shops ?? l).filter((s) => s.name && Array.isArray(s.at)).map((s) => ({ name: s.name, at: s.at }));
+  });
+  if (shopNames.length) log(`hand-listed shop names: ${shopNames.map((s) => s.name).join(", ")}`);
   const polish = (more) => execFileSync("npx", ["tsx", "scripts/polish/landmarks.ts", routeFile, ...more], { cwd: root, env: process.env, encoding: "utf8" });
   const landmarkClears = landmarks.length ? JSON.parse(polish(["--clears"])) : [];
   if (landmarks.length) log(`landmarks (built as layers): ${landmarks.map((l) => l.name).join(", ")}`);
@@ -241,7 +250,7 @@ try {
     log("layout drives built into the world:", wayLayouts.map((l) => l.id).join(", "));
   }
 
-  const buildInput = { name: spec.name, options: { ...(spec.options ?? {}) }, build: buildOpts, token, houseLooks, landmarks };
+  const buildInput = { name: spec.name, options: { ...(spec.options ?? {}) }, build: buildOpts, token, houseLooks, landmarks, ...(shopNames.length ? { shopNames } : {}) };
   let last = "", changed = Date.now();
   // A build that shows no progress for this long has hung (seen once: a download that never finished
   // or failed); stop it so a retry loop can build again.
