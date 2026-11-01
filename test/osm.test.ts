@@ -407,3 +407,59 @@ describe("ways, jetty, routing, places", () => {
     expect(rlog[0].url).toBe("https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=16&lat=-31.95&lon=115.85");
   });
 });
+
+describe("shop names (Busselton fork)", () => {
+  const GOLDEN_SHOPS =
+    "[out:json][timeout:40];(\n    nwr(around:250,-33.600000,115.100000,-33.610000,115.200000)[amenity~\"^(cafe|restaurant|bar|pub|fast_food|ice_cream|biergarten|food_court|bank|pharmacy|cinema|theatre|nightclub|post_office|library)$\"][name];\n    nwr(around:250,-33.600000,115.100000,-33.610000,115.200000)[shop][name];\n    nwr(around:250,-33.600000,115.100000,-33.610000,115.200000)[tourism~\"^(hotel|motel|guest_house|hostel|gallery|museum)$\"][name];\n    nwr(around:250,-33.600000,115.100000,-33.610000,115.200000)[craft~\"^(brewery|winery|distillery)$\"][name];\n  );out center tags;";
+
+  it("shopNameQuery golden; areas add a block and timeout 60", async () => {
+    const osm = await load();
+    expect(osm.shopNameQuery(ROUTE, [], 250)).toBe(GOLDEN_SHOPS);
+    const q = osm.shopNameQuery(ROUTE, [[[115.1, -33.6], [115.2, -33.6], [115.2, -33.7]]], 250);
+    expect(q.startsWith("[out:json][timeout:60];(")).toBe(true);
+    expect(q).toContain('\n    nwr(poly:"-33.600000 115.100000 -33.600000 115.200000 -33.700000 115.200000")[shop][name];');
+  });
+
+  it("shopNamesFromElements: nodes, way centres, vacant shops skipped, duplicates once", async () => {
+    const osm = await load();
+    expect(osm.shopNamesFromElements([
+      { type: "node", id: 1, lat: -33.6, lon: 115.1, tags: { amenity: "cafe", name: "Hummingbird" } },
+      { type: "way", id: 2, center: { lat: -33.61, lon: 115.11 }, tags: { amenity: "fast_food", name: "McDonald's", building: "yes" } },
+      { type: "node", id: 3, lat: -33.62, lon: 115.12, tags: { shop: "vacant", name: "Old Shop" } },
+      { type: "node", id: 4, lat: -33.6, lon: 115.1, tags: { amenity: "cafe", name: "Hummingbird" } },
+      { type: "node", id: 5, lat: -33.63, lon: 115.13, tags: { shop: "bakery" } },
+      { type: "way", id: 6, tags: { shop: "books", name: "No Centre" } },
+      { type: "node", id: 7, lat: -33.64, lon: 115.14, tags: { craft: "brewery", name: "Shelter" } },
+    ] as never)).toEqual([
+      { at: [115.1, -33.6], cls: "shop", subclass: "cafe", name: "Hummingbird" },
+      { at: [115.11, -33.61], cls: "shop", subclass: "fast_food", name: "McDonald's" },
+      { at: [115.14, -33.64], cls: "shop", subclass: "brewery", name: "Shelter" },
+    ]);
+  });
+
+  it("fetchShopNames is a POST of its own; the main query's body never changes", async () => {
+    const osm = await load();
+    const log = fakeFetch((_, init) => {
+      const q = new URLSearchParams(String(init!.body)).get("data")!;
+      return json(q.includes("[shop][name]") ? { elements: [{ type: "node", id: 1, lat: -33.6, lon: 115.1, tags: { amenity: "cafe", name: "Little Peach" } }] } : EMPTY);
+    });
+    const names = await osm.fetchShopNames(ROUTE, [], 250);
+    expect(names).toEqual([{ at: [115.1, -33.6], cls: "shop", subclass: "cafe", name: "Little Peach" }]);
+    expect(log.length).toBeGreaterThan(0);
+    expect(log.every((r) => r.method === "POST" && query(r) === GOLDEN_SHOPS)).toBe(true);
+    log.length = 0;
+    await osm.fetchOsm(ROUTE, [], { trafficSignals: true });
+    expect(log.some((r) => query(r).includes("[shop][name]"))).toBe(false);
+    expect(log.filter((r) => query(r) === GOLDEN_MAIN)).toHaveLength(3);
+  });
+
+  it("fetchShopNames throws when every mirror fails (the pipeline turns it into a warning), and adds no missing data", async () => {
+    const osm = await load();
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    fakeFetch(() => json({}, 504));
+    const caught = osm.fetchShopNames(ROUTE, [], 250).then(() => null, (e: Error) => e);
+    await vi.advanceTimersByTimeAsync(20_000);
+    expect(await caught).toBeInstanceOf(Error);
+    expect(dataWarnings).toEqual([]);
+  });
+});

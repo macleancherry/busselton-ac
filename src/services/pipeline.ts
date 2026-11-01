@@ -16,7 +16,7 @@ import { renderArt } from "./art";
 import { clearDataWarnings, dataWarnings, warnMissing } from "./dataWarnings";
 import { fetchFarmland } from "./landcover";
 import { fetchSeen } from "./mapillary";
-import { fetchOsm, fetchPierFeatures, widthLookup } from "./osm";
+import { fetchOsm, fetchPierFeatures, fetchShopNames, widthLookup } from "./osm";
 import { loadRouteRaster } from "./raster";
 import { drawSigns } from "./signs";
 import { DEM_CREDIT, IMAGERY, imageryChain, loadChunkImagery, loadDem, type DemSource, type ImagerySource } from "./tiles";
@@ -31,6 +31,7 @@ export interface BuildJob {
   placeMeta: { country?: string; city?: string }; // for the track's description
   houseLooks?: NonNullable<DataSources["houseLooks"]>; // particular houses' looks (headless build)
   landmarks?: { name: string; at: [number, number] }[]; // landmark names (headless build)
+  shopNames?: { name: string; at: [number, number] }[]; // hand-listed shop names (routes/landmarks/shop_names.json)
 }
 
 export interface BuildOutcome {
@@ -109,6 +110,14 @@ export async function runBuild(
         return undefined;
       })
     : undefined;
+  // Shop names from their own Overpass query (shopNamesOverpass): an old snapshot without it, or
+  // Overpass down, builds with the tiles' names only and says so (SNAPSHOT_FILL=1 adds it).
+  const shopNames = opts.shopNamesOverpass !== false && opts.buildings
+    ? fetchShopNames(coords, rings, opts.buildingRadius).catch((e: unknown) => {
+        warnings.push(`shop names from OpenStreetMap (Overpass): ${(e as Error)?.message ?? String(e)}: built with the map tiles' names only`);
+        return undefined;
+      })
+    : undefined;
   let seenError = "";
   const [osm, tiles, seen, coast] = await Promise.all([
     fetchOsm(coords, rings, { cattleGrids: !!opts.farmRoadsides, trafficSignals: opts.trafficLights !== false }),
@@ -131,6 +140,10 @@ export async function runBuild(
         })
       : Promise.resolve(undefined),
   ]);
+  const shopPois = [
+    ...((await shopNames) ?? []),
+    ...(job.shopNames ?? []).map((h) => ({ at: h.at, cls: "shop", subclass: "hand", name: h.name, hand: true })),
+  ];
   for (const w of warnings) console.warn("left out:", w);
 
   /* ---- combine ---- */
@@ -209,6 +222,7 @@ export async function runBuild(
     paths,
     houseLooks: job.houseLooks,
     landmarks: job.landmarks,
+    ...(shopPois.length ? { shopPois } : {}),
     drawSigns,
     imageryCredit: () => inKeyOrder(IMAGERY_ORDER, usedImagery).map((k) => IMAGERY[k].credit).join("; "),
     elevationCredit: () => inKeyOrder(DEM_ORDER, usedDem).map((k) => DEM_CREDIT[k]).join("; "),

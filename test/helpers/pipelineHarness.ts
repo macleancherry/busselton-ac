@@ -12,7 +12,15 @@ export const answers: {
   osm: unknown; tiles: unknown; coast: unknown; seen: unknown; farmland: unknown; pier: unknown;
   delays: Record<string, number>;
   imageryUsed: string[]; demUsed: string[];
+  /** Overpass shop names (fetchShopNames): undefined answers nothing. */
+  shopNames?: unknown;
 } = { osm: null, tiles: null, coast: null, seen: [], farmland: [], pier: null, delays: {}, imageryUsed: [], demUsed: [] };
+
+/**
+ * fetchShopNames calls, kept apart from `calls` so the golden recordings (made before the fork added
+ * shop names) still compare.
+ */
+export const shopNameCalls: unknown[][] = [];
 
 const settle = async <T>(name: string, v: unknown): Promise<T> => {
   const d = answers.delays[name] ?? 0;
@@ -48,6 +56,7 @@ async function probe(s: Record<string, unknown>): Promise<Record<string, unknown
 export const pipeMocks = {
   osm: {
     fetchOsm: vi.fn((...a: unknown[]) => { rec("fetchOsm", a); return settle("osm", structuredClone(answers.osm)).then((o) => withWidth(o)); }),
+    fetchShopNames: vi.fn((...a: unknown[]) => { shopNameCalls.push(a); return settle("shopNames", structuredClone(answers.shopNames)); }),
     fetchPierFeatures: vi.fn((...a: unknown[]) => { rec("fetchPierFeatures", a); return settle("pier", answers.pier); }),
     widthLookup: vi.fn((ways: { width: number; pts: LngLat[] }[], lat: number) => { rec("widthLookup", [ways, lat]); return (p: LngLat) => (p[0] > 0 ? 4.25 : undefined); }),
   },
@@ -100,6 +109,7 @@ export interface PipeCase {
   osm: unknown; tiles: unknown; coast: unknown; seen?: unknown; farmland?: unknown; pier?: unknown;
   delays?: Record<string, number>;
   imageryUsed?: string[]; demUsed?: string[];
+  shopNames?: unknown;
 }
 
 const L = (i: number, j = 0): LngLat => [115.84 + i * 0.001, -31.96 + j * 0.001];
@@ -184,8 +194,9 @@ export async function runCase(
 ): Promise<Record<string, any>> {
   events.length = 0;
   for (const k of Object.keys(calls)) delete calls[k];
+  shopNameCalls.length = 0;
   captured = null;
-  Object.assign(answers, { osm: c.osm, tiles: c.tiles, coast: c.coast, seen: c.seen ?? [], farmland: c.farmland ?? [], pier: c.pier ?? null, delays: c.delays ?? {}, imageryUsed: c.imageryUsed ?? [], demUsed: c.demUsed ?? [] });
+  Object.assign(answers, { shopNames: c.shopNames, osm: c.osm, tiles: c.tiles, coast: c.coast, seen: c.seen ?? [], farmland: c.farmland ?? [], pier: c.pier ?? null, delays: c.delays ?? {}, imageryUsed: c.imageryUsed ?? [], demUsed: c.demUsed ?? [] });
   const traces: string[] = [];
   const reports: string[] = [];
   let outcome: Record<string, unknown> | null = null;

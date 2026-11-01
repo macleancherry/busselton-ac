@@ -190,3 +190,51 @@ describe("runBuild", () => {
     expect(first).not.toBeNull();
   });
 });
+
+describe("shop names (Busselton fork)", () => {
+  const HUMMINGBIRD = { at: [115.841, -31.96] as LngLat, cls: "shop", subclass: "cafe", name: "Hummingbird" };
+
+  it("asks Overpass for them unless shopNamesOverpass is false, with the route, areas and building radius", async () => {
+    const { shopNameCalls } = await import("./helpers/pipelineHarness");
+    const c = base("defaults");
+    c.job.opts = { imageryZoom: 18, buildingRadius: 300 };
+    c.shopNames = [HUMMINGBIRD];
+    const r = await run(c);
+    expect(shopNameCalls).toEqual([[ROUTE, [], 300]]);
+    expect(capturedCall()!.sources.shopPois).toEqual([HUMMINGBIRD]);
+    expect((r.outcome as { warnings: string[] }).warnings).toEqual([]);
+
+    const off = base("defaults");
+    off.job.opts = { imageryZoom: 18, shopNamesOverpass: false };
+    off.shopNames = [HUMMINGBIRD];
+    const ro = await run(off);
+    expect(shopNameCalls).toEqual([]);
+    expect(ro.buildTrack!.sources.keys).not.toContain("shopPois");
+    // Off: everything else asked for is as before.
+    const on = await run(base("defaults"));
+    expect(ro.calls).toEqual(on.calls);
+
+    const noBuildings = base("defaults");
+    noBuildings.job.opts = { imageryZoom: 18, buildings: false };
+    await run(noBuildings);
+    expect(shopNameCalls).toEqual([]);
+  });
+
+  it("a failed query (an old snapshot without it, or Overpass down) is a warning, not missing data", async () => {
+    const c = base("defaults");
+    c.shopNames = new Error("not in the snapshot");
+    const r = await run(c);
+    expect(r.error).toBeNull();
+    expect((r.outcome as { missing: string[] }).missing).toEqual([]);
+    expect((r.outcome as { warnings: string[] }).warnings).toEqual(["shop names from OpenStreetMap (Overpass): not in the snapshot: built with the map tiles' names only"]);
+    expect(r.buildTrack!.sources.keys).not.toContain("shopPois");
+  });
+
+  it("hand-listed names reach buildTrack after Overpass's, marked hand", async () => {
+    const c = base("defaults");
+    c.shopNames = [HUMMINGBIRD];
+    c.job.shopNames = [{ name: "Alberta's", at: [115.842, -31.96] }];
+    await run(c);
+    expect(capturedCall()!.sources.shopPois).toEqual([HUMMINGBIRD, { at: [115.842, -31.96], cls: "shop", subclass: "hand", name: "Alberta's", hand: true }]);
+  });
+});

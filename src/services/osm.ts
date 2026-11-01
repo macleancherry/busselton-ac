@@ -29,7 +29,7 @@ const sleep = (ms: number) => new Promise<void>((ok) => setTimeout(ok, ms));
 /* ---------------- Overpass protocol ---------------- */
 
 type Tags = Record<string, string>;
-interface Element { type: string; id?: number; lat?: number; lon?: number; tags?: Tags; geometry?: ({ lat: number; lon: number } | null)[] }
+interface Element { type: string; id?: number; lat?: number; lon?: number; center?: { lat: number; lon: number }; tags?: Tags; geometry?: ({ lat: number; lon: number } | null)[] }
 
 interface OverpassOptions {
   /** Round-wide abort, ms. */
@@ -328,6 +328,60 @@ async function fetchSignals(routeCoords: LngLat[], areas: LngLat[][]): Promise<{
     warnMissing("OpenStreetMap (Overpass): traffic signals");
     return undefined;
   }
+}
+
+/* ---------------- shop names (Busselton fork) ---------------- */
+
+/** Amenities that have a shop front with a name on it. */
+const SHOP_AMENITY = "cafe|restaurant|bar|pub|fast_food|ice_cream|biergarten|food_court|bank|pharmacy|cinema|theatre|nightclub|post_office|library";
+
+/**
+ * The shop name query: named shops, cafes, pubs, hotels and breweries within `radius` metres of the
+ * route and in the areas. Its own request, so the main query (and frozen snapshots of it) don't change.
+ */
+export function shopNameQuery(routeCoords: LngLat[], areas: LngLat[][], radius: number): string {
+  const polys = polySelectors(areas);
+  const block = (W: string) =>
+    `\n    nwr(${W})[amenity~"^(${SHOP_AMENITY})$"][name];` +
+    `\n    nwr(${W})[shop][name];` +
+    `\n    nwr(${W})[tourism~"^(hotel|motel|guest_house|hostel|gallery|museum)$"][name];` +
+    `\n    nwr(${W})[craft~"^(brewery|winery|distillery)$"][name];`;
+  let q = `[out:json][timeout:${polys.length ? 60 : 40}];(`;
+  q += block(`around:${Math.round(radius)},${aroundList(routeCoords)}`);
+  for (const P of polys) q += block(P);
+  return q + `\n  );out center tags;`;
+}
+
+const NOT_A_SHOP = new Set(["vacant", "no", "disused"]);
+
+/**
+ * Named places from the shop name query, as shop POIs (cls "shop", subclass the tag's value): a node
+ * where it is, a way or relation at its centre. De-duplicated by name and position, in input order.
+ */
+export function shopNamesFromElements(elements: Element[]): { at: LngLat; cls: string; subclass: string; name: string }[] {
+  const out: { at: LngLat; cls: string; subclass: string; name: string }[] = [];
+  const seen = new Set<string>();
+  for (const e of elements) {
+    const t = e.tags ?? {};
+    const name = t.name?.trim();
+    if (!name) continue;
+    const lat = e.lat ?? e.center?.lat, lon = e.lon ?? e.center?.lon;
+    if (lat === undefined || lon === undefined) continue;
+    if (t.shop && NOT_A_SHOP.has(t.shop) && !t.amenity) continue;
+    const subclass = t.amenity ?? (t.shop ? t.shop : undefined) ?? t.tourism ?? t.craft ?? "shop";
+    const key = `${name}|${lon.toFixed(6)},${lat.toFixed(6)}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push({ at: [lon, lat], cls: "shop", subclass, name });
+  }
+  return out;
+}
+
+/** Named shops from Overpass (shopNameQuery). Throws when every mirror failed (the caller decides). */
+export async function fetchShopNames(routeCoords: LngLat[], areas: LngLat[][], radius: number): Promise<{ at: LngLat; cls: string; subclass: string; name: string }[]> {
+  if (!routeCoords.length) throw new Error("fetchShopNames needs at least one route point");
+  const elements = await overpass(shopNameQuery(routeCoords, areas, radius), { abortMs: 65_000, waitMs: 5_000, needElements: true });
+  return shopNamesFromElements(elements);
 }
 
 /** Width by highway class when a way has no width or lanes tag. */

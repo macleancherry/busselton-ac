@@ -74,6 +74,12 @@ export interface DataSources {
   drawSigns?: SignDrawer;
   /** Busselton fork: landmarks laid over later as layers; the automatic test photographs them. */
   landmarks?: { name: string; at: LngLat }[];
+  /**
+   * Busselton fork: extra named places for shop signs, alongside `pois`: OpenStreetMap's own (Overpass,
+   * `shopNamesOverpass`) and a hand list (`hand: true`, routes/landmarks/shop_names.json) for places
+   * OSM lacks. Only the shop fronts read them.
+   */
+  shopPois?: { at: LngLat; cls: string; subclass: string; name: string; hand?: boolean }[];
   /** Sea, piers (with their OSM way id), beaches, landcover and inland water. */
   coast?: {
     ocean: CoastSource[];

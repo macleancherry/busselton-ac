@@ -10,6 +10,12 @@
 // Signs: a shop's real name (from its OpenStreetMap POI) when the build can draw
 // text (the browser passes a drawer in), otherwise made-up coloured panels with
 // blocks for lettering. Never logos.
+//
+// Names (Busselton fork): the tiles' POIs, plus OSM's own named shops from Overpass
+// and a hand list (mergeShopPois). A named place inside a building's footprint, or
+// within NEAR metres of it, names that building. A front without a verandah (too
+// close to the kerb, or a pad set back in a car park) carries its name on a sign
+// fixed to the wall instead of a fascia.
 
 import type { HeightFn } from "./elevation";
 import type { Vec2 } from "./geo";
@@ -19,7 +25,7 @@ import { pad } from "./roadMesh";
 import { MAX_MESH_VERTICES } from "./kn5";
 import { MeshBuilder } from "./mesh";
 import { fill, rng } from "./textures";
-import { centroid, ringArea, type Building } from "./buildings";
+import { centroid, pointInRing, ringArea, type Building } from "./buildings";
 import { SINK } from "./sceneGround";
 import { slopeSteps } from "./slopeSteps";
 
@@ -64,6 +70,107 @@ export interface Shopfront {
   steps?: { t0: number; t1: number; ground: number; under: number }[];
   /** Each post's foot (postSpots order), on the building's own ground. Absent: the ground passed to buildShopfronts. */
   feet?: number[];
+  /**
+   * A named front without a verandah: its sign fixed flat to the wall, t0..t1 metres along it from
+   * `a`, z0..z1 high (absolute). Absent: the sign (if any) is the verandah's fascia.
+   */
+  wall?: { t0: number; t1: number; z0: number; z1: number };
+}
+
+/** A point of interest the shop fronts read: `hand` ones come from the hand list and win their building. */
+export interface ShopPoi { at: Vec2; cls: string; subclass?: string; name?: string; hand?: boolean }
+
+/** A named place this close to a building's footprint (or inside it) names that building, metres. */
+export const NEAR = 3;
+/** A building set back from the street gets a front (and a wall sign) for a named place up to this far back, metres. */
+export const SET_BACK_MAX = 45;
+/** Wall sign height, and the longest a wall sign gets, metres. */
+const WALL_SIGN_H = 0.7;
+const WALL_SIGN_MAX = 12;
+
+const nameKey = (s: string) => s.toLowerCase().replace(/^the\s+/, "").replace(/[^a-z0-9]/g, "");
+
+/**
+ * The tiles' POIs, then the extra named places (Overpass, the hand list) that aren't already among
+ * them: an extra place with the same name (case, spaces, punctuation and a leading "The" aside) as a
+ * tile POI within 60 m is the same place. Hand-listed places are always kept.
+ */
+export function mergeShopPois<T extends ShopPoi>(tile: T[], extra: T[]): T[] {
+  const out = tile.slice();
+  for (const p of extra) {
+    if (!p.name?.trim()) continue;
+    const k = nameKey(p.name);
+    if (!p.hand && out.some((q) => q.name && nameKey(q.name) === k && Math.hypot(q.at[0] - p.at[0], q.at[1] - p.at[1]) < 60)) continue;
+    out.push(p);
+  }
+  return out;
+}
+
+/** The shortest stretch of a front that gets a name of its own, metres. */
+export const SEG_MIN = 6;
+
+/**
+ * Where to cut a front `L` metres long that has several named places in its building: `t` is each
+ * place along the wall, `d` how far back from it. One stretch per distinct name (hand-listed ones,
+ * then the ones nearest the wall, first; at most one per SEG_MIN metres), cut halfway between
+ * neighbours and never shorter than SEG_MIN. Returns the cut points from 0 to L ([0, L]: no cut).
+ */
+export function frontCuts(L: number, places: { t: number; name: string; hand: boolean; d: number }[]): number[] {
+  const max = Math.floor(L / SEG_MIN);
+  if (max < 2) return [0, L];
+  const seen = new Set<string>();
+  const picked: number[] = [];
+  for (const p of places.slice().sort((x, y) => Number(y.hand) - Number(x.hand) || x.d - y.d)) {
+    const t = Math.max(0, Math.min(L, p.t));
+    const k = nameKey(p.name);
+    // One stretch per name, and places closer than SEG_MIN along the wall share one (the first wins).
+    if (seen.has(k) || picked.some((u) => Math.abs(u - t) < SEG_MIN) || picked.length >= max) continue;
+    seen.add(k);
+    picked.push(t);
+  }
+  picked.sort((x, y) => x - y);
+  if (picked.length < 2) return [0, L];
+  const n = picked.length;
+  const cuts = [0];
+  for (let i = 1; i < n; i++) {
+    const mid = (picked[i - 1] + picked[i]) / 2;
+    // Room for this stretch after the last cut, and for every stretch still to come.
+    cuts.push(Math.max(cuts[i - 1] + SEG_MIN, Math.min(mid, L - (n - i) * SEG_MIN)));
+  }
+  cuts.push(L);
+  return cuts;
+}
+
+/** Distance from a point to a ring's outline, metres (0 on it; inside or out alike). */
+function toOutline(p: Vec2, ring: Vec2[]): number {
+  let best = Infinity;
+  for (let k = 0; k < ring.length; k++) {
+    const a = ring[k], b = ring[(k + 1) % ring.length];
+    const dx = b[0] - a[0], dy = b[1] - a[1];
+    const l2 = dx * dx + dy * dy;
+    const t = l2 > 0 ? Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / l2)) : 0;
+    best = Math.min(best, Math.hypot(p[0] - a[0] - dx * t, p[1] - a[1] - dy * t));
+  }
+  return best;
+}
+
+/** Whether a place is in a footprint or within NEAR metres of it. */
+export function atBuilding(p: Vec2, ring: Vec2[]): boolean {
+  return pointInRing(p[0], p[1], ring) || toOutline(p, ring) <= NEAR;
+}
+
+/**
+ * Where a wall sign goes on a front with no verandah: centred along the wall, up to WALL_SIGN_MAX
+ * long (a metre short of each end on a short wall), its foot just over the shop windows and its top
+ * under the eaves (`height`: the building's wall height).
+ */
+export function wallSign(f: Shopfront, height: number): NonNullable<Shopfront["wall"]> {
+  const L = Math.hypot(f.b[0] - f.a[0], f.b[1] - f.a[1]);
+  const len = Math.max(Math.min(L * 0.5, 2), Math.min(WALL_SIGN_MAX, L - 2, L * 0.8));
+  const t0 = (L - len) / 2;
+  const top = f.ground + Math.max(2.6, height - 0.15);
+  const z0 = Math.max(f.ground + 2.2, Math.min(f.ground + f.under + 0.15, top - WALL_SIGN_H));
+  return { t0, t1: t0 + len, z0, z1: z0 + WALL_SIGN_H };
 }
 
 /** How far a verandah's underside stays above the highest footpath under it, metres. */
@@ -114,7 +221,7 @@ const MAX_NAMED = 120;
  */
 export function findShopfronts(
   buildings: Building[],
-  pois: { at: Vec2; cls: string; subclass?: string; name?: string }[],
+  pois: ShopPoi[],
   gap: (x: number, y: number) => number,
   ground: HeightFn,
   /** Houses only count with a shop right at them (a café in a house), not just nearby. */
@@ -127,10 +234,14 @@ export function findShopfronts(
    */
   groundFor?: (b: Building) => HeightFn,
 ): Shopfront[] {
-  const shops = pois.filter((p) => SHOP_CLASSES.has(p.cls) || SHOP_CLASSES.has(p.subclass ?? ""));
+  const shops = pois.filter((p) => p.hand || SHOP_CLASSES.has(p.cls) || SHOP_CLASSES.has(p.subclass ?? ""));
+  const named = shops.filter((s) => s.name?.trim());
   const rand = rng(77);
   const out: Shopfront[] = [];
   const centres: [Vec2, number][] = [];
+  // Each front's footprint (counter-clockwise) and wall height, for naming.
+  const rings: Vec2[][] = [];
+  const heights: number[] = [];
   for (const b of buildings) {
     if (b.ring.length < 4) continue;
     const ring = ringArea(b.ring) < 0 ? b.ring.slice().reverse() : b.ring;
@@ -145,9 +256,12 @@ export function findShopfronts(
       const g = gap((p[0] + q[0]) / 2, (p[1] + q[1]) / 2);
       if (g < bestGap) [best, bestGap] = [k, g];
     }
-    if (best < 0 || bestGap > 9) continue;
+    if (best < 0) continue;
+    // A named place in (or right at) the building: a shop even set back from the street, in a car park.
+    const pinned = !isHome(b) && named.some((s) => atBuilding(s.at, ring));
+    if (bestGap > (pinned ? SET_BACK_MAX : 9)) continue;
     const reach = Math.sqrt(area) / 2 + (isHome(b) ? 2 : 8);
-    const hasShop = shops.some((s) => Math.hypot(s.at[0] - c[0], s.at[1] - c[1]) < reach);
+    const hasShop = pinned || shops.some((s) => Math.hypot(s.at[0] - c[0], s.at[1] - c[1]) < reach);
     // Built to the footpath with a flat roof: a town-centre shop even without a POI.
     const toBoundary = !isHome(b) && b.roof === "flat" && bestGap < 4.5 && area > 60;
     if (!hasShop && !toBoundary) continue;
@@ -155,44 +269,73 @@ export function findShopfronts(
     const L = Math.hypot(q[0] - a[0], q[1] - a[1]);
     // Counter-clockwise ring: outward is to the right of a->q.
     const o: Vec2 = [(q[1] - a[1]) / L, -(q[0] - a[0]) / L];
-    // Stop short of the kerb; under a metre of room, just the windows.
+    // Stop short of the kerb; under a metre of room, just the windows. Set back past 9 m (a pad in a
+    // car park): no verandah reaching for the street, just the windows and a wall sign.
     const room = bestGap - 0.6;
-    const depth = room < 1 ? 0 : Math.min(MAX_DEPTH, room);
+    const depth = room < 1 || bestGap > 9 ? 0 : Math.min(MAX_DEPTH, room);
     const gb = groundFor?.(b) ?? ground;
     // Out over the footpath: never under the scene's own ground there. A building past the terrain
     // mesh stands on the horizon, metres under the mesh its verandah reaches out over (Augusta,
     // Dunsborough: verandahs, signs and posts 1 to 5 m under the footpath).
     const og: HeightFn = groundFor ? (x, y) => Math.max(gb(x, y), ground(x, y)) : ground;
-    const f: Shopfront = {
-      a, b: q, out: o, depth, posts: depth >= 2.4, ground: Math.min(gb(a[0], a[1]), gb(q[0], q[1])),
-      under: Math.min(VERANDAH_H, Math.max(2.6, b.height - 0.4)),
-      sign: Math.floor(rand() * SIGN_COUNT),
-    };
-    stepFront(f, gb, og);
-    if (f.posts && groundFor) f.feet = postSpots(L).map((t) => og(a[0] + ((q[0] - a[0]) * t) / L + o[0] * (depth - 0.15), a[1] + ((q[1] - a[1]) * t) / L + o[1] * (depth - 0.15)) - SINK);
-    out.push(f);
-    centres.push([c, reach]);
+    const sign = Math.floor(rand() * SIGN_COUNT);
+    const e: Vec2 = [(q[0] - a[0]) / L, (q[1] - a[1]) / L];
+    const along = (t: number): Vec2 => [a[0] + e[0] * t, a[1] + e[1] * t];
+    // A long front with several named places in its building (a strip of shops under one roof in
+    // OSM) is cut into one stretch per place, so each carries its own name.
+    const cuts = isHome(b) ? [0, L] : frontCuts(L, named.filter((s) => atBuilding(s.at, ring)).map((s) => ({
+      t: (s.at[0] - a[0]) * e[0] + (s.at[1] - a[1]) * e[1], name: s.name!.trim(), hand: !!s.hand,
+      d: Math.abs((s.at[0] - a[0]) * o[0] + (s.at[1] - a[1]) * o[1]),
+    })));
+    for (let k = 0; k + 1 < cuts.length; k++) {
+      // The front's own corners at its ends (exactly the wall's), cut points between.
+      const p0 = k === 0 ? a : along(cuts[k]), p1 = k + 2 === cuts.length ? q : along(cuts[k + 1]);
+      const len = cuts[k + 1] - cuts[k];
+      const f: Shopfront = {
+        a: p0, b: p1, out: o, depth, posts: depth >= 2.4, ground: Math.min(gb(p0[0], p0[1]), gb(p1[0], p1[1])),
+        under: Math.min(VERANDAH_H, Math.max(2.6, b.height - 0.4)),
+        sign,
+      };
+      stepFront(f, gb, og);
+      if (f.posts && groundFor) f.feet = postSpots(len).map((t) => og(p0[0] + e[0] * t + o[0] * (depth - 0.15), p0[1] + e[1] * t + o[1] * (depth - 0.15)) - SINK);
+      out.push(f);
+      centres.push([c, reach]);
+      rings.push(ring);
+      heights.push(b.height);
+    }
   }
-  // Names: each named shop goes on the sign of the nearest front it's within reach of, one name per
-  // front (the closest shop wins), and only fronts with a verandah carry a sign.
-  const claims: { f: number; d: number; name: string }[] = [];
-  for (const s of shops) {
-    const name = s.name?.trim();
-    if (!name) continue;
-    let best = -1, bestD = Infinity;
+  // Names, one per front. A named place in (or within NEAR of) a front's building claims that front;
+  // otherwise the nearest front it's within reach of. Claims are settled in order: hand-listed places
+  // at their building, hand-listed places within reach, places at their building (the one nearest the
+  // street front first), then the rest (the nearest first).
+  const claims: { f: number; tier: number; d: number; name: string }[] = [];
+  for (const s of named) {
+    const name = s.name!.trim();
+    let best = -1, bestD = Infinity, at = false;
     out.forEach((f, i) => {
-      const [c, reach] = centres[i];
-      const d = Math.hypot(s.at[0] - c[0], s.at[1] - c[1]);
-      if (f.depth > 0 && d < reach && d < bestD) [best, bestD] = [i, d];
+      if (!atBuilding(s.at, rings[i])) return;
+      // Inside a footprint beats just outside the next one.
+      const inside = pointInRing(s.at[0], s.at[1], rings[i]);
+      const d = Math.hypot(s.at[0] - (f.a[0] + f.b[0]) / 2, s.at[1] - (f.a[1] + f.b[1]) / 2) + (inside ? 0 : 1000);
+      if (!at || d < bestD) [best, bestD, at] = [i, d, true];
     });
-    if (best >= 0) claims.push({ f: best, d: bestD, name });
+    if (!at) {
+      out.forEach((_, i) => {
+        const [c, reach] = centres[i];
+        const d = Math.hypot(s.at[0] - c[0], s.at[1] - c[1]);
+        if (d < reach && d < bestD) [best, bestD] = [i, d];
+      });
+    }
+    if (best >= 0) claims.push({ f: best, tier: (s.hand ? 0 : 2) + (at ? 0 : 1), d: bestD, name });
   }
-  claims.sort((x, y) => x.d - y.d);
-  let named = 0;
+  claims.sort((x, y) => x.tier - y.tier || x.d - y.d);
+  let count = 0;
   for (const c of claims) {
-    if (out[c.f].name || named >= MAX_NAMED) continue;
-    out[c.f].name = c.name;
-    out[c.f].sign = SIGN_COUNT + named++;
+    const f = out[c.f];
+    if (f.name || count >= MAX_NAMED) continue;
+    f.name = c.name;
+    f.sign = SIGN_COUNT + count++;
+    if (f.depth <= 0) f.wall = wallSign(f, heights[c.f]);
   }
   return out;
 }
@@ -240,6 +383,19 @@ export function buildShopfronts(fronts: Shopfront[], ground: HeightFn): Kn5MeshN
       mb.vertex([p1[0], p1[1], z1], reps, 0);
       mb.vertex([p0[0], p0[1], z1], 0, 0);
       mb.quad(i, i + 1, i + 2, i + 3);
+    }
+    // No verandah: the name on a panel fixed to the wall, just proud of the windows.
+    if (f.wall) {
+      const mb = fascia.next(4);
+      const i = mb.vertexCount;
+      const { t0, t1, z0, z1 } = f.wall;
+      const p0 = at(a, t0, 0.08), p1 = at(a, t1, 0.08);
+      const v0 = f.sign / rows, v1 = (f.sign + 1) / rows;
+      mb.vertex([p0[0], p0[1], z1], 0, v0);
+      mb.vertex([p1[0], p1[1], z1], 1, v0);
+      mb.vertex([p1[0], p1[1], z0], 1, v1);
+      mb.vertex([p0[0], p0[1], z0], 0, v1);
+      mb.quad(i, i + 3, i + 2, i + 1);
     }
     if (f.depth <= 0) continue;
     const zUs = steps.map((st) => st.ground + st.under);
@@ -370,9 +526,10 @@ export function shopSignTexture(fronts: Shopfront[] = [], draw?: SignDrawer): Ui
   const L = (f: Shopfront) => Math.hypot(f.b[0] - f.a[0], f.b[1] - f.a[1]);
   const jobs = named.map((f) => {
     const bg = PALETTE[hash(f.name!) % PALETTE.length];
-    // The row is stretched over the fascia: L metres across, FASCIA up. Square letters need the
-    // text squeezed across by the inverse.
-    return { text: f.name!, bg, ink: inkOn(bg), squeeze: Math.min(1, (FASCIA / SIGN_H) / (L(f) / SIGN_W)) };
+    // The row is stretched over the fascia (L metres across, FASCIA up) or the wall sign. Square
+    // letters need the text squeezed across by the inverse.
+    const [across, up] = f.wall ? [f.wall.t1 - f.wall.t0, f.wall.z1 - f.wall.z0] : [L(f), FASCIA];
+    return { text: f.name!, bg, ink: inkOn(bg), squeeze: Math.min(1, (up / SIGN_H) / (across / SIGN_W)) };
   });
   const drawn = jobs.length && draw ? draw(jobs, w, SIGN_H) : undefined;
   const fallback = named.map((f) => hash(f.name!) % SIGN_COUNT);
