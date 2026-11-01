@@ -1,17 +1,17 @@
 {
+  "include": ["src", "test", "vite.config.ts"],
   "compilerOptions": {
+    "noEmit": true,
     "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable", "WebWorker"],
     "module": "ESNext",
     "moduleResolution": "Bundler",
-    "lib": ["ES2022", "DOM", "DOM.Iterable", "WebWorker"],
+    "isolatedModules": true,
+    "types": ["node", "vite/client"],
+    "skipLibCheck": true,
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
-    "noFallthroughCasesInSwitch": true,
-    "skipLibCheck": true,
-    "isolatedModules": true,
-    "types": ["vite/client", "node"],
-    "noEmit": true
-  },
-  "include": ["src", "test", "vite.config.ts"]
+    "noFallthroughCasesInSwitch": true
+  }
 }

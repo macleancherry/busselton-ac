@@ -18,7 +18,7 @@ No map, no controls, no styling, no session, no search. Nothing else in the repo
 
 Suggested (the implementer may rename; keep the worker URL form so Vite bundles it):
 
-- `index.html`: `<!doctype html>`, a title, one `<canvas id="preview-canvas" width="1024" height="576">`, one module script `/src/ui/main.ts`. Nothing else. (CI runs `npm run build`, which type-checks and `vite build`s this page; keep it buildable.)
+- `index.html`: `<!doctype html>`, a title, one `<canvas id="preview-canvas" width="1024" height="576">`, one module script `/src/ui/main.ts`. Nothing else. (CI runs `npm run typecheck` and `npm run build`, which `vite build`s this page; keep it buildable.)
 - `src/ui/main.ts`: sets up `window.__app` (below).
 - `src/ui/headlessOptions.ts`: pure, no DOM: the fixed options and the route `options` mapping. Tested in Node.
 - `src/ui/buildWorker.ts`: the worker (kept, see "Worker").

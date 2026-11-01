@@ -1,15 +1,15 @@
 {
-  "name": "ac-track-builder",
-  "version": "0.1.0",
+  "name": "busselton-ac",
+  "description": "Busselton, Vasse and Broadwater as Assetto Corsa tracks, built headless from route files and real map data.",
+  "version": "1.0.0",
   "private": true,
   "license": "SEE LICENSE IN LICENSE",
   "type": "module",
-  "description": "Build Assetto Corsa tracks from real-world roads (headless, from route files).",
   "scripts": {
     "dev": "vite",
-    "build": "tsc --noEmit && vite build",
-    "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "build": "vite build",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
   },
   "dependencies": {
     "@mapbox/vector-tile": "^3.0.0",
