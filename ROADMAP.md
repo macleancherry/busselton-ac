@@ -90,10 +90,10 @@ What makes polishing cheap. First, because every landmark after it is quicker.
 - 🔨 **Houses from the photo walk:** spec houses from Mac's street photos (`scripts/houses/photo_walk.py`), street by street. Waiting on the first street of photos.
 - 🔨 **Detail layers in Blender** for what a spec can't say. ✅ Transition (`routes/layers/transition.kn5`, scripted in `scripts/blender/landmarks/`). 🔨 Sea Play's ship: modelled and scripted, kn5 not exported yet. Next: wire `routes/layers` into the route and drop the two spec looks; Rocky Ridge's pergola and festoon lights; lighthouses.
 - 🔨 **In game:** the workstation retest (`docs/workstation-retest.md`) covers the AI on every layout, the AO bake, the 3D trees and the landmark screenshots. Mac's own checks: time of day and seasons, water, rain, night, the jetty, the map app, free roam.
-- ⬜ **Course markings on the race layouts** (next up, from 2 Nov; plan and before/after renders: [docs/plans/course-markings.md](docs/plans/course-markings.md), mock-up `scripts/blender/mockups/course_marks.py`). Shows which way the course goes without walls, in the race layouts only (`courseMarks`; free roam stays open):
-  1. ⬜ closed side streets and roundabout exits on the town layout: red-white ripple strip across the mouth plus a line of low red-white water-filled barriers (no collision; the closed street counts as off-track)
-  2. ⬜ roundabouts on the course: red-white island kerb, a chevron board facing each entry; chevrons and an arrow board 60–80 m before each course turn
-  3. ⬜ the start: grid boxes, start line, light START FINISH arch; then foreshore and sights
+- 🔨 **Course markings on the race layouts** (phases 1–3 built 2 Nov, waiting on Mac's drive; plan and before/after renders: [docs/plans/course-markings.md](docs/plans/course-markings.md), mock-up `scripts/blender/mockups/course_marks.py`). Shows which way the course goes without walls, in the race layouts only (`courseMarks`; free roam stays open):
+  1. ✅ closed side streets and roundabout exits on the town layout: red-white ripple strip across the mouth plus a line of low red-white water-filled barriers (no collision; the closed street counts as off-track)
+  2. ✅ roundabouts on the course: red-white island kerb, a chevron board facing each entry; chevrons and an arrow board 60–80 m before each course turn
+  3. ✅ the start: grid boxes, start line, light START FINISH arch; then foreshore and sights
   4. ⬜ tune from Mac's drives (solid barriers as an option if the soft ones feel too cheap); race layouts with markings ship without traffic until traffic avoids them
 - 🔨 **Town details:** ✅ kerbside parking bays and bike lanes (`kerbside`, on in the town preset; not yet on for Busselton), ✅ the AI line in the left lane (`aiKeepLeft`). ⬜ Traffic lights (Busselton has few), car parks beyond the detailed ground.
 - ✅ **Base work done:**
