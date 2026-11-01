@@ -113,7 +113,7 @@ Write a small one-off script that builds a few fixed meshes with the old `MeshBu
 - a mesh with explicit, non-unit normals;
 - a 2 km offset copy of the box (float32 rounding of large coordinates).
 
-The new module must reproduce each byte for byte (compare the float32 bit patterns). Then, as the strongest check, run the existing suites that build whole tracks (`test/track.test.ts`, `test/scenery.test.ts`, `test/roundabout.test.ts`) and the kn5 round-trip of the accepted Busselton build (docs/specs/kn5.md test 20): a full build with the new module should give an identical base `.kn5` (lead runs the build; see the brief).
+The new module must reproduce each byte for byte (compare the float32 bit patterns). Then, as the strongest check, run the existing suites that build whole tracks (`test/buildEndToEnd.test.ts`, `test/scenery.test.ts`, `test/ringOnRoute.test.ts`) and the kn5 round-trip of the accepted Busselton build (docs/specs/kn5.md test 20): a full build with the new module should give an identical base `.kn5` (lead runs the build; see the brief).
 
 ## Possibly unused or duplicated (for Mac to decide)
 

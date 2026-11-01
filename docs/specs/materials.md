@@ -25,7 +25,7 @@ The `Light` shape is written inline at every call site today (`track.ts` repeats
 - Callers derive other materials by spreading the result and overriding fields, so the returned object must be a plain object whose spread works:
   - `{ ...material(...), shader: "ksPerPixelAT", alphaTested: true }` (trees, shrubs, signart, race banners, landmark trees);
   - `{ ...material(...), blendMode: BlendMode.AlphaBlend }` and `..., depthMode: DepthMode.NoWrite` (`photoSea.ts` sea and foam).
-- Tests that pin values set here: none directly by name today; `test/track.test.ts` and `test/cspConfig.test.ts` pin the detail materials (below) and CSP config that matches material names.
+- Tests that pin values set here: none directly by name today; `test/materials.test.ts`, `test/buildEndToEnd.test.ts` and `test/cspConfig.test.ts` pin the detail materials (below) and CSP config that matches material names.
 
 ## Rules
 
@@ -80,7 +80,7 @@ Three private builders in `src/core/track.ts` duplicate rule 3 and belong with t
 
 - `shader`: `"ksPerPixelMultiMap"`.
 - `properties`, in order: the six of rule 3, then `fresnelC` 0, `fresnelEXP` 5, `fresnelMaxLevel` 0, `isAdditive` 0, `useDetail` 1, `detailUVMultiplier` `maps.detailUV`, `shadowBiasMult` 0, `nmObjectSpace` 0, `sunSpecular` `maps.sunSpecular ?? 0`, `sunSpecularEXP` 40 (all `a` values). Note the order differs from `nmMaterial` (`isAdditive` before `nmObjectSpace`); keep it for byte-identical output.
-- `textures`: `{ txDiffuse, txNormal: maps.normal, txMaps: maps.maps, txDetail: maps.detail }` (registers 0, 1, 2, 3; `test/track.test.ts` checks them).
+- `textures`: `{ txDiffuse, txNormal: maps.normal, txMaps: maps.maps, txDetail: maps.detail }` (registers 0, 1, 2, 3; `test/materials.test.ts` checks them).
 - How the game uses it: the detail texture multiplies the diffuse wherever the diffuse alpha is 0, tiled `detailUVMultiplier` times across the base UVs; txMaps R, G, B scale specular, gloss and sun specular.
 - Call sites pass: sealed road `detail_<asphalt|chipseal>.png`, `maps_asphalt.png`, `detailUV` 9, `sunSpecular` 0.15; gravel `detail_chipseal.png`, `maps_ground.png`, `detailUV` 9, `sunSpecular` 0.02. The diffuse is DXT5 with alpha forced to 0 everywhere (detail everywhere).
 
@@ -90,7 +90,7 @@ Each layer `{ texture: string; metres: number }` (one tile every `metres`, proje
 
 - `shader`: `"ksMultilayer"`.
 - `properties`, in order: the six of rule 3, then `multR` `a: 1 / r.metres`, `multG` `a: 1 / g.metres`, `multB` `a: 1 / b.metres`, `multA` **`b: [1 / a.metres, 1 / a.metres]`** (a float2 in the shader; writing it as `a` is silently wrong), `magicMult` `a: magicMult`.
-- `textures`: `{ txDiffuse, txMask: mask, txDetailR, txDetailG, txDetailB, txDetailA }` from the four layers (registers 0 to 5; `test/track.test.ts` checks them).
+- `textures`: `{ txDiffuse, txMask: mask, txDetailR, txDetailG, txDetailB, txDetailA }` from the four layers (registers 0 to 5; `test/materials.test.ts` checks them).
 - How the game uses it: diffuse multiplied by the four details weighted by txMask's R, G, B and A, then by `magicMult`.
 
 ### `groundMaterial(name, diffuse, mask, light)`
@@ -113,7 +113,7 @@ None that change output. Keep the property orders exactly as tabled: the kn5 byt
 2. `nmMaterial`: shader `ksPerPixelNM`; the six then `fresnelC 0, fresnelEXP 5, fresnelMaxLevel 0, nmObjectSpace 0, isAdditive 0`; textures `{ txDiffuse, txNormal }`.
 3. Spread overrides work: `{ ...material(...), shader: "ksPerPixelAT", alphaTested: true }` keeps the properties and textures.
 4. Written through `writeKn5` and read back: `nmMaterial` registers are `{ txDiffuse: 0, txNormal: 1 }`.
-5. If the detail builders move here: `multiMapMaterial` registers `{0,1,2,3}`, `useDetail` 1, `detailUVMultiplier` as given, `sunSpecularEXP` 40; `multilayerMaterial` `multA` has `b` of two equal values and no `a`; `groundMaterial` `multR` is 1/1.6, `magicMult` 2, detail textures `ground_grass.dds, ground_dirt.dds, ground_plain.dds, black.png`. (`test/track.test.ts` already checks the built track for these; keep it passing.)
+5. If the detail builders move here: `multiMapMaterial` registers `{0,1,2,3}`, `useDetail` 1, `detailUVMultiplier` as given, `sunSpecularEXP` 40; `multilayerMaterial` `multA` has `b` of two equal values and no `a`; `groundMaterial` `multR` is 1/1.6, `magicMult` 2, detail textures `ground_grass.dds, ground_dirt.dds, ground_plain.dds, black.png`. (`test/materials.test.ts` checks these; `test/buildEndToEnd.test.ts` checks a built track uses them.)
 
 ### Golden fixtures
 

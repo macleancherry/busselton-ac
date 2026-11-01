@@ -679,7 +679,7 @@ Each fix changes output: its own commit, a base upgrade (`base.mjs build|accept`
 
 ## 15. Tests to write
 
-Fresh tests (the old `test/track.test.ts`, `gates`, `kangaroo`, `origin`, `roundabout`, `streets` are on UPSTREAM-FILES.txt and get rewritten too).
+Fresh tests (the old `test/track.test.ts`, `gates`, `kangaroo`, `origin`, `roundabout`, `streets` were replaced on 1 Nov 2026 by `buildEndToEnd`, `ringOnRoute` and `sideStreetsBuild`, from docs/specs/old-build-tests.md).
 
 **Golden (the gate for every stage-2 step).**
 1. **Full Busselton golden (lead's build).** Before the rewrite starts: build Busselton twice from the frozen snapshot with the current code (`SNAPSHOT=out/snapshots/busselton-2026-10-30 node scripts/headless/build-track.mjs routes/busselton.json`) and confirm the two zips are byte-identical (if not, find the nondeterminism first: that's a bug to fix and accept as a base before the rewrite). Keep that zip as the reference. After each stage-2 step, rebuild and compare **every zip entry byte for byte**; the layer and landmark entries (`layer_*`, `lm_*`, models*.ini) come from outside and must match too. Needs a small comparer, `scripts/check/zip_same.mjs <a.zip> <b.zip>`: lists entries only in one, and differing entries; for a differing kn5, decodes both (`readKn5`) and reports the first difference (texture list, material list, node path and name, then the first differing vertex), so a failure says which stage moved. `out/accepted/busselton.zip` was built at an earlier commit, so compare against the fresh reference, not that file.

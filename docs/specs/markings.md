@@ -40,7 +40,7 @@ Coordinates are local metres, x east, y north, z up; `MeshBuilder.toKn5` convert
 - Types `DiscreteMark` and `Glyph` (exported; `Glyph` is imported by `kerbside.ts`).
   - `DiscreteMark`: `{ s, t, kind: "stop" | "giveway" | "zebra" | "arrow" | "text" | "symbol" | "start" | "finish", shape?: string }`; s along, t across (+ left).
   - `Glyph`: `{ lines: [a, c][][]; heads: { at: [a, c]; dir: [a, c] }[]; width; length }`, in the mark's own frame: a along its traffic's direction of travel from its tail, c across, + to that traffic's left. `dir` is a unit vector.
-- Tests: `test/markings.test.ts`, `test/unsealed.test.ts` (no paint on gravel, through a full build), `test/track.test.ts` (mesh name prefixes).
+- Tests: `test/markings.test.ts`, `test/unsealed.test.ts` (no paint on gravel, through a full build), `test/buildEndToEnd.test.ts` (mesh name prefixes).
 
 Dependencies: `surfaceHeight(sample, t, crown)` from `road.ts` (height at lateral offset t, with t clamped to the asphalt half width, using the sample's own `crown` if set); `ChunkedMesh` (`meshKit.ts`, splits before 65,535 vertices); `pad` (3-digit zero padding); `ImageLine` type from paintLines.
 

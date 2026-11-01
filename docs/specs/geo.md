@@ -86,7 +86,7 @@ Let R = 6378137, λ, φ in radians, λ0, φ0 the origin's.
 Types (`LngLat`, `Vec2`, `Bounds`) are imported by about 60 modules in `src/core`, `src/services`, `src/ui`, many tests and scripts; they must stay structurally `[number, number]` tuples.
 
 Values:
-- `LocalProjection`: `src/core/track.ts` (one per build, origin = route centre or `build.origin`), `src/ui/main.ts`, `test/roundabout.test.ts`, `test/zones.test.ts`; scripts `blender/export_base.ts`, `blender/render_track.ts`, `check/benchmark.ts`, `check/make_test_layer.ts`, `network/{compare,debug_node,phase1,whole}.ts`, `polish/landmarks.ts`. Type-only in `elevation.ts`, `layouts.ts`, `roundabout.ts`, `sideStreets.ts`, `raster.ts`, `tiles.ts`, `network/ways.ts`.
+- `LocalProjection`: `src/core/track.ts` (one per build, origin = route centre or `build.origin`), `src/ui/main.ts`, `test/ringOnRoute.test.ts`, `test/zones.test.ts`; scripts `blender/export_base.ts`, `blender/render_track.ts`, `check/benchmark.ts`, `check/make_test_layer.ts`, `network/{compare,debug_node,phase1,whole}.ts`, `polish/landmarks.ts`. Type-only in `elevation.ts`, `layouts.ts`, `roundabout.ts`, `sideStreets.ts`, `raster.ts`, `tiles.ts`, `network/ways.ts`.
 - `toLocal` / `toLngLat`: through the instance everywhere above.
 - `localToPixel` / `pixelToLocal`: `src/core/elevation.ts` (DEM grid sampling; it also repeats the `tilesCovering` corner logic inline), `src/services/tiles.ts` (aerial chunks, per-pixel sampling at pixel centres +0.5), `src/services/raster.ts`.
 - `metresPerPixel`: `src/services/raster.ts`.

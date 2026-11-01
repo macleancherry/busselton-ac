@@ -50,7 +50,7 @@ All `points` / `pts` / `route` are AC world X/Z pairs (X east, Z south; callers 
 - `src/core/layouts.ts`: `uiTrackJson` (with `width: 7` and `centre` = the projection origin), `trackMap`, `outlinePng`, `previewPng`, `TrackMeta`.
 - `scripts/headless/build-track.mjs` copies the main layout's `data/surfaces.ini` into every layout's `data/`.
 - `src/ui/main.ts` replaces `ui/preview.png` with a render.
-- Tests: `test/trafficReady.test.ts` (`surfacesIni`, `TRAFFIC_READY_TAG`, `uiTrackJson`), `test/unsealed.test.ts` (`surfacesIni`), `test/streetMap.test.ts`, `test/area.test.ts` and `test/layouts.test.ts` (read the files out of a build), `test/track.test.ts` (file list, ui_track.json fields).
+- Tests: `test/trafficReady.test.ts` (`surfacesIni`, `TRAFFIC_READY_TAG`, `uiTrackJson`), `test/unsealed.test.ts` (`surfacesIni`), `test/streetMap.test.ts`, `test/area.test.ts` and `test/layouts.test.ts` (read the files out of a build), `test/trackStages.test.ts` and `test/buildEndToEnd.test.ts` (files in a build).
 - Other readers of these files: `apps/lua/BusseltonMap/BusseltonMap.lua` (street_map.ini keys), `scripts/windows/run-test.ps1` (ui_track.json `pitboxes`), `scripts/windows/rig-install.ps1` (finds layouts by `ui/<id>/ui_track.json`).
 - Duplicate slug logic: `scripts/upgrade/base.mjs` computes the slug itself (same steps, but without the 40-character cut). See "Known issues".
 

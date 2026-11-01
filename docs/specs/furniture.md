@@ -117,7 +117,7 @@ Signatures (argument order as `track.ts` calls them):
 - `src/core/track.ts`: `streetSigns`, `landmarks`, `seenFeatures`, `mergeSightings` (also feeds utilities), `gateSigns` (when there's no race dressing), `kangarooSigns`, `buildPieces` for the whole pieces list.
 - `src/core/utilities.ts`: `off`, `vergeZ`, `Piece`. With the height contract, utilities needs only `off` and `Piece`.
 - Piece type: `raceDress.ts`, `flags.ts`, `footpaths.ts`, `farmRoadsides.ts`.
-- Tests now: `test/streets.test.ts` (signArt, mergeSightings), `test/gates.test.ts`, `test/kangaroo.test.ts`, `test/flags.test.ts` and `test/utilities.test.ts` (Piece type).
+- Tests now: `test/furniture.test.ts` (signArt, mergeSightings, gate and kangaroo signs), `test/buildEndToEnd.test.ts` and `test/sideStreetsBuild.test.ts` (through whole builds), `test/flags.test.ts` and `test/utilities.test.ts` (Piece type).
 
 ## Edge cases
 

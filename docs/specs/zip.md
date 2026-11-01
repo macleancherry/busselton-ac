@@ -28,7 +28,7 @@ Compression comes from the `fflate` package (MIT licence, a normal dependency, n
 ## Callers (from `grep`, 31 Oct 2026)
 
 - `src/ui/main.ts`: zips `result.files` for the download link (`<slug>.zip`). The headless build (`scripts/headless/build-track.mjs`) gets its zip through that download.
-- `test/track.test.ts`: zips a test build and checks the kn5 survives `unzipSync` at the reported size.
+- `test/buildEndToEnd.test.ts`: zips a test build and checks the kn5 survives `unzipSync` at the reported size.
 - Not callers, but related: `build-track.mjs` (when it patches files after the download), `scripts/polish/landmarks.ts`, `scripts/check/traffic_rebuild.ts` and `src/core/cspTrees.ts` call fflate's `zipSync` directly at level 6 for everything, and `scripts/snapshot/snapshot.mjs` at level 0. After a headless patch the stored/deflated split of rule 2 is lost (everything deflated). Worth pointing those at `zipTrack` (outside this rewrite's scope; tell Mac).
 
 ## Known oddities (decide, don't copy blindly)

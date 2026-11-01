@@ -37,7 +37,7 @@ The game itself aims a replay camera at the car and zooms between its min and ma
 
 - `src/core/track.ts`: `placeCameras(plan, opts, groundAt, insideAKeptBuilding)` then `camerasIni(cameras)` into `<slug>/data/cameras_1.ini`. `blocked` is "inside the ring of any building kept in the build".
 - `src/core/layouts.ts`: per layout, `camerasIni(placeCameras(plan, opts, ground, () => false))` into `<slug>/<layout>/data/cameras_1.ini`. Nothing is blocked here (see "Known issues").
-- Tests: `test/cameras.test.ts`. `test/track.test.ts` checks the file exists in the zip.
+- Tests: `test/cameras.test.ts`. `test/trackStages.test.ts` reads the files out of a build.
 - `setName` is never passed by a caller; only the default is used.
 
 ## Rules: placing cameras

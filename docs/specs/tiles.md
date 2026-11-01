@@ -40,7 +40,7 @@ loadChunkImagery(proj, chunk, zoom, size, previews: Map<string, OffscreenCanvas>
 - `src/services/raster.ts`: `loadBitmap(tileUrl(...)).catch(() => null)`, `colourBalance`, `IMAGERY`, `tileUrl`.
 - `src/ui/main.ts`: `IMAGERY.esri.template` for the Leaflet base layer, `tileUrl` for a Leaflet layer per source (so `{bbox}` sources work), `IMAGERY[src].maxZoom` and `.label`, `DEM_LABEL`.
 - `scripts/polish/demTiles.ts`: `decodeTerrarium` (array in, Float32Array out, NaN at alpha 0).
-- Tests: `test/wa.test.ts`, `test/wa-imagery.test.ts` (`imageryChain`, `tileBbox`, `tileUrl`, `decodeTerrarium`), `test/demtiles.test.ts` (`upsample`), `test/elevation.test.ts` (`decodeTerrarium` from here equals core's).
+- Tests: `test/tiles.test.ts` (`imageryChain`, `tileBbox`, `tileUrl`, `decodeTerrarium`), `test/demtiles.test.ts` (`upsample`), `test/elevation.test.ts` (`decodeTerrarium` from here equals core's).
 
 ## Imagery sources
 
