@@ -2,7 +2,7 @@
 //
 //   node scripts/check/all.mjs <slug> [--json out/<slug>.checks.json]
 //
-// Runs: check_build (spikes, heights), budget, layout_check (when it has layouts), dump_surface then
+// Runs: check_build (spikes, heights), budget, layout_check and course_marks_check (when it has layouts), dump_surface then
 // surface_check and street_ground, path_ground, ground_check (placed things on the ground, parked cars
 // off the roads), shore_check (no trees on water, sand, groynes or jetties; nothing on water), parked_check (parked cars in bays, on asphalt, not overlapping), traffic_check and lane_bay_check (when it has traffic). Exits non-zero if any fails.
 // The headline numbers (triangles, AI off the road per layout, tilt, edge steps, ground through
@@ -45,6 +45,11 @@ if (names.some((n) => /layout_[^/]+\.kn5$/.test(n))) {
   r = run("layouts", "npx", ["tsx", "scripts/check/layout_check.ts", `out/${slug}.zip`]);
   results.push(r);
   summary.aiOffRoad = Object.fromEntries([...r.text.matchAll(/^(\w+): .*AI line \d+ points, ([\d.]+)% off the road/gm)].map((m) => [m[1], Number(m[2])]));
+  // Busselton fork: course markings on the race layouts (course_marks_check.ts).
+  r = run("course marks", "npx", ["tsx", "scripts/check/course_marks_check.ts", `out/${slug}.zip`]);
+  results.push(r);
+  summary.courseMarksOpen = [...r.text.matchAll(/without a strip: (\d+)/g)].reduce((s, m) => s + Number(m[1]), 0);
+  summary.courseMarksOnLine = [...r.text.matchAll(/marks on the AI line: (\d+)/g)].reduce((s, m) => s + Number(m[1]), 0);
 }
 
 r = run("surface dump", "npx", ["tsx", "scripts/check/dump_surface.ts", `out/${slug}.zip`, `out/${slug}.surface.json`]);

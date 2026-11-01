@@ -11,6 +11,7 @@
 // means (several are "on unless false").
 
 import type { ChallengesOption } from "./challenges";
+import type { CourseMarksOption } from "./courseMarks";
 import type { LngLat } from "./geo";
 
 export interface BuildOptions {
@@ -183,6 +184,13 @@ export interface BuildOptions {
   timeTrialSectors?: number;
   /** On unless false. */
   driftZones?: boolean;
+  /**
+   * Busselton fork: course markings (courseMarks.ts) on every layout with a route (race and sights),
+   * never a spawns layout (free roam): closed side streets and ring exits, chevrons, arrows, the
+   * start. Laid into each layout's own kn5 after the build (build-track.mjs); those layouts ship
+   * without traffic. Off unless set.
+   */
+  courseMarks?: CourseMarksOption;
 }
 
 /** Fields with no default (their readers decide what absent means). */
@@ -192,7 +200,7 @@ export const OPTIONAL_OPTION_KEYS: readonly (keyof BuildOptions)[] = Object.free
   "cspTrees", "houseStyle", "clears", "armco", "farmland", "farmRoadsides", "wavingFlags",
   "jettyTrain", "swimJetties", "jettyKinds", "trackSounds", "poleClear", "raceway", "treeMips", "shoreClear",
   "kerbside", "laneBayClear", "parkedBays", "padClear", "trafficLights", "shopNamesOverpass",
-  "aiKeepLeft", "aiRings", "streetsValid", "challenges", "timeTrialSectors", "driftZones",
+  "aiKeepLeft", "aiRings", "streetsValid", "challenges", "timeTrialSectors", "driftZones", "courseMarks",
 ] as const);
 
 type RequiredFields<T> = { [K in keyof T as undefined extends T[K] ? never : K]: T[K] };
