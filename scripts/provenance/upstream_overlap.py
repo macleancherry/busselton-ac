@@ -10,6 +10,11 @@ anywhere in an upstream checkout, and lists the files that count as upstream-der
 
 A file is upstream-derived if at least 20% of its meaningful lines match upstream, or it
 shares a path with an upstream file and has 10 or more matching lines. The goal is none.
+
+A file whose only matching lines are forced lines (docs/specs/provenance.md) comes off the
+list by hand. To see a file's matching lines:
+
+    python3 -I scripts/provenance/upstream_overlap.py . /tmp/upstream --show=src/ui/main.ts,src/ui/preview.ts
 """
 import collections
 import os
@@ -60,6 +65,12 @@ def main():
     print(f"Upstream-derived files: {len(derived)} of {len(rows)}")
     for rel, m, n, shared, _ in sorted(derived, key=lambda r: -r[1]):
         print(f"  {m:5}/{n:<5} {m / max(n, 1):4.0%}  {rel}")
+    show = [a.split("=", 1)[1] for a in sys.argv[1:] if a.startswith("--show=")]
+    for rel in (r for s in show for r in s.split(",") if r):
+        print(f"\nLines of {rel} found in upstream:")
+        for l in lines(os.path.join(ours, rel)):
+            if l in up_lines:
+                print("   ", l)
     if "--write" in sys.argv:
         out = os.path.join(ours, "UPSTREAM-FILES.txt")
         with open(out, "w") as fh:

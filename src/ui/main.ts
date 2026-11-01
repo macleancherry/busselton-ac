@@ -47,7 +47,7 @@ const canvas = document.getElementById("preview-canvas") as HTMLCanvasElement;
 
 let current: { route: Route; summary: RouteSummary; placeMeta: BuildJob["placeMeta"] } | null = null;
 let progressText = "";
-let lastResult: TrackResult | null = null;
+let built: TrackResult | null = null;
 let lastPreview: PreviewScene | null = null;
 let lastWarnings: string[] = [];
 let lastZip: Uint8Array | null = null;
@@ -135,7 +135,7 @@ async function build(input: BuildInput): Promise<void> {
   if (current.summary.error) throw new Error(current.summary.error);
   lastPreview?.dispose();
   lastPreview = null;
-  lastResult = null;
+  built = null;
   lastZip = null;
   lastWarnings = [];
   progressText = "";
@@ -168,7 +168,7 @@ async function build(input: BuildInput): Promise<void> {
     // keep the build's drawn preview
   }
   lastZip = zipTrack(result.files);
-  lastResult = result;
+  built = result;
   progressText = "Done";
 }
 
@@ -176,7 +176,7 @@ window.__app = {
   route: routePins,
   build,
   progress: () => progressText,
-  result: () => lastResult,
+  result: () => built,
   preview: () => lastPreview,
   dataWarnings: () => [...lastWarnings],
   zip: () => lastZip,
