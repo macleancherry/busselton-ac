@@ -9,7 +9,13 @@
 //     (visual only, no collision); and between them, invisible, a patch of `1CLOSED_...` (key
 //     CLOSED, IS_VALID_TRACK=0) a little above the street, so driving into the closed street is a
 //     cut for that layout only;
-//   - car park entries and driveways: the strip and the patch, no barriers.
+//   - car park entries and driveways: the strip and the patch, no barriers;
+//   - roundabouts on the course: the island kerb painted red and white all round, and a chevron
+//     board on the island facing each way in, pointing left (AU rings run clockwise);
+//   - the course's turns at junctions: chevron boards on the barriers across the straight-on branch,
+//     pointing the way of the turn, a red-white strip on the inside at the apex (only where it stays
+//     a metre clear of the AI line), and an arrow board on the left verge 60 to 80 m before;
+//     turns through a roundabout get the arrow board too.
 //
 // Valid track per layout: AC decides it per surface, from the `IS_VALID_TRACK` of the surface whose
 // KEY the physics mesh's name carries after its digit ("Invalid surfaces will trigger the penalty
@@ -31,7 +37,7 @@ import { TRAFFIC_READY_TAG } from "./acFiles";
 import { readKn5, writeKn5, type Kn5GroupNode, type Kn5Material, type Kn5MeshNode, type Kn5Model, type Kn5Node, type Kn5Texture } from "./kn5";
 import { material } from "./materials";
 import { MeshBuilder } from "./mesh";
-import { ChunkedMesh } from "./meshKit";
+import { box, ChunkedMesh } from "./meshKit";
 import { solidTexture } from "./textures";
 
 type Vec2 = [number, number];
@@ -885,6 +891,103 @@ function inBay(bay: BayBox, p: Vec2, pad: number): boolean {
 }
 
 // ---------------------------------------------------------------------------------------------
+// Phase 2: roundabout islands, chevron boards, arrow boards
+
+/** Chevron boards: on a ring's island, and on the barriers across the straight-on branch at a turn. */
+export const ISLAND_BOARD = { w: 1.8, h: 0.6, bottom: 0.5 };
+export const TURN_BOARD = { w: 1.0, h: 0.5, bottom: 0.35 };
+export const ARROW_BOARD = { w: 0.9, h: 0.6, bottom: 0.9 };
+/** Arrow boards stand this far before the start of each turn, give or take ARROW_SLACK, on the left verge. */
+export const ARROW_BEFORE = 70;
+const ARROW_SLACK = 10;
+
+/** The island kerb of a ring the course uses, painted red and white all round, in 1 m bands. */
+export function islandPaint(mm: MarkMeshes, probe: SurfaceProbe, r: CourseRing, fallback: number): void {
+  if (r.rIn < 1.5) return;
+  const n = Math.max(8, Math.round((2 * Math.PI * r.rIn) / STRIP_BAND));
+  for (let k = 0; k < n; k++) {
+    const a0 = (k / n) * 2 * Math.PI, a1 = ((k + 1) / n) * 2 * Math.PI, am = (a0 + a1) / 2;
+    const out: Vec2 = [Math.cos(am), Math.sin(am)];
+    const ro = add(r.c, mul(out, r.rIn + 0.6)), ri = add(r.c, mul(out, r.rIn - 0.5));
+    const road = probe(ro[0], ro[1])?.h ?? fallback;
+    const top = Math.max(road + 0.02, probe(ri[0], ri[1])?.h ?? road + 0.15);
+    const lift = top - road;
+    // From just outside the island's edge (its kerb face) over the top, 35 cm in.
+    const profile: Vec2[] = [[0.03, -0.02], [0.03, lift + 0.01], [-0.35, lift + 0.01], [-0.35, lift - 0.03]];
+    const p0 = add(r.c, mul([Math.cos(a0), Math.sin(a0)], r.rIn)), p1 = add(r.c, mul([Math.cos(a1), Math.sin(a1)], r.rIn));
+    sweep(mm.mb("CM_ISLAND", k % 2 ? "white" : "red", p0, 30, { castShadows: false }), p0, p1, road, road, out, profile);
+  }
+}
+
+/**
+ * A board on two grey posts at `pos`, facing `face` (towards the driver): red, with white chevrons
+ * (or an arrow) pointing left or right as the driver sees it.
+ */
+export function board(mm: MarkMeshes, probe: SurfaceProbe, pos: Vec2, face: Vec2, point: "left" | "right", size: { w: number; h: number; bottom: number }, fallback: number, symbol: "chevrons" | "arrow" = "chevrons"): void {
+  const { w, h, bottom } = size;
+  const z = probe(pos[0], pos[1])?.h ?? fallback;
+  const right = leftOf(face); // the driver's right, looking along -face
+  const extra = { castShadows: true };
+  // The plate: 3 cm thick.
+  sweep(mm.mb("CM_BOARD", "red", pos, 40, extra), add(pos, mul(right, -w / 2)), add(pos, mul(right, w / 2)), z, z, face,
+    [[-0.03, bottom], [0, bottom], [0, bottom + h], [-0.03, bottom + h]]);
+  const s = point === "right" ? 1 : -1;
+  const white = mm.mb("CM_BOARD", "white", pos, 60, extra);
+  const P = (u: number, v: number): Vec3 => { const q = add(add(pos, mul(right, u * s)), mul(face, 0.004)); return [q[0], q[1], z + bottom + v]; };
+  const out = v3(face, 0);
+  if (symbol === "chevrons") {
+    const count = Math.max(2, Math.round(w / 0.45));
+    const th = (0.12 * h) / 0.5, dx = (0.18 * h) / 0.5, a = (0.07 * h) / 0.5;
+    const span = w - 0.2 - th - dx;
+    for (let k = 0; k < count; k++) {
+      const u0 = -w / 2 + 0.1 + (count > 1 ? (k * span) / (count - 1) : span / 2);
+      // Two arms of a ">" (mirrored into "<" by s), each a convex quad.
+      polygon(white, [P(u0, a), P(u0 + th, a), P(u0 + th + dx, h / 2), P(u0 + dx, h / 2)], out);
+      polygon(white, [P(u0 + dx, h / 2), P(u0 + th + dx, h / 2), P(u0 + th, h - a), P(u0, h - a)], out);
+    }
+  } else {
+    const sh = h * 0.18, tail = -w * 0.36, neck = w * 0.08, tip = w * 0.38;
+    polygon(white, [P(tail, h / 2 - sh / 2), P(neck, h / 2 - sh / 2), P(neck, h / 2 + sh / 2), P(tail, h / 2 + sh / 2)], out);
+    polygon(white, [P(neck, h * 0.15), P(tip, h / 2), P(neck, h * 0.85)], out);
+  }
+  const grey = mm.mb("CM_BOARD", "grey", pos, 40, extra);
+  for (const u of [-w / 2 + 0.12, w / 2 - 0.12]) {
+    box(grey, add(add(pos, mul(right, u)), mul(face, -0.06)), face, 0.06, 0.06, z, z + bottom + h - 0.05);
+  }
+}
+
+/** The red-white strip on the inside of a junction turn, at its apex, on the road just inside the kerb. */
+export function apexStrip(mm: MarkMeshes, probe: SurfaceProbe, c: Course, edges: { left: number[]; right: number[] }, t: CourseTurn): boolean {
+  const side = t.dir === "left" ? 1 : -1;
+  const ed = side > 0 ? edges.left : edges.right;
+  const s = c.s[t.i];
+  // Kept a metre clear of the AI line, or not laid.
+  for (let d = -4; d <= 4; d += 1) {
+    const j = stepAlong(c, t.i, d);
+    if (ed[j] - STRIP_WIDTH < 1.0) return false;
+  }
+  const line = kerbLine(c, ed, s - 4, s + 4, side, -STRIP_WIDTH);
+  stripMesh(mm, probe, line, mul(leftOf(c.t[t.i]), side), c.h[t.i]);
+  return true;
+}
+
+/** Where an arrow board goes before a turn: on the left verge, 60 to 80 m back, clear of the road and of mouths. */
+export function arrowSpot(c: Course, probe: SurfaceProbe, edges: { left: number[] }, t: CourseTurn, turns: CourseTurn[], mouths: Mouth[]): { pos: Vec2; face: Vec2 } | null {
+  for (const off of [0, -2.5, 2.5, -5, 5, -7.5, 7.5, -ARROW_SLACK, ARROW_SLACK]) {
+    const back = ARROW_BEFORE + off;
+    if (!c.closed && c.s[t.from] - back < 0) continue;
+    const j = stepAlong(c, t.from, -back);
+    // Not before an earlier turn (it would point the wrong way there).
+    if (turns.some((o) => o !== t && along(c, j, o.i) > 0 && along(c, o.i, t.from) > 0)) continue;
+    const pos = add(c.p[j], mul(leftOf(c.t[j]), edges.left[j] + 1.2));
+    if (probe(pos[0], pos[1])?.kind === "road") continue;
+    if (mouths.some((m) => m.strip.some((q) => dist(q, pos) < 4))) continue;
+    return { pos, face: mul(c.t[j], -1) };
+  }
+  return null;
+}
+
+// ---------------------------------------------------------------------------------------------
 // A layout's markings
 
 export interface CourseMarks {
@@ -894,6 +997,10 @@ export interface CourseMarks {
   mouths: Mouth[];
   rings: CourseRing[];
   turns: CourseTurn[];
+  /** Chevron boards, arrow boards and apex strips laid. */
+  boards: number;
+  arrows: number;
+  apexes: number;
   triangles: number;
 }
 
@@ -927,9 +1034,41 @@ export function courseMarks(input: CourseLayoutInput, settings: CourseMarksSetti
     closedPatch(mm, probe, m.strip, m.dir, fallback, offCourse(0.3));
     if (settings.barriers && m.barrier && m.kind !== "entry") barrierMesh(mm, probe, m.barrier[0], m.barrier[1], fallback, input.bays, settings.solid, offCourse(1.0));
   }
+  // Phase 2: the rings the course uses, chevrons, arrows, the inside of each turn.
+  let boards = 0, arrows = 0, apexes = 0;
+  for (const r of found.rings) {
+    const fallback = c.h[r.legs[0]?.i ?? 0];
+    islandPaint(mm, probe, r, fallback);
+    if (!settings.chevrons || r.rIn < 2.5) continue;
+    for (const leg of r.legs.filter((l) => l.entry)) {
+      board(mm, probe, add(r.c, mul(leg.dir, Math.max(0, r.rIn - 1.3))), leg.dir, "left", ISLAND_BOARD, fallback);
+      boards++;
+    }
+  }
+  for (const m of mouths) {
+    if (!settings.chevrons || m.kind !== "turn" || !m.turn || !m.barrier) continue;
+    const t = found.turns.find((x) => x.ring === undefined && Math.abs(along(c, x.i, m.i)) <= 25);
+    const face = mul(c.t[stepAlong(c, t?.i ?? m.i, -25)], -1);
+    const [a, b] = m.barrier;
+    const L = dist(a, b), count = L > 6 ? 3 : L > 2.5 ? 2 : 1;
+    const back = m.side ? mul(leftOf(c.t[m.i]), m.side) : m.dir;
+    for (let k = 0; k < count; k++) {
+      const q = add(add(a, mul(sub(b, a), (k + 0.5) / count)), mul(back, 0.4));
+      board(mm, probe, q, face, m.turn, TURN_BOARD, c.h[m.i]);
+      boards++;
+    }
+  }
+  for (const t of found.turns) {
+    if (t.ring === undefined && apexStrip(mm, probe, c, found.edges, t)) apexes++;
+    if (!settings.arrows) continue;
+    const spot = arrowSpot(c, probe, found.edges, t, found.turns, mouths);
+    if (!spot) continue;
+    board(mm, probe, spot.pos, spot.face, t.dir, ARROW_BOARD, c.h[t.from], "arrow");
+    arrows++;
+  }
   const nodes = mm.nodes();
   const { materials, textures } = marksMaterials();
-  return { nodes, materials, textures, mouths, rings: found.rings, turns: found.turns, triangles: nodes.reduce((s, m) => s + m.indices.length / 3, 0) };
+  return { nodes, materials, textures, mouths, rings: found.rings, turns: found.turns, boards, arrows, apexes, triangles: nodes.reduce((s, m) => s + m.indices.length / 3, 0) };
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -998,7 +1137,7 @@ export function courseMarkLayout(files: Record<string, Uint8Array>, world: MarkW
   const summary = {
     layout: id, settings, triangles: marks.triangles, meshes: marks.nodes.length,
     mouths: { side: count("side"), turn: count("turn"), ring: count("ring"), entry: count("entry") },
-    turns: marks.turns.length,
+    turns: marks.turns.length, boards: marks.boards, arrows: marks.arrows, apexes: marks.apexes,
     rings: marks.rings.map((r) => ({ ring: r.ring, c: r.c.map((v) => +v.toFixed(2)), rOut: +r.rOut.toFixed(2), rIn: +r.rIn.toFixed(2) })),
     list: marks.mouths.map((m) => ({ kind: m.kind, at: m.at.map((v) => +v.toFixed(2)), dir: m.dir.map((v) => +v.toFixed(3)), turn: m.turn, strip: m.strip.length, barrier: !!m.barrier })),
   };

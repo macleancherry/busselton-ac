@@ -157,6 +157,23 @@ describe("course marks: closed mouths", () => {
     expect(turn).toHaveLength(1);
     expect(turn[0].turn).toBe("left");
     expect(turn[0].dir[0]).toBeGreaterThan(0.95);
+    // Chevron boards on its barrier line facing the driver coming up to the turn, an arrow board on
+    // the left verge 60 to 80 m before, and an apex strip, none on the AI line.
+    const probe = surfaceProbe(world);
+    const lines: Vec2[][] = [[[-100, 0], [160, 0]], [[100, 0], [100, 150]]];
+    const cm = courseMarks({ ai: ai(pts), lines, rings: [], probe }, courseMarksSettings(true)!);
+    expect(cm.boards).toBeGreaterThanOrEqual(2);
+    expect(cm.arrows).toBe(1);
+    expect(cm.apexes).toBe(1);
+    const boards = cm.nodes.filter((n) => n.name.startsWith("CM_BOARD_RED"));
+    const xs: number[] = [], ys: number[] = [];
+    for (const n of boards) for (let k = 0; k < n.positions.length; k += 3) { xs.push(n.positions[k]); ys.push(-n.positions[k + 2]); }
+    // The arrow board: about 70 m before the turn, left of the course (north of y = 5).
+    expect(xs.some((x, k) => x > 0 && x < 30 && ys[k] > 5)).toBe(true);
+    // The chevrons: across the straight-on branch, east of the junction.
+    expect(xs.some((x) => x > 108)).toBe(true);
+    expect(checkLayoutMarks(ai(pts), cm.nodes, probe).onLine).toHaveLength(0);
+    expect(courseMarks({ ai: ai(pts), lines, rings: [], probe }, courseMarksSettings({ chevrons: false, arrows: false })!).boards).toBe(0);
   });
 
   it("closes the ring exits the course doesn't take, at the ring's edge", () => {
@@ -178,6 +195,11 @@ describe("course marks: closed mouths", () => {
     const cm = courseMarks({ ai: ai(pts), lines, rings: [{ c: [0, 0], rOut: 12, rIn: 5 }], probe }, courseMarksSettings(true)!);
     const report = checkLayoutMarks(ai(pts), cm.nodes, probe, [{ c: [0, 0], rOut: 12 }]);
     expect(report.ringArms).toBe(2);
+    // The island kerb painted round, and one chevron board on the island facing the one entry.
+    expect(cm.nodes.some((n) => n.name.startsWith("CM_ISLAND_RED"))).toBe(true);
+    expect(cm.boards).toBe(1);
+    const island = cm.nodes.filter((n) => n.name.startsWith("CM_ISLAND"));
+    for (const n of island) for (let k = 0; k < n.positions.length; k += 3) expect(Math.hypot(n.positions[k], n.positions[k + 2])).toBeLessThan(5.2);
     expect(report.ringOpen).toHaveLength(0);
     expect(report.onLine).toHaveLength(0);
   });
