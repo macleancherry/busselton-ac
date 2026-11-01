@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildTrack, trackObjects, type DataSources } from "../src/core/track";
-import { floodPits, layoutFiles, snapToLines, spawnsOnLine, surfaceHeight, SPAWN_ON_LINE } from "../src/core/layouts";
+import { carriagewayOffset, floodPits, layoutFiles, snapToLines, spawnsOnLine, surfaceHeight, SPAWN_ON_LINE } from "../src/core/layouts";
 import { readFastLaneAi, type AiPoint } from "../src/core/aiSpline";
 import { DemGrid } from "../src/core/elevation";
 import { readKn5 } from "../src/core/kn5";
@@ -133,5 +133,31 @@ describe("layouts", () => {
     expect(out[0]).toEqual([10, 0]);
     expect(out[1]).toEqual([50, -3]); // beside the ring
     expect(out[2]).toEqual([90, 30]); // too far
+  });
+});
+
+describe("layouts on a divided road built down its median", () => {
+  it("pulls a route onto the carriageway on its left, each way", () => {
+    // A road 10 m across with a 2 m median, along x: the carriageways' middles 3 m either side.
+    const mid: [number, number][] = [[0, 0], [100, 0]];
+    expect(carriagewayOffset(10, 2)).toBeCloseTo(3, 9);
+    expect(carriagewayOffset(10, undefined)).toBe(0);
+    const east = snapToLines([[10, -2], [20, -2], [30, -2]], [mid], [], 8, [3]);
+    expect(east[1][0]).toBeCloseTo(20, 9);
+    expect(east[1][1]).toBeCloseTo(3, 9); // heading east, left is north
+    const west = snapToLines([[30, 2], [20, 2], [10, 2]], [mid], [], 8, [3]);
+    expect(west[1][1]).toBeCloseTo(-3, 9);
+    // Crossing the road: stays on the midline.
+    expect(snapToLines([[50, -6], [50, -1], [50, 4]], [mid], [], 8, [3])[1]).toEqual([50, 0]);
+    // No offset for the line: onto its centreline, as before.
+    expect(snapToLines([[10, -2], [20, -2], [30, -2]], [mid], [], 8, [0])[1]).toEqual([20, 0]);
+  });
+
+  it("leaves room on the left for the keep-left offset that comes on top", () => {
+    // Carriageways 4 m: 0.6 m of room for the line left of their middle, so a 1.6 m keep-left
+    // offset brings the line in by a metre.
+    expect(carriagewayOffset(10, 2, 1.6)).toBeCloseTo(2, 9);
+    // Wide carriageways have the room.
+    expect(carriagewayOffset(20, 2, 1.6)).toBeCloseTo(5.5, 9);
   });
 });

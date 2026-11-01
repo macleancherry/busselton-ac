@@ -83,6 +83,8 @@ export function trafficFor(ctx: BuildContext, rp: RoutePlan, g: Ground, st: Stre
     ...(s.oneway ? { oneway: s.oneway } : {}),
     // A traced street's own widths, the ones its bays were painted for (traffic.ts).
     ...(s.widths && s.widths.length === s.pts.length ? { widths: s.widths } : {}),
+    // networkCore: a divided road's median (layouts' AI lines keep to their own carriageway).
+    ...((s as { median?: number }).median !== undefined ? { median: (s as { median?: number }).median } : {}),
     cls: s.cls,
   }));
   const rbs = plan.roundabouts.map((rb, k) => ({ c: rb.c, h: net?.ringHeight(k) ?? rb.hc, rIn: innerRadius(rb), rOut: outerRadius(rb) }));

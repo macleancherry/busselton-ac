@@ -14,7 +14,7 @@ export const NARROW = 5;
 /** Width over which the offset fades in above NARROW, metres. */
 const NARROW_FADE = 1;
 /** The line's room from the kerb: half a car (0.9 m) and half a metre. */
-const KERB_ROOM = 1.4;
+export const KERB_ROOM = 1.4;
 /** Centred within this far outside a roundabout's outer edge, metres... */
 const RING_GAP = 4;
 /** ...and back to the full offset over the next this many metres. */
