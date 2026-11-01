@@ -79,7 +79,7 @@ What makes polishing cheap. First, because every landmark after it is quicker.
     2. ⬜ **Saltwater and the Weld Theatre** (spec): the performing arts and convention centre on the Queen St / Marine Tce roundabout, opened May 2026, not in OSM (only the old Weld Theatre is). Foreshore and Sights drive round it. Check what the build shows there first.
     3. ⬜ **Surf Life Saving Club and the youth/community building** (spec): the big white solar-roofed building east of the jetty. The skate park later.
     4. ⬜ **The Fire Station bar** (spec), in the old fire station on Queen St: small, on two layouts.
-    5. ⬜ **Real names on Queen St** (code): shop names from Overpass as well as the map tiles, which drop lower-ranked places, and from fronts set back in car parks; plus a short hand list for places OSM lacks (Alberta's, Burger Bones, Busselton Pavilion). Only 13 real names show now.
+    5. ✅ **Real names on Queen St** (code; 35 named fronts, up from 13, 2 Nov): shop names from Overpass as well as the map tiles, which drop lower-ranked places, and from fronts set back in car parks; plus a short hand list for places OSM lacks (Alberta's, Burger Bones, Busselton Pavilion). Only 13 real names show now.
     6. ⬜ **Busselton Central's Kent St and Prince St faces** (spec), with Reading Cinemas and Busselton Pavilion signs: on the Town loop.
     7. ⬜ **Roadside pylon signs** for Busselton Motel, Paradise Motor Inn, McDonald's and Hungry Jack's on the Foreshore route (plain lettering, no logos).
     8. ⬜ **Settlement Art Project bronze statues** round the courthouse precinct: a small Blender layer (a spec can't do figures).
