@@ -15,7 +15,10 @@
 //   - the course's turns at junctions: chevron boards on the barriers across the straight-on branch,
 //     pointing the way of the turn, a red-white strip on the inside at the apex (only where it stays
 //     a metre clear of the AI line), and an arrow board on the left verge 60 to 80 m before;
-//     turns through a roundabout get the arrow board too.
+//     turns through a roundabout get the arrow board too;
+//   - the start: painted grid boxes with numbers at the layout's AC_START_n, a white start line with
+//     a chequered band at its timing gate, and a light arch over it (red-white posts on the
+//     footpath, the only solid thing here, and a beam 5 m up with plain lettering, START FINISH).
 //
 // Valid track per layout: AC decides it per surface, from the `IS_VALID_TRACK` of the surface whose
 // KEY the physics mesh's name carries after its digit ("Invalid surfaces will trigger the penalty
@@ -783,10 +786,10 @@ export function sweep(mb: MeshBuilder, a: Vec2, b: Vec2, za: number, zb: number,
   polygon(mb, profile.map((q) => at(b, zb, q)), v3(fwd, 0));
 }
 
-/** Kn5 meshes of the markings, merged by paint and kind in 200 m tiles so AC can still cull them. */
+/** Kn5 meshes of the markings, merged by paint and kind in 300 m tiles so AC can still cull them. */
 export class MarkMeshes {
   private groups = new Map<string, { chunks: ChunkedMesh; name: string; paint: Paint; extra: Partial<Kn5MeshNode> }>();
-  constructor(private tile = 200) {}
+  constructor(private tile = 300) {}
 
   /** A builder for `verts` more vertices of `paint`, in `prefix`'s group (e.g. `1RIPPLE`, `CM_BARRIER`), at p. */
   mb(prefix: string, paint: Paint, p: Vec2, verts: number, extra: Partial<Kn5MeshNode> = {}): MeshBuilder {
@@ -988,6 +991,150 @@ export function arrowSpot(c: Course, probe: SurfaceProbe, edges: { left: number[
 }
 
 // ---------------------------------------------------------------------------------------------
+// Phase 3: the start
+
+/** Grid box paint: a bar across the front of each slot and short ticks back from its ends. */
+export const GRID_BOX = { width: 2.2, line: 0.12, ticks: 1.0, ahead: 2.4 };
+/** The START FINISH arch: posts on the footpath, a beam with plain lettering, CLEAR metres clear. */
+export const ARCH = { post: 0.3, clear: 5.0, beam: 1.0, thick: 0.4, letters: 0.6, stroke: 0.09 };
+const PAINT_LIFT = 0.012;
+
+// A plain block font from seven segments and a few extra strokes, in a unit box (x across as read,
+// y up the letter): a top, b top right, c bottom right, d bottom, e bottom left, f top left, g middle,
+// v the middle upright, n the diagonal of an N, r the leg of an R.
+const SEGMENTS: Record<string, [Vec2, Vec2]> = {
+  a: [[0, 1], [1, 1]], b: [[1, 1], [1, 0.5]], c: [[1, 0.5], [1, 0]], d: [[0, 0], [1, 0]], e: [[0, 0.5], [0, 0]],
+  f: [[0, 1], [0, 0.5]], g: [[0, 0.5], [1, 0.5]], v: [[0.5, 0], [0.5, 1]], n: [[0, 1], [1, 0]], r: [[0.45, 0.5], [1, 0]],
+};
+const LETTERS: Record<string, string> = {
+  "0": "abcdef", "1": "bc", "2": "abged", "3": "abgcd", "4": "fgbc", "5": "afgcd", "6": "afgedc", "7": "abc", "8": "abcdefg", "9": "abcdfg",
+  S: "afgcd", T: "av", A: "efabcg", R: "efabgr", F: "afeg", I: "vad", N: "febcn", H: "febcg",
+};
+
+/**
+ * Plain lettering: `text` `height` high, centred on (0, 0) of a plane given by `at(u, v)` (u across
+ * as read, v up the letters), each stroke a flat quad facing `out`. Unknown characters are gaps.
+ */
+export function letters(mb: MeshBuilder, text: string, height: number, stroke: number, at: (u: number, v: number) => Vec3, out: Vec3): void {
+  const W = height * 0.55, gap = height * 0.22;
+  const total = text.length * W + (text.length - 1) * gap;
+  [...text].forEach((ch, k) => {
+    const x0 = -total / 2 + k * (W + gap);
+    for (const s of LETTERS[ch] ?? "") {
+      const [[ax, ay], [bx, by]] = SEGMENTS[s];
+      const p: Vec2 = [x0 + ax * W, -height / 2 + ay * height], q: Vec2 = [x0 + bx * W, -height / 2 + by * height];
+      const d = unit(sub(q, p)), nrm = leftOf(d), hw = stroke / 2;
+      const a = add(p, mul(d, -hw)), b = add(q, mul(d, hw));
+      polygon(mb, [add(a, mul(nrm, -hw)), add(b, mul(nrm, -hw)), add(b, mul(nrm, hw)), add(a, mul(nrm, hw))].map(([u, v]) => at(u, v)), out);
+    }
+  });
+}
+
+interface Dummy { name: string; pos: Vec2; h: number; fwd: Vec2 }
+
+function dummiesOf(nodes: Kn5GroupNode[]): Dummy[] {
+  return nodes.map((n) => {
+    const t = n.transform;
+    return { name: n.name, pos: [t[12], -t[14]] as Vec2, h: t[13], fwd: unit([t[8], -t[10]]) };
+  });
+}
+
+/** A flat painted quad on the road (centre, along, length, across width), following the surface. */
+function paintQuad(mm: MarkMeshes, probe: SurfaceProbe, c: Vec2, along: Vec2, length: number, width: number, paint: Paint, fallback: number): void {
+  const side = leftOf(along);
+  const corners = [[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([u, v]) => add(add(c, mul(along, (u * length) / 2)), mul(side, (v * width) / 2)));
+  const mb = mm.mb("CM_PAINT", paint, c, 4, { castShadows: false });
+  polygon(mb, corners.map((q) => v3(q, (probe(q[0], q[1])?.h ?? fallback) + PAINT_LIFT)), UP);
+}
+
+/** Where an arch post stands: past the kerb line, the first spot off the road (to 4 m out). */
+function postSpot(probe: SurfaceProbe, edge: Vec2, out: Vec2): Vec2 | null {
+  for (let r = ARCH.post / 2 + 0.3; r <= 4; r += 0.2) {
+    const q = add(edge, mul(out, r));
+    // The whole post's footprint off the road.
+    const clear = [[-1, -1], [1, -1], [1, 1], [-1, 1], [0, 0]].every(([u, v]) => probe(q[0] + (u * ARCH.post) / 2, q[1] + (v * ARCH.post) / 2)?.kind !== "road");
+    if (clear) return q;
+  }
+  return null;
+}
+
+/**
+ * Grid boxes at the layout's AC_START_n, a start line (white, with a chequered band after it) across
+ * the road at its timing line, and a light START FINISH arch over it. The posts are the only thing
+ * here a car can hit (1WALL_CMARCH_n, invisible boxes round them), and they stand off the road.
+ */
+export function startMarks(mm: MarkMeshes, probe: SurfaceProbe, c: Course, edges: { left: number[]; right: number[] }, nodes: Kn5GroupNode[], closed: boolean): { boxes: number; arch: boolean; posts: Kn5MeshNode[] } {
+  const ds = dummiesOf(nodes);
+  const posts: Kn5MeshNode[] = [];
+  let boxes = 0;
+  // Grid boxes, numbered.
+  const starts = ds.filter((d) => /^AC_START_\d+$/.test(d.name)).sort((a, b) => Number(a.name.slice(9)) - Number(b.name.slice(9)));
+  starts.forEach((d, k) => {
+    const g = probe(d.pos[0], d.pos[1])?.h ?? d.h - 0.5;
+    const side = leftOf(d.fwd);
+    const front = add(d.pos, mul(d.fwd, GRID_BOX.ahead));
+    paintQuad(mm, probe, front, d.fwd, GRID_BOX.line, GRID_BOX.width, "white", g);
+    for (const sgn of [1, -1]) {
+      paintQuad(mm, probe, add(add(front, mul(side, sgn * (GRID_BOX.width / 2 - GRID_BOX.line / 2))), mul(d.fwd, -GRID_BOX.ticks / 2)), d.fwd, GRID_BOX.ticks, GRID_BOX.line, "white", g);
+    }
+    // The slot's number just ahead of the bar, reading for the driver in the box.
+    const at0 = add(front, mul(d.fwd, 0.7));
+    const right: Vec2 = [d.fwd[1], -d.fwd[0]];
+    const mb = mm.mb("CM_PAINT", "white", at0, 200, { castShadows: false });
+    letters(mb, String(k + 1), 0.7, 0.1, (u, v) => { const q = add(add(at0, mul(right, u)), mul(d.fwd, v)); return v3(q, (probe(q[0], q[1])?.h ?? g) + PAINT_LIFT); }, UP);
+    boxes++;
+  });
+  // The line: the timing gate (a circuit) or the A-B start.
+  const L = ds.find((d) => d.name === "AC_TIME_0_L") ?? ds.find((d) => d.name === "AC_AB_START_L");
+  const R = ds.find((d) => d.name === "AC_TIME_0_R") ?? ds.find((d) => d.name === "AC_AB_START_R");
+  if (!L || !R || !c.p.length) return { boxes, arch: false, posts };
+  const mid = mul(add(L.pos, R.pos), 0.5);
+  let i = 0;
+  c.p.forEach((p, j) => { if (dist(p, mid) < dist(c.p[i], mid)) i = j; });
+  const t = c.t[i], nl = leftOf(t);
+  const g = probe(c.p[i][0], c.p[i][1])?.h ?? c.h[i];
+  const kl = add(c.p[i], mul(nl, edges.left[i])), kr = add(c.p[i], mul(nl, -edges.right[i]));
+  const across = dist(kl, kr), centre = mul(add(kl, kr), 0.5);
+  paintQuad(mm, probe, centre, t, 0.3, across, "white", g);
+  // Chequered band after the line: two rows of 30 cm squares.
+  const sq = 0.3, cols = Math.max(2, Math.floor(across / sq));
+  for (let row = 0; row < 2; row++) {
+    for (let col = 0; col < cols; col++) {
+      const q = add(add(centre, mul(t, 0.15 + sq * (row + 0.5))), mul(nl, (col + 0.5 - cols / 2) * (across / cols)));
+      paintQuad(mm, probe, q, t, sq, across / cols, (row + col) % 2 ? "white" : "black", g);
+    }
+  }
+  // The arch: posts past each kerb line, a beam 5 m clear between them.
+  const pl = postSpot(probe, kl, nl), pr = postSpot(probe, kr, mul(nl, -1));
+  if (!pl || !pr) return { boxes, arch: false, posts };
+  const zl = probe(pl[0], pl[1])?.h ?? g, zr = probe(pr[0], pr[1])?.h ?? g;
+  const top = Math.max(zl, zr, g) + ARCH.clear;
+  [[pl, zl], [pr, zr]].forEach(([p, z], k) => {
+    const q = p as Vec2, z0 = z as number;
+    // Red and white bands, half a metre each, up to the top of the beam.
+    for (let b = 0; z0 + b * 0.5 < top + ARCH.beam; b++) {
+      box(mm.mb("CM_ARCH", b % 2 ? "white" : "red", q, 24, { castShadows: true }), q, t, ARCH.post, ARCH.post, z0 + b * 0.5, Math.min(top + ARCH.beam, z0 + (b + 1) * 0.5));
+    }
+    const wall = new MeshBuilder();
+    wall.normals = [];
+    box(wall, q, t, ARCH.post + 0.02, ARCH.post + 0.02, z0 - 0.1, top + ARCH.beam);
+    posts.push(wall.toKn5(`1WALL_CMARCH_${k}`, "cm_grey", { renderable: false, castShadows: false }));
+  });
+  // The beam, red, with the lettering in white on both faces.
+  const beamA = add(pl, mul(nl, -ARCH.post / 2)), beamB = add(pr, mul(nl, ARCH.post / 2));
+  sweep(mm.mb("CM_ARCH", "red", centre, 40, { castShadows: true }), beamA, beamB, top, top, t,
+    [[-ARCH.thick / 2, 0], [ARCH.thick / 2, 0], [ARCH.thick / 2, ARCH.beam], [-ARCH.thick / 2, ARCH.beam]]);
+  const word = closed ? "START FINISH" : "START";
+  for (const face of [mul(t, -1), t]) {
+    const right = leftOf(face); // as read by someone facing the board
+    const o = add(mul(add(beamA, beamB), 0.5), mul(face, ARCH.thick / 2 + 0.005));
+    const mb = mm.mb("CM_ARCH", "white", o, 400, { castShadows: false });
+    letters(mb, word, ARCH.letters, ARCH.stroke, (u, v) => { const q = add(o, mul(right, u)); return [q[0], q[1], top + ARCH.beam / 2 + v]; }, v3(face, 0));
+  }
+  return { boxes, arch: true, posts };
+}
+
+// ---------------------------------------------------------------------------------------------
 // A layout's markings
 
 export interface CourseMarks {
@@ -1001,6 +1148,9 @@ export interface CourseMarks {
   boards: number;
   arrows: number;
   apexes: number;
+  /** Grid boxes painted, and whether the start arch stands. */
+  gridBoxes: number;
+  arch: boolean;
   triangles: number;
 }
 
@@ -1066,9 +1216,11 @@ export function courseMarks(input: CourseLayoutInput, settings: CourseMarksSetti
     board(mm, probe, spot.pos, spot.face, t.dir, ARROW_BOARD, c.h[t.from], "arrow");
     arrows++;
   }
-  const nodes = mm.nodes();
+  // Phase 3: the start.
+  const start = settings.start && input.dummies?.length ? startMarks(mm, probe, c, found.edges, input.dummies, c.closed) : { boxes: 0, arch: false, posts: [] };
+  const nodes = [...mm.nodes(), ...start.posts];
   const { materials, textures } = marksMaterials();
-  return { nodes, materials, textures, mouths, rings: found.rings, turns: found.turns, boards, arrows, apexes, triangles: nodes.reduce((s, m) => s + m.indices.length / 3, 0) };
+  return { nodes, materials, textures, mouths, rings: found.rings, turns: found.turns, boards, arrows, apexes, gridBoxes: start.boxes, arch: start.arch, triangles: nodes.reduce((s, m) => s + m.indices.length / 3, 0) };
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -1137,7 +1289,7 @@ export function courseMarkLayout(files: Record<string, Uint8Array>, world: MarkW
   const summary = {
     layout: id, settings, triangles: marks.triangles, meshes: marks.nodes.length,
     mouths: { side: count("side"), turn: count("turn"), ring: count("ring"), entry: count("entry") },
-    turns: marks.turns.length, boards: marks.boards, arrows: marks.arrows, apexes: marks.apexes,
+    turns: marks.turns.length, boards: marks.boards, arrows: marks.arrows, apexes: marks.apexes, gridBoxes: marks.gridBoxes, arch: marks.arch,
     rings: marks.rings.map((r) => ({ ring: r.ring, c: r.c.map((v) => +v.toFixed(2)), rOut: +r.rOut.toFixed(2), rIn: +r.rIn.toFixed(2) })),
     list: marks.mouths.map((m) => ({ kind: m.kind, at: m.at.map((v) => +v.toFixed(2)), dir: m.dir.map((v) => +v.toFixed(3)), turn: m.turn, strip: m.strip.length, barrier: !!m.barrier })),
   };

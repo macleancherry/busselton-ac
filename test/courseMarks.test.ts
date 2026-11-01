@@ -4,7 +4,7 @@ import { writeFastLaneAi } from "../src/core/aiSpline";
 import {
   BARRIER_BACK, courseMarkLayout, courseMarks, courseMarksSettings, findMouths, MARK_MESH, surfaceKind, surfaceProbe, withMarkSurfaces,
 } from "../src/core/courseMarks";
-import { IDENTITY, readKn5, writeKn5, type Kn5MeshNode, type Kn5Model, type Kn5Node } from "../src/core/kn5";
+import { frameTransform, IDENTITY, readKn5, writeKn5, type Kn5GroupNode, type Kn5MeshNode, type Kn5Model, type Kn5Node } from "../src/core/kn5";
 import { checkLayoutMarks } from "../scripts/check/course_marks_lib";
 
 type Vec2 = [number, number];
@@ -202,6 +202,33 @@ describe("course marks: closed mouths", () => {
     for (const n of island) for (let k = 0; k < n.positions.length; k += 3) expect(Math.hypot(n.positions[k], n.positions[k + 2])).toBeLessThan(5.2);
     expect(report.ringOpen).toHaveLength(0);
     expect(report.onLine).toHaveLength(0);
+  });
+});
+
+describe("course marks: the start", () => {
+  const dummy = (name: string, x: number, y: number, h: number): Kn5GroupNode => ({ kind: "node", name, transform: frameTransform([x, h, -y], [1, 0, 0]), children: [] });
+  it("paints grid boxes at the starts and a line at the gate, and stands the arch's posts off the road", () => {
+    const { probe, lines, ai: line0 } = tee();
+    const dummies = [dummy("AC_START_0", 40, -1.5, 0.5), dummy("AC_START_1", 32, -1.5, 0.5), dummy("AC_TIME_0_L", 50, 6, 1), dummy("AC_TIME_0_R", 50, -6, 1)];
+    const cm = courseMarks({ ai: line0, lines, rings: [], probe, dummies }, courseMarksSettings(true)!);
+    expect(cm.gridBoxes).toBe(2);
+    expect(cm.arch).toBe(true);
+    const paint = cm.nodes.filter((n) => n.name.startsWith("CM_PAINT"));
+    expect(paint.some((n) => n.name.includes("BLACK"))).toBe(true);
+    // Paint sits on the road, a hair above it.
+    for (const n of paint) for (let k = 1; k < n.positions.length; k += 3) expect(n.positions[k]).toBeCloseTo(0.012, 3);
+    const posts = cm.nodes.filter((n) => n.name.startsWith("1WALL_CMARCH"));
+    expect(posts).toHaveLength(2);
+    for (const n of posts) expect(n.renderable).toBe(false);
+    // The beam is 5 m clear of the road.
+    const arch = cm.nodes.filter((n) => n.name.startsWith("CM_ARCH_RED"));
+    const ys: number[] = [];
+    for (const n of arch) for (let k = 0; k < n.positions.length; k += 3) if (Math.abs(-n.positions[k + 2]) < 4.5) ys.push(n.positions[k + 1]);
+    expect(Math.min(...ys)).toBeGreaterThanOrEqual(4.99);
+    const report = checkLayoutMarks(line0, cm.nodes, probe);
+    expect(report.onLine).toHaveLength(0);
+    expect(report.postsOnRoad).toHaveLength(0);
+    expect(courseMarks({ ai: line0, lines, rings: [], probe, dummies }, courseMarksSettings({ start: false })!).gridBoxes).toBe(0);
   });
 });
 
