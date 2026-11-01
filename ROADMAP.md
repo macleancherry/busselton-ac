@@ -74,8 +74,18 @@ What makes polishing cheap. First, because every landmark after it is quicker.
 - 🔨 **Landmarks** ([docs/landmarks.md](docs/landmarks.md)):
   - ✅ built as layers (22): the jetty precinct, Rocky Ridge, the Esplanade Hotel, The Goose, the Old Courthouse group, the Hilton Garden Inn, the Visitor Centre, the Busselton Museum, Kyst and Sandbox, Sea Play on the Bay, Transition, the yacht club, Orana Cinemas, The Tav, the Ship Inn, the Banksia Tavern, St Mary's, the Pioneer Cemetery, the fire station, the bowling club, Victoria Square, Mitchell Park, the Japanese garden gate
   - specced but outside the built area: Churchill Park, Barnard Park
-  - ⬜ to do: **Shelter Brewing Co, high detail** (Mac, 1 Nov): the large dark sawtooth-roofed brewery on the foreshore, about 100 m from The Goose. Not a spec landmark: a full Blender detail layer like Transition (`routes/layers/`), with the sawtooth roof, glazing, deck and beer garden, signage as plain lettering, and the forecourt and paths, from aerial plus web reference photos (references only). Renders for Mac before it goes in the base.
-  - ⬜ to do: the Kookaburra Caravan Park; the Barrel sculpture (not found on the ground)
+  - ⬜ **Tourism and hospitality, in order** (audit and sources: [docs/plans/tourism-places.md](docs/plans/tourism-places.md), 1 Nov):
+    1. ⬜ **Shelter Brewing Co, high detail** (Mac, 1 Nov): the dark sawtooth-roofed brewery directly behind the Visitor Centre (11 Foreshore Pde, OSM way 749124330, about 42 × 40 m; a generic box now). A full Blender detail layer like Transition (`routes/layers/`, `replaces` about 30 m), with the sawtooth roof, glazing, deck and beer garden, signage as plain lettering, and the forecourt and paths, from the aerial plus web photos (references only). Renders for Mac before it goes in the base.
+    2. ⬜ **Saltwater and the Weld Theatre** (spec): the performing arts and convention centre on the Queen St / Marine Tce roundabout, opened May 2026, not in OSM (only the old Weld Theatre is). Foreshore and Sights drive round it. Check what the build shows there first.
+    3. ⬜ **Surf Life Saving Club and the youth/community building** (spec): the big white solar-roofed building east of the jetty. The skate park later.
+    4. ⬜ **The Fire Station bar** (spec), in the old fire station on Queen St: small, on two layouts.
+    5. ⬜ **Real names on Queen St** (code): shop names from Overpass as well as the map tiles, which drop lower-ranked places, and from fronts set back in car parks; plus a short hand list for places OSM lacks (Alberta's, Burger Bones, Busselton Pavilion). Only 13 real names show now.
+    6. ⬜ **Busselton Central's Kent St and Prince St faces** (spec), with Reading Cinemas and Busselton Pavilion signs: on the Town loop.
+    7. ⬜ **Roadside pylon signs** for Busselton Motel, Paradise Motor Inn, McDonald's and Hungry Jack's on the Foreshore route (plain lettering, no logos).
+    8. ⬜ **Settlement Art Project bronze statues** round the courthouse precinct: a small Blender layer (a spec can't do figures).
+    9. ⬜ **Signal Park**, where the Sunday markets run: toilet block and shade, market stalls as an option.
+    10. ⬜ **Origins Market** (spec), only if the map grows south.
+  - ✅ the Kookaburra Caravan Park: already a spec, as Busselton Jetty Tourist Park (keep it light: the City plans to redevelop it). Dropped: the Barrel sculpture (not on the ground). Not yet: the Underwater Observatory's replacement (not confirmed built). Skipped: places too far east to see from the built streets.
   - private landmarks: listed in `routes/private/landmarks/` (photos of their street faces still needed)
 - 🔨 **Houses from the photo walk:** spec houses from Mac's street photos (`scripts/houses/photo_walk.py`), street by street. Waiting on the first street of photos.
 - 🔨 **Detail layers in Blender** for what a spec can't say. ✅ Transition (`routes/layers/transition.kn5`, scripted in `scripts/blender/landmarks/`). 🔨 Sea Play's ship: modelled and scripted, kn5 not exported yet. Next: wire `routes/layers` into the route and drop the two spec looks; Rocky Ridge's pergola and festoon lights; lighthouses.
