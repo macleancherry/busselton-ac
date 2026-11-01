@@ -4,7 +4,7 @@
 #   scripts/blender/landmarks/build.sh <slug> [base.zip] [renders...]
 #
 #   <slug>      transition | sea_play | cape_leeuwin_lighthouse | cape_naturaliste_lighthouse |
-#               margaret_river_rotary_park | rocky_ridge_pergola
+#               margaret_river_rotary_park | rocky_ridge_pergola | shelter_brewing
 #               (scripts/blender/landmarks/<slug>.py)
 #   base.zip    the built track to model against (default: the slug's own, out/accepted/busselton.zip
 #               for the Busselton ones)
@@ -44,6 +44,9 @@ case $slug in
   # Adds to the Rocky Ridge spec (routes/landmarks/rocky_ridge.json), so it clears nothing; --layers
   # brings the spec in as reference (out/layers_work/rocky_ridge_pergola_base.lm_rocky_ridge.glb).
   rocky_ridge_pergola) at=115.342594,-33.647256; radius=35; replaces='[]'; base_flags=--layers ;;
+  # Clears the base's generic box and trees over the building and its beer garden; --layers brings the
+  # neighbouring specs (Visitor Centre, The Goose, Hilton) in for the renders.
+  shelter_brewing) at=115.34516,-33.64523; radius=90; replaces='[{"at":[115.345142,-33.645288],"radius":31}]'; base_flags=--layers ;;
   *) echo "unknown landmark $slug" >&2; exit 1 ;;
 esac
 

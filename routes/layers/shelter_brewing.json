@@ -1,0 +1,12 @@
+{
+  "note": "hand-made detail layer: scripts/blender/landmarks/shelter_brewing.py (scripts/blender/landmarks/build.sh shelter_brewing)",
+  "replaces": [
+    {
+      "at": [
+        115.345142,
+        -33.645288
+      ],
+      "radius": 31
+    }
+  ]
+}
