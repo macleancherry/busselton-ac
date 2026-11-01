@@ -533,6 +533,10 @@ function courseElsewhere(c: Course, g: CourseGrid, q: Vec2, i: number, r: number
 }
 
 const NEAR_PAD = 2.0;
+/** A street's ring arm is laid at the built arm (road past the ring's edge) within this many degrees of it. */
+const ARM_SNAP = 35;
+/** A ring arm within this many degrees of a course leg is the course's own (the check's test too). */
+const RING_LEG = 25;
 /** Car park entries and driveways longer than this along the kerb aren't entries (a parallel road or parking lane). */
 const ENTRY_MAX = 25;
 
@@ -641,11 +645,15 @@ export function findMouths(input: CourseLayoutInput): { course: Course; edges: R
         if (!dirs.some((x) => dot(x.dir, dir) > Math.cos((20 * Math.PI) / 180))) dirs.push({ dir, line: li });
       }
     });
-    // Arms no street explains (a car park or driveway off the ring): every stretch of road just
-    // outside the ring's edge.
+    // The arms as built: every stretch of road just outside the ring's edge (the same walk the check
+    // makes). A street's arm is laid at the built arm it explains (within ARM_SNAP), so the strip sits
+    // across the mouth even where the built street meets the ring at another angle than its line (the
+    // network core's ribbons, a divided street's two carriageways); arms no street explains (a car
+    // park or driveway off the ring) are minor.
     const R = r.rOut + 1.5, N = 360;
     const on = Array.from({ length: N }, (_, k) => isRoad(probe, add(r.c, mul([Math.cos((k / N) * 2 * Math.PI), Math.sin((k / N) * 2 * Math.PI)], R))));
     const start = on.indexOf(false);
+    const built: Vec2[] = [];
     for (let k = 0; start >= 0 && k < N;) {
       const a = (start + k) % N;
       if (!on[a]) { k++; continue; }
@@ -653,12 +661,20 @@ export function findMouths(input: CourseLayoutInput): { course: Course; edges: R
       while (k < N && on[(start + k) % N]) { k++; n++; }
       if ((n * 2 * Math.PI * R) / N < 2) continue;
       const mid = ((a + n / 2) / N) * 2 * Math.PI;
-      const dir: Vec2 = [Math.cos(mid), Math.sin(mid)];
-      if (dirs.some((x) => dot(x.dir, dir) > Math.cos((20 * Math.PI) / 180))) continue;
-      dirs.push({ dir, line: -1 });
+      built.push([Math.cos(mid), Math.sin(mid)]);
     }
-    for (const { dir, line } of dirs) {
-      if (r.legs.some((l) => dot(l.dir, dir) > Math.cos((30 * Math.PI) / 180))) continue;
+    const used = new Set<number>();
+    const arms: { dir: Vec2; line: number }[] = [];
+    for (const d of dirs) {
+      let best = -1, bestDot = Math.cos((ARM_SNAP * Math.PI) / 180);
+      built.forEach((b, k) => { if (!used.has(k) && dot(b, d.dir) > bestDot) { best = k; bestDot = dot(b, d.dir); } });
+      if (best >= 0) used.add(best);
+      // A street with no built arm near it keeps its own direction (the ring is road all round there).
+      if (best >= 0 || !built.length) arms.push({ dir: best >= 0 ? built[best] : d.dir, line: d.line });
+    }
+    built.forEach((b, k) => { if (!used.has(k)) arms.push({ dir: b, line: -1 }); });
+    for (const { dir, line } of arms) {
+      if (r.legs.some((l) => dot(l.dir, dir) > Math.cos((RING_LEG * Math.PI) / 180))) continue;
       if (g.nearest(add(r.c, mul(dir, r.rOut + 8)), 5)) continue;
       const at = add(r.c, mul(dir, r.rOut));
       const i = g.nearest(at, 60)?.i ?? 0;
@@ -715,8 +731,12 @@ export function findMouths(input: CourseLayoutInput): { course: Course; edges: R
       if (onCourseRing(c.p[i], 12)) return false;
       if (taken.some(([a, b]) => (s >= a - 2 && s <= b + 2) || (c.closed && s + c.total >= a - 2 && s + c.total <= b + 2))) return false;
       if (![0.6, 1.2, 2].some((o) => isRoad(probe, kerbPoint(c, ed, s, side, o)))) return false;
-      // A divided road's other carriageway, or a service road alongside: not a mouth.
-      if (segs.alongside(kerbPoint(c, ed, s, side, 4), c.t[i], 6)) return false;
+      // A divided road's other carriageway, or a service road alongside: not a mouth, when a street
+      // runs alongside and the built road carries on 15 m along the course past the kerb line (the
+      // check's test). A short stub alongside (the network core builds a divided street's end, or a
+      // service lane, as a short ribbon off the course) is an opening like any other.
+      const carriesOn = (off: number) => [15, -15].some((d) => isRoad(probe, add(kerbPoint(c, ed, s, side, off), mul(c.t[i], d))));
+      if (segs.alongside(kerbPoint(c, ed, s, side, 4), c.t[i], 6) && (carriesOn(2.5) || carriesOn(4))) return false;
       return !courseElsewhere(c, g, kerbPoint(c, ed, s, side, 8), i, 5, 15);
     });
     let k = 0;
@@ -1178,11 +1198,21 @@ export function courseMarks(input: CourseLayoutInput, settings: CourseMarksSetti
     const w = g.nearest(q, 30);
     return !w || w.d >= (w.side > 0 ? found.edges.left : found.edges.right)[w.i] + margin;
   };
+  // A ring arm's marks go by the ring itself: on a roundabout the course's kerb line is measured round
+  // the ring, and its 25 m median takes in the arms' mouths (and the network core's gutter and flared
+  // entries), so it lies past the ring's edge and would clear every band of an arm's strip. Here they
+  // stay outside the ring's edge (by `margin`) and `aiGap` metres off the AI line.
+  const offRing = (r: CourseRing, margin: number, aiGap: number) => (q: Vec2) => {
+    if (dist(q, r.c) < r.rOut + margin) return false;
+    const w = g.nearest(q, aiGap);
+    return !w || w.d >= aiGap;
+  };
   for (const m of mouths) {
     const fallback = c.h[m.i];
-    stripMesh(mm, probe, m.strip, m.dir, fallback, "1RIPPLE", offCourse(-0.1));
-    closedPatch(mm, probe, m.strip, m.dir, fallback, offCourse(0.3));
-    if (settings.barriers && m.barrier && m.kind !== "entry") barrierMesh(mm, probe, m.barrier[0], m.barrier[1], fallback, input.bays, settings.solid, offCourse(1.0));
+    const r = m.kind === "ring" ? found.rings.find((x) => x.ring === m.ring) : undefined;
+    stripMesh(mm, probe, m.strip, m.dir, fallback, "1RIPPLE", r ? offRing(r, -0.6, 2.5) : offCourse(-0.1));
+    closedPatch(mm, probe, m.strip, m.dir, fallback, r ? offRing(r, 0.3, 3) : offCourse(0.3));
+    if (settings.barriers && m.barrier && m.kind !== "entry") barrierMesh(mm, probe, m.barrier[0], m.barrier[1], fallback, input.bays, settings.solid, r ? offRing(r, 1.0, 2.5) : offCourse(1.0));
   }
   // Phase 2: the rings the course uses, chevrons, arrows, the inside of each turn.
   let boards = 0, arrows = 0, apexes = 0;

@@ -203,6 +203,68 @@ describe("course marks: closed mouths", () => {
     expect(report.ringOpen).toHaveLength(0);
     expect(report.onLine).toHaveLength(0);
   });
+
+  // The network core's roundabouts: the ring's road (its gutter and flared entries) runs past rOut, so
+  // the course's kerb line measured round the ring lies outside the ring's edge.
+  const networkRing = (northLine: Vec2[] = [[0, 12], [0, 60]]) => {
+    const arms = [rect(-60, -4, -10, 4), rect(10, -4, 60, 4), rect(-4, 10, 4, 60), rect(-4, -60, 4, -10)];
+    // Flared mouths: each arm 14 m wide for its first 3 m off the ring.
+    const flares = [rect(-15, -7, -11, 7), rect(11, -7, 15, 7), rect(-7, 11, 7, 15), rect(-7, -15, 7, -11)];
+    const world = model([
+      mesh("1ROAD_J001", ring([0, 0], 5, 13.5)), ...arms.map((a, k) => mesh(`1STREET_S00${k}_T0`, a)), ...flares.map((a, k) => mesh(`1ROAD_GUTTER_J00${k}`, a)),
+      mesh("1GRASS_ISLAND_J001", ring([0, 0], 0, 5)),
+    ]);
+    const pts: Vec2[] = [...line([-55, 1.5], [-11, 1.5])];
+    for (let k = 1; k < 24; k++) { const a = Math.PI - (k / 24) * Math.PI; pts.push([9.5 * Math.cos(a), 9.5 * Math.sin(a)]); }
+    pts.push(...line([11, -1.5], [55, -1.5]));
+    const lines: Vec2[][] = [[[-60, 0], [-12, 0]], [[12, 0], [60, 0]], northLine, [[0, -12], [0, -60]]];
+    return { probe: surfaceProbe(world), ai: ai(pts), lines, rings: [{ c: [0, 0] as Vec2, rOut: 12, rIn: 5 }] };
+  };
+
+  it("closes the arms of a ring whose road runs past its edge (network core)", () => {
+    const w = networkRing();
+    const f = findMouths(w);
+    expect(f.mouths.filter((m) => m.kind === "ring")).toHaveLength(2);
+    const cm = courseMarks(w, courseMarksSettings(true)!);
+    const report = checkLayoutMarks(w.ai, cm.nodes, w.probe, [{ c: [0, 0], rOut: 12 }]);
+    expect(report.ringArms).toBe(2);
+    expect(report.ringOpen).toHaveLength(0);
+    expect(report.onLine).toHaveLength(0);
+    // Barriers behind both strips.
+    const barriers = cm.nodes.filter((n) => n.name.startsWith("CM_BARRIER"));
+    const ys: number[] = [];
+    for (const n of barriers) for (let k = 0; k < n.positions.length; k += 3) ys.push(-n.positions[k + 2]);
+    expect(Math.max(...ys)).toBeGreaterThan(14);
+    expect(Math.min(...ys)).toBeLessThan(-14);
+  });
+
+  it("lays a street's ring arm at the arm as built, not along its line", () => {
+    // The north street's line leaves the ring 15 degrees off the arm that was built.
+    const w = networkRing([[0, 12], [30, 60]]);
+    const north = findMouths(w).mouths.filter((m) => m.kind === "ring" && m.dir[1] > 0.5);
+    expect(north).toHaveLength(1);
+    expect(north[0].dir[1]).toBeGreaterThan(0.99);
+    expect(north[0].minor).toBe(false);
+  });
+});
+
+describe("course marks: short streets alongside", () => {
+  it("closes a short stub off the kerb line that runs alongside the course, and leaves a long one alone", () => {
+    // East along a 10 m road; a 9 m stub off its north kerb at x 90 to 99, running east.
+    const stub = model([mesh("1ROAD_main", rect(-100, -5, 200, 5)), mesh("1STREET_stub", rect(90, 5, 99, 10))]);
+    const lines: Vec2[][] = [[[-100, 0], [200, 0]], [[90, 7.5], [99, 7.5]]];
+    const course = ai(line([-90, -1.5], [190, -1.5]));
+    const probe = surfaceProbe(stub);
+    const entries = findMouths({ ai: course, lines, rings: [], probe }).mouths.filter((m) => m.kind === "entry");
+    expect(entries).toHaveLength(1);
+    expect(entries[0].at[0]).toBeGreaterThan(89);
+    expect(entries[0].at[0]).toBeLessThan(100);
+    expect(checkLayoutMarks(course, courseMarks({ ai: course, lines, rings: [], probe }, courseMarksSettings(true)!).nodes, probe).open).toHaveLength(0);
+    // A service road alongside for 60 m, open to the course all the way: not a mouth.
+    const service = surfaceProbe(model([mesh("1ROAD_main", rect(-100, -5, 200, 5)), mesh("1STREET_svc", rect(60, 5, 120, 10))]));
+    const svc = findMouths({ ai: course, lines: [[[-100, 0], [200, 0]], [[60, 7.5], [120, 7.5]]], rings: [], probe: service }).mouths;
+    expect(svc.filter((m) => m.kind === "entry")).toHaveLength(0);
+  });
 });
 
 describe("course marks: the start", () => {
