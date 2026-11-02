@@ -87,7 +87,9 @@
    "z1": 8.65,
    "text": "McDONALD'S",
    "colour": "#f1f1ed",
-   "ink": "#2a2c30"
+   "ink": "#2a2c30",
+   "back": true,
+   "backY": 0.5
   },
   {
    "x0": -1.5,
@@ -97,7 +99,9 @@
    "z1": 7.15,
    "text": "DRIVE THRU",
    "colour": "#f1f1ed",
-   "ink": "#2a2c30"
+   "ink": "#2a2c30",
+   "back": true,
+   "backY": 0.5
   }
  ],
  "windows": [],

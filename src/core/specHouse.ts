@@ -57,8 +57,13 @@ export interface HouseSpec {
   sails?: { pts: [number, number, number][]; colour?: string }[];
   /** Feather flags on a pole, facing the street. */
   flags?: { x: number; y: number; height?: number; colour?: string }[];
-  /** A sign board facing the street, lettered with `text`, on two posts when `posts`. */
-  signs?: { x0: number; x1: number; y: number; z0: number; z1: number; text?: string; colour?: string; ink?: string; posts?: boolean }[];
+  /**
+   * A sign board facing the street, lettered with `text`, on two posts when `posts`. `back`: lettered
+   * on the back too (a free-standing sign seen from both ways), reading the right way from behind:
+   * on the board's own back, or, with `backY`, on a second board whose front is at y = backY (the
+   * back of the cabinet or slab the sign is mounted on).
+   */
+  signs?: { x0: number; x1: number; y: number; z0: number; z1: number; text?: string; colour?: string; ink?: string; posts?: boolean; back?: boolean; backY?: number }[];
 }
 
 type RGB = [number, number, number];
@@ -92,7 +97,10 @@ export interface SpecHouse {
   trees: TreeSpot[];
   /** Each block's footprint on the map, counter-clockwise (to clear generated houses away). */
   footprints: Vec2[][];
-  /** Lettered sign faces: material name, text and colours, and the board's size in metres (for the texture's shape). */
+  /**
+   * Lettered sign faces: material name, text and colours, and the board's size in metres (for the
+   * texture's shape). A two-sided sign's back shares its front's material and texture.
+   */
   signs: { name: string; text: string; bg: RGB; ink: RGB; width: number; height: number }[];
 }
 
@@ -391,8 +399,16 @@ export function buildSpecHouse(spec: HouseSpec, place: SpecPlacement, tag: strin
       const name = `spec_${tag}_sign${k}`;
       signs.push({ name, text: sg.text, bg, ink, width: sg.x1 - sg.x0, height: sg.z1 - sg.z0 });
       const z0 = sg.z0 + 0.04, z1 = sg.z1 - 0.04, y = sg.y - 0.01;
-      poly(mesh(name), [W(sg.x0 + 0.04, y, z0), W(sg.x1 - 0.04, y, z0), W(sg.x1 - 0.04, y, z1), W(sg.x0 + 0.04, y, z1)], (_p, j) => [j === 1 || j === 2 ? 1 : 0, j < 2 ? 1 : 0]);
+      const uv = (_p: Vec3, j: number): [number, number] => [j === 1 || j === 2 ? 1 : 0, j < 2 ? 1 : 0];
+      poly(mesh(name), [W(sg.x0 + 0.04, y, z0), W(sg.x1 - 0.04, y, z0), W(sg.x1 - 0.04, y, z1), W(sg.x0 + 0.04, y, z1)], uv);
+      if (sg.back) {
+        // The same texture on the back. Seen from behind the viewer's left is x1, so u starts there
+        // and the lettering reads the right way (not mirrored).
+        const yb = (sg.backY ?? sg.y) + 0.09;
+        poly(mesh(name), [W(sg.x1 - 0.04, yb, z0), W(sg.x0 + 0.04, yb, z0), W(sg.x0 + 0.04, yb, z1), W(sg.x1 - 0.04, yb, z1)], uv);
+      }
     }
+    if (sg.back && sg.backY !== undefined) box(solid(`signboard${k}`, bg, "steel"), sg.x0, sg.backY, sg.z0, sg.x1, sg.backY + 0.08, sg.z1);
   }
 
   const nodes: Kn5MeshNode[] = [];
