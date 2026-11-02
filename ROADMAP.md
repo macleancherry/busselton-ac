@@ -2,7 +2,7 @@
 
 **Goal:** the South West of WA in Assetto Corsa, from the Busselton Jetty to Cape Leeuwin. A few well-known places built in high detail, landmark by landmark; everywhere else a reasonably accurate area where every road is drivable. Real roads and heights, local trees and buildings, traffic, day and night, summer and winter. Free data and free tools, for personal use, driving with the kids.
 
-This is the plan for this fork. (`docs/roadmap.md` is upstream's own roadmap for the general track builder, kept as-is so merges stay clean.) The generator itself is [honestjams/ac-track-builder](https://github.com/honestjams/ac-track-builder); anything useful beyond the South West goes back upstream (see [Working with upstream](#working-with-upstream)).
+This is the plan for this fork. (`docs/roadmap.md` is upstream's own roadmap for the general track builder, kept for reference.) The fork started from [honestjams/ac-track-builder](https://github.com/honestjams/ac-track-builder) and now owns nearly all of its code (see [Owning the code](#owning-the-code-31-oct-2026) and [Upstream](#upstream)).
 
 Status key: ✅ done · 🔨 in progress · ⬜ planned · ❓ needs checking first
 
@@ -34,6 +34,22 @@ AC can't load the whole South West as one map, so it's a set of tracks, each ins
 
 | Track | Tier | Status |
 | --- | --- | --- |
+| **Busselton** (Foreshore and town centre; layouts Foreshore, Town, Sights, Free Roam) | Showcase | 🔨 base accepted 2 Nov, every check passing (1.38M triangles): 37 spec landmarks plus Blender layers (Transition, Sea Play's ship, Rocky Ridge's pergola, Shelter Brewing Co, the Settlement Art bronzes), course markings on Foreshore, Town and Sights, 35 named shops on Queen St, the swimming jetty, beach detail. Next: workstation retest 6 (3 Nov) and Mac's drive |
+| **The whole map** (private: adds the estate and the Home Run) | Showcase | 🔨 base built 30 Oct; private landmarks described |
+| **Tuart Drive, Ludlow** (16 km) | Drive-anywhere | ✅ rebuilt 2 Nov, every check passing; waiting on a drive |
+| **Caves Road, Dunsborough to Yallingup** (11 km) | Drive-anywhere, Yallingup a showcase later | ✅ rebuilt 2 Nov with the country roadsides, every check passing; Caves House and the Yallingup store in as landmarks; still on the fallback heights past Dunsborough |
+| **Busselton to Dunsborough** (Caves Rd, 14 km) | Drive-anywhere | ✅ built 2 Nov on 5 m LiDAR, every check passing |
+| **Margaret River town** | Showcase | 🔨 built 2 Nov, every check passing; 9 spec landmarks (audit: [docs/plans/margaret-river-places.md](docs/plans/margaret-river-places.md)) and Rotary Park as a Blender layer |
+| **Caves Road, Yallingup to Margaret River** | Drive-anywhere | ⬜ |
+| **Boranup Drive and the karri** | Showcase | 🔨 Caves Rd through Boranup and gravel Boranup Drive both built 2 Nov, every check passing; gravel and 3D karri in |
+| **Cape Naturaliste Road and the lighthouse** | Showcase | 🔨 built, every check passing; the lighthouse as a Blender layer and the keepers' cottages as a spec, on a landmark patch at the end of the road |
+| **Cape Leeuwin, Augusta** | Showcase | 🔨 built 2 Nov, every check passing; the lighthouse as a Blender layer, the cottages and the waterwheel as specs |
+| **Collie Motorplex** (a real circuit: 1.6 km short, 2.57 km long) | Showcase | 🔨 built, every check passing; Long and Short layouts from the OSM raceway (anticlockwise), edge lines and start/finish only, no centre line (`raceway`); the real start/finish spot still to place |
+| ❓ **Forest Rally stage, backroads** (Wildwood Rd, Tom Cullity Dr, Rosa Brook Rd) | Drive-anywhere | ⬜ drive them first, then pick |
+
+None of the South West tracks has been driven yet: retest 6 runs each once on the workstation ([docs/workstation-retest-6.md](docs/workstation-retest-6.md)).
+
+--- | --- | --- |
 | **Busselton** (Foreshore and town centre; layouts Foreshore, Town, Sights, Free Roam) | Showcase | 🔨 base accepted (jetty precinct in); 22 landmarks in as layers; all the new features merged but not yet in an accepted base or tried in game |
 | **The whole map** (private: adds the estate and the Home Run) | Showcase | 🔨 base built; private landmarks described |
 | **Tuart Drive, Ludlow** (16 km) | Drive-anywhere | ✅ built, waiting on a drive |
@@ -72,14 +88,14 @@ What makes polishing cheap. First, because every landmark after it is quicker.
 ## Phase B: Busselton, polished (the template for every showcase area) 🔨
 
 - 🔨 **Landmarks** ([docs/landmarks.md](docs/landmarks.md)):
-  - ✅ built as layers (22): the jetty precinct, Rocky Ridge, the Esplanade Hotel, The Goose, the Old Courthouse group, the Hilton Garden Inn, the Visitor Centre, the Busselton Museum, Kyst and Sandbox, Sea Play on the Bay, Transition, the yacht club, Orana Cinemas, The Tav, the Ship Inn, the Banksia Tavern, St Mary's, the Pioneer Cemetery, the fire station, the bowling club, Victoria Square, Mitchell Park, the Japanese garden gate
+  - ✅ in the accepted base (2 Nov): the jetty precinct (`jetty.ts`); 37 spec landmarks (Rocky Ridge, the Esplanade Hotel, The Goose, the Old Courthouse group, the Hilton Garden Inn, the Visitor Centre, the Busselton Museum, Kyst and Sandbox, the yacht club, Orana Cinemas, The Tav, the Ship Inn and its stables wing, the Banksia Tavern, St Mary's, the Pioneer Cemetery, the fire station, the bowling club, Victoria Square, Mitchell Park, the Japanese garden gate, Busselton Jetty Tourist Park, and the tourism places below: Saltwater, ArtGeo, the Weld Theatre, the Fire Station bar, the surf club's two buildings, Busselton Central's four faces, four roadside pylons, Signal Park's toilets); Blender layers for Transition, Sea Play's ship, Rocky Ridge's pergola, Shelter Brewing Co and the Settlement Art bronzes
   - specced but outside the built area: Churchill Park, Barnard Park
   - ⬜ **Tourism and hospitality, in order** (audit and sources: [docs/plans/tourism-places.md](docs/plans/tourism-places.md), 1 Nov):
     1. ✅ **Shelter Brewing Co, high detail** (Blender layer, 2 Nov: slogan on the Corten wall, red umbrellas) (Mac, 1 Nov): the dark twin-gabled brewery directly behind the Visitor Centre (11 Foreshore Pde, OSM way 749124330, about 42 × 40 m; a generic box now). A full Blender detail layer like Transition (`routes/layers/`, `replaces` about 30 m), with its two gabled sheds, glazing, deck and beer garden, signage as plain lettering, and the forecourt and paths, from the aerial plus web photos (references only). Renders for Mac before it goes in the base.
     2. ✅ **Saltwater, ArtGeo and the Weld Theatre** (specs, 2 Nov; Saltwater from the aerial, no photo of the finished building yet): the performing arts and convention centre on the Queen St / Marine Tce roundabout, opened May 2026, not in OSM (only the old Weld Theatre is). Foreshore and Sights drive round it. Check what the build shows there first.
     3. ✅ **Surf Life Saving Club and the youth/community building** (two specs, 2 Nov; the angled blades squared off): the big white solar-roofed building east of the jetty. The skate park later.
     4. ✅ **The Fire Station bar** (spec, 2 Nov), in the old fire station on Queen St: small, on two layouts.
-    5. ✅ **Real names on Queen St** (code; 35 named fronts, up from 13, 2 Nov): shop names from Overpass as well as the map tiles, which drop lower-ranked places, and from fronts set back in car parks; plus a short hand list for places OSM lacks (Alberta's, Burger Bones, Busselton Pavilion). Only 13 real names show now.
+    5. ✅ **Real names on Queen St** (code; 35 named fronts, up from 13, 2 Nov): shop names from Overpass as well as the map tiles, which drop lower-ranked places, and from fronts set back in car parks; plus a short hand list for places OSM lacks (Alberta's, Burger Bones, Busselton Pavilion).
     6. ✅ **Busselton Central's Kent St and Prince St faces** (4 specs, 2 Nov; signs face one way only) (spec), with Reading Cinemas and Busselton Pavilion signs: on the Town loop.
     7. ✅ **Roadside pylon signs** (4 specs, 2 Nov) for Busselton Motel, Paradise Motor Inn, McDonald's and Hungry Jack's on the Foreshore route (plain lettering, no logos).
     8. ✅ **Settlement Art Project bronze statues** (Blender layer, 2 Nov; 3 of 6 positions are guesses) round the courthouse precinct: a small Blender layer (a spec can't do figures).
@@ -88,12 +104,12 @@ What makes polishing cheap. First, because every landmark after it is quicker.
   - ✅ the Kookaburra Caravan Park: already a spec, as Busselton Jetty Tourist Park (keep it light: the City plans to redevelop it). Dropped: the Barrel sculpture (not on the ground). Not yet: the Underwater Observatory's replacement (not confirmed built). Skipped: places too far east to see from the built streets.
   - private landmarks: listed in `routes/private/landmarks/` (photos of their street faces still needed)
 - 🔨 **Houses from the photo walk:** spec houses from Mac's street photos (`scripts/houses/photo_walk.py`), street by street. Waiting on the first street of photos.
-- 🔨 **Detail layers in Blender** for what a spec can't say. ✅ Transition (`routes/layers/transition.kn5`, scripted in `scripts/blender/landmarks/`). 🔨 Sea Play's ship: modelled and scripted, kn5 not exported yet. Next: wire `routes/layers` into the route and drop the two spec looks; Rocky Ridge's pergola and festoon lights; lighthouses.
-- 🔨 **In game:** the workstation retest (`docs/workstation-retest.md`) covers the AI on every layout, the AO bake, the 3D trees and the landmark screenshots. Mac's own checks: time of day and seasons, water, rain, night, the jetty, the map app, free roam.
-- 🔨 **Course markings on the race layouts** (phases 1–3 built 2 Nov, waiting on Mac's drive; plan and before/after renders: [docs/plans/course-markings.md](docs/plans/course-markings.md), mock-up `scripts/blender/mockups/course_marks.py`). Shows which way the course goes without walls, in the race layouts only (`courseMarks`; free roam stays open):
+- ✅ **Detail layers in Blender** for what a spec can't say (`routes/layers/`, scripted in `scripts/blender/landmarks/`, wired into the route): Transition, Sea Play's ship, Rocky Ridge's pergola and festoon lights (31 Oct), Shelter Brewing Co and the Settlement Art bronzes (2 Nov). On the other tracks: both lighthouses and Margaret River's Rotary Park. Next: more where a spec falls short, once Mac has seen these in game.
+- 🔨 **In game:** workstation retest 6 on 3 Nov ([docs/workstation-retest-6.md](docs/workstation-retest-6.md)): time of day, the AI on every layout, pit lanes, course markings, the road core trial, the nine country tracks and the new landmarks. Mac's own checks: time of day and seasons, water, rain, night, the jetty, the map app, free roam.
+- 🔨 **Course markings on the race layouts** (phases 1–3 built and in the accepted base 2 Nov, checked by `course_marks_check.ts`, waiting on Mac's drive; plan and before/after renders: [docs/plans/course-markings.md](docs/plans/course-markings.md), mock-up `scripts/blender/mockups/course_marks.py`). Shows which way the course goes without walls, in the race layouts only (`courseMarks`; free roam stays open):
   1. ✅ closed side streets and roundabout exits on the town layout: red-white ripple strip across the mouth plus a line of low red-white water-filled barriers (no collision; the closed street counts as off-track)
   2. ✅ roundabouts on the course: red-white island kerb, a chevron board facing each entry; chevrons and an arrow board 60–80 m before each course turn
-  3. ✅ the start: grid boxes, start line, light START FINISH arch; then foreshore and sights
+  3. ✅ the start: grid boxes, start line, light START FINISH arch; on Foreshore, Town and Sights (free roam has none). Every unused ring arm is closed with `networkCore` on too.
   4. ⬜ tune from Mac's drives (solid barriers as an option if the soft ones feel too cheap); race layouts with markings ship without traffic until traffic avoids them
 - 🔨 **Town details:** ✅ kerbside parking bays and bike lanes (`kerbside`, on in the town preset; not yet on for Busselton), ✅ the AI line in the left lane (`aiKeepLeft`). ⬜ Traffic lights (Busselton has few), car parks beyond the detailed ground.
 - ✅ **Base work done:**
@@ -106,6 +122,7 @@ What makes polishing cheap. First, because every landmark after it is quicker.
   - spawns in the car parks
   - the map app and checkpoint challenges
   - the ground never through a street (`street_ground.py`)
+  - real shop names on Queen St (35), course markings, the swimming jetty built low (`swimJetties`), no trees on the shore (`shoreClear`, `shore_check.ts`), the sea and beach from the photo (`photoSea`, `beachDetail`)
 
 ## Phase C: Drive-anywhere South West 🔨
 
@@ -115,7 +132,7 @@ Generated tracks across the region at a lighter detail level, rebuilt whenever t
   - ✅ Geoscience Australia's 5 m LiDAR covers Busselton to Ludlow and west to Dunsborough.
   - It stops just west of Dunsborough: Yallingup, the capes and most of Caves Road fall back to about 30 m global heights, which smooth the hills.
   - ❓ Next: order the capes LiDAR from GA's ELVIS portal (free, links emailed), cut it into tiles.
-- 🔨 **Caves Road, Dunsborough to Yallingup:** built once on the fallback heights; rebuild with the country roadsides, then again when the LiDAR arrives. Five more South West routes are ready (see The tracks).
+- ✅ **Every South West route built** (2 Nov): Tuart Drive, Caves Road to Yallingup, Busselton to Dunsborough, Margaret River, Caves Road through Boranup, Boranup Drive, Cape Naturaliste Road, Cape Leeuwin and Collie, all passing every check (see The tracks). Caves Road and the capes get rebuilt again when the LiDAR arrives. Next: drive them.
 - ✅ **A drive-anywhere preset:** `"preset": "country"` (`scripts/headless/presets.mjs`): terrain, corridor, horizon, banking, traffic, Armco, farmland, farm roadsides, zones, keep-left. Routes can also follow OSM ways (`"ways"`) where OSRM won't drive (raceways, tracks). Still to check: 30+ km roads and draw distances.
 - ✅ **Country roadsides:** guideposts, Armco on bends, embankments, bridges and culverts (`armco.ts`), farm driveways with gates, mailboxes and cattle grids (`farmRoadsides.ts`), vine rows and post-and-wire fences (`farm.ts`). All on in the country preset; none tried in game yet.
 - ✅ **Unsealed roads:** OSM gravel roads get gravel physics, CSP dust and a limestone gravel texture, with no markings or kerbs; `"unsealed": true` makes a whole route gravel (Boranup Drive). Grip and dust are first guesses until driven.
@@ -131,7 +148,7 @@ Generated tracks across the region at a lighter detail level, rebuilt whenever t
 
 ## Phase D: More showcase areas 🔨
 
-Each starts as a drive-anywhere base, then gets the Phase B treatment: Yallingup, Margaret River's main street, Cape Naturaliste, Boranup, Cape Leeuwin, Collie Motorplex. Landmarks for each are listed in [docs/landmarks.md](docs/landmarks.md).
+Each starts as a drive-anywhere base, then gets the Phase B treatment: Yallingup, Margaret River's main street, Cape Naturaliste, Boranup, Cape Leeuwin, Collie Motorplex. Landmarks for each are listed in [docs/landmarks.md](docs/landmarks.md). So far: Margaret River has 9 spec landmarks and Rotary Park (Blender layer); Cape Naturaliste and Cape Leeuwin have their lighthouses as Blender layers with cottages (and Leeuwin's waterwheel) as specs; Yallingup has Caves House and the general store; Collie has its two layouts.
 
 ## Phase E: A living world 🔨
 
@@ -142,10 +159,11 @@ Each starts as a drive-anywhere base, then gets the Phase B treatment: Yallingup
   - ✅ Researched: no ready-made Aussie traffic car pack exists; single mods listed with their licence notes in `docs/traffic-cars.md`.
   - ✅ Answered: offline traffic doesn't work in CM LAN (it's an online session); AssettoServer's AI traffic would, but needs server software.
   - ⬜ Next: an in-game test with the planner, the flood and the kids' setting (`docs/workstation-retest-2.md`).
-- ⬜ **The beach and the water** (Mac, 31 Oct: what makes the South West special). The bay goes from turquoise over the sand to deep blue further out, with dark patches of seagrass and reef, and the beaches are some of the whitest sand anywhere. When the sea was the aerial photo it looked real; as CSP water it's a flat, odd blue.
-  - The sea's colour from the aerial: the photo's own shallows, sand bars and weed patches as the water's base colour under CSP's reflections and waves, fading to deep blue past the photo's edge.
-  - White sand: the beaches from the photo, brightened, with a fine sand detail texture; wet sand and a foam line at the water's edge.
-  - The same look in the Blender renders, so previews match the game.
+- 🔨 **The beach and the water** (Mac, 31 Oct: what makes the South West special; built 31 Oct and 2 Nov, in-game look still to see). The bay goes from turquoise over the sand to deep blue further out, with dark patches of seagrass and reef, and the beaches are some of the whitest sand anywhere. When the sea was the aerial photo it looked real; as CSP water it's a flat, odd blue.
+  - ✅ The sea's colour from the aerial (`photoSea`, 31 Oct): the photo's own shallows, sand bars and weed patches as the water's base colour under CSP's reflections and waves, fading to deep blue past the photo's edge.
+  - ✅ White sand (`beachDetail`, 2 Nov): the beaches from the photo, brightened, with a fine sand detail texture; wet sand and a foam line at the water's edge.
+  - ✅ The same look in the Blender renders (`scripts/blender/render_track.py`), so previews match the game.
+  - ⬜ Mac's look in game, with CSP and Pure.
 - 🔨 **Atmosphere (CSP and Pure).**
   - ✅ The sun's real position, dry-season grass, bounced light, the bay as CSP water, wind, the tiling fix, Pure settings.
   - ✅ Night lighting.
@@ -161,13 +179,15 @@ Each starts as a drive-anywhere base, then gets the Phase B treatment: Yallingup
 - ✅ The build checks:
   - photo overlay, heights, spikes, bumps and edge steps
   - budget, layouts, traffic
-  - ground through streets
+  - ground through streets, things off the ground, parked cars, lanes over bays
+  - nothing on the shore or the water (`shore_check.ts`), course markings (`course_marks_check.ts`)
+  - all of them in one run (`scripts/check/all.mjs`), and `zip_same.mjs` for byte-identical builds
 - ✅ Renders and before/after comparison, CI on every push, headless builds from a snapshot of the repo.
 - ✅ The workstation:
   - the automatic AI test per layout, with landmark screenshots
   - AO bakes; everything goes to `\\media\busselton-share`
 - 🔨 Link this chat to Mac's laptop so builds go straight into the share and reports come straight back.
-- ✅ Night, several-AI-car and rain runs in the automatic test (`run-test.ps1 -Night`, `-Cars N`, `-Rain`). Next: the workstation runs `docs/workstation-retest-2.md`.
+- ✅ Night, several-AI-car and rain runs in the automatic test (`run-test.ps1 -Night`, `-Cars N`, `-Rain`). Next: the workstation runs `docs/workstation-retest-6.md` (3 Nov).
 - 🔨 One-click install on the rig: "Install Busselton.cmd" in the share installs every new build and polish, keeps AO bakes, installs the apps and shows what changed; optional check on log-in ([docs/rig-install.md](docs/rig-install.md)). To try on the rig.
 
 ## Phase G: Fun 🔨
@@ -197,15 +217,19 @@ Sources: [OverTake: six real-road maps for free roaming](https://racedepartment.
 
 Goal: every line generated by us. Pace: the share of upstream-derived code drops at least 5 points a week, without rushing the rest of the roadmap. Measured as lines in files on `UPSTREAM-FILES.txt` over all code lines (src, test, scripts, index.html): about 21% on 31 Oct (12,900 of 61,900), after the first 13 modules were rewritten; 15.1% (9,600 of 63,800) once the week-1 rewrites merged, then 4.5% (3288 of 72458 lines) by the evening of 31 Oct after the services rewrite, deleting the UI and unused code, and track.ts rewritten as stage modules (rebuilds Busselton byte-identical); 2.4% (1,797 of 73,945) on 2 Nov with only the road core left (old upstream tests replaced by fresh ones, config rewritten, and the forced-lines rule in docs/specs/provenance.md).
 
-How: a behaviour spec in `docs/specs/` first, then a fresh module from the spec by a separate session without the old file open, with fresh tests and golden fixtures where output must stay byte for byte. Fix the bugs the spec finds. Delete anything we don't actually use instead of rewriting it (Mac, 31 Oct): the browser UI goes, leaving the smallest headless page the builds need; unused options, features and exports go too. Rerun `scripts/provenance/upstream_overlap.py --write` after each merge. Also worth doing: ask honestjams for a licence (one message; a yes takes everything off the list at once).
+How: a behaviour spec in `docs/specs/` first, then a fresh module from the spec by a separate session without the old file open, with fresh tests and golden fixtures where output must stay byte for byte. Fix the bugs the spec finds. Delete anything we don't actually use instead of rewriting it (Mac, 31 Oct): the browser UI goes, leaving the smallest headless page the builds need; unused options, features and exports go too. Rerun `scripts/provenance/upstream_overlap.py` after each merge and edit `UPSTREAM-FILES.txt` by hand (`--write` would put back files that only match on forced lines). Also worth doing: ask honestjams for a licence (one message; a yes takes everything off the list at once).
 
-| Week ending | Target | What comes off the list |
-| --- | --- | --- |
-| Sat 7 Nov | 16% | In flight now: markings, paint lines, kerbs; clearance, extend, trace, spurs; mesh, materials, photo surface, fences (about 3,100 lines) |
-| Sat 14 Nov | 11% | The road core takes over: road, roundabout, side streets, road mesh, network/geom, AI line, options; imagery art, raster, Mapillary |
-| Sat 21 Nov | 6% | Services: tiles, OSM, vector tiles, pipeline; the UI deleted (main, session, style), leaving a minimal headless page and the preview renderer |
-| Sat 28 Nov | 1% | track.ts (split into stages as it's rewritten) and its tests (race dressing already deleted, 31 Oct) |
-| Sat 5 Dec | 0% | Leftovers: config files, small tests; settle the provenance rule for lines a spec forces (API signatures, ini text AC needs) |
+Well ahead of the table: 2.4% on 2 Nov, against 16% for 7 Nov. Everything in the first four rows is done except the road core.
+
+| Week ending | Target | What comes off the list | Status |
+| --- | --- | --- | --- |
+| Sat 7 Nov | 16% | Markings, paint lines, kerbs; clearance, extend, trace, spurs; mesh, materials, photo surface, fences | ✅ |
+| Sat 14 Nov | 11% | The road core: road, roundabout, side streets, road mesh, network/geom, AI line; options; imagery art, raster, Mapillary | ✅ except the road core (below) |
+| Sat 21 Nov | 6% | Services: tiles, OSM, vector tiles, pipeline; the UI deleted, leaving a minimal headless page and the preview renderer | ✅ 31 Oct |
+| Sat 28 Nov | 1% | track.ts, split into stage modules, and its tests | ✅ 31 Oct–1 Nov (rebuilds Busselton byte-identical) |
+| Sat 5 Dec | 0% | Leftovers: config files, small tests; the provenance rule for lines a spec forces | ✅ 2 Nov |
+
+**What's left: the road core** (`road.ts`, `roadMesh.ts`, `roundabout.ts`, `sideStreets.ts`, `aiLine.ts`, `network/geom.ts`). It's being replaced, not rewritten: the new network core (`networkCore`, [docs/specs/road-network.md](docs/specs/road-network.md)) builds junctions, roundabouts and streets from the road graph. Phase 3 (2 Nov) passes every check on Busselton (1.45M triangles, AI keep-left 96–99%); the base is unchanged with it off. A trial build (`busselton_roadcore.zip`) waits on retest 6 and Mac's drive; if it feels better it becomes the default and the old road code goes, which takes the list to 0%. Still to do before then: the AI line and traffic lanes from lanes and connectors, and the route built from the graph.
 
 Each week: lead merges the week's rewrites only after a full Busselton build passes every check (and a country route for anything touching ground or roads), then reruns provenance and updates this table.
 
