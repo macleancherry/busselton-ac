@@ -23,6 +23,8 @@ const GROUND_LIGHT = L(0.45, 0.4, 0, 1);
 
 /** Whether this build's sea is drawn from the photo (photoSea on and sea in view). */
 export const photoSeaOn = (ctx: BuildContext, g: Ground) => ctx.opts.photoSea !== false && g.ocean.length > 0;
+/** Whether the beaches get their detail: white sand, the grain, wet sand and foam (beachDetail.ts; on with photoSea unless false). */
+export const beachDetailOn = (ctx: BuildContext, g: Ground) => photoSeaOn(ctx, g) && ctx.opts.beachDetail !== false;
 
 export function addKit(reg: Registry, ctx: BuildContext, g: Ground, plan: RoadPlan): void {
   const { opts } = ctx;

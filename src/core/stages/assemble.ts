@@ -8,6 +8,7 @@ import { cullable } from "../cull";
 import { IDENTITY, type Kn5GroupNode, type Kn5Model, type Kn5Node } from "../kn5";
 import { softenKerbFaces } from "../kerbAo";
 import { buildShoreFoam } from "../photoSea";
+import { buildWetSand, sandTest } from "../beachDetail";
 import { buildTrees, treeTrunks } from "../scenery";
 import { buildSwimJetties } from "../swimJetty";
 import type { BuildContext } from "./context";
@@ -15,7 +16,7 @@ import type { Ground } from "./ground";
 import type { GroundMeshes } from "./groundMeshes";
 import type { Houses } from "./houses";
 import type { Imagery } from "./imagery";
-import { photoSeaOn } from "./kit";
+import { beachDetailOn, photoSeaOn } from "./kit";
 import type { Marks } from "./marks";
 import type { Scenery } from "./placeScenery";
 import type { Registry } from "./registry";
@@ -74,7 +75,10 @@ export function assemble(ctx: BuildContext, reg: Registry, a: AssembleInput): Kn
       group("SEA", g.ocean.length ? [
         ...buildSea(g.ocean, photoSeaOn(ctx, g) ? { transparent: true } : {}),
         ...(img.seaLayer?.nodes ?? []),
-        ...(photoSeaOn(ctx, g) ? buildShoreFoam(g.ocean, g.sea, piers) : []),
+        ...(beachDetailOn(ctx, g) ? [
+          ...buildWetSand(g.ocean, g.sea, piers, sc.shoreGround, sandTest(g.beaches, img.photos)),
+          ...buildShoreFoam(g.ocean, g.sea, piers),
+        ] : []),
       ] : []),
       group("WALLS", [...gm.walls, ...sc.trunks, ...(hs.houseTrees.length ? treeTrunks(hs.houseTrees, ground) : [])]),
       // A layout's dummies go in their own kn5 (layouts.ts).

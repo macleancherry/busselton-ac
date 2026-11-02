@@ -19,7 +19,8 @@ import { treeSpotsFromImagery, type TreeSpot } from "../scenery";
 import type { TerrainChunk } from "../terrain";
 import type { BuildContext } from "./context";
 import type { Ground } from "./ground";
-import { photoSeaOn } from "./kit";
+import { beachDetailOn, photoSeaOn } from "./kit";
+import { wetSandMaterial, wetSandTexture } from "../beachDetail";
 import { PHOTO_LIGHT, type Registry } from "./registry";
 import type { Progress } from "./types";
 
@@ -49,6 +50,7 @@ const NOT_STREET = /^(path|footway|cycleway|track|steps|pedestrian|bridleway)/;
 export async function fetchImagery(ctx: BuildContext, plan: RoadPlan, g: Ground, reg: Registry, progress: Progress): Promise<Imagery> {
   const { opts, sources, proj } = ctx;
   const photoSea = photoSeaOn(ctx, g);
+  const beachDetail = beachDetailOn(ctx, g);
   const textured = new Set<string>();
   const treeSpots: TreeSpot[] = [];
   const farTreeSpots: TreeSpot[] = [];
@@ -66,7 +68,7 @@ export async function fetchImagery(ctx: BuildContext, plan: RoadPlan, g: Ground,
     ? (sources.streets?.lines ?? []).filter((l) => /^(service|parking_aisle)/.test(l.cls)).map((l) => ctx.line(l.pts))
     : [];
   const osmRings = opts.carParks ? (sources.osm?.buildings ?? []).map((b) => ctx.line(b.ring)) : [];
-  const beachLook = photoSea ? new BeachLook(g.beaches, g.sea) : null;
+  const beachLook = beachDetail ? new BeachLook(g.beaches, g.sea) : null;
 
   if (sources.imagery && opts.imageryZoom > 0) {
     const jobs: { chunk: TerrainChunk; zoom: number; size: number; prefix: "terrain" | "backdrop" }[] = [
@@ -133,7 +135,10 @@ export async function fetchImagery(ctx: BuildContext, plan: RoadPlan, g: Ground,
     for (const t of seaLayer.textures) reg.texture(t.name, t.data);
     for (const m of seaLayer.materials) reg.material(m);
   }
-  if (photoSea) reg.scenery("shore_foam.png", foamTexture(), foamMaterial());
+  if (beachDetail) {
+    reg.scenery("shore_foam.png", foamTexture(), foamMaterial());
+    reg.scenery("shore_wet.png", wetSandTexture(), wetSandMaterial());
+  }
   if (beachChunks && opts.detailShaders) reg.texture("ground_sand.dds", sandDetailTexture());
 
   // Sorted by place, so nothing downstream depends on the order the photos came in.

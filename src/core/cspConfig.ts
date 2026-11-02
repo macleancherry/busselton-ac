@@ -56,7 +56,7 @@ const BACKDROP = "backdrop_?";
 const ROAD_PHOTO = ["road_?", "side_photo_?"];
 
 const GRASS_MATERIALS = GROUND_PHOTO;
-const OCCLUDING_MATERIALS = [...ROAD_PHOTO, "concrete", "paint?", "rrpm", "barrier_?", "path_?", "mulch", "fence_?", "frontwall_?", "hedge", "sea", "jetty_?"];
+const OCCLUDING_MATERIALS = [...ROAD_PHOTO, "concrete", "paint?", "rrpm", "barrier_?", "path_?", "mulch", "fence_?", "frontwall_?", "hedge", "sea", "jetty_?", "shore_wet", "shore_foam"];
 const PUDDLES_MATERIALS = ROAD_PHOTO;
 const SOAKING_MATERIALS = [...ROAD_PHOTO, "concrete", "path_?"];
 const ROUGH_MATERIALS = [GROUND_PHOTO[0], BACKDROP, ...GROUND_PHOTO.slice(1), "trees", "barrier_hedge", "hedge", "mulch", "shrubs", "frontwall_?", "jetty_?"];
@@ -274,7 +274,7 @@ export function bakedShadowParams(): string {
     "BAKE_AS_GRASS = shader:ksGrass?",
     "TREES_LIGHT_PASS_CHANCE = 0.9",
     "TREES_SHADOW_FACTOR = 0.8",
-    "EXCLUDE_FROM_BAKING = renderable:n, material:sea, material:sea_photo?, material:shore_foam, material:backdrop_?",
+    "EXCLUDE_FROM_BAKING = renderable:n, material:sea, material:sea_photo?, material:shore_foam, material:shore_wet, material:backdrop_?",
     "FORCE_PASSING_LIGHT = material:sea, material:glass, material:window, material:shop_window",
     "EXT_EXCLUDE_POBJECTS = 1",
     "EXT_REBAKE_DARK_OBJECTS = 1",

@@ -634,7 +634,16 @@ export function sandiness(r: number, g: number, b: number): number {
 /** Dry beach sand: the photo's own variation, lifted toward the real near-white. */
 export function drySand([r, g, b]: Rgb, cfg = PHOTO_SEA): Rgb {
   const lift = (v: number) => 255 - (255 - v) * 0.45;
-  return [lift(r), lift(g), lift(b)].map((v, k) => v + (cfg.sand[k] - v) * 0.3) as Rgb;
+  return [lift(r), lift(g), lift(b)].map((v, k) => highlight(v + (cfg.sand[k] - v) * 0.3)) as Rgb;
+}
+
+/** The brightest sand rolls off softly toward `SAND_PEAK` instead of clipping, so the grain and the photo's ripples still show. */
+export const SAND_PEAK = 248;
+const KNEE = 228;
+function highlight(v: number): number {
+  if (v <= KNEE) return v;
+  const room = SAND_PEAK - KNEE;
+  return KNEE + room * (1 - Math.exp(-(v - KNEE) / room));
 }
 
 /** Wet sand: darker and a little cooler. */
@@ -735,49 +744,30 @@ export function foamMaterial(): Kn5Material {
   return { ...material("shore_foam", "shore_foam.png", { ambient: 0.55, diffuse: 0.45, specular: 0.1, exp: 10 }), blendMode: BlendMode.AlphaBlend, depthMode: DepthMode.NoWrite };
 }
 
+/** A point on the shore every couple of metres: where, which way the water is (unit), and how far along the run, metres. */
+export interface ShorePoint { p: Vec2; out: Vec2; s: number }
+
 /**
- * The foam line: a strip along every real coastline edge (not tile seams), from `foamIn` up the sand to
- * `foamOut` out on the water, just above the water, clear of jetties. Meshes SHORE_FOAM_<n>.
+ * The shore as runs of points along every real coastline edge (not tile seams), `step` metres apart,
+ * each with the way out onto the water. A run breaks where the sea isn't on exactly one side, within
+ * 10 m of a jetty, or where the shore doubles back. The foam line and the wet sand (beachDetail.ts)
+ * both follow these, so they meet the water at the same line.
  */
-export function buildShoreFoam(ocean: CoastPolygon[], sea: SeaMask, piers: CoastPolygon[], cfg = PHOTO_SEA): Kn5MeshNode[] {
-  const out: Kn5MeshNode[] = [];
-  let mb = new MeshBuilder();
-  mb.normals = [];
-  const flush = () => {
-    if (mb.indices.length) out.push(mb.toKn5(`SHORE_FOAM_${String(out.length).padStart(2, "0")}`, "shore_foam", { castShadows: false, transparent: true }));
-    mb = new MeshBuilder();
-    mb.normals = [];
-  };
+export function shoreRuns(ocean: CoastPolygon[], sea: SeaMask, piers: CoastPolygon[], step = 2): ShorePoint[][] {
+  const runs: ShorePoint[][] = [];
   const pierEdges = piers.flatMap((p) => (p.rings[0] ?? []).map((a, i, r) => [a, r[(i + 1) % r.length]] as const));
   const nearPier = (x: number, y: number) => pierEdges.some(([a, b]) => {
     const dx = b[0] - a[0], dy = b[1] - a[1], L2 = dx * dx + dy * dy || 1e-9;
     const t = Math.max(0, Math.min(1, ((x - a[0]) * dx + (y - a[1]) * dy) / L2));
     return Math.hypot(a[0] + dx * t - x, a[1] + dy * t - y) < 10;
   });
-  const z = SEA_LEVEL + 0.03;
   for (const p of ocean) {
     p.rings.forEach((ring, ri) => {
       const n = ring.length;
       if (n < 3) return;
-      let run: { p: Vec2; out: Vec2; s: number }[] = [];
+      let run: ShorePoint[] = [];
       const emit = () => {
-        if (run.length >= 2) {
-          if (mb.vertexCount + run.length * 2 > 60000) flush();
-          const base = mb.vertexCount;
-          for (const q of run) {
-            mb.vertex([q.p[0] - q.out[0] * cfg.foamIn, q.p[1] - q.out[1] * cfg.foamIn, z], q.s / 8, 0);
-            mb.vertex([q.p[0] + q.out[0] * cfg.foamOut, q.p[1] + q.out[1] * cfg.foamOut, z], q.s / 8, 1);
-            mb.normals!.push(0, 0, 1, 0, 0, 1);
-          }
-          for (let k = 0; k + 1 < run.length; k++) {
-            const a = base + k * 2, c = a + 2;
-            // Facing up whichever way round the ring runs.
-            const d: Vec2 = [run[k + 1].p[0] - run[k].p[0], run[k + 1].p[1] - run[k].p[1]];
-            const outLeft = d[0] * run[k].out[1] - d[1] * run[k].out[0] > 0;
-            if (outLeft) mb.quad(a, c, c + 1, a + 1);
-            else mb.quad(a, a + 1, c + 1, c);
-          }
-        }
+        if (run.length >= 2) runs.push(run);
         run = [];
       };
       let s = 0;
@@ -790,7 +780,7 @@ export function buildShoreFoam(ocean: CoastPolygon[], sea: SeaMask, piers: Coast
         }
         const d: Vec2 = [(b[0] - a[0]) / L, (b[1] - a[1]) / L];
         const left: Vec2 = [-d[1], d[0]];
-        const steps = Math.max(1, Math.ceil(L / 2));
+        const steps = Math.max(1, Math.ceil(L / step));
         for (let k = 0; k < steps; k++) {
           const q: Vec2 = [a[0] + (b[0] - a[0]) * (k / steps), a[1] + (b[1] - a[1]) * (k / steps)];
           // Out onto the water: whichever side the sea is.
@@ -809,6 +799,59 @@ export function buildShoreFoam(ocean: CoastPolygon[], sea: SeaMask, piers: Coast
       emit();
     });
   }
+  return runs;
+}
+
+/**
+ * A strip along each shore run, one row of vertices per offset (metres out from the waterline onto
+ * the water, negative up the land), triangles facing up. `z(x, y, d)` is each vertex's height at
+ * offset d. u runs 1 per 8 m along the shore, v 0 at the first offset to 1 at the last.
+ */
+export function shoreStrip(runs: ShorePoint[][], offsets: number[], z: (x: number, y: number, d: number) => number, name: string, mat: string): Kn5MeshNode[] {
+  const out: Kn5MeshNode[] = [];
+  const rows = offsets.length;
+  if (rows < 2) return out;
+  let mb = new MeshBuilder();
+  mb.normals = [];
+  const flush = () => {
+    if (mb.indices.length) out.push(mb.toKn5(`${name}_${String(out.length).padStart(2, "0")}`, mat, { castShadows: false, transparent: true }));
+    mb = new MeshBuilder();
+    mb.normals = [];
+  };
+  const d0 = offsets[0], span = offsets[rows - 1] - offsets[0] || 1;
+  // Rows running out onto the water, or up the land: the winding flips with them.
+  const outward = span > 0;
+  for (const run of runs) {
+    if (run.length < 2) continue;
+    if (mb.vertexCount + run.length * rows > 60000) flush();
+    const base = mb.vertexCount;
+    for (const q of run) {
+      for (const d of offsets) {
+        const x = q.p[0] + q.out[0] * d, y = q.p[1] + q.out[1] * d;
+        mb.vertex([x, y, z(x, y, d)], q.s / 8, (d - d0) / span);
+        mb.normals!.push(0, 0, 1);
+      }
+    }
+    for (let k = 0; k + 1 < run.length; k++) {
+      // Facing up whichever way round the ring runs.
+      const d: Vec2 = [run[k + 1].p[0] - run[k].p[0], run[k + 1].p[1] - run[k].p[1]];
+      const outLeft = d[0] * run[k].out[1] - d[1] * run[k].out[0] > 0;
+      for (let r = 0; r + 1 < rows; r++) {
+        const a = base + k * rows + r, c = a + rows;
+        if (outLeft === outward) mb.quad(a, c, c + 1, a + 1);
+        else mb.quad(a, a + 1, c + 1, c);
+      }
+    }
+  }
   flush();
   return out;
+}
+
+/**
+ * The foam line: a strip along every real coastline edge (not tile seams), from `foamIn` up the sand to
+ * `foamOut` out on the water, just above the water, clear of jetties. Meshes SHORE_FOAM_<n>.
+ */
+export function buildShoreFoam(ocean: CoastPolygon[], sea: SeaMask, piers: CoastPolygon[], cfg = PHOTO_SEA): Kn5MeshNode[] {
+  const z = SEA_LEVEL + 0.03;
+  return shoreStrip(shoreRuns(ocean, sea, piers), [-cfg.foamIn, cfg.foamOut], () => z, "SHORE_FOAM", "shore_foam");
 }

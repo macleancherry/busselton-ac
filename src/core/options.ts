@@ -89,6 +89,8 @@ export interface BuildOptions {
   sea: boolean;
   /** Sea from the photo; on unless false (only with sea in view). */
   photoSea?: boolean;
+  /** With photoSea: white dry sand, the fine sand grain, the glossy wet band and the foam line (beachDetail.ts); on unless false. */
+  beachDetail?: boolean;
   detailShaders: boolean;
   /** Landscape zones; off when absent. */
   zones?: boolean;
@@ -196,7 +198,7 @@ export interface BuildOptions {
 /** Fields with no default (their readers decide what absent means). */
 export const OPTIONAL_OPTION_KEYS: readonly (keyof BuildOptions)[] = Object.freeze([
   "origin", "area", "layout", "layoutDrives", "unsealed", "gravelRoads", "networkCore",
-  "terrainLodFarTol", "photoSea", "zones", "pureTuning", "rainHollows",
+  "terrainLodFarTol", "photoSea", "beachDetail", "zones", "pureTuning", "rainHollows",
   "cspTrees", "houseStyle", "clears", "armco", "farmland", "farmRoadsides", "wavingFlags",
   "jettyTrain", "swimJetties", "jettyKinds", "trackSounds", "poleClear", "raceway", "treeMips", "shoreClear",
   "kerbside", "laneBayClear", "parkedBays", "padClear", "trafficLights", "shopNamesOverpass",
