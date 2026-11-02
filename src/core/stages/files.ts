@@ -122,7 +122,7 @@ export function writeFiles(ctx: BuildContext, model: Kn5Model, a: FilesInput, me
     ...birdEmitters(sc.treesKept.map((t) => ({ x: t.x, y: t.y, bush: TREE_SPECIES[t.variant]?.name === "tuart" })), { roads: [plan.samples.map((s) => s.pos), ...st.streetPlan.streets.map((s) => s.pts)], ground: g.terrainH }),
   ] : undefined;
   const treeFiles = cspTreeFiles(ctx, sc, hs, gm);
-  const dummies = trackObjects(plan, opts, st.gridAvoid);
+  const dummies = trackObjects(plan, opts, st.gridAvoid, { toLocal: ctx.toLocal, groundAt: g.terrainH });
   const lights = [...sc.utilities.lights, ...sc.carPark.lights, ...sc.jettyLamps.lights];
   const train = sc.jettyPrecinct.train;
   const radiusKm = outline.length ? Math.max(...outline.map((p) => Math.hypot(p[0] - outline[0][0], p[1] - outline[0][1]))) / 2000 : 0;

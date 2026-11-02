@@ -33,10 +33,11 @@ export const PIT_AFTER = 60;
 /** Boxes closer than this along the line (metres) are one group; the pit lane runs past one group. */
 const GROUP_GAP = 100;
 
-/** AC_PIT_n positions (AC space), in box order. */
-export function pitBoxes(dummies: Kn5GroupNode[]): Xyz[] {
+/** AC_PIT_n (or `kind` AC_START_n) positions (AC space), in box order. */
+export function pitBoxes(dummies: Kn5GroupNode[], kind: "PIT" | "START" = "PIT"): Xyz[] {
+  const re = new RegExp(`^AC_${kind}_(\\d+)$`);
   return dummies
-    .map((d) => ({ d, m: /^AC_PIT_(\d+)$/.exec(d.name) }))
+    .map((d) => ({ d, m: re.exec(d.name) }))
     .filter((x) => x.m)
     .sort((a, b) => Number(a.m![1]) - Number(b.m![1]))
     .map(({ d }) => [d.transform[12], d.transform[13], d.transform[14]] as Xyz);
@@ -98,12 +99,13 @@ export function pitLaneAi(ai: AiPoint[], boxes: Xyz[], closed: boolean): AiPoint
 }
 
 /**
- * A layout's pit_lane.ai (when a box is on the AI line) and data/ideal_line.ai (the AI line's own
+ * A layout's pit_lane.ai (when a box is on the AI line, else past the grid) and data/ideal_line.ai (the AI line's own
  * file, `aiFile`), under `prefix` (the track folder, or the layout's).
  */
 export function pitLaneFiles(prefix: string, ai: AiPoint[], aiFile: Uint8Array, dummies: Kn5GroupNode[], closed: boolean): Record<string, Uint8Array> {
   const files: Record<string, Uint8Array> = { [`${prefix}/data/ideal_line.ai`]: aiFile };
-  const pit = pitLaneAi(ai, pitBoxes(dummies), closed);
+  // Busselton fork: pit boxes in real bays off the line (option pits) leave the lane on the grid.
+  const pit = pitLaneAi(ai, pitBoxes(dummies), closed) ?? pitLaneAi(ai, pitBoxes(dummies, "START"), closed);
   if (pit) files[`${prefix}/ai/pit_lane.ai`] = writeFastLaneAi(pit);
   return files;
 }

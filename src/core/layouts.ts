@@ -28,6 +28,7 @@ import type { LngLat, LocalProjection } from "./geo";
 import { simplify } from "./polyline";
 import { pitLaneFiles } from "./pitLane";
 import { clearAiPoint, GRID_CLEAR_AHEAD, junctionsOn, type GridAvoid } from "./gridSlots";
+import type { FixedSpots } from "./stages/routePlan";
 import { retimeAi, ringCircles, ringHintValues, smoothKinks, type WorldRing } from "./aiRings";
 
 type Vec2 = [number, number];
@@ -408,7 +409,7 @@ export function spawnsOnLine(spots: { x: number; y: number; fwd: Vec2 }[], ai: A
 }
 
 /** A layout's own files (dummies kn5, AI line, data, ui), on the world's road surface. */
-export function layoutFiles(world: World, layout: LayoutSpec, trackObjects: (plan: RoadPlan, opts: BuildOptions, avoid?: GridAvoid) => Kn5GroupNode[]): Record<string, Uint8Array> {
+export function layoutFiles(world: World, layout: LayoutSpec, trackObjects: (plan: RoadPlan, opts: BuildOptions, avoid?: GridAvoid, fixed?: FixedSpots) => Kn5GroupNode[]): Record<string, Uint8Array> {
   const opts = withDefaults({ ...world.options, name: layout.name });
   const { slug, proj } = world;
   const height = surfaceHeight(world.model);
@@ -493,7 +494,10 @@ export function layoutFiles(world: World, layout: LayoutSpec, trackObjects: (pla
     const shots = landmarkShots(ai, world.landmarks ?? []);
     files[`${base}/data/autotest.ini`] = enc.encode(`[AUTOTEST]\nCLOSED=${plan.closed}\nLIMITS=${pct.join(",")}\n${shots.length ? `SHOTS=${shots.join(",")}\n` : ""}`);
     // The grid on a straight, clear of the world's roundabouts and of the streets that meet the route.
-    const dummies = trackObjects(plan, opts, worldAvoid(world, plan.samples.map((smp) => smp.pos)));
+    // Busselton fork: hand-placed grid front and pit bays (gridAt, pits) on the world's ground (terrain included).
+    // Only built with pits set: it grids every terrain triangle.
+    const bayGround = opts.pits?.length ? surfaceHeight(world.model, /^\d(ROAD|STREET|KERB|UNSEALED|UNPAVED|GRASS)/) : undefined;
+    const dummies = trackObjects(plan, opts, worldAvoid(world, plan.samples.map((smp) => smp.pos)), { toLocal: (p) => proj.toLocal(p), groundAt: bayGround });
     files[`${slug}/layout_${layout.id}.kn5`] = dummiesKn5(layout.id, dummies);
     // A pit lane past the grid's boxes, and the ideal line (pitLane.ts).
     Object.assign(files, pitLaneFiles(base, ai, files[`${base}/ai/fast_lane.ai`], dummies, plan.closed));

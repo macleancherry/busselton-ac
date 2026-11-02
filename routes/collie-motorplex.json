@@ -1,12 +1,12 @@
 {
  "name": "Collie Motorplex",
- "_note": "The Collie Motorplex circuit east of Collie: OSM maps it as highway=raceway, 'Collie Race Track', asphalt, a 1.62 km closed loop (way 89374807), with a 1.3 km southern extension (way 733256017) for the long layout (about 2.57 km). The centreline comes from those OSM ways (route option \"ways\"), not OSRM, which won't drive raceways. Races anticlockwise (Collie Motor Sport Club). Circuit settings: no banking, no traffic. Not on 5 m LiDAR (well east of the tiled area). The real start/finish line isn't known yet: the track starts at the first pin.",
+ "_note": "The Collie Motorplex circuit east of Collie: OSM maps it as highway=raceway, 'Collie Race Track', asphalt, a 1.62 km closed loop (way 89374807), with a 1.3 km southern extension (way 733256017) for the long layout (about 2.57 km). The centreline comes from those OSM ways (route option \"ways\"), not OSRM, which won't drive raceways. Races anticlockwise (Collie Motor Sport Club): SW down the main straight. Circuit settings: no banking, no traffic. Not on 5 m LiDAR (well east of the tiled area). The first pin is the real start/finish line, level with the race tower (docs/plans/collie-dressing.md); the north hairpin pin is now the last.",
  "loop": true,
  "preset": "country",
  "pins": [
   [
-   116.24458,
-   -33.428801
+   116.24327,
+   -33.43013
   ],
   [
    116.242968,
@@ -19,6 +19,10 @@
   [
    116.245587,
    -33.430988
+  ],
+  [
+   116.24458,
+   -33.428801
   ]
  ],
  "options": {
@@ -34,7 +38,96 @@
   "armco": false,
   "farmRoadsides": false,
   "aiKeepLeft": false,
-  "raceway": true
+  "raceway": true,
+  "pitCount": 12,
+  "gridAt": [
+   116.243338,
+   -33.430061
+  ],
+  "pits": [
+   [
+    116.243858,
+    -33.430648,
+    286
+   ],
+   [
+    116.243845,
+    -33.430685,
+    286
+   ],
+   [
+    116.243832,
+    -33.430723,
+    286
+   ],
+   [
+    116.24382,
+    -33.43076,
+    286
+   ],
+   [
+    116.243807,
+    -33.430797,
+    286
+   ],
+   [
+    116.243794,
+    -33.430835,
+    286
+   ],
+   [
+    116.243781,
+    -33.430872,
+    286
+   ],
+   [
+    116.243768,
+    -33.430909,
+    286
+   ],
+   [
+    116.243756,
+    -33.430947,
+    286
+   ],
+   [
+    116.243743,
+    -33.430984,
+    286
+   ],
+   [
+    116.24373,
+    -33.431021,
+    286
+   ],
+   [
+    116.243717,
+    -33.431059,
+    286
+   ]
+  ],
+  "area": [
+   [
+    [
+     116.243,
+     -33.4299
+    ],
+    [
+     116.2446,
+     -33.4299
+    ],
+    [
+     116.2446,
+     -33.4316
+    ],
+    [
+     116.243,
+     -33.4316
+    ]
+   ]
+  ],
+  "streetsValid": false,
+  "_gridNote": "Grid and pits (docs/plans/collie-dressing.md): gridAt is the pole box, 10 m back up the straight from the line; 12 staggered boxes run about 50 m back. pits are the 12 verandah bays of the pit garages, facing out at 286 degrees. The area is the paddock patch, so the bays stand on built ground rather than the horizon mesh; streetsValid stays off. Circuit kerbs and grid paint are on by default for raceway builds (circuitKerbs, gridPaint)."
  },
  "ways": [
   89374807,
@@ -54,8 +147,8 @@
    ],
    "pins": [
     [
-     116.24458,
-     -33.428801
+     116.24327,
+     -33.43013
     ],
     [
      116.242968,
@@ -68,6 +161,10 @@
     [
      116.245587,
      -33.430988
+    ],
+    [
+     116.24458,
+     -33.428801
     ]
    ]
   }
