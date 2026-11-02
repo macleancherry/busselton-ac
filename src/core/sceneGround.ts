@@ -120,8 +120,15 @@ export interface SceneGround {
    * A house straddling the terrain mesh's edge took the fallback for its uncovered corner and sank
    * 20 to 40 cm into the mesh under the rest of it.
    */
-  forRing(ring: Vec2[], step?: number): HeightFn;
+  forRing(ring: Vec2[], step?: number): RingGround;
 }
+
+/**
+ * A building's ground (SceneGround.forRing): the height, plus the mesh it reads where it covers a
+ * point and the mesh's lowest along the ring, so the walls and doors can stand on that and not on the
+ * fallback where the footprint only just reaches the mesh.
+ */
+export type RingGround = HeightFn & { mesh?: SurfaceFn; lo?: number };
 
 /**
  * The ground every placed object stands on: the topmost of the base's physics meshes (walls left
@@ -142,10 +149,7 @@ export function groundOver(mesh: SurfaceFn, fallback: HeightFn): SceneGround {
   };
   const meshUnder = (ring: Vec2[], step: number) => {
     let lo = Infinity;
-    for (const [x, y] of alongRing(ring, step)) {
-      const h = mesh(x, y);
-      if (h !== null && h < lo) lo = h;
-    }
+    for (const [, , h] of ringOverMesh(mesh, ring, step)) if (h < lo) lo = h;
     return lo;
   };
   fn.underRing = (ring, step = 0.5) => {
@@ -155,7 +159,10 @@ export function groundOver(mesh: SurfaceFn, fallback: HeightFn): SceneGround {
   fn.forRing = (ring, step = 0.5) => {
     const lo = meshUnder(ring, step);
     if (lo === Infinity) return fn;
-    return (x, y) => mesh(x, y) ?? Math.max(lo, fallback(x, y));
+    const f = ((x: number, y: number) => mesh(x, y) ?? Math.max(lo, fallback(x, y))) as RingGround;
+    f.mesh = mesh;
+    f.lo = lo;
+    return f;
   };
   return fn;
 }
@@ -166,7 +173,47 @@ export function groundOver(mesh: SurfaceFn, fallback: HeightFn): SceneGround {
  * it, was put on the horizon mesh, 3 m under the terrain, and sank there (Dunsborough).
  */
 export function ringTouches(mesh: SurfaceFn, ring: Vec2[], step = 0.5): boolean {
-  return alongRing(ring, step).some(([x, y]) => mesh(x, y) !== null);
+  return ringOverMesh(mesh, ring, step).length > 0;
+}
+
+/**
+ * The points of a closed ring's outline over the mesh, with the mesh's height there: every `step`
+ * metres and at the corners, and every `fine` metres through each step that starts or ends on the
+ * mesh or has the mesh within `step` of it either side. A terrain triangle's tip reaching 40 cm into
+ * a footprint between two half-metre samples left a building in Augusta on the horizon mesh, 59 cm
+ * under the terrain where the ground check found that tip.
+ */
+export function ringOverMesh(mesh: SurfaceFn, ring: Vec2[], step = 0.5, fine = 0.05): [number, number, number][] {
+  const out: [number, number, number][] = [];
+  for (let k = 0; k < ring.length; k++) {
+    const a = ring[k], b = ring[(k + 1) % ring.length];
+    const len = Math.hypot(b[0] - a[0], b[1] - a[1]);
+    if (len < 1e-9) continue;
+    const n = Math.max(1, Math.ceil(len / step));
+    const nx = -(b[1] - a[1]) / len, ny = (b[0] - a[0]) / len;
+    const at = (f: number): Vec2 => [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f];
+    const h: (number | null)[] = [];
+    for (let i = 0; i <= n; i++) {
+      const p = at(i / n);
+      h.push(mesh(p[0], p[1]));
+      if (i < n && h[i] !== null) out.push([p[0], p[1], h[i]!]);
+    }
+    const near = (i: number) => {
+      if (h[i] !== null) return true;
+      const p = at(i / n);
+      return mesh(p[0] + nx * step, p[1] + ny * step) !== null || mesh(p[0] - nx * step, p[1] - ny * step) !== null;
+    };
+    const m = Math.max(1, Math.ceil(len / n / fine));
+    for (let i = 0; i < n; i++) {
+      if (h[i] !== null && h[i + 1] !== null) continue;
+      if (!near(i) && !near(i + 1)) continue;
+      for (let j = 1; j < m; j++) {
+        const p = at((i + j / m) / n), z = mesh(p[0], p[1]);
+        if (z !== null) out.push([p[0], p[1], z]);
+      }
+    }
+  }
+  return out;
 }
 
 /** Points round a closed ring: its corners and every `step` metres along each edge. */

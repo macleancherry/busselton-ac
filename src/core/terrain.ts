@@ -452,7 +452,22 @@ function fanFits(
  * function given (track.ts passes the analytic one) on the grid every chunk uses.
  */
 export function meshTop(terrain: TerrainFn, opts: BuildOptions): (x: number, y: number) => number {
-  const { step } = gridOf(opts.chunkSize, opts.terrainStep);
+  return gridSurface(terrain, opts, "top");
+}
+
+/**
+ * The terrain grid as a chunk draws it at full resolution: each cell split along the diagonal its
+ * chunk picks ((i + j) even: south-west to north-east). Something laid on the terrain (a footpath
+ * past the nature strip) stands on this, not the analytic terrain: two grid steps either side of the
+ * verge's inner edge the grid cuts the corner of the ramp under the road, and a footpath on the
+ * analytic ground floated 10 to 15 cm over the mesh on Augusta's hill.
+ */
+export function meshDrawn(terrain: TerrainFn, opts: BuildOptions): (x: number, y: number) => number {
+  return gridSurface(terrain, opts, "drawn");
+}
+
+function gridSurface(terrain: TerrainFn, opts: BuildOptions, mode: "top" | "drawn"): (x: number, y: number) => number {
+  const { cells, step } = gridOf(opts.chunkSize, opts.terrainStep);
   const cache = new Map<number, number>();
   const node = (i: number, j: number) => {
     const k = (i + 2_000_000) * 4_000_000 + (j + 2_000_000);
@@ -473,6 +488,9 @@ export function meshTop(terrain: TerrainFn, opts: BuildOptions): (x: number, y: 
     const a = u >= w ? h00 + u * (h10 - h00) + w * (h11 - h10) : h00 + u * (h11 - h01) + w * (h01 - h00);
     // Split (1,0)-(0,1).
     const b = u + w <= 1 ? h00 + u * (h10 - h00) + w * (h01 - h00) : h11 + (1 - u) * (h01 - h11) + (1 - w) * (h10 - h11);
-    return Math.max(a, b);
+    if (mode === "top") return Math.max(a, b);
+    // The node's index in its own chunk (chunks start every `cells` nodes) picks the diagonal.
+    const li = i - Math.floor(i / cells) * cells, lj = j - Math.floor(j / cells) * cells;
+    return (li + lj) % 2 === 0 ? a : b;
   };
 }

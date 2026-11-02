@@ -16,7 +16,7 @@ import { placeSeed, rng } from "./random";
 import { type SegmentIndex } from "./road";
 import { type TerrainChunk } from "./terrain";
 import { ccwRing, centroid, isRectangle, pointInRing, ringArea } from "./ringGeometry";
-import { SINK } from "./sceneGround";
+import { SINK, type RingGround } from "./sceneGround";
 import { slopeSteps } from "./slopeSteps";
 import { FACADES, FACADE_INDEX, LAYOUTS, PITCHED, ROOF_COLOURS, type Dress, type Facade, type Layout, type LayoutName, type RGB, type RoofShape } from "./buildingStyles";
 
@@ -436,6 +436,9 @@ export function buildBuildings(list: Building[], ground: HeightFn, sinkFor?: (b:
         lowest = Math.min(lowest, g(p[0], p[1]));
       }
     }
+    // The mesh's lowest along the ring, where the footprint only just reaches it between samples.
+    const lo = (g as RingGround).lo;
+    if (lo !== undefined && lo < lowest) lowest = lo;
     const floor = Math.min(...cornerZ);
     const top = Math.max(...cornerZ) + Math.max(0.5, b.height);
     // A building on the horizon past the terrain mesh can reach out over the mesh, metres higher.
@@ -480,9 +483,19 @@ function doors(ctx: Ctx, w: Wall): Span[] {
   const { b, g, out } = ctx;
   if (w.len < 5) return [];
   const spans: Span[] = [];
+  // The lowest ground along the door, every 10 cm; where the scene's mesh covers some of it, the
+  // lowest of that: off the mesh's edge the ground is the fallback, which can be lower, and a door
+  // set on it went 10 cm into the mesh beside (Augusta).
+  const mesh = (g as RingGround).mesh;
   const bottom = (s0: number, s1: number) => {
-    const p = onWall(w, s0), q = onWall(w, s1);
-    return Math.min(g(p[0], p[1]), g(q[0], q[1]));
+    let lo = Infinity, onMesh = Infinity;
+    const n = Math.max(1, Math.ceil((s1 - s0) / 0.1));
+    for (let k = 0; k <= n; k++) {
+      const p = onWall(w, s0 + ((s1 - s0) * k) / n), z = g(p[0], p[1]);
+      lo = Math.min(lo, z);
+      if (mesh && mesh(p[0], p[1]) !== null) onMesh = Math.min(onMesh, z);
+    }
+    return onMesh < Infinity ? onMesh : lo;
   };
   const put = (stem: "GARAGE" | "DOOR", s0: number, s1: number, h: number) => {
     const z0 = bottom(s0, s1);
