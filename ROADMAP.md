@@ -80,10 +80,10 @@ What makes polishing cheap. First, because every landmark after it is quicker.
     3. ✅ **Surf Life Saving Club and the youth/community building** (two specs, 2 Nov; the angled blades squared off): the big white solar-roofed building east of the jetty. The skate park later.
     4. ✅ **The Fire Station bar** (spec, 2 Nov), in the old fire station on Queen St: small, on two layouts.
     5. ✅ **Real names on Queen St** (code; 35 named fronts, up from 13, 2 Nov): shop names from Overpass as well as the map tiles, which drop lower-ranked places, and from fronts set back in car parks; plus a short hand list for places OSM lacks (Alberta's, Burger Bones, Busselton Pavilion). Only 13 real names show now.
-    6. ⬜ **Busselton Central's Kent St and Prince St faces** (spec), with Reading Cinemas and Busselton Pavilion signs: on the Town loop.
-    7. ⬜ **Roadside pylon signs** for Busselton Motel, Paradise Motor Inn, McDonald's and Hungry Jack's on the Foreshore route (plain lettering, no logos).
-    8. ⬜ **Settlement Art Project bronze statues** round the courthouse precinct: a small Blender layer (a spec can't do figures).
-    9. ⬜ **Signal Park**, where the Sunday markets run: toilet block and shade, market stalls as an option.
+    6. ✅ **Busselton Central's Kent St and Prince St faces** (4 specs, 2 Nov; signs face one way only) (spec), with Reading Cinemas and Busselton Pavilion signs: on the Town loop.
+    7. ✅ **Roadside pylon signs** (4 specs, 2 Nov) for Busselton Motel, Paradise Motor Inn, McDonald's and Hungry Jack's on the Foreshore route (plain lettering, no logos).
+    8. ✅ **Settlement Art Project bronze statues** (Blender layer, 2 Nov; 3 of 6 positions are guesses) round the courthouse precinct: a small Blender layer (a spec can't do figures).
+    9. ✅ **Signal Park** (toilet block, 2 Nov; market stalls spec off by default), where the Sunday markets run: toilet block and shade, market stalls as an option.
     10. ⬜ **Origins Market** (spec), only if the map grows south.
   - ✅ the Kookaburra Caravan Park: already a spec, as Busselton Jetty Tourist Park (keep it light: the City plans to redevelop it). Dropped: the Barrel sculpture (not on the ground). Not yet: the Underwater Observatory's replacement (not confirmed built). Skipped: places too far east to see from the built streets.
   - private landmarks: listed in `routes/private/landmarks/` (photos of their street faces still needed)

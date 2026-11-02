@@ -1,0 +1,105 @@
+{
+ "note": "Paradise Motor Inn (6 Pries Ave) roadside sign on Albert St, at the corner of the motel's front lot by the rock garden, where the Landgate aerial (Oct 2026) shows a slim pole and a small box. Its real design isn't known (no recent street photos): drawn as a modest grey post about 4.5 m tall with a cabinet lettered PARADISE MOTOR INN and MOTEL. Plain lettering only, in neutral colours (no logo, no brand colours). Metres: x across the sign face as seen by the traffic it faces, y back from the face.",
+ "wallHeight": 4.4,
+ "setback": 3.0,
+ "road": {
+  "width": 12,
+  "verge": 1.5
+ },
+ "lawn": "#8d8a6a",
+ "sunFrom": [
+  0.5,
+  -0.7,
+  0.8
+ ],
+ "cameras": {
+  "street": {
+   "eye": [
+    -6.0,
+    -16.0,
+    1.6
+   ],
+   "look": [
+    0.0,
+    0.0,
+    2.64
+   ],
+   "lens": 30
+  },
+  "aerial": {
+   "eye": [
+    -10.0,
+    -14.0,
+    9.0
+   ],
+   "look": [
+    0.0,
+    0.0,
+    2.2
+   ],
+   "lens": 30
+  }
+ },
+ "walls": {
+  "kind": "render",
+  "colour": "#8c8f92"
+ },
+ "finishes": {
+  "cabinet": {
+   "kind": "render",
+   "colour": "#d6d6d2"
+  }
+ },
+ "trim": "#8c8f92",
+ "roof": {
+  "pitch": 5,
+  "colour": "#e6e4dc",
+  "eaves": 0.0
+ },
+ "blocks": [
+  {
+   "name": "post",
+   "x0": -0.2,
+   "x1": 0.2,
+   "y0": 0.0,
+   "y1": 0.4,
+   "roof": "none",
+   "wallHeight": 4.4
+  }
+ ],
+ "panels": [
+  {
+   "x0": -1.5,
+   "x1": 1.5,
+   "y0": -0.1,
+   "y1": 0.5,
+   "z0": 2.6,
+   "z1": 4.7,
+   "walls": "cabinet"
+  }
+ ],
+ "signs": [
+  {
+   "x0": -1.4,
+   "x1": 1.4,
+   "y": -0.13,
+   "z0": 3.65,
+   "z1": 4.45,
+   "text": "PARADISE MOTOR INN",
+   "colour": "#f1f1ed",
+   "ink": "#2a2c30"
+  },
+  {
+   "x0": -1.4,
+   "x1": 1.4,
+   "y": -0.13,
+   "z0": 2.85,
+   "z1": 3.4,
+   "text": "MOTEL",
+   "colour": "#f1f1ed",
+   "ink": "#2a2c30"
+  }
+ ],
+ "windows": [],
+ "trees": []
+}

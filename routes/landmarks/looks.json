@@ -252,6 +252,87 @@
       "specFile": "routes/landmarks/surf_club_east.json",
       "name": "Surf Life Saving Club and Youth building (east)",
       "facing": 171
+    },
+    {
+      "at": [
+        115.343622,
+        -33.650338
+      ],
+      "specFile": "routes/landmarks/busselton_central_pavilion.json",
+      "name": "Busselton Pavilion (Busselton Central)",
+      "facing": 346
+    },
+    {
+      "at": [
+        115.343917,
+        -33.650436
+      ],
+      "specFile": "routes/landmarks/busselton_central_cinema.json",
+      "name": "Reading Cinemas (Busselton Central)",
+      "facing": 346
+    },
+    {
+      "at": [
+        115.343222,
+        -33.650304
+      ],
+      "specFile": "routes/landmarks/busselton_central_kent.json",
+      "name": "Busselton Central (Kent St entry)",
+      "facing": 346
+    },
+    {
+      "at": [
+        115.343395,
+        -33.651244
+      ],
+      "specFile": "routes/landmarks/busselton_central_prince.json",
+      "name": "Busselton Central (Prince St entry)",
+      "facing": 166
+    },
+    {
+      "at": [
+        115.343838,
+        -33.65243
+      ],
+      "specFile": "routes/landmarks/pylon_mcdonalds.json",
+      "name": "McDonald's pylon (Albert St)",
+      "facing": 77
+    },
+    {
+      "at": [
+        115.343197,
+        -33.652601
+      ],
+      "specFile": "routes/landmarks/pylon_hungry_jacks.json",
+      "name": "Hungry Jack's pylon (Albert St)",
+      "facing": 77
+    },
+    {
+      "at": [
+        115.343968,
+        -33.65243
+      ],
+      "specFile": "routes/landmarks/pylon_paradise_motor_inn.json",
+      "name": "Paradise Motor Inn sign (Albert St)",
+      "facing": 77
+    },
+    {
+      "at": [
+        115.338744,
+        -33.65329
+      ],
+      "specFile": "routes/landmarks/pylon_busselton_motel.json",
+      "name": "Busselton Motel sign (Bussell Hwy)",
+      "facing": 117
+    },
+    {
+      "at": [
+        115.342142,
+        -33.64595
+      ],
+      "specFile": "routes/landmarks/signal_park.json",
+      "name": "Signal Park toilets",
+      "facing": 159
     }
   ]
 }

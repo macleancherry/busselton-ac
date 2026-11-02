@@ -1,0 +1,219 @@
+{
+ "note": "Signal Park toilet block, Busselton foreshore (west of Queen St, north of Marine Tce), from the Landgate aerial (Oct 2026) and the OSM toilets nodes (4159452194, 11799136648). A single-storey public toilet block, about 16 x 7 m, under a low pale Colorbond gable roof, with a recessed entry court in the south front and the doors facing the park. Wall finish is not confirmed from photos: drawn as pale rendered masonry with dark doors and high louvre strips. Front = the south-south-east side, to the oval. Metres: x along the block from its west end (bearing 69), y back from the front wall.",
+ "wallHeight": 2.9,
+ "setback": 10,
+ "road": {
+  "width": 7.0,
+  "verge": 3.0
+ },
+ "lawn": "#86934f",
+ "sunFrom": [
+  -0.4,
+  0.6,
+  1.0
+ ],
+ "cameras": {
+  "street": {
+   "eye": [
+    4,
+    -16,
+    1.7
+   ],
+   "look": [
+    9,
+    3,
+    2.0
+   ],
+   "lens": 26
+  },
+  "aerial": {
+   "eye": [
+    -12,
+    -26,
+    20
+   ],
+   "look": [
+    8,
+    3.5,
+    1
+   ],
+   "lens": 28
+  },
+  "corner": {
+   "eye": [
+    24,
+    -10,
+    1.7
+   ],
+   "look": [
+    9,
+    3,
+    2.0
+   ],
+   "lens": 26
+  }
+ },
+ "walls": {
+  "kind": "render",
+  "colour": "#d8cfb9"
+ },
+ "finishes": {
+  "recess": {
+   "kind": "render",
+   "colour": "#8d8a82"
+  },
+  "base": {
+   "kind": "render",
+   "colour": "#a49d8d"
+  },
+  "louvre": {
+   "kind": "render",
+   "colour": "#5d6166"
+  }
+ },
+ "trim": "#eeeeea",
+ "roof": {
+  "pitch": 12,
+  "colour": "#dcdfda",
+  "eaves": 0.45
+ },
+ "blocks": [
+  {
+   "name": "toilets",
+   "x0": 0.0,
+   "x1": 16.2,
+   "y0": 0.0,
+   "y1": 6.9,
+   "roof": "gable",
+   "wallHeight": 2.9,
+   "pitch": 12,
+   "eaves": 0.45
+  }
+ ],
+ "panels": [
+  {
+   "x0": 10.0,
+   "x1": 12.9,
+   "y0": -0.04,
+   "y1": 0.0,
+   "z0": 0.0,
+   "z1": 2.6,
+   "walls": "recess"
+  },
+  {
+   "x0": 0.0,
+   "x1": 16.2,
+   "y0": -0.03,
+   "y1": 0.0,
+   "z0": 0.0,
+   "z1": 0.35,
+   "walls": "base"
+  },
+  {
+   "x0": 1.0,
+   "x1": 9.2,
+   "y0": -0.05,
+   "y1": 0.0,
+   "z0": 2.25,
+   "z1": 2.6,
+   "walls": "louvre"
+  },
+  {
+   "x0": 13.6,
+   "x1": 15.4,
+   "y0": -0.05,
+   "y1": 0.0,
+   "z0": 2.25,
+   "z1": 2.6,
+   "walls": "louvre"
+  },
+  {
+   "x0": 1.0,
+   "x1": 15.2,
+   "y0": 6.9,
+   "y1": 6.95,
+   "z0": 2.25,
+   "z1": 2.6,
+   "walls": "louvre"
+  }
+ ],
+ "doors": [
+  {
+   "type": "front",
+   "x0": 10.35,
+   "x1": 11.3,
+   "y": -0.05,
+   "height": 2.1,
+   "z0": 0.0,
+   "colour": "#3b4046"
+  },
+  {
+   "type": "front",
+   "x0": 11.6,
+   "x1": 12.55,
+   "y": -0.05,
+   "height": 2.1,
+   "z0": 0.0,
+   "colour": "#3b4046"
+  },
+  {
+   "type": "front",
+   "x0": 2.2,
+   "x1": 3.2,
+   "y": -0.04,
+   "height": 2.1,
+   "z0": 0.0,
+   "colour": "#3b4046"
+  },
+  {
+   "type": "front",
+   "x0": 6.4,
+   "x1": 7.4,
+   "y": -0.04,
+   "height": 2.1,
+   "z0": 0.0,
+   "colour": "#3b4046"
+  },
+  {
+   "type": "front",
+   "x0": 14.0,
+   "x1": 15.0,
+   "y": -0.04,
+   "height": 2.1,
+   "z0": 0.0,
+   "colour": "#3b4046"
+  }
+ ],
+ "windows": [],
+ "paving": [
+  {
+   "x0": -0.5,
+   "y0": -2.2,
+   "x1": 16.7,
+   "y1": 0.0,
+   "colour": "#cfc9bb",
+   "kind": "concrete"
+  },
+  {
+   "x0": 10.0,
+   "y0": 0.0,
+   "x1": 12.9,
+   "y1": 2.4,
+   "colour": "#cfc9bb",
+   "kind": "concrete"
+  }
+ ],
+ "signs": [
+  {
+   "x0": 10.6,
+   "x1": 12.3,
+   "y": -0.12,
+   "z0": 2.3,
+   "z1": 2.62,
+   "text": "TOILETS",
+   "colour": "#2c3a46",
+   "ink": "#f4f4f0"
+  }
+ ],
+ "trees": []
+}

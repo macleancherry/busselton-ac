@@ -4,7 +4,7 @@
 #   scripts/blender/landmarks/build.sh <slug> [base.zip] [renders...]
 #
 #   <slug>      transition | sea_play | cape_leeuwin_lighthouse | cape_naturaliste_lighthouse |
-#               margaret_river_rotary_park | rocky_ridge_pergola | shelter_brewing
+#               margaret_river_rotary_park | rocky_ridge_pergola | shelter_brewing | settlement_art
 #               (scripts/blender/landmarks/<slug>.py)
 #   base.zip    the built track to model against (default: the slug's own, out/accepted/busselton.zip
 #               for the Busselton ones)
@@ -47,6 +47,10 @@ case $slug in
   # Clears the base's generic box and trees over the building and its beer garden; --layers brings the
   # neighbouring specs (Visitor Centre, The Goose, Hilton) in for the renders.
   shelter_brewing) at=115.34516,-33.64523; radius=90; replaces='[{"at":[115.345142,-33.645288],"radius":31}]'; base_flags=--layers ;;
+  # The six Settlement Art Project bronzes round the Queen St cultural precinct: small additions on the
+  # footpaths and forecourts, so it clears nothing; --layers brings the courthouse, ArtGeo, Saltwater and
+  # Weld Theatre specs in, whose paving sets the plinth heights.
+  settlement_art) at=115.34382,-33.64728; radius=70; replaces='[]'; base_flags=--layers ;;
   *) echo "unknown landmark $slug" >&2; exit 1 ;;
 esac
 

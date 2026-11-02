@@ -1,0 +1,165 @@
+{
+ "note": "Busselton Central's Prince St entry. A skin over the base's generic shopping-centre box, which already has a plain awning and shop verandah along Prince St: an entry portal standing just beyond that awning where the mall's north-south spine (the skylit strip in the aerial) meets Prince St, with BUSSELTON CENTRAL in plain lettering. From the Landgate aerial (Oct 2026); no street photos of this face were found, so the portal's look and the lettering are guesses. Metres: x left to right as seen from Prince St (west to east), y north from the box's Prince St wall.",
+ "wallHeight": 10.4,
+ "setback": 4.0,
+ "road": {
+  "width": 12,
+  "verge": 1.0
+ },
+ "lawn": "#9a8f80",
+ "sunFrom": [
+  -0.4,
+  0.7,
+  0.8
+ ],
+ "cameras": {
+  "street": {
+   "eye": [
+    -26.0,
+    -14.0,
+    1.7
+   ],
+   "look": [
+    -11.0,
+    0.0,
+    4.5
+   ],
+   "lens": 24
+  },
+  "aerial": {
+   "eye": [
+    -34.0,
+    -32.0,
+    22
+   ],
+   "look": [
+    -11.0,
+    2.0,
+    2
+   ],
+   "lens": 28
+  }
+ },
+ "walls": {
+  "kind": "render",
+  "colour": "#eeece6"
+ },
+ "finishes": {
+  "glass": {
+   "kind": "render",
+   "colour": "#2c3438"
+  },
+  "steel": {
+   "kind": "render",
+   "colour": "#2a2c2f"
+  },
+  "timber": {
+   "kind": "cladding",
+   "colour": "#a7774f"
+  }
+ },
+ "trim": "#e9e7e1",
+ "roof": {
+  "pitch": 5,
+  "colour": "#e6e4dc",
+  "eaves": 0.0
+ },
+ "blocks": [
+  {
+   "name": "pier_w",
+   "x0": -15.6,
+   "x1": -14.6,
+   "y0": -2.9,
+   "y1": 0.3,
+   "roof": "none"
+  },
+  {
+   "name": "pier_e",
+   "x0": -7.9,
+   "x1": -6.9,
+   "y0": -2.9,
+   "y1": 0.3,
+   "roof": "none"
+  }
+ ],
+ "panels": [
+  {
+   "x0": -15.65,
+   "x1": -6.85,
+   "y0": -2.98,
+   "y1": -2.3,
+   "z0": 4.4,
+   "z1": 10.4,
+   "walls": "main"
+  },
+  {
+   "x0": -14.6,
+   "x1": -7.9,
+   "y0": -2.9,
+   "y1": 0.0,
+   "z0": 4.1,
+   "z1": 4.4,
+   "walls": "timber"
+  },
+  {
+   "x0": -15.75,
+   "x1": -6.75,
+   "y0": -3.05,
+   "y1": -2.96,
+   "z0": 10.1,
+   "z1": 10.45,
+   "walls": "steel"
+  },
+  {
+   "x0": -14.6,
+   "x1": -7.9,
+   "y0": -0.22,
+   "y1": -0.15,
+   "z0": 0.0,
+   "z1": 4.1,
+   "walls": "glass"
+  },
+  {
+   "x0": -24.0,
+   "x1": -15.6,
+   "y0": -0.3,
+   "y1": -0.12,
+   "z0": 3.9,
+   "z1": 9.4,
+   "walls": "main"
+  },
+  {
+   "x0": -6.9,
+   "x1": 0.0,
+   "y0": -0.3,
+   "y1": -0.12,
+   "z0": 3.9,
+   "z1": 9.4,
+   "walls": "main"
+  }
+ ],
+ "doors": [
+  {
+   "type": "front",
+   "x0": -12.9,
+   "x1": -9.6,
+   "y": -0.26,
+   "height": 2.5,
+   "colour": "#3a3f44"
+  }
+ ],
+ "signs": [
+  {
+   "x0": -15.2,
+   "x1": -7.3,
+   "y": -3.06,
+   "z0": 6.6,
+   "z1": 8.4,
+   "text": "BUSSELTON CENTRAL",
+   "colour": "#eeece6",
+   "ink": "#2b2a2e"
+  }
+ ],
+ "windows": [],
+ "trees": []
+}

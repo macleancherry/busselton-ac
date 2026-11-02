@@ -1,0 +1,358 @@
+{
+ "note": "Busselton Central's Kent St entry and footpath canopy. A skin over the base's generic shopping-centre box: an entry portal where the mall's north-south spine (the skylit strip in the aerial) meets Kent St, with BUSSELTON CENTRAL in plain lettering, and the long white segmented canopy the aerial shows along the Kent St wall west of it (drawn as thin panels so the clear circle stays the size of the portal). From the Landgate aerial (Oct 2026); no street photos of this face were found, so the portal's look and the lettering are guesses. Metres: x left to right as seen from Kent St (east to west), y south from the box's Kent St wall.",
+ "wallHeight": 10.4,
+ "setback": 4.5,
+ "road": {
+  "width": 13,
+  "verge": 1.0
+ },
+ "lawn": "#9a8f80",
+ "sunFrom": [
+  0.5,
+  -0.7,
+  0.8
+ ],
+ "cameras": {
+  "street": {
+   "eye": [
+    20.0,
+    -15.0,
+    1.7
+   ],
+   "look": [
+    42.0,
+    2.0,
+    4.0
+   ],
+   "lens": 24
+  },
+  "aerial": {
+   "eye": [
+    10.0,
+    -38.0,
+    26
+   ],
+   "look": [
+    48.0,
+    4.0,
+    2
+   ],
+   "lens": 26
+  }
+ },
+ "walls": {
+  "kind": "render",
+  "colour": "#eeece6"
+ },
+ "finishes": {
+  "glass": {
+   "kind": "render",
+   "colour": "#2c3438"
+  },
+  "steel": {
+   "kind": "render",
+   "colour": "#2a2c2f"
+  },
+  "canopy": {
+   "kind": "render",
+   "colour": "#f4f3ef"
+  },
+  "post": {
+   "kind": "render",
+   "colour": "#55585b"
+  }
+ },
+ "trim": "#e9e7e1",
+ "roof": {
+  "pitch": 5,
+  "colour": "#e6e4dc",
+  "eaves": 0.0
+ },
+ "blocks": [
+  {
+   "name": "pier_e",
+   "x0": 30.6,
+   "x1": 31.6,
+   "y0": -2.8,
+   "y1": 0.3,
+   "roof": "none"
+  },
+  {
+   "name": "pier_w",
+   "x0": 38.4,
+   "x1": 39.4,
+   "y0": -2.8,
+   "y1": 0.3,
+   "roof": "none"
+  }
+ ],
+ "panels": [
+  {
+   "x0": 30.55,
+   "x1": 39.45,
+   "y0": -2.88,
+   "y1": -2.2,
+   "z0": 4.4,
+   "z1": 10.4,
+   "walls": "main"
+  },
+  {
+   "x0": 31.6,
+   "x1": 38.4,
+   "y0": -2.8,
+   "y1": 0.0,
+   "z0": 4.1,
+   "z1": 4.4,
+   "walls": "main"
+  },
+  {
+   "x0": 30.45,
+   "x1": 39.55,
+   "y0": -2.95,
+   "y1": -2.86,
+   "z0": 10.1,
+   "z1": 10.45,
+   "walls": "steel"
+  },
+  {
+   "x0": 31.6,
+   "x1": 38.4,
+   "y0": -0.22,
+   "y1": -0.15,
+   "z0": 0.0,
+   "z1": 4.1,
+   "walls": "glass"
+  },
+  {
+   "x0": 24.0,
+   "x1": 30.6,
+   "y0": -0.3,
+   "y1": -0.12,
+   "z0": 0.0,
+   "z1": 9.4,
+   "walls": "main"
+  },
+  {
+   "x0": 39.4,
+   "x1": 93.0,
+   "y0": -0.3,
+   "y1": -0.12,
+   "z0": 0.0,
+   "z1": 4.2,
+   "walls": "main"
+  },
+  {
+   "x0": 41.0,
+   "x1": 52.0,
+   "y0": -0.36,
+   "y1": -0.3,
+   "z0": 0.3,
+   "z1": 3.2,
+   "walls": "glass"
+  },
+  {
+   "x0": 56.0,
+   "x1": 70.0,
+   "y0": -0.36,
+   "y1": -0.3,
+   "z0": 0.3,
+   "z1": 3.2,
+   "walls": "glass"
+  },
+  {
+   "x0": 74.0,
+   "x1": 86.0,
+   "y0": -0.36,
+   "y1": -0.3,
+   "z0": 0.3,
+   "z1": 3.2,
+   "walls": "glass"
+  },
+  {
+   "x0": 39.45,
+   "x1": 45.35,
+   "y0": -2.6,
+   "y1": -0.3,
+   "z0": 3.55,
+   "z1": 3.75,
+   "walls": "canopy"
+  },
+  {
+   "x0": 45.45,
+   "x1": 51.35,
+   "y0": -2.6,
+   "y1": -0.3,
+   "z0": 3.55,
+   "z1": 3.75,
+   "walls": "canopy"
+  },
+  {
+   "x0": 51.45,
+   "x1": 57.35,
+   "y0": -2.6,
+   "y1": -0.3,
+   "z0": 3.55,
+   "z1": 3.75,
+   "walls": "canopy"
+  },
+  {
+   "x0": 57.45,
+   "x1": 63.35,
+   "y0": -2.6,
+   "y1": -0.3,
+   "z0": 3.55,
+   "z1": 3.75,
+   "walls": "canopy"
+  },
+  {
+   "x0": 63.45,
+   "x1": 69.35,
+   "y0": -2.6,
+   "y1": -0.3,
+   "z0": 3.55,
+   "z1": 3.75,
+   "walls": "canopy"
+  },
+  {
+   "x0": 69.45,
+   "x1": 75.35,
+   "y0": -2.6,
+   "y1": -0.3,
+   "z0": 3.55,
+   "z1": 3.75,
+   "walls": "canopy"
+  },
+  {
+   "x0": 75.45,
+   "x1": 81.35,
+   "y0": -2.6,
+   "y1": -0.3,
+   "z0": 3.55,
+   "z1": 3.75,
+   "walls": "canopy"
+  },
+  {
+   "x0": 81.45,
+   "x1": 87.35,
+   "y0": -2.6,
+   "y1": -0.3,
+   "z0": 3.55,
+   "z1": 3.75,
+   "walls": "canopy"
+  },
+  {
+   "x0": 87.45,
+   "x1": 92.95,
+   "y0": -2.6,
+   "y1": -0.3,
+   "z0": 3.55,
+   "z1": 3.75,
+   "walls": "canopy"
+  },
+  {
+   "x0": 45.34,
+   "x1": 45.46,
+   "y0": -2.5,
+   "y1": -2.38,
+   "z0": 0.0,
+   "z1": 3.55,
+   "walls": "post"
+  },
+  {
+   "x0": 51.34,
+   "x1": 51.46,
+   "y0": -2.5,
+   "y1": -2.38,
+   "z0": 0.0,
+   "z1": 3.55,
+   "walls": "post"
+  },
+  {
+   "x0": 57.34,
+   "x1": 57.46,
+   "y0": -2.5,
+   "y1": -2.38,
+   "z0": 0.0,
+   "z1": 3.55,
+   "walls": "post"
+  },
+  {
+   "x0": 63.34,
+   "x1": 63.46,
+   "y0": -2.5,
+   "y1": -2.38,
+   "z0": 0.0,
+   "z1": 3.55,
+   "walls": "post"
+  },
+  {
+   "x0": 69.34,
+   "x1": 69.46,
+   "y0": -2.5,
+   "y1": -2.38,
+   "z0": 0.0,
+   "z1": 3.55,
+   "walls": "post"
+  },
+  {
+   "x0": 75.34,
+   "x1": 75.46,
+   "y0": -2.5,
+   "y1": -2.38,
+   "z0": 0.0,
+   "z1": 3.55,
+   "walls": "post"
+  },
+  {
+   "x0": 81.34,
+   "x1": 81.46,
+   "y0": -2.5,
+   "y1": -2.38,
+   "z0": 0.0,
+   "z1": 3.55,
+   "walls": "post"
+  },
+  {
+   "x0": 87.34,
+   "x1": 87.46,
+   "y0": -2.5,
+   "y1": -2.38,
+   "z0": 0.0,
+   "z1": 3.55,
+   "walls": "post"
+  },
+  {
+   "x0": 93.34,
+   "x1": 93.46,
+   "y0": -2.5,
+   "y1": -2.38,
+   "z0": 0.0,
+   "z1": 3.55,
+   "walls": "post"
+  }
+ ],
+ "doors": [
+  {
+   "type": "front",
+   "x0": 33.4,
+   "x1": 36.6,
+   "y": -0.26,
+   "height": 2.5,
+   "colour": "#3a3f44"
+  }
+ ],
+ "signs": [
+  {
+   "x0": 31.0,
+   "x1": 39.0,
+   "y": -2.96,
+   "z0": 6.6,
+   "z1": 8.4,
+   "text": "BUSSELTON CENTRAL",
+   "colour": "#eeece6",
+   "ink": "#2b2a2e"
+  }
+ ],
+ "windows": [],
+ "trees": []
+}

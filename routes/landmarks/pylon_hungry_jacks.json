@@ -1,0 +1,95 @@
+{
+ "note": "Hungry Jack's roadside pylon on Albert St, in the planting strip at the front of the shared car park just west of the restaurant (Mapillary, Oct 2019: a tall slab square to the road, facing the westbound traffic; the Landgate aerial, Oct 2026, shows its top and long shadow there). Drawn as a grey slab about 7.5 m tall lettered HUNGRY JACK'S and DRIVE THRU. Plain lettering only, in neutral colours (no logo, no brand colours). Metres: x across the sign face as seen by the traffic it faces, y back from the face.",
+ "wallHeight": 7.5,
+ "setback": 3.0,
+ "road": {
+  "width": 12,
+  "verge": 1.5
+ },
+ "lawn": "#8d8a6a",
+ "sunFrom": [
+  0.5,
+  -0.7,
+  0.8
+ ],
+ "cameras": {
+  "street": {
+   "eye": [
+    -6.0,
+    -16.0,
+    1.6
+   ],
+   "look": [
+    0.0,
+    0.0,
+    4.5
+   ],
+   "lens": 30
+  },
+  "aerial": {
+   "eye": [
+    -10.0,
+    -14.0,
+    9.0
+   ],
+   "look": [
+    0.0,
+    0.0,
+    3.75
+   ],
+   "lens": 30
+  }
+ },
+ "walls": {
+  "kind": "render",
+  "colour": "#8c8f92"
+ },
+ "finishes": {
+  "cabinet": {
+   "kind": "render",
+   "colour": "#d6d6d2"
+  }
+ },
+ "trim": "#8c8f92",
+ "roof": {
+  "pitch": 5,
+  "colour": "#e6e4dc",
+  "eaves": 0.0
+ },
+ "blocks": [
+  {
+   "name": "slab",
+   "x0": -1.05,
+   "x1": 1.05,
+   "y0": 0.0,
+   "y1": 0.5,
+   "roof": "none",
+   "wallHeight": 7.5
+  }
+ ],
+ "panels": [],
+ "signs": [
+  {
+   "x0": -0.93,
+   "x1": 0.93,
+   "y": -0.02,
+   "z0": 6.05,
+   "z1": 7.15,
+   "text": "HUNGRY JACK'S",
+   "colour": "#f1f1ed",
+   "ink": "#2a2c30"
+  },
+  {
+   "x0": -0.93,
+   "x1": 0.93,
+   "y": -0.02,
+   "z0": 5.1,
+   "z1": 5.75,
+   "text": "DRIVE THRU",
+   "colour": "#f1f1ed",
+   "ink": "#2a2c30"
+  }
+ ],
+ "windows": [],
+ "trees": []
+}

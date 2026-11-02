@@ -1,0 +1,230 @@
+{
+ "note": "Reading Cinemas Busselton (five screens on level one, opened 2023-24) and the glazed stair atrium beside it, at the north-east corner of Busselton Central, facing the plaza off Kent St (and Mitchell Park to the east). A skin over the base's generic box, which already runs round this corner as a curved footprint. From the Landgate aerial (Oct 2026) and a June 2025 photo from the plaza (Cinema Treasures): a tall white rounded upper volume with READING CINEMAS in dark plain capitals and a grey ribbed band on top, a white wave canopy round its foot over timber-clad walls, and a dark glazed box with the stair (the grid roof in the aerial) between it and the Pavilion's alfresco. The curve is drawn as steps; the canopy as flat slabs. Plain lettering only. Metres: x left to right as seen from Kent St (east to west), y south from the box's Kent St wall line.",
+ "wallHeight": 12.6,
+ "setback": 6.0,
+ "road": {
+  "width": 13,
+  "verge": 6.0
+ },
+ "lawn": "#9a8f80",
+ "sunFrom": [
+  0.5,
+  -0.7,
+  0.8
+ ],
+ "cameras": {
+  "street": {
+   "eye": [
+    -50.0,
+    -14.0,
+    1.7
+   ],
+   "look": [
+    -26.0,
+    18.0,
+    7.0
+   ],
+   "lens": 24
+  },
+  "aerial": {
+   "eye": [
+    -68.0,
+    -30.0,
+    32
+   ],
+   "look": [
+    -24.0,
+    24.0,
+    3
+   ],
+   "lens": 28
+  }
+ },
+ "walls": {
+  "kind": "render",
+  "colour": "#eeece6"
+ },
+ "finishes": {
+  "glass": {
+   "kind": "render",
+   "colour": "#2c3438"
+  },
+  "timber": {
+   "kind": "cladding",
+   "colour": "#a7774f"
+  },
+  "ribbed": {
+   "kind": "corrugated",
+   "colour": "#9ea2a3"
+  },
+  "steel": {
+   "kind": "render",
+   "colour": "#2a2c2f"
+  }
+ },
+ "trim": "#e9e7e1",
+ "roof": {
+  "pitch": 5,
+  "colour": "#e6e4dc",
+  "eaves": 0.0
+ },
+ "blocks": [
+  {
+   "name": "cinema",
+   "x0": -37.4,
+   "x1": -24.0,
+   "y0": 15.2,
+   "y1": 44.0,
+   "roof": "none"
+  },
+  {
+   "name": "cinema_front",
+   "x0": -34.2,
+   "x1": -24.0,
+   "y0": 13.1,
+   "y1": 15.3,
+   "roof": "none"
+  },
+  {
+   "name": "cinema_corner",
+   "x0": -36.3,
+   "x1": -34.1,
+   "y0": 14.0,
+   "y1": 15.3,
+   "roof": "none"
+  },
+  {
+   "name": "atrium",
+   "x0": -24.0,
+   "x1": -10.5,
+   "y0": 14.4,
+   "y1": 29.5,
+   "roof": "none",
+   "wallHeight": 8.6,
+   "walls": "glass"
+  }
+ ],
+ "panels": [
+  {
+   "x0": -37.0,
+   "x1": -24.4,
+   "y0": 13.6,
+   "y1": 43.6,
+   "z0": 12.6,
+   "z1": 13.9,
+   "walls": "ribbed"
+  },
+  {
+   "x0": -34.0,
+   "x1": -24.2,
+   "y0": 13.0,
+   "y1": 13.1,
+   "z0": 0.0,
+   "z1": 4.2,
+   "walls": "timber"
+  },
+  {
+   "x0": -37.5,
+   "x1": -37.4,
+   "y0": 15.4,
+   "y1": 30.0,
+   "z0": 0.0,
+   "z1": 4.2,
+   "walls": "timber"
+  },
+  {
+   "x0": -32.6,
+   "x1": -26.0,
+   "y0": 12.94,
+   "y1": 13.0,
+   "z0": 0.4,
+   "z1": 3.4,
+   "walls": "glass"
+  },
+  {
+   "x0": -37.56,
+   "x1": -37.5,
+   "y0": 17.0,
+   "y1": 27.5,
+   "z0": 0.4,
+   "z1": 3.4,
+   "walls": "glass"
+  },
+  {
+   "x0": -33.6,
+   "x1": -27.0,
+   "y0": 13.0,
+   "y1": 13.1,
+   "z0": 5.6,
+   "z1": 7.6,
+   "walls": "glass"
+  },
+  {
+   "x0": -23.6,
+   "x1": -10.9,
+   "y0": 14.3,
+   "y1": 14.4,
+   "z0": 8.4,
+   "z1": 8.8,
+   "walls": "steel"
+  },
+  {
+   "x0": -17.3,
+   "x1": -17.1,
+   "y0": 14.28,
+   "y1": 14.4,
+   "z0": 0.0,
+   "z1": 8.6,
+   "walls": "steel"
+  }
+ ],
+ "doors": [
+  {
+   "type": "front",
+   "x0": -19.5,
+   "x1": -15.0,
+   "y": 14.35,
+   "height": 2.6,
+   "colour": "#25292c"
+  }
+ ],
+ "awnings": [
+  {
+   "x0": -37.4,
+   "x1": -23.5,
+   "y0": 10.6,
+   "y1": 13.1,
+   "z": 4.7,
+   "thickness": 0.35,
+   "colour": "#f3f2ee",
+   "posts": [
+    -36.8,
+    -30.2,
+    -24.1
+   ]
+  },
+  {
+   "x0": -39.9,
+   "x1": -37.4,
+   "y0": 10.6,
+   "y1": 29.0,
+   "z": 4.7,
+   "thickness": 0.35,
+   "colour": "#f3f2ee"
+  }
+ ],
+ "signs": [
+  {
+   "x0": -35.4,
+   "x1": -25.8,
+   "y": 13.0,
+   "z0": 8.6,
+   "z1": 10.6,
+   "text": "READING CINEMAS",
+   "colour": "#eeece6",
+   "ink": "#2b2a2e"
+  }
+ ],
+ "windows": [],
+ "trees": []
+}

@@ -1,0 +1,394 @@
+{
+ "note": "Busselton Pavilion (Parker Group gastropub, wine shop and distillery, opened 2024) at the north-east corner of Busselton Central, on Kent St. A skin over the base's generic shopping-centre box (its centroid is about 45 m away, so the box stays and this stands against its Kent St wall and in its alfresco notch). From the Landgate aerial (Oct 2026) and the venue's opening photo (Jan 2024): a square white vertical-board tower on the corner with BUSSELTON PAVILION in dark plain capitals over a black arched entry, the alfresco beside it (brick-red deck, market umbrellas, a black steel truss over it), a low white annex at the back of the alfresco, and the hall's white board front along Kent St. The arch is drawn square; colours of the umbrellas from the aerial. Plain lettering only. Metres: x left to right as seen from Kent St (east to west), y south from the box's Kent St wall.",
+ "wallHeight": 9.0,
+ "setback": 4.0,
+ "road": {
+  "width": 13,
+  "verge": 1.5
+ },
+ "lawn": "#9a8f80",
+ "sunFrom": [
+  0.5,
+  -0.7,
+  0.8
+ ],
+ "cameras": {
+  "street": {
+   "eye": [
+    -22.0,
+    -16.0,
+    1.7
+   ],
+   "look": [
+    0.0,
+    4.0,
+    4.5
+   ],
+   "lens": 24
+  },
+  "aerial": {
+   "eye": [
+    -34.0,
+    -36.0,
+    26
+   ],
+   "look": [
+    -2.0,
+    8.0,
+    2
+   ],
+   "lens": 28
+  }
+ },
+ "walls": {
+  "kind": "cladding",
+  "colour": "#eeece6"
+ },
+ "finishes": {
+  "render": {
+   "kind": "render",
+   "colour": "#eeece6"
+  },
+  "glass": {
+   "kind": "render",
+   "colour": "#2c3438"
+  },
+  "dark": {
+   "kind": "render",
+   "colour": "#17181a"
+  },
+  "steel": {
+   "kind": "render",
+   "colour": "#2a2c2f"
+  }
+ },
+ "trim": "#2f3033",
+ "roof": {
+  "pitch": 32,
+  "colour": "#e6e4dc",
+  "eaves": 0.1
+ },
+ "blocks": [
+  {
+   "name": "tower",
+   "x0": 0.4,
+   "x1": 6.0,
+   "y0": -1.8,
+   "y1": 4.0,
+   "roof": "gable",
+   "wallHeight": 11.0
+  },
+  {
+   "name": "annex",
+   "x0": -6.0,
+   "x1": -0.3,
+   "y0": 11.0,
+   "y1": 24.5,
+   "roof": "none",
+   "wallHeight": 4.4,
+   "walls": "render"
+  }
+ ],
+ "panels": [
+  {
+   "x0": 1.2,
+   "x1": 5.2,
+   "y0": -1.9,
+   "y1": -1.84,
+   "z0": 0.0,
+   "z1": 4.7,
+   "walls": "steel"
+  },
+  {
+   "x0": 1.6,
+   "x1": 4.8,
+   "y0": -1.95,
+   "y1": -1.89,
+   "z0": 0.0,
+   "z1": 4.2,
+   "walls": "dark"
+  },
+  {
+   "x0": 0.3,
+   "x1": 6.1,
+   "y0": -1.9,
+   "y1": -1.82,
+   "z0": 10.75,
+   "z1": 11.05,
+   "walls": "steel"
+  },
+  {
+   "x0": 6.0,
+   "x1": 30.0,
+   "y0": -0.4,
+   "y1": -0.15,
+   "z0": 0.0,
+   "z1": 9.4,
+   "walls": "main"
+  },
+  {
+   "x0": 7.2,
+   "x1": 12.2,
+   "y0": -0.47,
+   "y1": -0.4,
+   "z0": 0.4,
+   "z1": 3.4,
+   "walls": "glass"
+  },
+  {
+   "x0": 13.4,
+   "x1": 18.4,
+   "y0": -0.47,
+   "y1": -0.4,
+   "z0": 0.4,
+   "z1": 3.4,
+   "walls": "glass"
+  },
+  {
+   "x0": 19.6,
+   "x1": 24.6,
+   "y0": -0.47,
+   "y1": -0.4,
+   "z0": 0.4,
+   "z1": 3.4,
+   "walls": "glass"
+  },
+  {
+   "x0": 25.6,
+   "x1": 29.4,
+   "y0": -0.47,
+   "y1": -0.4,
+   "z0": 0.4,
+   "z1": 3.4,
+   "walls": "glass"
+  },
+  {
+   "x0": 6.0,
+   "x1": 30.0,
+   "y0": -0.48,
+   "y1": -0.38,
+   "z0": 9.0,
+   "z1": 9.4,
+   "walls": "steel"
+  },
+  {
+   "x0": -0.6,
+   "x1": -0.4,
+   "y0": 0.4,
+   "y1": 10.6,
+   "z0": 0.3,
+   "z1": 3.3,
+   "walls": "glass"
+  },
+  {
+   "x0": -0.42,
+   "x1": -0.2,
+   "y0": 0.0,
+   "y1": 27.0,
+   "z0": 0.0,
+   "z1": 9.4,
+   "walls": "main"
+  },
+  {
+   "x0": -5.4,
+   "x1": -0.9,
+   "y0": 10.9,
+   "y1": 10.96,
+   "z0": 0.4,
+   "z1": 3.0,
+   "walls": "glass"
+  }
+ ],
+ "doors": [
+  {
+   "type": "front",
+   "x0": 2.3,
+   "x1": 4.1,
+   "y": -1.97,
+   "height": 2.4,
+   "colour": "#3a3632"
+  },
+  {
+   "type": "front",
+   "x0": 14.6,
+   "x1": 16.4,
+   "y": -0.5,
+   "height": 2.4,
+   "colour": "#3a3632"
+  }
+ ],
+ "awnings": [
+  {
+   "x0": -13.0,
+   "x1": 0.4,
+   "y0": -0.2,
+   "y1": 0.25,
+   "z": 6.6,
+   "thickness": 0.45,
+   "colour": "#1f2124",
+   "posts": [
+    -12.8
+   ]
+  },
+  {
+   "x0": -13.0,
+   "x1": -0.3,
+   "y0": 13.6,
+   "y1": 14.05,
+   "z": 6.6,
+   "thickness": 0.45,
+   "colour": "#1f2124",
+   "posts": [
+    -12.8
+   ]
+  },
+  {
+   "x0": -13.0,
+   "x1": -12.55,
+   "y0": -0.2,
+   "y1": 14.05,
+   "z": 6.6,
+   "thickness": 0.45,
+   "colour": "#1f2124"
+  }
+ ],
+ "paving": [
+  {
+   "x0": -13.0,
+   "y0": -0.6,
+   "x1": -0.3,
+   "y1": 14.5,
+   "colour": "#8a5c46",
+   "kind": "brick"
+  }
+ ],
+ "hedges": [
+  {
+   "x0": -12.6,
+   "x1": -1.2,
+   "y0": -0.55,
+   "depth": 0.5,
+   "height": 0.8
+  }
+ ],
+ "umbrellas": [
+  {
+   "x": -4.7,
+   "y": 4.9,
+   "radius": 1.4,
+   "height": 2.7,
+   "colour": "#d98370"
+  },
+  {
+   "x": -7.9,
+   "y": 4.4,
+   "radius": 1.4,
+   "height": 2.7,
+   "colour": "#d98370"
+  },
+  {
+   "x": -10.6,
+   "y": 5.0,
+   "radius": 1.4,
+   "height": 2.7,
+   "colour": "#d98370"
+  },
+  {
+   "x": -11.0,
+   "y": 8.4,
+   "radius": 1.4,
+   "height": 2.7,
+   "colour": "#d98370"
+  },
+  {
+   "x": -2.0,
+   "y": 9.0,
+   "radius": 1.3,
+   "height": 2.6,
+   "colour": "#efe6cf"
+  },
+  {
+   "x": -4.4,
+   "y": 9.6,
+   "radius": 1.3,
+   "height": 2.6,
+   "colour": "#efe6cf"
+  },
+  {
+   "x": -8.0,
+   "y": 11.4,
+   "radius": 1.3,
+   "height": 2.6,
+   "colour": "#efe6cf"
+  }
+ ],
+ "tables": [
+  {
+   "x": -4.7,
+   "y": 4.9,
+   "length": 1.8,
+   "colour": "#8d6a4b"
+  },
+  {
+   "x": -7.9,
+   "y": 4.4,
+   "length": 1.8,
+   "colour": "#8d6a4b"
+  },
+  {
+   "x": -10.6,
+   "y": 5.0,
+   "length": 1.8,
+   "colour": "#8d6a4b"
+  },
+  {
+   "x": -11.0,
+   "y": 8.4,
+   "length": 1.8,
+   "turned": true,
+   "colour": "#8d6a4b"
+  },
+  {
+   "x": -2.0,
+   "y": 9.0,
+   "length": 1.6,
+   "colour": "#8d6a4b"
+  },
+  {
+   "x": -4.4,
+   "y": 9.6,
+   "length": 1.6,
+   "colour": "#8d6a4b"
+  },
+  {
+   "x": -8.0,
+   "y": 11.4,
+   "length": 1.6,
+   "colour": "#8d6a4b"
+  }
+ ],
+ "signs": [
+  {
+   "x0": 0.9,
+   "x1": 5.5,
+   "y": -1.99,
+   "z0": 7.75,
+   "z1": 8.85,
+   "text": "BUSSELTON",
+   "colour": "#eeece6",
+   "ink": "#2b2a2e"
+  },
+  {
+   "x0": 1.3,
+   "x1": 5.1,
+   "y": -1.99,
+   "z0": 6.55,
+   "z1": 7.65,
+   "text": "PAVILION",
+   "colour": "#eeece6",
+   "ink": "#2b2a2e"
+  }
+ ],
+ "windows": [],
+ "trees": []
+}

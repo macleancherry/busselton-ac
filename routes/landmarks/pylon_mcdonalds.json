@@ -1,0 +1,105 @@
+{
+ "note": "McDonald's roadside pylon on Albert St, in the kerb island at the east side of the restaurant's driveway (the tall pole and its long shadow in the Landgate aerial, Oct 2026; a Mapillary dashcam run, Oct 2019, shows the sign there, square to the road and facing the westbound traffic). Drawn as a grey post about 9 m tall with a cabinet lettered McDONALD'S and DRIVE THRU. Plain lettering only, in neutral colours (no logo, no brand colours). Metres: x across the sign face as seen by the traffic it faces, y back from the face.",
+ "wallHeight": 8.6,
+ "setback": 3.0,
+ "road": {
+  "width": 12,
+  "verge": 1.5
+ },
+ "lawn": "#8d8a6a",
+ "sunFrom": [
+  0.5,
+  -0.7,
+  0.8
+ ],
+ "cameras": {
+  "street": {
+   "eye": [
+    -6.0,
+    -16.0,
+    1.6
+   ],
+   "look": [
+    0.0,
+    0.0,
+    5.159999999999999
+   ],
+   "lens": 30
+  },
+  "aerial": {
+   "eye": [
+    -10.0,
+    -14.0,
+    9.0
+   ],
+   "look": [
+    0.0,
+    0.0,
+    4.3
+   ],
+   "lens": 30
+  }
+ },
+ "walls": {
+  "kind": "render",
+  "colour": "#8c8f92"
+ },
+ "finishes": {
+  "cabinet": {
+   "kind": "render",
+   "colour": "#d6d6d2"
+  }
+ },
+ "trim": "#8c8f92",
+ "roof": {
+  "pitch": 5,
+  "colour": "#e6e4dc",
+  "eaves": 0.0
+ },
+ "blocks": [
+  {
+   "name": "post",
+   "x0": -0.2,
+   "x1": 0.2,
+   "y0": 0.0,
+   "y1": 0.4,
+   "roof": "none",
+   "wallHeight": 8.6
+  }
+ ],
+ "panels": [
+  {
+   "x0": -1.6,
+   "x1": 1.6,
+   "y0": -0.1,
+   "y1": 0.5,
+   "z0": 6.2,
+   "z1": 8.9,
+   "walls": "cabinet"
+  }
+ ],
+ "signs": [
+  {
+   "x0": -1.5,
+   "x1": 1.5,
+   "y": -0.13,
+   "z0": 7.4,
+   "z1": 8.65,
+   "text": "McDONALD'S",
+   "colour": "#f1f1ed",
+   "ink": "#2a2c30"
+  },
+  {
+   "x0": -1.5,
+   "x1": 1.5,
+   "y": -0.13,
+   "z0": 6.45,
+   "z1": 7.15,
+   "text": "DRIVE THRU",
+   "colour": "#f1f1ed",
+   "ink": "#2a2c30"
+  }
+ ],
+ "windows": [],
+ "trees": []
+}

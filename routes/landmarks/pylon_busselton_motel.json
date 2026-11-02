@@ -1,0 +1,86 @@
+{
+ "note": "Busselton Motel (25-31 Bussell Hwy) sign, a low white board on two posts on the lawn at the motel's east corner, angled to the highway and the side street (Mapillary, Oct 2019; its top shows under the tree in the Landgate aerial, Oct 2026). Drawn about 2.7 m wide, its top 1.9 m up, lettered BUSSELTON MOTEL. Plain lettering only, in neutral colours (no logo, no brand colours). Metres: x across the sign face as seen by the traffic it faces, y back from the face.",
+ "wallHeight": 1.9,
+ "setback": 3.0,
+ "road": {
+  "width": 12,
+  "verge": 1.5
+ },
+ "lawn": "#8d8a6a",
+ "sunFrom": [
+  0.5,
+  -0.7,
+  0.8
+ ],
+ "cameras": {
+  "street": {
+   "eye": [
+    -6.0,
+    -16.0,
+    1.6
+   ],
+   "look": [
+    0.0,
+    0.0,
+    1.2
+   ],
+   "lens": 30
+  },
+  "aerial": {
+   "eye": [
+    -10.0,
+    -14.0,
+    9.0
+   ],
+   "look": [
+    0.0,
+    0.0,
+    0.95
+   ],
+   "lens": 30
+  }
+ },
+ "walls": {
+  "kind": "render",
+  "colour": "#8c8f92"
+ },
+ "finishes": {
+  "cabinet": {
+   "kind": "render",
+   "colour": "#d6d6d2"
+  }
+ },
+ "trim": "#8c8f92",
+ "roof": {
+  "pitch": 5,
+  "colour": "#e6e4dc",
+  "eaves": 0.0
+ },
+ "blocks": [
+  {
+   "name": "plinth",
+   "x0": -1.1500000000000001,
+   "x1": 1.1500000000000001,
+   "y0": 0.0,
+   "y1": 0.3,
+   "roof": "none",
+   "wallHeight": 0.35
+  }
+ ],
+ "panels": [],
+ "signs": [
+  {
+   "x0": -1.35,
+   "x1": 1.35,
+   "y": -0.04,
+   "z0": 0.95,
+   "z1": 1.9,
+   "text": "BUSSELTON MOTEL",
+   "colour": "#f1f1ed",
+   "ink": "#2a2c30",
+   "posts": true
+  }
+ ],
+ "windows": [],
+ "trees": []
+}
