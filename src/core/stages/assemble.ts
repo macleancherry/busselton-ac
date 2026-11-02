@@ -25,6 +25,7 @@ import type { Rings } from "./rings";
 import { trackObjects } from "./routePlan";
 import type { RoutePlan } from "./routePlan";
 import type { Streets } from "./streets";
+import { circuitNodes } from "./circuit";
 
 export interface AssembleInput {
   rp: RoutePlan; g: Ground; st: Streets; img: Imagery; rm: RoadSurfaces; mk: Marks; rn: Rings; gm: GroundMeshes; sc: Scenery; hs: Houses;
@@ -38,6 +39,8 @@ export function assemble(ctx: BuildContext, reg: Registry, a: AssembleInput): Kn
   const group = (name: string, children: Kn5Node[]): Kn5GroupNode => ({ kind: "node", name, transform: IDENTITY, children });
   const railsClear = keepOffRoute(sc.rails.rails, onRoad);
   const piers = g.piers;
+  // Busselton fork: a circuit's kerbs and grid paint (registers their materials first).
+  const circuit = circuitNodes(ctx, reg, rp, st, g);
   return {
     textures: reg.textures,
     materials: reg.materials,
@@ -49,7 +52,7 @@ export function assemble(ctx: BuildContext, reg: Registry, a: AssembleInput): Kn
         group("FURNITURE", sc.furniture),
         group("WIRES", sc.utilities.wires),
         group("ROUNDABOUTS", [...softenKerbFaces(gm.ringsClear.nodes), ...sc.islandTrees, ...sc.ringWalls]),
-        group("MARKINGS", mk.markings),
+        group("MARKINGS", [...mk.markings, ...circuit]),
         group("VERGE", rm.roadMeshes.verge),
         // Kerb faces lean their normals up so the AO bake doesn't blacken them (kerbAo.ts).
         group("KERBS", softenKerbFaces(gm.kerbsClear.nodes)),
@@ -82,7 +85,7 @@ export function assemble(ctx: BuildContext, reg: Registry, a: AssembleInput): Kn
       ] : []),
       group("WALLS", [...gm.walls, ...sc.trunks, ...(hs.houseTrees.length ? treeTrunks(hs.houseTrees, ground) : [])]),
       // A layout's dummies go in their own kn5 (layouts.ts).
-      ...(opts.layout ? [] : trackObjects(rp.plan, opts, st.gridAvoid)),
+      ...(opts.layout ? [] : trackObjects(rp.plan, opts, st.gridAvoid, { toLocal: ctx.toLocal, groundAt: g.terrainH })),
     ]),
   };
 }

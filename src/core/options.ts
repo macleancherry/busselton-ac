@@ -11,6 +11,7 @@
 // means (several are "on unless false").
 
 import type { ChallengesOption } from "./challenges";
+import type { CircuitKerbsOption } from "./circuitKerbs";
 import type { CourseMarksOption } from "./courseMarks";
 import type { LngLat } from "./geo";
 
@@ -36,6 +37,16 @@ export interface BuildOptions {
   /** Road crown (0.02 = 2%). */
   crown: number;
   pitCount: number;
+  /**
+   * Busselton fork: the front (pole) grid box, [lng, lat], on the road before the start line; the
+   * rest of the grid goes back from it. Absent = the nearest clear straight (gridSlots.ts).
+   */
+  gridAt?: LngLat;
+  /**
+   * Busselton fork: hand-placed pit boxes, [lng, lat, heading in degrees clockwise from north], for
+   * AC_PIT_0.. in order; boxes past the list stay on the grid's spots. Absent = the grid's spots.
+   */
+  pits?: [number, number, number][];
   /** Road before the start, m. */
   runUp: number;
   /** Road after the finish, m. */
@@ -147,6 +158,10 @@ export interface BuildOptions {
   markings: boolean;
   /** A circuit (OSM highway=raceway): edge lines and start/finish only, no dividing line, RRPMs or photo-read lines. Off when absent; set from the route's raceway ways. */
   raceway?: boolean;
+  /** Busselton fork: red-white kerbs on the inside and the exit of a circuit's corners (circuitKerbs.ts); on for raceway builds unless false. */
+  circuitKerbs?: CircuitKerbsOption;
+  /** Busselton fork: a circuit's start line and numbered grid boxes (circuitKerbs.ts); on for raceway builds without courseMarks unless false. */
+  gridPaint?: boolean;
   kerbs: boolean;
   /** Kerbside bays and bike lanes; off when absent (needs markings). */
   kerbside?: boolean;
@@ -203,6 +218,7 @@ export const OPTIONAL_OPTION_KEYS: readonly (keyof BuildOptions)[] = Object.free
   "jettyTrain", "swimJetties", "jettyKinds", "trackSounds", "poleClear", "raceway", "treeMips", "shoreClear",
   "kerbside", "laneBayClear", "parkedBays", "padClear", "trafficLights", "shopNamesOverpass",
   "aiKeepLeft", "aiRings", "streetsValid", "challenges", "timeTrialSectors", "driftZones", "courseMarks",
+  "gridAt", "pits", "circuitKerbs", "gridPaint",
 ] as const);
 
 type RequiredFields<T> = { [K in keyof T as undefined extends T[K] ? never : K]: T[K] };

@@ -94,18 +94,21 @@ function gridFrontAhead(plan: RoadPlan, n: number, line: number, avoid: GridAvoi
 /**
  * A slot's place: metres along the road and across it (left of the centreline). On a town street
  * (keepLeft, or under 8 m wide) single file in the AI line's lane, staggered half a metre either
- * side of it where the lane has room; on a wide circuit without keep-left, the usual two columns.
+ * side of it where the lane has room; on a wide circuit without keep-left, the usual two columns
+ * (`stagger`: the second column half a row back, as a circuit's grid is painted).
  */
-export function gridSlot(k: number, front: number, width: number, laneOffset: number, single: boolean): { s: number; t: number } {
+export function gridSlot(k: number, front: number, width: number, laneOffset: number, single: boolean, stagger = false): { s: number; t: number } {
   if (!single) {
     const row = Math.floor(k / 2);
-    return { s: front - row * GRID_GAP, t: (k % 2 === 0 ? 1 : -1) * width / 4 };
+    // Busselton fork: a circuit's grid is staggered, the second column half a row back.
+    const back = stagger && k % 2 === 1 ? GRID_GAP / 2 : 0;
+    return { s: front - row * GRID_GAP - back, t: (k % 2 === 0 ? 1 : -1) * width / 4 };
   }
   // Room in the lane either side of a 1.9 m car, kept half a metre from the lane's edges.
   const lane = laneOffset > 0 ? width / 2 : width;
   const room = Math.max(0, (lane - 1.9) / 2 - 0.5);
-  const stagger = Math.min(0.5, room) * (k % 2 === 0 ? 1 : -1);
-  return { s: front - k * GRID_GAP, t: laneOffset + stagger };
+  const sway = Math.min(0.5, room) * (k % 2 === 0 ? 1 : -1);
+  return { s: front - k * GRID_GAP, t: laneOffset + sway };
 }
 
 /**

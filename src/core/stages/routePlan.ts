@@ -2,7 +2,7 @@
 // point-to-point road, the planned road and its timed stretch; and the spawn points and timing
 // gates (trackObjects), which only need the plan.
 
-import type { Vec2 } from "../geo";
+import type { LngLat, Vec2 } from "../geo";
 import { frameTransform, type Kn5GroupNode } from "../kn5";
 import { toAc } from "../mesh";
 import type { BuildOptions } from "../options";
@@ -107,33 +107,78 @@ export function along(plan: RoadPlan, s: number, t: number, lift: number, crown:
 const dummy = (name: string, transform: number[]): Kn5GroupNode => ({ kind: "node", name, transform, children: [] });
 
 /**
+ * Busselton fork: what the hand-placed spots (options gridAt and pits) need: the projection, and
+ * for a pit box off the road, the ground under it.
+ */
+export interface FixedSpots {
+  toLocal: (p: LngLat) => Vec2;
+  /** Ground height at a local point; null where unknown (the nearest road sample's is used). */
+  groundAt?: (x: number, y: number) => number | null;
+}
+
+/** How far a gridAt point may be from the road's centreline, m. */
+export const GRID_AT_REACH = 30;
+
+/** The sample nearest `p` (local metres) within `reach`; -1 when none is. */
+export function nearestSample(plan: RoadPlan, p: Vec2, reach = Infinity): number {
+  let best = -1, bestD = reach;
+  plan.samples.forEach((smp, i) => {
+    const d = Math.hypot(smp.pos[0] - p[0], smp.pos[1] - p[1]);
+    if (d <= bestD) { bestD = d; best = i; }
+  });
+  return best;
+}
+
+/**
  * Spawn points and timing gates. The grid (and the pit boxes, the same spots) on the nearest
  * straight before the start line clear of roundabouts and `avoid`'s junctions (gridSlots.ts),
- * single file in the AI line's lane on town streets or when keeping left.
+ * single file in the AI line's lane on town streets or when keeping left; two columns on a wide
+ * road, staggered on a circuit (raceway). Busselton fork: with `fixed`, the option gridAt puts
+ * the front of the grid at a real grid box, and pits puts AC_PIT_n in real pit bays.
  */
-export function trackObjects(plan: RoadPlan, opts: BuildOptions, avoid: GridAvoid = {}): Kn5GroupNode[] {
+export function trackObjects(plan: RoadPlan, opts: BuildOptions, avoid: GridAvoid = {}, fixed?: FixedSpots): Kn5GroupNode[] {
   const out: Kn5GroupNode[] = [];
   const width = plan.samples[0].width;
   const rows = Math.ceil(opts.pitCount / 2);
   const offsets = opts.aiKeepLeft ? keepLeftOffsets(plan) : null;
+  const stagger = !!opts.raceway;
+  const gridAtI = opts.gridAt && fixed ? nearestSample(plan, fixed.toLocal(opts.gridAt), GRID_AT_REACH) : -1;
   const fronts = new Map<number, number>();
+  const frontFor = (lineS: number, n: number) => {
+    if (gridAtI >= 0) {
+      const s = plan.samples[gridAtI].s;
+      // On a loop the grid is before the line: a lap back when the box is past it.
+      return plan.closed && s > lineS ? s - plan.length : s;
+    }
+    return gridFront(plan, n, lineS, avoid) ?? lineS - GRID_GAP;
+  };
   const slot = (k: number, lineS: number) => {
     const single = !!offsets || along(plan, lineS - 8, 0, 0, 0).sample.width < 8;
-    if (!fronts.has(lineS)) fronts.set(lineS, gridFront(plan, single ? opts.pitCount : rows, lineS, avoid) ?? lineS - GRID_GAP);
+    if (!fronts.has(lineS)) fronts.set(lineS, frontFor(lineS, single ? opts.pitCount : rows));
     const front = fronts.get(lineS)!;
     const at = along(plan, front - (single ? k : Math.floor(k / 2)) * GRID_GAP, 0, 0, 0).sample;
     const off = offsets ? offsets[plan.samples.indexOf(at)] ?? 0 : 0;
-    return gridSlot(k, front, single ? at.width : width, off, single);
+    return gridSlot(k, front, single ? at.width : width, off, single, stagger);
   };
   const place = (name: string, s: number, t: number, lift: number) => {
     const p = along(plan, s, t, lift, opts.crown);
     out.push(dummy(name, frameTransform(p.pos, p.fwd)));
   };
+  const pitBay = (k: number): boolean => {
+    const bay = fixed && opts.pits?.[k];
+    if (!bay) return false;
+    const [x, y] = fixed.toLocal([bay[0], bay[1]]);
+    const near = plan.samples[Math.max(0, nearestSample(plan, [x, y]))];
+    const h = fixed.groundAt?.(x, y) ?? near.h;
+    const r = (bay[2] * Math.PI) / 180;
+    out.push(dummy(`AC_PIT_${k}`, frameTransform(toAc(x, y, h + 0.5), [Math.sin(r), 0, -Math.cos(r)])));
+    return true;
+  };
   const grid = (lineS: number) => {
     for (let k = 0; k < opts.pitCount; k++) {
       const g = slot(k, lineS);
       place(`AC_START_${k}`, g.s, g.t, 0.5);
-      place(`AC_PIT_${k}`, g.s, g.t, 0.5);
+      if (!pitBay(k)) place(`AC_PIT_${k}`, g.s, g.t, 0.5);
     }
   };
   const samples = plan.samples;
