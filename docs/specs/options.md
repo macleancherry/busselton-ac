@@ -1,6 +1,6 @@
 # Spec: build options (`src/core/options.ts`)
 
-Status: spec for a clean rewrite ("Owning the code", ROADMAP.md). Write the new module from this page, without the old file open. Tests are written fresh from "Tests to write". The file is on `UPSTREAM-FILES.txt`.
+Status: rewritten from this spec on 31 Oct; `src/core/options.ts` is off `UPSTREAM-FILES.txt`. Kept as the reference for every option. Options added since are in the tables, marked *(added 31 Oct–2 Nov)*; the `file:line` readers in `track.ts` predate its split into `src/core/stages/` (track.ts is now a 7-line entry), so grep the option name instead.
 
 ## What the module is for
 
@@ -39,7 +39,7 @@ Layouts: `layouts.ts` builds each extra layout with `withDefaults({ ...route.bui
 
 ## The options (exact)
 
-85 fields. "Default" is `DEFAULT_OPTIONS`; "—" means optional with no default. UI = control in `index.html` read by `readOptions()` (default in brackets). Presets: C = country, T = town (`presets.mjs`; `opt` = via the preset's UI `options`). Readers are `file:line` (src/core unless a path is given), from grep on 31 Oct 2026; lines will drift, the files won't.
+91 fields on 2 Nov (50 required, 41 optional). "Default" is `DEFAULT_OPTIONS`; "—" means optional with no default. UI = control in `index.html` read by `readOptions()` (default in brackets). Presets: C = country, T = town (`presets.mjs`; `opt` = via the preset's UI `options`). Readers are `file:line` (src/core unless a path is given), from grep on 31 Oct 2026; lines will drift, the files won't.
 
 ### Road shape and size
 
@@ -64,6 +64,7 @@ Layouts: `layouts.ts` builds each extra layout with `withDefaults({ ...route.bui
 | `origin` | `[lng, lat]` | — | route `build.origin` (every route) | centre of the route's bounding box | track.ts:451 |
 | `area` | `[lng, lat][]` or `[lng, lat][][]` | — | route `build.area` | no area build | track.ts:458; services/pipeline.ts:61 |
 | `layout` | string | — | set by build-track.mjs from route `layout.id` (default `"main"`) when `layouts` exist | single-layout track | track.ts:1840, 2101 |
+| `layoutDrives` | `{ coords: [lng, lat][]; raceway?: boolean }[]` | — | set by build-track.mjs: other layouts' drives along OSM ways *(added 31 Oct)* | none | layoutDrives.ts; stages |
 | `unsealed` | boolean | — | route `build.unsealed` | off (OSM decides) | track.ts:892, 893 |
 | `gravelRoads` | boolean | — | | **on** unless `false` | track.ts:891 |
 | `networkCore` | boolean | — | | off unless `true` | track.ts:962, 2097; forced `true` by scripts/network/phase1.ts:39 |
@@ -88,6 +89,7 @@ Layouts: `layouts.ts` builds each extra layout with `withDefaults({ ...route.bui
 | `horizonZoom` | number | `16` | | | track.ts:681 |
 | `sea` | boolean | `true` | | | track.ts:512, 513, 521; services/pipeline.ts:88, 107 (`!== false`) |
 | `photoSea` | boolean | — | | **on** unless `false` (and only with sea in view) | track.ts:634 |
+| `beachDetail` | boolean | — | | **on** unless `false` (only with photoSea): white dry sand, sand grain, wet sand strip, foam line *(added 2 Nov)* | beachDetail.ts; stages/imagery.ts, assemble.ts |
 | `groundDetail` | boolean | `true` | | | **never read** (see "Could be deleted") |
 | `detailShaders` | boolean | `true` | `#detailShaders` [checked] | | track.ts:585, 604, 615, 723, 749, 833, 873, 906 |
 | `zones` | boolean | — | C `true` | off | track.ts:526 |
@@ -101,6 +103,8 @@ Layouts: `layouts.ts` builds each extra layout with `withDefaults({ ...route.bui
 | `trees` | number: 0 off, 1 normal, 2 dense | `1` | `#trees` 0/1/2 [1]; forced 0 when `#imagery` is off | | track.ts:735, 739, 1339 |
 | `maxTrees` | number | `12000` | | | track.ts:1299, 1303 |
 | `cspTrees` | boolean | — | route `build.cspTrees` | off | track.ts:527, 1292, 1306, 1812, 1985, 2067 |
+| `treeMips` | boolean | — | | **on** unless `false`: tree cards from trees.dds with its own mips *(added 31 Oct)* | treeAtlasMips.ts |
+| `shoreClear` | boolean | — | | **on** unless `false`: no trees on water, wetland, sand, groynes, jetties or the shore strip; ships extension/shore_mask.png *(added 31 Oct)* | shoreClear.ts |
 | `buildings` | boolean | `true` | `#buildings` ≠ "off" [all] | | track.ts:692, 736, 781, 786, 1695, 1791 |
 | `detectBuildings` | boolean | `true` | `#buildings` = "all" [all] | | track.ts:692, 736, 786 |
 | `buildingRadius` | number, m | `250` | | | track.ts:810; services/pipeline.ts:77 |
@@ -129,6 +133,7 @@ Layouts: `layouts.ts` builds each extra layout with `withDefaults({ ...route.bui
 | --- | --- | --- | --- | --- | --- |
 | `roadSurface` | `"auto" \| "asphalt" \| "chipseal" \| "photo"` | `"auto"` | `#surface` [auto] | | track.ts:859, 923, 1117 |
 | `markings` | boolean | `true` | `#markings` [checked] | | track.ts:1147, 1175, 1223, 1229, 1235 |
+| `raceway` | boolean | — | set by main.ts when every way the route follows is OSM `highway=raceway`; route `build.raceway` *(added 31 Oct)* | off: edge lines and start/finish only when on, no centre line, RRPMs or photo-read lines | markings, paint lines |
 | `kerbs` | boolean | `true` | `#kerbs` [checked] | | track.ts:978, 1087, 1103 |
 | `kerbside` | boolean | — | T `true` | off (and needs `markings`) | track.ts:1235 |
 | `laneBayClear` | boolean | — | | **on** unless `false` (only with kerbside bays) | track.ts:1240 |
@@ -137,6 +142,7 @@ Layouts: `layouts.ts` builds each extra layout with `withDefaults({ ...route.bui
 | `parkedBays` | boolean | — | | **on** unless `false` | track.ts:1714 |
 | `padClear` | boolean | — | | **on** unless `false` | track.ts:1941 |
 | `trafficLights` | boolean | — | | **on** unless `false` | track.ts:1427; services/pipeline.ts:76 (signals query) |
+| `shopNamesOverpass` | boolean | — | | **on** unless `false`: shop, cafe, pub and hotel names from their own Overpass query, for shop signs *(added 2 Nov)* | services/osm.ts, pipeline.ts; shops.ts |
 
 ### AI, traffic, game files
 
@@ -151,6 +157,7 @@ Layouts: `layouts.ts` builds each extra layout with `withDefaults({ ...route.bui
 | `challenges` | `ChallengesOption` (from `./challenges`) | — | route `build.challenges` | generated checkpoints | challengeFiles.ts:110 |
 | `timeTrialSectors` | number | — | | 3 (clamped 1..8 in timeTrial.ts) | challengeFiles.ts:112; layouts.ts:402 |
 | `driftZones` | boolean | — | | **on** unless `false` | challengeFiles.ts:116 |
+| `courseMarks` | `boolean \| { barriers?, chevrons?, arrows?, start?, solid? }` (`CourseMarksOption`, courseMarks.ts) | — | route `build.courseMarks`; a layout's own `courseMarks` overrides *(added 2 Nov)* | off. Laid into each race layout's kn5 after the build by build-track.mjs, never a spawns layout; marked layouts ship without traffic. Each part on unless false, `solid` off unless true | courseMarks.ts; scripts/headless/build-track.mjs |
 
 Not BuildOptions readers despite matching names (don't be misled when grepping): `cspConfig.ts` (`CspOptions.sea/trees/photoSea/jettyTrain`), `timeTrial.ts` (`{ name, sectors }`), `acFiles.ts` `uiTrackJson` (`{ traffic, ... }`, fed from `opts.traffic`), `landmarkLayer.ts` (`{ detailShaders, drawSigns }`), `network/dress.ts` and `network/phase1.ts` (their own `vergeWidth`/`markings` fields), `network/heights.ts` (`crown`), `cruise.ts` (`landmarks`).
 
@@ -197,3 +204,9 @@ Routes on 31 Oct 2026 (routes/ and routes/private/) set these `build` fields: or
 - `DEFAULT_OPTIONS` is frozen; `withDefaults` copies `noTrace` and skips `undefined` values (Bugs 4).
 - Added `OPTIONAL_OPTION_KEYS` and `unknownOptionKeys(obj)` (Bugs 6); build-track.mjs doesn't call it yet.
 - Still open: pipeline's duplicated fallbacks (Bugs 3), phase1.ts namespaces (Bugs 5).
+
+## Since the rewrite (31 Oct to 2 Nov)
+
+- Added: `layoutDrives`, `raceway`, `treeMips`, `shoreClear`, `swimJetties`, `jettyKinds`, `aiRings` (31 Oct); `shopNamesOverpass`, `courseMarks`, `beachDetail` (2 Nov). All optional, no defaults, listed in `OPTIONAL_OPTION_KEYS`.
+- Route keys outside BuildOptions that feed the build: `shopNames` (hand-listed shop name files), `looks`, `layers`, `layout`/`layouts`, `ways`, `preset`.
+- `networkCore` is still off by default: phase 3 passes every check on Busselton (docs/specs/road-network.md), a trial waits on Mac's drive.

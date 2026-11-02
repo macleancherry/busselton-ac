@@ -79,7 +79,7 @@ USE_GROUND = 0                ; our terrain is real geometry
 BRIGHTNESS = 1.02
 GAMMA = 0.92
 OPACITY = 0.97
-; our tree sprites / hedges / shrubs (material names from track.ts)
+; our tree sprites / hedges / shrubs (material names from the build)
 BAKE_AS_TREES = material:trees, material:shrubs, shader:ksTree?
 BAKE_AS_GRASS = shader:ksGrass?
 TREES_LIGHT_PASS_CHANCE = 0.9
@@ -255,6 +255,8 @@ UseRecommendedTextures = 1
 ```
 (Geographe Bay is calm: SEA rather than OCEAN. Needs the `[INCLUDE] common/materials_track.ini` we already have.)
 
+Now (`photoSea`, 31 Oct): the water surface is partly transparent (`UseAlphaFromDiffuse`, `DepthAware`) over a photo layer of the bay 0.4 m down, so the shallows, sand bars and weed show through CSP's reflections and waves; `beachDetail` (2 Nov) adds the wet sand strip and foam line, kept out of GrassFX and the AO bake. Details in `src/core/photoSea.ts`, `src/core/beachDetail.ts` and docs/specs/cspConfig.md. **[to check in game]**
+
 ### Tiling fix on terrain detail (free, ksMultilayer and MultiMap)
 ```ini
 [SHADER_REPLACEMENT_...]
@@ -420,7 +422,7 @@ The track can't set these, so Mac sets them once on the rig and the workstation:
 ---
 
 ## To-do list for the build (suggested order)
-1. `surfaces.ini` `[WEATHER_FX]` LATITUDE/LONGITUDE/TIMEZONE_ID=Australia/Perth per layout.
-2. Ship `baked_shadow_params.ini` in the track folder; add `scripts/windows/bake-vao.ps1` (above); bake every `models_<id>.ini` after install; check `.vao-patch` files appear.
-3. ext_config: WA_DRY condition + `seasonAutumn` MATERIAL_ADJUSTMENT; `[BOUNCED_LIGHT]`; `[Material_Water] Type = SEA`; tiling fix; `[BASIC] SUPPORTS_WIND`; `[PURE]`.
-4. Verify puddles on our road shader in game (Objects Inspector); move roads to the MultiMap/detail path if plain ksPerPixel doesn't puddle.
+1. ✅ `surfaces.ini` `[WEATHER_FX]` LATITUDE/LONGITUDE/TIMEZONE_ID=Australia/Perth per layout.
+2. ✅ Ship `baked_shadow_params.ini` in the track folder; `scripts/windows/bake-vao.ps1` bakes every `models_<id>.ini` after install.
+3. ✅ ext_config: WA_DRY condition + `seasonAutumn` MATERIAL_ADJUSTMENT; `[BOUNCED_LIGHT]`; `[Material_Water] Type = SEA`; tiling fix; `[BASIC] SUPPORTS_WIND`; `[PURE]`.
+4. ⬜ Verify puddles on our road shader in game (Objects Inspector); move roads to the MultiMap/detail path if plain ksPerPixel doesn't puddle.
