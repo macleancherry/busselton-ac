@@ -87,6 +87,8 @@ export const SET_BACK_MAX = 45;
 /** Wall sign height, and the longest a wall sign gets, metres. */
 const WALL_SIGN_H = 0.7;
 const WALL_SIGN_MAX = 12;
+/** How far a wall sign's face stands proud of the wall, metres (its edges go back to the wall). */
+const WALL_SIGN_PROUD = 0.08;
 
 const nameKey = (s: string) => s.toLowerCase().replace(/^the\s+/, "").replace(/[^a-z0-9]/g, "");
 
@@ -384,18 +386,37 @@ export function buildShopfronts(fronts: Shopfront[], ground: HeightFn): Kn5MeshN
       mb.vertex([p0[0], p0[1], z1], 0, 0);
       mb.quad(i, i + 1, i + 2, i + 3);
     }
-    // No verandah: the name on a panel fixed to the wall, just proud of the windows.
+    // No verandah: the name on a panel fixed to the wall, just proud of the windows. The panel is a
+    // shallow box whose edges go back to the wall, so it is mounted on it (one piece with its edges,
+    // touching the wall), not a sheet hanging 8 cm in front of it.
     if (f.wall) {
-      const mb = fascia.next(4);
+      const mb = fascia.next(20);
       const i = mb.vertexCount;
       const { t0, t1, z0, z1 } = f.wall;
-      const p0 = at(a, t0, 0.08), p1 = at(a, t1, 0.08);
+      const p0 = at(a, t0, WALL_SIGN_PROUD), p1 = at(a, t1, WALL_SIGN_PROUD);
       const v0 = f.sign / rows, v1 = (f.sign + 1) / rows;
       mb.vertex([p0[0], p0[1], z1], 0, v0);
       mb.vertex([p1[0], p1[1], z1], 1, v0);
       mb.vertex([p1[0], p1[1], z0], 1, v1);
       mb.vertex([p0[0], p0[1], z0], 0, v1);
       mb.quad(i, i + 3, i + 2, i + 1);
+      // The edges (sign's edge colour row): top, bottom and both ends, from the face back to the wall.
+      const ev = v0 + 0.002;
+      const edge = (q0: Vec2, q1: Vec2, h0: number, h1: number) => {
+        // q0 -> q1 along the face at heights h0 (at q0) and h1 (at q1); the quad runs back to the wall.
+        const j = mb.vertexCount;
+        const back = (q: Vec2): Vec2 => [q[0] - o[0] * WALL_SIGN_PROUD, q[1] - o[1] * WALL_SIGN_PROUD];
+        const b0 = back(q0), b1 = back(q1);
+        mb.vertex([q0[0], q0[1], h0], 0.01, ev);
+        mb.vertex([q1[0], q1[1], h1], 0.01, ev);
+        mb.vertex([b1[0], b1[1], h1], 0.01, ev);
+        mb.vertex([b0[0], b0[1], h0], 0.01, ev);
+        mb.quad(j, j + 1, j + 2, j + 3);
+      };
+      edge(p0, p1, z1, z1); // top, facing up
+      edge(p1, p0, z0, z0); // bottom, facing down
+      edge(p1, p1, z1, z0); // the end at t1
+      edge(p0, p0, z0, z1); // the end at t0
     }
     if (f.depth <= 0) continue;
     const zUs = steps.map((st) => st.ground + st.under);
