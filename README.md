@@ -20,7 +20,7 @@ This is a fork of [honestjams/ac-track-builder](https://github.com/honestjams/ac
 | Collie Motorplex | Long, Short | 2.57 km, 1.62 km | A real circuit |
 | Private routes | | | The whole map with a residential estate (route files kept private) |
 
-Every track was rebuilt on 1–2 Nov 2026 and passes every check. Busselton has been driven in game and tested by an AI driver on the workstation; the South West tracks haven't been driven yet. To install, drag the zip onto Content Manager, or unzip it into `assettocorsa/content/tracks/` (the workstation and rig use `scripts/windows/install-track.ps1` and the share).
+Every track was rebuilt between 31 Oct and 2 Nov 2026 (Cape Naturaliste Road and Collie on 31 Oct, the rest on 2 Nov) and passes every check. Busselton has been driven in game and tested by an AI driver on the workstation; the South West tracks haven't been driven yet. To install, drag the zip onto Content Manager, or unzip it into `assettocorsa/content/tracks/` (the workstation and rig use `scripts/windows/install-track.ps1` and the share).
 
 Status per track: [tracks/](tracks/README.md). Plan: [ROADMAP.md](ROADMAP.md).
 
