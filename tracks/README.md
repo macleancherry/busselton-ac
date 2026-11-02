@@ -15,13 +15,15 @@ The route stays in `routes/` and the landmarks in `routes/landmarks/`. Private t
 | [Caves Road, Dunsborough to Yallingup](caves_road_yallingup/README.md) | Drive-anywhere | `routes/caves-road.json` | Dunsborough end only |
 | [Busselton to Dunsborough](busselton_to_dunsborough/README.md) | Drive-anywhere | `routes/busselton-dunsborough.json` | Yes |
 | [Cape Naturaliste Road](cape_naturaliste_road/README.md) | Drive-anywhere (showcase later) | `routes/cape-naturaliste.json` | First 3 km only |
+| [Caves Road, Yallingup to Wilyabrup](caves_road_yallingup_to_wilyabrup/README.md) | Drive-anywhere | `routes/caves-road-wilyabrup.json` | No |
+| [Caves Road, Wilyabrup to Margaret River](caves_road_wilyabrup_to_margaret_river/README.md) | Drive-anywhere | `routes/caves-road-margaret.json` | No |
 | [Margaret River](margaret_river/README.md) | Drive-anywhere (showcase later) | `routes/margaret-river.json` | No |
 | [Caves Road, Boranup](caves_road_boranup/README.md) | Drive-anywhere (showcase later) | `routes/caves-road-boranup.json` | No |
 | [Boranup Drive](boranup_drive/README.md) | Drive-anywhere (showcase later); gravel | `routes/boranup-drive.json` | No |
 | [Cape Leeuwin](cape_leeuwin/README.md) | Drive-anywhere (showcase later) | `routes/cape-leeuwin.json` | No |
 | [Collie Motorplex](collie_motorplex/README.md) | Showcase | `routes/collie-motorplex.json` | No |
 
-All ten were built between 31 Oct and 2 Nov 2026 and pass every check (`node scripts/check/all.mjs <slug>`); none of the South West ones has been driven yet. Each page has the numbers and what's next.
+The two Yallingup to Margaret River halves are routes waiting on a first build. The other ten were built between 31 Oct and 2 Nov 2026 and pass every check (`node scripts/check/all.mjs <slug>`); none of the South West ones has been driven yet. Each page has the numbers and what's next.
 
 Where the 5 m LiDAR stops (`STATE_DEMS.wa.box` in `src/services/tiles.ts`, and GA's coverage stops short of that box west of Dunsborough), the build falls back to about 30 m global heights.
 

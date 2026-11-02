@@ -40,7 +40,7 @@ AC can't load the whole South West as one map, so it's a set of tracks, each ins
 | **Caves Road, Dunsborough to Yallingup** (11 km) | Drive-anywhere, Yallingup a showcase later | ✅ rebuilt 2 Nov with the country roadsides, every check passing; Caves House and the Yallingup store in as landmarks; still on the fallback heights past Dunsborough |
 | **Busselton to Dunsborough** (Caves Rd, 14 km) | Drive-anywhere | ✅ built 2 Nov on 5 m LiDAR, every check passing |
 | **Margaret River town** | Showcase | 🔨 built 2 Nov, every check passing; 9 spec landmarks (audit: [docs/plans/margaret-river-places.md](docs/plans/margaret-river-places.md)) and Rotary Park as a Blender layer |
-| **Caves Road, Yallingup to Margaret River** | Drive-anywhere | ⬜ |
+| **Caves Road, Yallingup to Margaret River** (35 km, as two tracks: Yallingup to Wilyabrup 16.5 km, Wilyabrup to the Wallcliffe Rd turn-off 18.4 km) | Drive-anywhere | 🔨 routes ready (`routes/caves-road-wilyabrup.json`, `routes/caves-road-margaret.json`), first build pending |
 | **Boranup Drive and the karri** | Showcase | 🔨 Caves Rd through Boranup and gravel Boranup Drive both built 2 Nov, every check passing; gravel and 3D karri in |
 | **Cape Naturaliste Road and the lighthouse** | Showcase | 🔨 built, every check passing; the lighthouse as a Blender layer and the keepers' cottages as a spec, on a landmark patch at the end of the road |
 | **Cape Leeuwin, Augusta** | Showcase | 🔨 built 2 Nov, every check passing; the lighthouse as a Blender layer, the cottages and the waterwheel as specs |
