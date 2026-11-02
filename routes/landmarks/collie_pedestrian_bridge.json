@@ -1,0 +1,305 @@
+{
+ "note": "Collie Motorplex pedestrian bridge over the main straight, about 45 m after the start line, from the Landgate aerial (Oct 2026): a covered steel footbridge about 47 m long and 3.8 m wide, square to the straight, from the outfield on the west to the paddock lawn on the east. Modelled with a deck about 5.4 m up, solid side panels, a light roof on short posts, and a straight stair down at each end (the real stairs aren't visible from above). Only the four legs and the stair posts are solid; they stand at the wall line on the west and in the runoff on the east, clear of the track. The name on the side is plain lettering and is not known to be on the real bridge. Metres: x along the bridge from the paddock end (SE) to the west end, y back from the face that oncoming cars see.",
+ "blocks": [
+  {
+   "name": "leg0",
+   "x0": 7.3,
+   "x1": 7.7,
+   "y0": 0.0,
+   "y1": 0.4,
+   "roof": "none"
+  },
+  {
+   "name": "leg1",
+   "x0": 7.3,
+   "x1": 7.7,
+   "y0": 3.4,
+   "y1": 3.8,
+   "roof": "none"
+  },
+  {
+   "name": "leg2",
+   "x0": 39.3,
+   "x1": 39.699999999999996,
+   "y0": 0.0,
+   "y1": 0.4,
+   "roof": "none"
+  },
+  {
+   "name": "leg3",
+   "x0": 39.3,
+   "x1": 39.699999999999996,
+   "y0": 3.4,
+   "y1": 3.8,
+   "roof": "none"
+  }
+ ],
+ "trees": [],
+ "windows": [],
+ "doors": [],
+ "wallHeight": 5.4,
+ "setback": 60,
+ "road": {
+  "width": 1,
+  "verge": 0.5
+ },
+ "lawn": "#b8a57a",
+ "sunFrom": [
+  0.5,
+  0.6,
+  1.0
+ ],
+ "cameras": {
+  "street": {
+   "eye": [
+    29,
+    -70,
+    1.3
+   ],
+   "look": [
+    24,
+    0,
+    5
+   ],
+   "lens": 28
+  },
+  "aerial": {
+   "eye": [
+    -10,
+    -40,
+    24
+   ],
+   "look": [
+    23,
+    2,
+    3
+   ],
+   "lens": 26
+  },
+  "corner": {
+   "eye": [
+    55,
+    -20,
+    3
+   ],
+   "look": [
+    24,
+    2,
+    5
+   ],
+   "lens": 24
+  }
+ },
+ "walls": {
+  "kind": "panel",
+  "colour": "#8e9497"
+ },
+ "finishes": {
+  "deck": {
+   "kind": "panel",
+   "colour": "#7b8185"
+  }
+ },
+ "trim": "#d7dad9",
+ "roof": {
+  "pitch": 10,
+  "colour": "#cfd2d1",
+  "eaves": 0.2
+ },
+ "panels": [
+  {
+   "x0": 7.3,
+   "x1": 39.7,
+   "y0": 0.0,
+   "y1": 3.8,
+   "z0": 5.4,
+   "z1": 5.75,
+   "walls": "deck"
+  },
+  {
+   "x0": 7.3,
+   "x1": 39.7,
+   "y0": 0.0,
+   "y1": 0.12,
+   "z0": 5.75,
+   "z1": 6.9,
+   "walls": "main"
+  },
+  {
+   "x0": 7.3,
+   "x1": 39.7,
+   "y0": 3.68,
+   "y1": 3.8,
+   "z0": 5.75,
+   "z1": 6.9,
+   "walls": "main"
+  },
+  {
+   "x0": 7.32,
+   "x1": 7.48,
+   "y0": 0.0,
+   "y1": 0.12,
+   "z0": 6.9,
+   "z1": 7.85,
+   "walls": "main"
+  },
+  {
+   "x0": 7.32,
+   "x1": 7.48,
+   "y0": 3.68,
+   "y1": 3.8000000000000003,
+   "z0": 6.9,
+   "z1": 7.85,
+   "walls": "main"
+  },
+  {
+   "x0": 15.42,
+   "x1": 15.58,
+   "y0": 0.0,
+   "y1": 0.12,
+   "z0": 6.9,
+   "z1": 7.85,
+   "walls": "main"
+  },
+  {
+   "x0": 15.42,
+   "x1": 15.58,
+   "y0": 3.68,
+   "y1": 3.8000000000000003,
+   "z0": 6.9,
+   "z1": 7.85,
+   "walls": "main"
+  },
+  {
+   "x0": 23.42,
+   "x1": 23.58,
+   "y0": 0.0,
+   "y1": 0.12,
+   "z0": 6.9,
+   "z1": 7.85,
+   "walls": "main"
+  },
+  {
+   "x0": 23.42,
+   "x1": 23.58,
+   "y0": 3.68,
+   "y1": 3.8000000000000003,
+   "z0": 6.9,
+   "z1": 7.85,
+   "walls": "main"
+  },
+  {
+   "x0": 31.42,
+   "x1": 31.58,
+   "y0": 0.0,
+   "y1": 0.12,
+   "z0": 6.9,
+   "z1": 7.85,
+   "walls": "main"
+  },
+  {
+   "x0": 31.42,
+   "x1": 31.58,
+   "y0": 3.68,
+   "y1": 3.8000000000000003,
+   "z0": 6.9,
+   "z1": 7.85,
+   "walls": "main"
+  },
+  {
+   "x0": 39.42,
+   "x1": 39.58,
+   "y0": 0.0,
+   "y1": 0.12,
+   "z0": 6.9,
+   "z1": 7.85,
+   "walls": "main"
+  },
+  {
+   "x0": 39.42,
+   "x1": 39.58,
+   "y0": 3.68,
+   "y1": 3.8000000000000003,
+   "z0": 6.9,
+   "z1": 7.85,
+   "walls": "main"
+  }
+ ],
+ "awnings": [
+  {
+   "x0": 7.1,
+   "x1": 39.9,
+   "y0": -0.3,
+   "y1": 4.1,
+   "z": 8.0,
+   "thickness": 0.15,
+   "colour": "#cfd2d1"
+  }
+ ],
+ "sails": [
+  {
+   "pts": [
+    [
+     0.0,
+     0.9,
+     0.0
+    ],
+    [
+     7.3,
+     0.9,
+     5.45
+    ],
+    [
+     7.3,
+     2.9,
+     5.45
+    ],
+    [
+     0.0,
+     2.9,
+     0.0
+    ]
+   ],
+   "colour": "#80868a"
+  },
+  {
+   "pts": [
+    [
+     39.7,
+     0.9,
+     5.45
+    ],
+    [
+     47.0,
+     0.9,
+     0.0
+    ],
+    [
+     47.0,
+     2.9,
+     0.0
+    ],
+    [
+     39.7,
+     2.9,
+     5.45
+    ]
+   ],
+   "colour": "#80868a"
+  }
+ ],
+ "signs": [
+  {
+   "x0": 15.0,
+   "x1": 32.0,
+   "y": -0.1,
+   "z0": 5.85,
+   "z1": 6.8,
+   "text": "COLLIE MOTORPLEX",
+   "colour": "#1f2a44",
+   "ink": "#f4f4f2",
+   "back": true,
+   "backY": 3.8
+  }
+ ]
+}

@@ -1,0 +1,324 @@
+{
+ "note": "Collie Motorplex pit garages, in the paddock inside the north loop, from the Landgate aerial (Oct 2026) and 2024 event photos. A run of steel sheds with front-facing gables (pale zincalume roofs, cream corrugated gable ends, teal-green barges), face-brick back walls with roller doors, and a deep skillion verandah on steel posts over the open pit bays, facing the paddock road to the west. The venue says 42 undercover pit bays; this run has 12 under the verandah. Metres: x left to right as seen from the paddock road (north to south), y back from the gable fronts.",
+ "blocks": [
+  {
+   "name": "gable1",
+   "x0": 0.2,
+   "x1": 15.5,
+   "y0": 0,
+   "y1": 25.5,
+   "roof": "gable"
+  },
+  {
+   "name": "valley1",
+   "x0": 15.5,
+   "x1": 17.5,
+   "y0": 0,
+   "y1": 22.5,
+   "roof": "none"
+  },
+  {
+   "name": "gable2",
+   "x0": 17.5,
+   "x1": 32.1,
+   "y0": 0,
+   "y1": 22.8,
+   "roof": "gable"
+  },
+  {
+   "name": "annex2",
+   "x0": 18.4,
+   "x1": 32.1,
+   "y0": 22.8,
+   "y1": 29.0,
+   "roof": "none",
+   "wallHeight": 3.2,
+   "outbuilding": true
+  },
+  {
+   "name": "small_gable",
+   "x0": 32.1,
+   "x1": 38.0,
+   "y0": 0,
+   "y1": 19.4,
+   "roof": "gable",
+   "wallHeight": 3.6,
+   "pitch": 25
+  },
+  {
+   "name": "gable3",
+   "x0": 38.0,
+   "x1": 53.0,
+   "y0": 0,
+   "y1": 28.1,
+   "roof": "gable"
+  },
+  {
+   "name": "gable4",
+   "x0": 53.0,
+   "x1": 59.0,
+   "y0": 0,
+   "y1": 27.5,
+   "roof": "gable",
+   "wallHeight": 3.6,
+   "pitch": 25
+  }
+ ],
+ "trees": [],
+ "windows": [
+  {
+   "facing": "front",
+   "wall": 0,
+   "at": 54.5,
+   "width": 2.4,
+   "height": 1.1,
+   "sill": 1.5
+  },
+  {
+   "facing": "front",
+   "wall": 0,
+   "at": 57.5,
+   "width": 2.4,
+   "height": 1.1,
+   "sill": 1.5
+  },
+  {
+   "facing": "left",
+   "wall": 0.2,
+   "at": 6,
+   "width": 1.6,
+   "height": 1.0,
+   "sill": 1.6
+  },
+  {
+   "facing": "left",
+   "wall": 0.2,
+   "at": 12,
+   "width": 1.6,
+   "height": 1.0,
+   "sill": 1.6
+  },
+  {
+   "facing": "left",
+   "wall": 0.2,
+   "at": 18,
+   "width": 1.6,
+   "height": 1.0,
+   "sill": 1.6
+  }
+ ],
+ "doors": [
+  {
+   "type": "roller",
+   "x0": 0.81,
+   "x1": 3.81,
+   "y": -0.14,
+   "height": 2.6,
+   "colour": "#b5b8b6"
+  },
+  {
+   "type": "roller",
+   "x0": 5.12,
+   "x1": 8.12,
+   "y": -0.14,
+   "height": 2.6,
+   "colour": "#b5b8b6"
+  },
+  {
+   "type": "roller",
+   "x0": 9.43,
+   "x1": 12.43,
+   "y": -0.14,
+   "height": 2.6,
+   "colour": "#b5b8b6"
+  },
+  {
+   "type": "roller",
+   "x0": 13.73,
+   "x1": 16.73,
+   "y": -0.14,
+   "height": 2.6,
+   "colour": "#b5b8b6"
+  },
+  {
+   "type": "roller",
+   "x0": 18.04,
+   "x1": 21.04,
+   "y": -0.14,
+   "height": 2.6,
+   "colour": "#b5b8b6"
+  },
+  {
+   "type": "roller",
+   "x0": 22.34,
+   "x1": 25.34,
+   "y": -0.14,
+   "height": 2.6,
+   "colour": "#b5b8b6"
+  },
+  {
+   "type": "roller",
+   "x0": 26.66,
+   "x1": 29.66,
+   "y": -0.14,
+   "height": 2.6,
+   "colour": "#b5b8b6"
+  },
+  {
+   "type": "roller",
+   "x0": 30.96,
+   "x1": 33.96,
+   "y": -0.14,
+   "height": 2.6,
+   "colour": "#b5b8b6"
+  },
+  {
+   "type": "roller",
+   "x0": 35.27,
+   "x1": 38.27,
+   "y": -0.14,
+   "height": 2.6,
+   "colour": "#b5b8b6"
+  },
+  {
+   "type": "roller",
+   "x0": 39.58,
+   "x1": 42.58,
+   "y": -0.14,
+   "height": 2.6,
+   "colour": "#b5b8b6"
+  },
+  {
+   "type": "roller",
+   "x0": 43.88,
+   "x1": 46.88,
+   "y": -0.14,
+   "height": 2.6,
+   "colour": "#b5b8b6"
+  },
+  {
+   "type": "roller",
+   "x0": 48.2,
+   "x1": 51.2,
+   "y": -0.14,
+   "height": 2.6,
+   "colour": "#b5b8b6"
+  }
+ ],
+ "wallHeight": 4.0,
+ "setback": 12,
+ "road": {
+  "width": 9,
+  "verge": 0.5
+ },
+ "lawn": "#b8a57a",
+ "sunFrom": [
+  0.7,
+  0.4,
+  1.0
+ ],
+ "cameras": {
+  "street": {
+   "eye": [
+    -6,
+    -30,
+    1.7
+   ],
+   "look": [
+    14,
+    0,
+    3.0
+   ],
+   "lens": 24
+  },
+  "aerial": {
+   "eye": [
+    -28,
+    -52,
+    32
+   ],
+   "look": [
+    28,
+    10,
+    0
+   ],
+   "lens": 26
+  },
+  "corner": {
+   "eye": [
+    62,
+    -26,
+    4
+   ],
+   "look": [
+    36,
+    6,
+    3
+   ],
+   "lens": 24
+  }
+ },
+ "walls": {
+  "kind": "corrugated",
+  "colour": "#e4e0d1"
+ },
+ "finishes": {
+  "brick": {
+   "kind": "brick",
+   "colour": "#6e4b3c"
+  }
+ },
+ "trim": "#2f5d57",
+ "roof": {
+  "pitch": 22,
+  "colour": "#c9cbc7",
+  "eaves": 0.3
+ },
+ "verandahs": [
+  {
+   "x0": 0,
+   "x1": 52,
+   "y0": -9,
+   "y1": 0,
+   "height": 3.0,
+   "wallHeight": 3.7,
+   "deckHeight": -0.15,
+   "posts": [
+    0.15,
+    4.46,
+    8.77,
+    13.08,
+    17.38,
+    21.69,
+    26.0,
+    30.31,
+    34.62,
+    38.93,
+    43.23,
+    47.54,
+    51.85
+   ]
+  }
+ ],
+ "panels": [
+  {
+   "x0": 0.2,
+   "x1": 52,
+   "y0": -0.12,
+   "y1": 0,
+   "z0": 0,
+   "z1": 3.85,
+   "walls": "brick"
+  }
+ ],
+ "paving": [
+  {
+   "x0": 0,
+   "y0": -9,
+   "x1": 52,
+   "y1": 0,
+   "colour": "#bdb8ae",
+   "kind": "concrete"
+  }
+ ]
+}

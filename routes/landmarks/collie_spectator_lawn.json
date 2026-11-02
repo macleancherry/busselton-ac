@@ -1,0 +1,222 @@
+{
+ "note": "Collie Motorplex spectator lawn between the race tower and the amenities, from the Landgate aerial (Oct 2026): a pinwheel of cream and navy triangular shade sails over picnic tables, a paved barbecue square with a fire pit, and jacarandas along the paddock road. Metres: x left to right as seen from the track (NE to SW), y back from the track side, centred on the fire pit.",
+ "blocks": [
+  {
+   "name": "fire_pit",
+   "x0": -0.6,
+   "x1": 0.6,
+   "y0": -0.6,
+   "y1": 0.6,
+   "roof": "none"
+  }
+ ],
+ "trees": [
+  {
+   "x": -21.6,
+   "y": 19.4,
+   "height": 6.5,
+   "spread": 5
+  },
+  {
+   "x": -7.5,
+   "y": 17.2,
+   "height": 6.5,
+   "spread": 5
+  },
+  {
+   "x": -9.7,
+   "y": 24.2,
+   "height": 6.5,
+   "spread": 5
+  }
+ ],
+ "windows": [],
+ "doors": [],
+ "wallHeight": 0.45,
+ "setback": 40,
+ "road": {
+  "width": 12,
+  "verge": 0.5
+ },
+ "lawn": "#7e8c4c",
+ "sunFrom": [
+  0.5,
+  -0.6,
+  1.0
+ ],
+ "cameras": {
+  "street": {
+   "eye": [
+    -8,
+    -14,
+    1.7
+   ],
+   "look": [
+    -10,
+    10,
+    2
+   ],
+   "lens": 22
+  },
+  "aerial": {
+   "eye": [
+    -30,
+    -18,
+    22
+   ],
+   "look": [
+    -10,
+    8,
+    0
+   ],
+   "lens": 26
+  }
+ },
+ "walls": {
+  "kind": "brick",
+  "colour": "#7a5444"
+ },
+ "trim": "#e9e7e0",
+ "roof": {
+  "pitch": 20,
+  "colour": "#c9cbc7",
+  "eaves": 0.2
+ },
+ "paving": [
+  {
+   "x0": -5.3,
+   "y0": -3.9,
+   "x1": 3.7,
+   "y1": 6.1,
+   "colour": "#cfc8b8",
+   "kind": "concrete"
+  },
+  {
+   "x0": -8.3,
+   "y0": 1.6,
+   "x1": -5.3,
+   "y1": 9.3,
+   "colour": "#cfc8b8",
+   "kind": "concrete"
+  }
+ ],
+ "tables": [
+  {
+   "x": -4.0,
+   "y": 6.6,
+   "length": 1.8,
+   "turned": false,
+   "colour": "#6b4a32"
+  },
+  {
+   "x": 1.7,
+   "y": 2.6,
+   "length": 1.8,
+   "turned": true,
+   "colour": "#6b4a32"
+  },
+  {
+   "x": -2.8,
+   "y": -2.4,
+   "length": 1.8,
+   "turned": false,
+   "colour": "#6b4a32"
+  },
+  {
+   "x": -17.3,
+   "y": 5.1,
+   "length": 1.8,
+   "turned": true,
+   "colour": "#6b4a32"
+  },
+  {
+   "x": -14.8,
+   "y": 9.6,
+   "length": 1.8,
+   "turned": false,
+   "colour": "#6b4a32"
+  }
+ ],
+ "sails": [
+  {
+   "pts": [
+    [
+     -17.64,
+     7.44,
+     3.6
+    ],
+    [
+     -20.72,
+     12.83,
+     2.5
+    ],
+    [
+     -23.46,
+     5.29,
+     2.9
+    ]
+   ],
+   "colour": "#ece6d4"
+  },
+  {
+   "pts": [
+    [
+     -16.36,
+     8.04,
+     3.6
+    ],
+    [
+     -10.97,
+     11.12,
+     2.5
+    ],
+    [
+     -18.51,
+     13.86,
+     2.9
+    ]
+   ],
+   "colour": "#22304d"
+  },
+  {
+   "pts": [
+    [
+     -15.76,
+     6.76,
+     3.6
+    ],
+    [
+     -12.68,
+     1.37,
+     2.5
+    ],
+    [
+     -9.94,
+     8.91,
+     2.9
+    ]
+   ],
+   "colour": "#ece6d4"
+  },
+  {
+   "pts": [
+    [
+     -17.04,
+     6.16,
+     3.6
+    ],
+    [
+     -22.43,
+     3.08,
+     2.5
+    ],
+    [
+     -14.89,
+     0.34,
+     2.9
+    ]
+   ],
+   "colour": "#22304d"
+  }
+ ]
+}

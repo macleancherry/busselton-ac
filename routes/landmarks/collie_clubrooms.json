@@ -1,0 +1,237 @@
+{
+ "note": "Collie Motorplex clubrooms and canteen (use unconfirmed), the long low building with the khaki flat roof beside the race tower, from the Landgate aerial (Oct 2026). Single storey, about 26.5 x 9.5 m, a near-flat khaki Colorbond roof with an overhang along the track side, cream walls, and two round white shade canopies at its south end by the tower. Metres: x left to right as seen from the track (NE to SW), y back from the track side.",
+ "blocks": [
+  {
+   "name": "clubrooms",
+   "x0": 0,
+   "x1": 26.5,
+   "y0": 0,
+   "y1": 9.5,
+   "roof": "none"
+  }
+ ],
+ "trees": [],
+ "windows": [
+  {
+   "facing": "front",
+   "wall": 0,
+   "at": 2.5,
+   "width": 1.8,
+   "height": 1.2,
+   "sill": 1.0
+  },
+  {
+   "facing": "front",
+   "wall": 0,
+   "at": 5.5,
+   "width": 1.8,
+   "height": 1.2,
+   "sill": 1.0
+  },
+  {
+   "facing": "front",
+   "wall": 0,
+   "at": 8.5,
+   "width": 1.8,
+   "height": 1.2,
+   "sill": 1.0
+  },
+  {
+   "facing": "front",
+   "wall": 0,
+   "at": 15.5,
+   "width": 1.8,
+   "height": 1.2,
+   "sill": 1.0
+  },
+  {
+   "facing": "front",
+   "wall": 0,
+   "at": 18.5,
+   "width": 1.8,
+   "height": 1.2,
+   "sill": 1.0
+  },
+  {
+   "facing": "front",
+   "wall": 0,
+   "at": 21.5,
+   "width": 1.8,
+   "height": 1.2,
+   "sill": 1.0
+  },
+  {
+   "facing": "front",
+   "wall": 0,
+   "at": 24.5,
+   "width": 1.8,
+   "height": 1.2,
+   "sill": 1.0
+  },
+  {
+   "facing": "back",
+   "wall": 9.5,
+   "at": 4,
+   "width": 1.5,
+   "height": 1.0,
+   "sill": 1.2
+  },
+  {
+   "facing": "back",
+   "wall": 9.5,
+   "at": 10,
+   "width": 1.5,
+   "height": 1.0,
+   "sill": 1.2
+  },
+  {
+   "facing": "back",
+   "wall": 9.5,
+   "at": 16,
+   "width": 1.5,
+   "height": 1.0,
+   "sill": 1.2
+  },
+  {
+   "facing": "back",
+   "wall": 9.5,
+   "at": 22,
+   "width": 1.5,
+   "height": 1.0,
+   "sill": 1.2
+  },
+  {
+   "facing": "right",
+   "wall": 26.5,
+   "at": 4.75,
+   "width": 2.4,
+   "height": 1.2,
+   "sill": 1.0
+  }
+ ],
+ "doors": [
+  {
+   "type": "front",
+   "x0": 11.6,
+   "x1": 13.4,
+   "y": 0,
+   "height": 2.2,
+   "colour": "#3c4a4f"
+  }
+ ],
+ "wallHeight": 3.2,
+ "setback": 30,
+ "road": {
+  "width": 12,
+  "verge": 0.5
+ },
+ "lawn": "#b8a57a",
+ "sunFrom": [
+  0.5,
+  -0.6,
+  1.0
+ ],
+ "cameras": {
+  "street": {
+   "eye": [
+    2,
+    -24,
+    1.7
+   ],
+   "look": [
+    13,
+    3,
+    2
+   ],
+   "lens": 24
+  },
+  "aerial": {
+   "eye": [
+    -12,
+    -30,
+    22
+   ],
+   "look": [
+    14,
+    5,
+    0
+   ],
+   "lens": 28
+  }
+ },
+ "walls": {
+  "kind": "cladding",
+  "colour": "#d9cfb6"
+ },
+ "trim": "#eeebe2",
+ "roof": {
+  "pitch": 5,
+  "colour": "#c7bd82",
+  "eaves": 0.3
+ },
+ "awnings": [
+  {
+   "x0": -0.6,
+   "x1": 27.1,
+   "y0": -1.8,
+   "y1": 10.1,
+   "z": 3.5,
+   "thickness": 0.25,
+   "colour": "#c7bd82",
+   "posts": [
+    0.0,
+    6.6,
+    13.2,
+    19.9,
+    26.5
+   ]
+  }
+ ],
+ "paving": [
+  {
+   "x0": -0.6,
+   "y0": -1.8,
+   "x1": 27.1,
+   "y1": 0,
+   "colour": "#c4bfb3",
+   "kind": "concrete"
+  }
+ ],
+ "umbrellas": [
+  {
+   "x": 24.27,
+   "y": -2.35,
+   "radius": 2.0,
+   "height": 2.9,
+   "colour": "#f1f0ea"
+  },
+  {
+   "x": 29.66,
+   "y": 3.34,
+   "radius": 2.4,
+   "height": 2.9,
+   "colour": "#f1f0ea"
+  },
+  {
+   "x": 31.24,
+   "y": 7.53,
+   "radius": 1.1,
+   "height": 2.9,
+   "colour": "#3b4248"
+  }
+ ],
+ "tables": [
+  {
+   "x": 25.47,
+   "y": -1.66,
+   "length": 1.8,
+   "colour": "#5d6166"
+  },
+  {
+   "x": 30.81,
+   "y": 3.72,
+   "length": 1.8,
+   "colour": "#5d6166"
+  }
+ ]
+}

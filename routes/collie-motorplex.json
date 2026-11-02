@@ -1,75 +1,97 @@
 {
- "name": "Collie Motorplex",
- "_note": "The Collie Motorplex circuit east of Collie: OSM maps it as highway=raceway, 'Collie Race Track', asphalt, a 1.62 km closed loop (way 89374807), with a 1.3 km southern extension (way 733256017) for the long layout (about 2.57 km). The centreline comes from those OSM ways (route option \"ways\"), not OSRM, which won't drive raceways. Races anticlockwise (Collie Motor Sport Club). Circuit settings: no banking, no traffic. Not on 5 m LiDAR (well east of the tiled area). The real start/finish line isn't known yet: the track starts at the first pin.",
- "loop": true,
- "preset": "country",
- "pins": [
-  [
-   116.24458,
-   -33.428801
-  ],
-  [
-   116.242968,
-   -33.432722
-  ],
-  [
-   116.246605,
-   -33.437691
-  ],
-  [
-   116.245587,
-   -33.430988
-  ]
- ],
- "options": {
-  "banking": false
- },
- "build": {
-  "origin": [
-   116.2443,
-   -33.4318
-  ],
-  "traffic": false,
-  "corridor": 60,
-  "armco": false,
-  "farmRoadsides": false,
-  "aiKeepLeft": false,
-  "raceway": true
- },
- "ways": [
-  89374807,
-  733256017
- ],
- "layout": {
-  "id": "long",
-  "name": "Collie Motorplex Long"
- },
- "layouts": [
-  {
-   "id": "short",
-   "name": "Collie Motorplex Short",
-   "loop": true,
-   "ways": [
-    89374807
-   ],
-   "pins": [
+  "name": "Collie Motorplex",
+  "_note": "The Collie Motorplex circuit east of Collie: OSM maps it as highway=raceway, 'Collie Race Track', asphalt, a 1.62 km closed loop (way 89374807), with a 1.3 km southern extension (way 733256017) for the long layout (about 2.57 km). The centreline comes from those OSM ways (route option \"ways\"), not OSRM, which won't drive raceways. Races anticlockwise (Collie Motor Sport Club). Circuit settings: no banking, no traffic. Not on 5 m LiDAR (well east of the tiled area). The real start/finish line isn't known yet: the track starts at the first pin.",
+  "loop": true,
+  "preset": "country",
+  "pins": [
     [
-     116.24458,
-     -33.428801
+      116.24458,
+      -33.428801
     ],
     [
-     116.242968,
-     -33.432722
+      116.242968,
+      -33.432722
     ],
     [
-     116.24487,
-     -33.434899
+      116.246605,
+      -33.437691
     ],
     [
-     116.245587,
-     -33.430988
+      116.245587,
+      -33.430988
     ]
-   ]
-  }
- ]
+  ],
+  "options": {
+    "banking": false
+  },
+  "build": {
+    "origin": [
+      116.2443,
+      -33.4318
+    ],
+    "traffic": false,
+    "corridor": 60,
+    "armco": false,
+    "farmRoadsides": false,
+    "aiKeepLeft": false,
+    "raceway": true,
+    "area": [
+      [
+        116.243,
+        -33.4299
+      ],
+      [
+        116.2446,
+        -33.4299
+      ],
+      [
+        116.2446,
+        -33.4316
+      ],
+      [
+        116.243,
+        -33.4316
+      ]
+    ],
+    "streetsValid": false
+  },
+  "ways": [
+    89374807,
+    733256017
+  ],
+  "layout": {
+    "id": "long",
+    "name": "Collie Motorplex Long"
+  },
+  "layouts": [
+    {
+      "id": "short",
+      "name": "Collie Motorplex Short",
+      "loop": true,
+      "ways": [
+        89374807
+      ],
+      "pins": [
+        [
+          116.24458,
+          -33.428801
+        ],
+        [
+          116.242968,
+          -33.432722
+        ],
+        [
+          116.24487,
+          -33.434899
+        ],
+        [
+          116.245587,
+          -33.430988
+        ]
+      ]
+    }
+  ],
+  "looks": [
+    "routes/landmarks/collie_looks.json"
+  ]
 }

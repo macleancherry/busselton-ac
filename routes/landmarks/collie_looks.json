@@ -1,0 +1,50 @@
+{
+ "note": "Collie Motorplex landmarks built from their own spec (src/core/specHouse.ts), for routes/collie-motorplex.json's \"looks\". \"at\" is the middle of each landmark's main blocks (outbuildings left out). \"facing\" is the compass bearing the front faces.",
+ "houses": [
+  {
+   "at": [
+    116.243974,
+    -33.430932
+   ],
+   "specFile": "routes/landmarks/collie_pit_garages.json",
+   "name": "Collie Motorplex pit garages",
+   "facing": 286
+  },
+  {
+   "at": [
+    116.243457,
+    -33.430311
+   ],
+   "specFile": "routes/landmarks/collie_race_tower.json",
+   "name": "Collie Motorplex race tower",
+   "facing": 308
+  },
+  {
+   "at": [
+    116.243686,
+    -33.430225
+   ],
+   "specFile": "routes/landmarks/collie_clubrooms.json",
+   "name": "Collie Motorplex clubrooms",
+   "facing": 316.8
+  },
+  {
+   "at": [
+    116.243369,
+    -33.430533
+   ],
+   "specFile": "routes/landmarks/collie_spectator_lawn.json",
+   "name": "Collie Motorplex spectator lawn",
+   "facing": 308
+  },
+  {
+   "at": [
+    116.243021,
+    -33.430472
+   ],
+   "specFile": "routes/landmarks/collie_pedestrian_bridge.json",
+   "name": "Collie Motorplex pedestrian bridge",
+   "facing": 38
+  }
+ ]
+}
