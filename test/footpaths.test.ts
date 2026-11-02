@@ -1,9 +1,9 @@
 // Tests for the photo footpaths, crossovers and letterboxes, written from docs/specs/footpaths.md.
 import { describe, expect, it } from "vitest";
-import { buildVergeConcrete, isConcrete, laybacks, letterboxes, readVerge, type VergeConcrete } from "../src/core/footpaths";
+import { buildVergeConcrete, isConcrete, laybacks, letterboxes, readVerge, STEP_GAP, type VergeConcrete } from "../src/core/footpaths";
 import { KERB_BACK } from "../src/core/kerbs";
 import type { RoadPlan, RoadSample } from "../src/core/road";
-import { SINK } from "../src/core/sceneGround";
+import { SINK, topSurface } from "../src/core/sceneGround";
 import type { Kn5MeshNode } from "../src/core/kn5";
 
 const W = 7; // road width: edges at y = +-3.5
@@ -262,5 +262,40 @@ describe("letterboxes", () => {
     const posts = letterboxes(plan, v, ground).filter((p) => p.kind === "box" && p.material === "timber") as Extract<ReturnType<typeof letterboxes>[number], { kind: "box" }>[];
     expect(posts[0].at[0]).toBeCloseTo(0);
     expect(posts[1].at[0]).toBeCloseTo(40);
+  });
+});
+
+describe("a footpath across the strip's outer edge", () => {
+  // The strip ends 3 m from the road edge, 18 cm over the terrain past it (Augusta). The footpath
+  // runs from 2 to 4.2 m out, across that edge.
+  const plan = straight(20);
+  const n = plan.samples.length;
+  const edge = 3;
+  const under = (_x: number, y: number) => (Math.abs(y) - W / 2 <= edge ? 0.18 : 0);
+  const band = (d0: number, d1: number) => new Array(n).fill(null).map(() => ({ d0, d1 }));
+  const none = () => new Array(n).fill(null);
+  /** The worst the footpath's top stands over the ground past the strip, on a 10 cm grid. */
+  const worstPast = (stripOuter?: number) => {
+    const top = topSurface(buildVergeConcrete(plan, { paths: [band(2, 4.2), none()], drives: [] }, under, stripOuter), /^1STREET_PATH/);
+    let worst = -Infinity;
+    for (let x = 1; x < 19; x += 0.1) for (let d = edge + STEP_GAP + 0.01; d < 4.2; d += 0.1) {
+      const h = top(x, W / 2 + d);
+      if (h !== null) worst = Math.max(worst, h - under(x, W / 2 + d));
+    }
+    return worst;
+  };
+
+  it("is two slabs, each on its own ground, so none floats past the edge", () => {
+    expect(worstPast()).toBeGreaterThan(0.1);
+    expect(worstPast(edge)).toBeCloseTo(0.04, 4);
+    // On the strip it stands 4 cm over the strip.
+    const top = topSurface(buildVergeConcrete(plan, { paths: [band(2, 4.2), none()], drives: [] }, under, edge), /^1STREET_PATH/);
+    expect(top(10, W / 2 + 2.5)! - 0.18).toBeCloseTo(0.04, 4);
+  });
+
+  it("leaves a footpath wholly on one side as one slab", () => {
+    const one = buildVergeConcrete(plan, { paths: [band(1, 2.6), none()], drives: [] }, under);
+    const split = buildVergeConcrete(plan, { paths: [band(1, 2.6), none()], drives: [] }, under, edge);
+    expect(split[0].positions).toEqual(one[0].positions);
   });
 });
