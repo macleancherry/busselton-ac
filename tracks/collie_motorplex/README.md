@@ -6,12 +6,15 @@ The Collie Motorplex circuit east of Collie. OSM maps it as `highway=raceway`, "
 
 ## Status
 
-- **Routing:** the centreline comes straight from the OSM raceway ways (`"ways"` in the route file), since OSRM won't drive raceways. Long layout (with the southern extension) is the main one; Short is a second layout. Races anticlockwise. The start/finish line still needs placing on the main straight.
-- Pins follow the OSM way's order; the racing direction isn't checked yet.
+- **Built** 31 Oct; every check passes, 0.24M triangles. Two layouts: Long (with the southern extension, the main one) and Short.
+- **Routing:** the centreline comes straight from the OSM raceway ways (`"ways"` in the route file), since OSRM won't drive raceways. Races anticlockwise.
+- **Markings:** a raceway (`raceway`, set from the OSM ways): edge lines and start/finish only, no centre line, no reflectors.
+- **Start/finish:** the real spot isn't known yet; the track starts at the first pin. Pins follow the OSM way's order.
 - **Heights:** not on GA's 5 m LiDAR (well east of the tiled area); about 30 m global heights. A circuit wants better: GA's ELVIS portal may have LiDAR for Collie.
+- **In game:** not driven yet; retest 6 checks the pit lane on both layouts.
 
 ## Next
 
-1. Route from the raceway way, then build.
-2. Check the racing direction; set the grid, pits and start/finish.
-3. The extension as a second layout.
+1. A drive on both layouts.
+2. Check the racing direction; move the grid, pits and start/finish to the real spot.
+3. Better heights.

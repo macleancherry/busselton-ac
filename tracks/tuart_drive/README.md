@@ -6,7 +6,8 @@ The old Bussell Highway through Tuart Forest National Park, from near Wonnerup t
 
 ## Status
 
-Built and within budget; waiting on a drive. Rebuild it whenever the generator improves.
+- **Built** 2 Nov; every check passes, 1.23M triangles.
+- **In game:** not driven yet; one AI run in retest 6. Rebuild it whenever the generator improves.
 
 ## Next
 

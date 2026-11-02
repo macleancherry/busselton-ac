@@ -6,14 +6,14 @@ The graded limestone scenic drive through the Boranup karri forest, just west of
 
 ## Status
 
-- **Route:** ready, not built yet. OSRM won't route it, so the centreline comes from the OSM way (`"ways": [31541578]`, one way, both ends on Caves Road). Checked offline: the three pins route 13.47 km along it, north to south.
-- **Surface:** forced unsealed end to end (`build.unsealed`): gravel physics, gravel texture, no line markings or kerbs.
-- **Settings:** country preset, with no banking, no Armco, no farm gates or mailboxes (the side tracks are national park 4WD tracks) and no traffic.
-- **Heights:** not on GA's 5 m LiDAR; about 30 m global heights. Check the grades over the ridges.
+- **Built** 2 Nov from the OSM way (`"ways": [31541578]`, north to south, 13.5 km); every check passes, 0.96M triangles.
+- **Surface:** forced unsealed end to end (`build.unsealed`): gravel physics, gravel texture, CSP dust, no line markings or kerbs.
+- **Settings:** country preset, with no banking, no Armco, no farm gates or mailboxes (the side tracks are national park 4WD tracks) and no traffic. Karri from the landscape zones.
+- **Heights:** not on GA's 5 m LiDAR; about 30 m global heights.
 - **Width:** OSM has no width tag, so it takes the 6.5 m default. The real road is narrower in places.
+- **In game:** not driven yet; one AI run in retest 6.
 
 ## Next
 
-1. Build, then the usual checks (centreline, surface, budget); look at the karri density and the budget.
-2. A drive: does the gravel grip feel right, and do the 30 m heights make it lumpy?
-3. Later: a layout on one map with Caves Road, Boranup ([Caves Road, Boranup](../caves_road_boranup/README.md)).
+1. A drive: does the gravel grip feel right, and do the 30 m heights make it lumpy over the ridges?
+2. Later: a layout on one map with Caves Road, Boranup ([Caves Road, Boranup](../caves_road_boranup/README.md)).

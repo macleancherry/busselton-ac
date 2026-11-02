@@ -6,12 +6,12 @@ Caves Road (Tourist Drive 250) south of Margaret River, from near Mammoth and La
 
 ## Status
 
-- **Route:** ready, not built yet. OSRM routes the pins with no U-turns. Pins stay clear of the Boranup Drive and Allan Road junctions.
+- **Built** 2 Nov; every check passes, 1.24M triangles (the karri is dense).
 - **Heights:** not on GA's 5 m LiDAR; about 30 m global heights.
 - **Roadsides:** no farm gates or mailboxes (`farmRoadsides: false`): the tracks off this stretch are national park 4WD tracks.
 - **Boranup Drive** (the unsealed limestone scenic drive just west) is its own track: [Boranup Drive](../boranup_drive/README.md), `routes/boranup-drive.json`.
+- **In game:** not driven yet; one AI run in retest 6.
 
 ## Next
 
-1. Build on the fallback heights; check tree density and the budget (the karri is dense).
-2. Drive it with Boranup Drive; later they could be two layouts on one map.
+1. Drive it with Boranup Drive; later they could be two layouts on one map.

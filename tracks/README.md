@@ -21,6 +21,8 @@ The route stays in `routes/` and the landmarks in `routes/landmarks/`. Private t
 | [Cape Leeuwin](cape_leeuwin/README.md) | Drive-anywhere (showcase later) | `routes/cape-leeuwin.json` | No |
 | [Collie Motorplex](collie_motorplex/README.md) | Showcase | `routes/collie-motorplex.json` | No |
 
+All ten were built between 31 Oct and 2 Nov 2026 and pass every check (`node scripts/check/all.mjs <slug>`); none of the South West ones has been driven yet. Each page has the numbers and what's next.
+
 Where the 5 m LiDAR stops (`STATE_DEMS.wa.box` in `src/services/tiles.ts`, and GA's coverage stops short of that box west of Dunsborough), the build falls back to about 30 m global heights.
 
 ## Working on a track
@@ -31,7 +33,7 @@ Where the 5 m LiDAR stops (`STATE_DEMS.wa.box` in `src/services/tiles.ts`, and G
 npx tsx scripts/polish/landmarks.ts routes/<route>.json out/<slug>.zip
 ```
 
-That takes about 20 s, and its polish zip goes on with `install-track.ps1 -Zip <it> -Overlay`. A new landmark also needs its spot cleared in the base, so it waits for the next base build (or goes in on top of what's there until then).
+That takes about 20 s, and its polish zip goes on with `install-track.ps1 -Zip <it> -Overlay`. A Blender detail layer goes in a layers folder listed in the route's `"layers"` (CLAUDE.md, "AC conventions"). A new landmark also needs its spot cleared in the base, so it waits for the next base build (or goes in on top of what's there until then).
 
 **Freeze the inputs:**
 1. Build once from live data.
