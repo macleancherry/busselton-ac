@@ -61,7 +61,7 @@ const REQUIRED: Record<string, unknown> = {
 const OPTIONAL = [
   "armco", "parkedBays", "kerbside", "laneBayClear", "houseStyle", "origin", "area", "aiKeepLeft", "aiRings",
   "streetsValid", "layout", "layoutDrives", "clears", "challenges", "timeTrialSectors", "driftZones", "terrainLodFarTol",
-  "cspTrees", "rainHollows", "trackSounds", "gravelRoads", "unsealed", "zones", "pureTuning", "photoSea",
+  "cspTrees", "rainHollows", "trackSounds", "gravelRoads", "unsealed", "zones", "pureTuning", "photoSea", "beachDetail",
   "farmland", "farmRoadsides", "wavingFlags", "jettyTrain", "swimJetties", "jettyKinds", "trafficLights", "poleClear", "padClear", "networkCore",
   "raceway", "treeMips", "shoreClear", "courseMarks", "shopNamesOverpass",
 ];
@@ -79,7 +79,7 @@ describe("build options", () => {
   });
 
   it("has no defaults for optional fields", () => {
-    expect(OPTIONAL).toHaveLength(40);
+    expect(OPTIONAL).toHaveLength(41);
     for (const k of OPTIONAL) expect(Object.keys(DEFAULT_OPTIONS)).not.toContain(k);
     expect([...OPTIONAL_OPTION_KEYS].sort()).toEqual([...OPTIONAL].sort());
   });

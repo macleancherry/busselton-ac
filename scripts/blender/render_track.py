@@ -16,6 +16,9 @@ What the importer gets wrong for a track, put right here:
     surface is clear water instead, as in game: the photo's colour shows through and the sky is
     reflected at a glancing angle (Fresnel), with small waves. The photo layer is matte, and the
     foam line (shore_foam) is blended by its alpha rather than cut out.
+  - The wet sand at the water's edge (shore_wet, beachDetail): blended by its alpha too, glossy
+    (low roughness), so it shines like the in-game strip. The fine sand grain is a ksMultilayer
+    detail layer the glTF doesn't carry; the renders show the toned photo sand without it.
 """
 import json
 import math
@@ -182,6 +185,18 @@ def blend_alpha(mat):
         mat.surface_render_method = "BLENDED"
 
 
+def wet_sheen(mat):
+    """The wet sand: its alpha blended like the foam, with a glossy, wet surface."""
+    blend_alpha(mat)
+    bsdf = next((n for n in mat.node_tree.nodes if n.bl_idname == "ShaderNodeBsdfPrincipled"), None)
+    if not bsdf:
+        return
+    bsdf.inputs["Roughness"].default_value = 0.12
+    for k in ("Specular IOR Level", "Specular"):
+        if k in bsdf.inputs:
+            bsdf.inputs[k].default_value = 0.8
+
+
 def fix_materials():
     cache, cut, water = {}, [], []
     names = [m.name.split(".")[0].lower() for m in bpy.data.materials]
@@ -194,6 +209,8 @@ def fix_materials():
             matte(mat)
         elif base == "shore_foam":
             blend_alpha(mat)
+        elif base == "shore_wet":
+            wet_sheen(mat)
         elif base == "sea" or base.startswith("sea_"):
             (make_clear_water if photo_sea else make_water)(mat)
             water.append(mat.name)

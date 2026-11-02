@@ -107,7 +107,7 @@ LAG = 0.97
 ```
 [GRASS_FX]
 GRASS_MATERIALS = terrain_?, strip_photo_?, sidestrips_photo, returns_photo, rbphoto_?, grass, verge
-OCCLUDING_MATERIALS = road_?, side_photo_?, concrete, paint?, rrpm, barrier_?, path_?, mulch, fence_?, frontwall_?, hedge, sea, jetty_?
+OCCLUDING_MATERIALS = road_?, side_photo_?, concrete, paint?, rrpm, barrier_?, path_?, mulch, fence_?, frontwall_?, hedge, sea, jetty_?, shore_wet, shore_foam
 ORIGINAL_GRASS_MATERIALS =
 MASK_MAIN_THRESHOLD = 0.12
 MASK_RED_THRESHOLD = 0.3
@@ -347,7 +347,7 @@ BAKE_AS_TREES = material:trees, material:shrubs, material:hedge, material:barrie
 BAKE_AS_GRASS = shader:ksGrass?
 TREES_LIGHT_PASS_CHANCE = 0.9
 TREES_SHADOW_FACTOR = 0.8
-EXCLUDE_FROM_BAKING = renderable:n, material:sea, material:sea_photo?, material:shore_foam, material:backdrop_?
+EXCLUDE_FROM_BAKING = renderable:n, material:sea, material:sea_photo?, material:shore_foam, material:shore_wet, material:backdrop_?
 FORCE_PASSING_LIGHT = material:sea, material:glass, material:window, material:shop_window
 EXT_EXCLUDE_POBJECTS = 1
 EXT_REBAKE_DARK_OBJECTS = 1
@@ -364,7 +364,7 @@ The ext_config lists name materials other modules create. Renaming a material el
 
 - Ground photo (grass, dry season, rough in rain, relief, bounced light): `terrain_?`, `strip_photo_?`, `sidestrips_photo`, `returns_photo`, `rbphoto_?`, `grass`, `verge`, `backdrop_?` (dry season and rough only).
 - Roads and hard surfaces: `road_?`, `side_photo_?`, `concrete`, `paint?` / `paint`, `paint_yellow`, `path_?`, `rrpm`.
-- Others: `window`, `glass`, `signart`, `steel`, `lamp`, `shop_sign`, `shop_window`, `trees`, `shrubs`, `hedge`, `barrier_hedge`, `barrier_?`, `barrier_colorbond`, `barrier_paling`, `fence_?`, `frontwall_?`, `mulch`, `sea`, `jetty_?`, `vine_leaf`; bakery adds `sea_photo?`, `shore_foam`.
+- Others: `window`, `glass`, `signart`, `steel`, `lamp`, `shop_sign`, `shop_window`, `trees`, `shrubs`, `hedge`, `barrier_hedge`, `barrier_?`, `barrier_colorbond`, `barrier_paling`, `fence_?`, `frontwall_?`, `mulch`, `sea`, `jetty_?`, `vine_leaf`; bakery adds `sea_photo?`, `shore_foam`, `shore_wet`; Grass FX occluders add `shore_wet`, `shore_foam`.
 
 `?` is CSP's wildcard. A list item matching no material is harmless.
 

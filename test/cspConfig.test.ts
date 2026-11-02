@@ -235,7 +235,7 @@ describe("bakedShadowParams", () => {
     "USE_GROUND = 0", "BRIGHTNESS = 1.02", "GAMMA = 0.92", "OPACITY = 0.97",
     "BAKE_AS_TREES = material:trees, material:shrubs, material:hedge, material:barrier_hedge, shader:ksTree?",
     "BAKE_AS_GRASS = shader:ksGrass?", "TREES_LIGHT_PASS_CHANCE = 0.9", "TREES_SHADOW_FACTOR = 0.8",
-    "EXCLUDE_FROM_BAKING = renderable:n, material:sea, material:sea_photo?, material:shore_foam, material:backdrop_?",
+    "EXCLUDE_FROM_BAKING = renderable:n, material:sea, material:sea_photo?, material:shore_foam, material:shore_wet, material:backdrop_?",
     "FORCE_PASSING_LIGHT = material:sea, material:glass, material:window, material:shop_window",
     "EXT_EXCLUDE_POBJECTS = 1", "EXT_REBAKE_DARK_OBJECTS = 1", "AO_SAMPLES_PHYSICS_SURFACES = 1",
     "EXT_PROCEDURAL_TREES_OCCLUDE = 0", "EXT_PROCEDURAL_TREES_BAKE = 0", "EXT_PROCEDURAL_TREES_FINALIZE = 0", "",

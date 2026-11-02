@@ -153,7 +153,7 @@ Per job with an image:
 1. **Paint out parked cars** (carParks && img.rgba && terrain): roofs = `detectBuildings(...)` rings when buildings && detectBuildings, else none; `clean = paintOutCars(rgba, size, span/size, footprintMask([...osmRings, ...roofs]), {carParks: lineMask(parkingLines, 15), streets: lineMask(streetLines, 14)})`.
 2. If clean: `carsPainted += clean.cars`; with `parkedCars`, each spot becomes a `PhotoCar {at: [minX + (px+.5)·m, maxY − (py+.5)·m], dir: [dir0, −dir1], paint: paintFor(rgb), row?}`; with `carParkIslands`, `findIslands(clean.rgba)` rings are kept with their chunk.
 3. Sea photos (photoSea && rgba && `sea.near(chunk centre, span·0.71)`): `{chunk, rgba, size}` kept (the raw photo).
-4. `toned = beachLook?.tone(chunk, clean?.rgba ?? img.rgba, size)` (beachLook = photoSea ? `new BeachLook(beaches, sea)` : null); count `beachChunks`.
+4. `toned = beachLook?.tone(chunk, clean?.rgba ?? img.rgba, size)` (beachLook = photoSea && beachDetail !== false ? `new BeachLook(beaches, sea)` : null); count `beachChunks`.
 5. Texture name `${prefix}_${chunk.key}.${clean || toned ? "dds" : img.ext}`; data = DXT1 of `toned ?? clean.rgba` when either, else `img.data` untouched.
 6. Material `${prefix}_${key}`: with detailShaders and a photo (toned ?? clean ?? img.rgba) on a terrain chunk → push texture, then `groundMaterial(name, tex, photoMask(name, photo, size, size, chunk), photoLight)`, wrapped in `withSandDetail` when toned. Else push texture and `material(name, tex, photoLight)`. `photoLight = {ambient .6, diffuse .2, specular 0, exp 1}`.
 7. `textured.add(chunk.key)`.
@@ -162,7 +162,7 @@ Per job with an image:
 
 After the loop (these run whether or not imagery ran):
 - `seaLayer = photoSea ? buildPhotoSea({ocean, piers, photos: seaPhotos, bounds: farBounds}) : null`; its textures, then materials.
-- photoSea → `addScenery("shore_foam.png", foamTexture(), foamMaterial())`.
+- photoSea and beachDetail (on unless false) → `addScenery("shore_foam.png", foamTexture(), foamMaterial())`, then `addScenery("shore_wet.png", wetSandTexture(), wetSandMaterial())` (beachDetail.ts).
 - beachChunks && detailShaders → texture `ground_sand.dds`.
 
 Produces `textured, treeSpots, farTreeSpots, detected, parkedSpots, carsPainted, islandsFound, photos, seaLayer`.
@@ -329,7 +329,7 @@ Section 7. `railsClear = keepOffRoute(rails.rails, onRoad)`; fences, farm, lots 
 8. reliefScenery rock (4); addScenery jetty_deck; JETTY_MATERIALS (only with jettyFeatures); addScenery jetty_timber.
 9. reliefScenery `fence_<c>` per FENCE_COLOURS (2); frontwall_limestone, frontwall_brick (3); addScenery hedge, mulch, shrubs (alpha tested).
 10. Imagery, per job in order (S5.5–6).
-11. seaLayer textures, seaLayer materials; shore_foam; T ground_sand.dds.
+11. seaLayer textures, seaLayer materials; shore_foam, shore_wet (beachDetail); T ground_sand.dds.
 12. Building finishes: facades, then roofs (S7.7).
 13. Road surfaces as first used, in call order: buildRoadMeshes' chunk materials (road_*, gravel_*, road_photo_*), returns' `roadMaterial(0, 6, kerbed)`, sidestrips_photo, returns_photo, strip_photo_* (buildKerbs), side streets (side_photo_*, gravel, road), per ring: roadMaterial then rbphoto_k, net road materials.
 14. vine_leaf; path_shared/path_foot (T, T, M, M); traffic light materials; farm textures; race (3 addScenery + 3 cutouts); flag_race; signart.
@@ -373,7 +373,7 @@ cullable([                                   // split by area, small detail give
 ])
 TERRAIN         terrainNodes                     (not culled: already chunked)
 HORIZON         backdropNodes + horizonTrees
-SEA             ocean ? buildSea(ocean, photoSea ? {transparent} : {}) + seaLayer.nodes + (photoSea ? buildShoreFoam) : []
+SEA             ocean ? buildSea(ocean, photoSea ? {transparent} : {}) + seaLayer.nodes + (beachDetail ? buildWetSand + buildShoreFoam) : []
 WALLS           walls + trunks + house tree trunks
 AC_* dummies    trackObjects(plan, opts), only when !opts.layout (section 7a)
 --- appended in S19, only when parked cars remain:
