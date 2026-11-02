@@ -1,20 +1,51 @@
 {
- "name": "Caves Road, Wilyabrup to Margaret River",
- "_note": "Caves Road (Tourist Drive 250) south from Wilyabrup, where routes/caves-road-wilyabrup.json ends (its last pin is this route's first), past the Gracetown turn-off and the Carters Road turn, through vineyards and bush to just before the Wallcliffe Road junction, the turn-off into Margaret River. Point to point, about 18.4 km by OSRM, all on Caves Road. The second half of Caves Road from Yallingup to Margaret River (35 km, too long for one track's triangle budget). The last pin is about 200 m short of Wallcliffe Road so the finish stays off the junction. Wallcliffe Road on into town (4.2 km to the Bussell Highway roundabout, where routes/margaret-river.json runs) is left out: it would make 22.6 km, over the budget. Pins mid-block, each at least 200 m from a side road (most over 500 m). Not on 5 m LiDAR: the 30 m fallback heights. Country preset as it is. The longest country route yet (Tuart Drive, 16.8 km, came to 1.33M triangles): if budget.ts fails, set build.terrainStep 3, or move the split north.",
- "loop": false,
- "preset": "country",
- "pins": [
-  [115.03531, -33.81234],
-  [115.03855, -33.82896],
-  [115.02885, -33.84308],
-  [115.01765, -33.86376],
-  [115.02172, -33.88482],
-  [115.03235, -33.90493],
-  [115.02035, -33.9292],
-  [115.01833, -33.94676],
-  [115.01932, -33.96371]
- ],
- "build": {
-  "origin": [115.027, -33.888]
- }
+  "name": "Caves Road, Wilyabrup to Margaret River",
+  "_note": "Caves Road (Tourist Drive 250) south from Wilyabrup, where routes/caves-road-wilyabrup.json ends (its last pin is this route's first), past the Gracetown turn-off and the Carters Road turn, through vineyards and bush to just before the Wallcliffe Road junction, the turn-off into Margaret River. Point to point, about 18.4 km by OSRM, all on Caves Road. The second half of Caves Road from Yallingup to Margaret River (35 km, too long for one track's triangle budget). The last pin is about 200 m short of Wallcliffe Road so the finish stays off the junction. Wallcliffe Road on into town (4.2 km to the Bussell Highway roundabout, where routes/margaret-river.json runs) is left out: it would make 22.6 km, over the budget. Pins mid-block, each at least 200 m from a side road (most over 500 m). Not on 5 m LiDAR: the 30 m fallback heights. Country preset as it is. The longest country route yet (Tuart Drive, 16.8 km, came to 1.33M triangles): if budget.ts fails, set build.terrainStep 3, or move the split north.",
+  "loop": false,
+  "preset": "country",
+  "pins": [
+    [
+      115.03531,
+      -33.81234
+    ],
+    [
+      115.03855,
+      -33.82896
+    ],
+    [
+      115.02885,
+      -33.84308
+    ],
+    [
+      115.01765,
+      -33.86376
+    ],
+    [
+      115.02172,
+      -33.88482
+    ],
+    [
+      115.03235,
+      -33.90493
+    ],
+    [
+      115.02035,
+      -33.9292
+    ],
+    [
+      115.01833,
+      -33.94676
+    ],
+    [
+      115.01932,
+      -33.96371
+    ]
+  ],
+  "build": {
+    "origin": [
+      115.027,
+      -33.888
+    ],
+    "terrainStep": 3
+  }
 }
