@@ -78,7 +78,8 @@
    "text": "BUSSELTON MOTEL",
    "colour": "#f1f1ed",
    "ink": "#2a2c30",
-   "posts": true
+   "posts": true,
+   "back": true
   }
  ],
  "windows": [],

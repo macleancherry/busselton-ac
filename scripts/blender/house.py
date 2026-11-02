@@ -350,24 +350,37 @@ def build_yard(s, house, street):
         if sg.get("posts"):
             for j, x in enumerate((sg["x0"] + 0.05, sg["x1"] - 0.05)):
                 box(f"sign_{k}_post{j}", x - 0.06, sg["y"] + 0.01, 0, x + 0.06, sg["y"] + 0.07, sg["z1"] + 0.05, m_board, street)
+        back = bool(sg.get("back"))
+        if back and sg.get("backY") is not None:
+            box(f"sign_{k}_backboard", sg["x0"], sg["backY"], sg["z0"], sg["x1"], sg["backY"] + 0.08, sg["z1"], m_board, street)
         if sg.get("text"):
-            cu = bpy.data.curves.new(f"sign_{k}_text", "FONT")
-            cu.body = sg["text"]
-            cu.align_x, cu.align_y = "CENTER", "CENTER"
-            cu.extrude = 0.004
-            ob = bpy.data.objects.new(f"sign_{k}_text", cu)
-            street.objects.link(ob)
-            ob.data.materials.append(material(f"sign_{k}_ink", sg.get("ink", "#f4f4f2"), rough=0.4))
-            # Stand it up facing the street (-y), sized to fit the board.
-            ob.rotation_euler = (math.radians(90), 0, 0)
-            bpy.context.view_layer.update()
-            bw, bh = sg["x1"] - sg["x0"], sg["z1"] - sg["z0"]
-            cu.size = 1.0
-            bpy.context.view_layer.update()
-            dims = ob.dimensions
-            scale = min(0.86 * bw / max(dims.x, 1e-3), 0.6 * bh / max(dims.y, 1e-3))
-            cu.size = scale
-            ob.location = ((sg["x0"] + sg["x1"]) / 2, sg["y"] - 0.006, (sg["z0"] + sg["z1"]) / 2)
+            m_ink = material(f"sign_{k}_ink", sg.get("ink", "#f4f4f2"), rough=0.4)
+            sign_text(f"sign_{k}_text", sg, sg["y"] - 0.006, m_ink, street, False)
+            if back:
+                yb = (sg["backY"] if sg.get("backY") is not None else sg["y"]) + 0.086
+                sign_text(f"sign_{k}_text_back", sg, yb, m_ink, street, True)
+
+
+def sign_text(name, sg, y, m_ink, street, back):
+    """A sign's lettering standing at y, sized to fit its board: facing the street (-y), or, `back`,
+    facing away from it (+y) and reading the right way from behind (turned round, not mirrored)."""
+    cu = bpy.data.curves.new(name, "FONT")
+    cu.body = sg["text"]
+    cu.align_x, cu.align_y = "CENTER", "CENTER"
+    cu.extrude = 0.004
+    ob = bpy.data.objects.new(name, cu)
+    street.objects.link(ob)
+    ob.data.materials.append(m_ink)
+    # Stand it up facing the street (-y); a back face turns round the vertical axis to face +y.
+    ob.rotation_euler = (math.radians(90), 0, math.radians(180) if back else 0)
+    bpy.context.view_layer.update()
+    bw, bh = sg["x1"] - sg["x0"], sg["z1"] - sg["z0"]
+    cu.size = 1.0
+    bpy.context.view_layer.update()
+    dims = ob.dimensions
+    scale = min(0.86 * bw / max(dims.x, 1e-3), 0.6 * bh / max(dims.y, 1e-3))
+    cu.size = scale
+    ob.location = ((sg["x0"] + sg["x1"]) / 2, y, (sg["z0"] + sg["z1"]) / 2)
 
 # ---------------------------------------------------------------- the scene
 

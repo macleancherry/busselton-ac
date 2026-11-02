@@ -87,7 +87,9 @@
    "z1": 4.45,
    "text": "PARADISE MOTOR INN",
    "colour": "#f1f1ed",
-   "ink": "#2a2c30"
+   "ink": "#2a2c30",
+   "back": true,
+   "backY": 0.5
   },
   {
    "x0": -1.4,
@@ -97,7 +99,9 @@
    "z1": 3.4,
    "text": "MOTEL",
    "colour": "#f1f1ed",
-   "ink": "#2a2c30"
+   "ink": "#2a2c30",
+   "back": true,
+   "backY": 0.5
   }
  ],
  "windows": [],

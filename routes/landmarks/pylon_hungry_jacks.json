@@ -77,7 +77,9 @@
    "z1": 7.15,
    "text": "HUNGRY JACK'S",
    "colour": "#f1f1ed",
-   "ink": "#2a2c30"
+   "ink": "#2a2c30",
+   "back": true,
+   "backY": 0.5
   },
   {
    "x0": -0.93,
@@ -87,7 +89,9 @@
    "z1": 5.75,
    "text": "DRIVE THRU",
    "colour": "#f1f1ed",
-   "ink": "#2a2c30"
+   "ink": "#2a2c30",
+   "back": true,
+   "backY": 0.5
   }
  ],
  "windows": [],
