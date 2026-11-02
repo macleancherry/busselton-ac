@@ -1,41 +1,86 @@
 {
- "note": "Margaret River landmarks built from their own spec (src/core/specHouse.ts), loaded by any route that lists this file in \"looks\". \"at\" is the middle of each building's blocks (outbuildings left out). \"facing\" is the compass bearing the front faces (else it faces the nearest road).",
- "houses": [
-  {
-   "at": [
-    115.074004,
-    -33.951413
-   ],
-   "specFile": "routes/landmarks/margaret_river_hotel.json",
-   "name": "Margaret River Hotel",
-   "facing": 272
-  },
-  {
-   "at": [
-    115.073967,
-    -33.948951
-   ],
-   "specFile": "routes/landmarks/margaret_river_visitor_centre.json",
-   "name": "Margaret River Visitor Centre",
-   "facing": 96
-  },
-  {
-   "at": [
-    115.073693,
-    -33.949923
-   ],
-   "specFile": "routes/landmarks/settlers_tavern.json",
-   "name": "Settlers Tavern",
-   "facing": 96
-  },
-  {
-   "at": [
-    115.074701,
-    -33.947267
-   ],
-   "specFile": "routes/landmarks/itc_store.json",
-   "name": "International Trading Company Store (REDSEA Gallery)",
-   "facing": 271
-  }
- ]
+  "note": "Margaret River landmarks built from their own spec (src/core/specHouse.ts), loaded by any route that lists this file in \"looks\". \"at\" is the middle of each building's blocks (outbuildings left out). \"facing\" is the compass bearing the front faces (else it faces the nearest road).",
+  "houses": [
+    {
+      "at": [
+        115.074004,
+        -33.951413
+      ],
+      "specFile": "routes/landmarks/margaret_river_hotel.json",
+      "name": "Margaret River Hotel",
+      "facing": 272
+    },
+    {
+      "at": [
+        115.073967,
+        -33.948951
+      ],
+      "specFile": "routes/landmarks/margaret_river_visitor_centre.json",
+      "name": "Margaret River Visitor Centre",
+      "facing": 96
+    },
+    {
+      "at": [
+        115.073693,
+        -33.949923
+      ],
+      "specFile": "routes/landmarks/settlers_tavern.json",
+      "name": "Settlers Tavern",
+      "facing": 96
+    },
+    {
+      "at": [
+        115.074701,
+        -33.947267
+      ],
+      "specFile": "routes/landmarks/itc_store.json",
+      "name": "International Trading Company Store (REDSEA Gallery)",
+      "facing": 271
+    },
+    {
+      "at": [
+        115.074492,
+        -33.948817
+      ],
+      "specFile": "routes/landmarks/margaret_river_good_olive.json",
+      "name": "The Good Olive building and Dome",
+      "facing": 277
+    },
+    {
+      "at": [
+        115.073389,
+        -33.950806
+      ],
+      "specFile": "routes/landmarks/margaret_river_town_square.json",
+      "name": "Fearn Avenue town square",
+      "facing": 98
+    },
+    {
+      "at": [
+        115.074463,
+        -33.946475
+      ],
+      "specFile": "routes/landmarks/margaret_river_bridgefield.json",
+      "name": "Bridgefield (La Scarpetta)",
+      "facing": 346
+    },
+    {
+      "at": [
+        115.073415,
+        -33.951862
+      ],
+      "specFile": "routes/landmarks/margaret_river_nab.json",
+      "name": "NAB building (former Goldsbrough Mort)",
+      "facing": 98
+    },
+    {
+      "at": [
+        115.073759,
+        -33.953309
+      ],
+      "specFile": "routes/landmarks/margaret_river_morries.json",
+      "name": "The Tuckshop, ANZ and Morries, Arc of Iris",
+      "facing": 262
+    }
+  ]
 }

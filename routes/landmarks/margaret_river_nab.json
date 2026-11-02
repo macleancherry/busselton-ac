@@ -1,0 +1,315 @@
+{
+ "note": "The NAB building, west side of Bussell Hwy between Willmott Ave and the Wallcliffe Rd roundabout: built 1952-53 for the stock agents Goldsbrough Mort, later the TAB, now NAB and offices (Main Street Historic Walk site 44). From the Landgate aerial (Oct 2026) and 2019 street photos. Two storeys under a red Colorbond hip roof: a front range along the street and a two-storey wing back along the north side, with a single-storey flat-roofed rear between. Cream upper walls with a band of white-framed windows (an enclosed upper verandah), shopfronts under a deep street awning with the NAB sign. Name in plain lettering, no logo. Metres: x left to right as seen from Bussell Hwy (south to north), y back (west) from the front wall.",
+ "wallHeight": 6.6,
+ "setback": 3,
+ "road": {
+  "width": 10,
+  "verge": 0.5
+ },
+ "lawn": "#7f8c4e",
+ "sunFrom": [
+  -0.5,
+  -0.7,
+  1.0
+ ],
+ "cameras": {
+  "street": {
+   "eye": [
+    -6,
+    -22,
+    1.6
+   ],
+   "look": [
+    9,
+    6,
+    4.0
+   ],
+   "lens": 22
+  },
+  "aerial": {
+   "eye": [
+    -22,
+    -34,
+    28
+   ],
+   "look": [
+    9,
+    12,
+    2
+   ],
+   "lens": 30
+  },
+  "corner": {
+   "eye": [
+    24,
+    -10,
+    1.7
+   ],
+   "look": [
+    8,
+    6,
+    4
+   ],
+   "lens": 24
+  }
+ },
+ "walls": {
+  "kind": "render",
+  "colour": "#e3d9c4"
+ },
+ "finishes": {
+  "upper": {
+   "kind": "weatherboard",
+   "colour": "#e6dcc4"
+  },
+  "glass": {
+   "kind": "render",
+   "colour": "#3a4044"
+  },
+  "red": {
+   "kind": "render",
+   "colour": "#8b3a32"
+  }
+ },
+ "trim": "#f2efe7",
+ "roof": {
+  "pitch": 22,
+  "colour": "#8b3a32",
+  "eaves": 0.5
+ },
+ "blocks": [
+  {
+   "name": "front",
+   "x0": 0.2,
+   "x1": 16.5,
+   "y0": 0.0,
+   "y1": 10.0,
+   "roof": "hip"
+  },
+  {
+   "name": "north_wing",
+   "x0": 9.0,
+   "x1": 16.5,
+   "y0": 10.0,
+   "y1": 24.5,
+   "roof": "hip"
+  },
+  {
+   "name": "rear",
+   "x0": 0.2,
+   "x1": 9.0,
+   "y0": 10.0,
+   "y1": 23.5,
+   "roof": "none",
+   "wallHeight": 3.8
+  }
+ ],
+ "panels": [
+  {
+   "x0": 0.1,
+   "x1": 16.6,
+   "y0": -0.06,
+   "y1": 0.0,
+   "z0": 3.4,
+   "z1": 6.4,
+   "walls": "upper"
+  },
+  {
+   "x0": 0.6,
+   "x1": 16.1,
+   "y0": -0.1,
+   "y1": -0.04,
+   "z0": 4.0,
+   "z1": 5.7,
+   "walls": "glass"
+  },
+  {
+   "x0": 0.53,
+   "x1": 0.67,
+   "y0": -0.14,
+   "y1": -0.08,
+   "z0": 4.0,
+   "z1": 5.7,
+   "walls": "upper"
+  },
+  {
+   "x0": 2.47,
+   "x1": 2.61,
+   "y0": -0.14,
+   "y1": -0.08,
+   "z0": 4.0,
+   "z1": 5.7,
+   "walls": "upper"
+  },
+  {
+   "x0": 4.4,
+   "x1": 4.54,
+   "y0": -0.14,
+   "y1": -0.08,
+   "z0": 4.0,
+   "z1": 5.7,
+   "walls": "upper"
+  },
+  {
+   "x0": 6.34,
+   "x1": 6.48,
+   "y0": -0.14,
+   "y1": -0.08,
+   "z0": 4.0,
+   "z1": 5.7,
+   "walls": "upper"
+  },
+  {
+   "x0": 8.28,
+   "x1": 8.42,
+   "y0": -0.14,
+   "y1": -0.08,
+   "z0": 4.0,
+   "z1": 5.7,
+   "walls": "upper"
+  },
+  {
+   "x0": 10.22,
+   "x1": 10.36,
+   "y0": -0.14,
+   "y1": -0.08,
+   "z0": 4.0,
+   "z1": 5.7,
+   "walls": "upper"
+  },
+  {
+   "x0": 12.15,
+   "x1": 12.29,
+   "y0": -0.14,
+   "y1": -0.08,
+   "z0": 4.0,
+   "z1": 5.7,
+   "walls": "upper"
+  },
+  {
+   "x0": 14.09,
+   "x1": 14.23,
+   "y0": -0.14,
+   "y1": -0.08,
+   "z0": 4.0,
+   "z1": 5.7,
+   "walls": "upper"
+  },
+  {
+   "x0": 16.03,
+   "x1": 16.17,
+   "y0": -0.14,
+   "y1": -0.08,
+   "z0": 4.0,
+   "z1": 5.7,
+   "walls": "upper"
+  },
+  {
+   "x0": 0.2,
+   "x1": 16.5,
+   "y0": -0.06,
+   "y1": 0.0,
+   "z0": 0.1,
+   "z1": 2.9,
+   "walls": "glass"
+  }
+ ],
+ "awnings": [
+  {
+   "x0": 0.2,
+   "x1": 16.5,
+   "y0": -3.2,
+   "y1": 0.0,
+   "z": 3.1,
+   "colour": "#8b3a32",
+   "posts": [
+    0.4,
+    8.3,
+    16.3
+   ]
+  }
+ ],
+ "doors": [
+  {
+   "type": "front",
+   "x0": 11.0,
+   "x1": 12.8,
+   "y": 0.0,
+   "height": 2.4,
+   "z0": 0.1,
+   "colour": "#2b2f31"
+  }
+ ],
+ "windows": [
+  {
+   "facing": "right",
+   "wall": 16.5,
+   "at": 4.0,
+   "width": 1.2,
+   "height": 1.5,
+   "sill": 4.2
+  },
+  {
+   "facing": "right",
+   "wall": 16.5,
+   "at": 8.0,
+   "width": 1.2,
+   "height": 1.5,
+   "sill": 4.2
+  },
+  {
+   "facing": "right",
+   "wall": 16.5,
+   "at": 13.0,
+   "width": 1.2,
+   "height": 1.5,
+   "sill": 4.2
+  },
+  {
+   "facing": "right",
+   "wall": 16.5,
+   "at": 18.0,
+   "width": 1.2,
+   "height": 1.5,
+   "sill": 4.2
+  },
+  {
+   "facing": "right",
+   "wall": 16.5,
+   "at": 22.0,
+   "width": 1.2,
+   "height": 1.5,
+   "sill": 4.2
+  }
+ ],
+ "paving": [
+  {
+   "x0": -4,
+   "y0": -5.0,
+   "x1": 21,
+   "y1": 0.0,
+   "colour": "#8d4a3a",
+   "kind": "brick"
+  }
+ ],
+ "signs": [
+  {
+   "x0": 10.0,
+   "x1": 15.5,
+   "y": -3.3,
+   "z0": 2.75,
+   "z1": 3.3,
+   "text": "NAB",
+   "colour": "#1c1c1c",
+   "ink": "#f2f2f2"
+  }
+ ],
+ "trees": [
+  {
+   "x": 20.0,
+   "y": -4.0,
+   "height": 9,
+   "spread": 6
+  }
+ ]
+}

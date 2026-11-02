@@ -1,0 +1,482 @@
+{
+ "note": "The Good Olive building and the Dome building, the two-storey pair on the east side of Bussell Hwy opposite the Visitor Centre, at the north end of the shops (Main Street Historic Walk sites 12 and 13; both modern, 1990s-2003). From the Landgate aerial (Oct 2026) and 2019 street photos. North: a two-storey L-shaped building with a pale grey hip roof and a deep two-storey verandah on white posts along the street, an upper balcony with a white balustrade and glazed upper rooms; the ground floor has The Good Olive. South: the Dome building, two storeys of sand-coloured render with tall upper windows (arched in reality), a flat roof behind a parapet, and a dark awning over the footpath. Behind and south of them, the rest of the same OSM footprint (a flat-roofed shop block and a barrel-roofed block) as plain outbuildings so the base doesn't lose them. Names in plain lettering, no logos. Metres: x left to right as seen from Bussell Hwy (north to south), y back (east) from the verandah line.",
+ "wallHeight": 6.6,
+ "setback": 4,
+ "road": {
+  "width": 10,
+  "verge": 0.5
+ },
+ "lawn": "#7f8c4e",
+ "sunFrom": [
+  -0.5,
+  -0.7,
+  1.0
+ ],
+ "cameras": {
+  "street": {
+   "eye": [
+    -10,
+    -24,
+    1.6
+   ],
+   "look": [
+    16,
+    8,
+    4.5
+   ],
+   "lens": 22
+  },
+  "aerial": {
+   "eye": [
+    -24,
+    -40,
+    32
+   ],
+   "look": [
+    20,
+    14,
+    2
+   ],
+   "lens": 30
+  },
+  "corner": {
+   "eye": [
+    -16,
+    -8,
+    1.7
+   ],
+   "look": [
+    8,
+    10,
+    5
+   ],
+   "lens": 24
+  }
+ },
+ "walls": {
+  "kind": "render",
+  "colour": "#ebe7dd"
+ },
+ "finishes": {
+  "sand": {
+   "kind": "render",
+   "colour": "#cfb48c"
+  },
+  "glass": {
+   "kind": "render",
+   "colour": "#39403f"
+  },
+  "shop": {
+   "kind": "render",
+   "colour": "#4a3c33"
+  },
+  "plain": {
+   "kind": "render",
+   "colour": "#d9d3c6"
+  }
+ },
+ "trim": "#f4f3ee",
+ "roof": {
+  "pitch": 22,
+  "colour": "#d4d6d2",
+  "eaves": 0.5
+ },
+ "blocks": [
+  {
+   "name": "west_wing",
+   "x0": 5.5,
+   "x1": 19.5,
+   "y0": 3.5,
+   "y1": 12.0,
+   "roof": "hip"
+  },
+  {
+   "name": "east_range",
+   "x0": -1.0,
+   "x1": 19.5,
+   "y0": 11.0,
+   "y1": 27.0,
+   "roof": "hip"
+  },
+  {
+   "name": "nw_annex",
+   "x0": -1.0,
+   "x1": 5.5,
+   "y0": 6.0,
+   "y1": 11.0,
+   "roof": "none",
+   "wallHeight": 3.4
+  },
+  {
+   "name": "dome",
+   "x0": 20.0,
+   "x1": 37.5,
+   "y0": 4.5,
+   "y1": 29.5,
+   "roof": "none",
+   "wallHeight": 7.4,
+   "walls": "sand"
+  },
+  {
+   "name": "south_shops",
+   "x0": 37.5,
+   "x1": 56.4,
+   "y0": 4.5,
+   "y1": 28.9,
+   "roof": "none",
+   "wallHeight": 4.4,
+   "walls": "plain",
+   "outbuilding": true
+  },
+  {
+   "name": "barrel_block",
+   "x0": 56.4,
+   "x1": 68.0,
+   "y0": 6.5,
+   "y1": 20.8,
+   "roof": "none",
+   "wallHeight": 4.8,
+   "walls": "plain",
+   "outbuilding": true
+  }
+ ],
+ "panels": [
+  {
+   "x0": 5.5,
+   "x1": 19.5,
+   "y0": 0.8,
+   "y1": 3.5,
+   "z0": 3.2,
+   "z1": 3.4,
+   "walls": "plain"
+  },
+  {
+   "x0": 5.5,
+   "x1": 19.5,
+   "y0": 0.8,
+   "y1": 0.9,
+   "z0": 3.4,
+   "z1": 4.4,
+   "walls": "plain"
+  },
+  {
+   "x0": 6.0,
+   "x1": 19.0,
+   "y0": 3.42,
+   "y1": 3.5,
+   "z0": 3.9,
+   "z1": 6.0,
+   "walls": "glass"
+  },
+  {
+   "x0": 6.0,
+   "x1": 19.0,
+   "y0": 3.42,
+   "y1": 3.5,
+   "z0": 0.1,
+   "z1": 2.9,
+   "walls": "shop"
+  },
+  {
+   "x0": 5.93,
+   "x1": 6.07,
+   "y0": 3.36,
+   "y1": 3.42,
+   "z0": 3.9,
+   "z1": 6.0,
+   "walls": "plain"
+  },
+  {
+   "x0": 8.1,
+   "x1": 8.24,
+   "y0": 3.36,
+   "y1": 3.42,
+   "z0": 3.9,
+   "z1": 6.0,
+   "walls": "plain"
+  },
+  {
+   "x0": 10.26,
+   "x1": 10.4,
+   "y0": 3.36,
+   "y1": 3.42,
+   "z0": 3.9,
+   "z1": 6.0,
+   "walls": "plain"
+  },
+  {
+   "x0": 12.43,
+   "x1": 12.57,
+   "y0": 3.36,
+   "y1": 3.42,
+   "z0": 3.9,
+   "z1": 6.0,
+   "walls": "plain"
+  },
+  {
+   "x0": 14.6,
+   "x1": 14.74,
+   "y0": 3.36,
+   "y1": 3.42,
+   "z0": 3.9,
+   "z1": 6.0,
+   "walls": "plain"
+  },
+  {
+   "x0": 16.76,
+   "x1": 16.9,
+   "y0": 3.36,
+   "y1": 3.42,
+   "z0": 3.9,
+   "z1": 6.0,
+   "walls": "plain"
+  },
+  {
+   "x0": 18.93,
+   "x1": 19.07,
+   "y0": 3.36,
+   "y1": 3.42,
+   "z0": 3.9,
+   "z1": 6.0,
+   "walls": "plain"
+  },
+  {
+   "x0": 28.0,
+   "x1": 32.0,
+   "y0": 3.9,
+   "y1": 4.5,
+   "z0": 3.95,
+   "z1": 4.05,
+   "walls": "glass"
+  },
+  {
+   "x0": 28.0,
+   "x1": 32.0,
+   "y0": 3.9,
+   "y1": 3.95,
+   "z0": 4.05,
+   "z1": 5.0,
+   "walls": "glass"
+  },
+  {
+   "x0": 19.9,
+   "x1": 37.6,
+   "y0": 4.3,
+   "y1": 4.5,
+   "z0": 7.1,
+   "z1": 7.6,
+   "walls": "sand"
+  },
+  {
+   "x0": 20.5,
+   "x1": 37.0,
+   "y0": 4.42,
+   "y1": 4.5,
+   "z0": 0.1,
+   "z1": 2.9,
+   "walls": "glass"
+  }
+ ],
+ "verandahs": [
+  {
+   "x0": 5.5,
+   "x1": 19.5,
+   "y0": 0.8,
+   "y1": 3.5,
+   "wallHeight": 6.5,
+   "height": 6.2,
+   "deckHeight": 0.15,
+   "posts": [
+    5.7,
+    9.2,
+    12.6,
+    16.0,
+    19.3
+   ]
+  }
+ ],
+ "awnings": [
+  {
+   "x0": 20.0,
+   "x1": 37.5,
+   "y0": 1.5,
+   "y1": 4.5,
+   "z": 3.1,
+   "colour": "#3f4446"
+  },
+  {
+   "x0": 37.5,
+   "x1": 56.4,
+   "y0": 1.5,
+   "y1": 4.5,
+   "z": 3.0,
+   "colour": "#a9aeb0",
+   "posts": [
+    37.8,
+    47.0,
+    56.1
+   ]
+  }
+ ],
+ "doors": [
+  {
+   "type": "front",
+   "x0": 11.5,
+   "x1": 13.3,
+   "y": 3.5,
+   "height": 2.5,
+   "z0": 0.15,
+   "colour": "#2c2622"
+  }
+ ],
+ "windows": [
+  {
+   "facing": "left",
+   "wall": -1.0,
+   "at": 13.0,
+   "width": 1.4,
+   "height": 1.6,
+   "sill": 3.9
+  },
+  {
+   "facing": "left",
+   "wall": -1.0,
+   "at": 16.5,
+   "width": 1.4,
+   "height": 1.6,
+   "sill": 3.9
+  },
+  {
+   "facing": "left",
+   "wall": -1.0,
+   "at": 20.0,
+   "width": 1.4,
+   "height": 1.6,
+   "sill": 3.9
+  },
+  {
+   "facing": "left",
+   "wall": -1.0,
+   "at": 23.5,
+   "width": 1.4,
+   "height": 1.6,
+   "sill": 3.9
+  },
+  {
+   "facing": "left",
+   "wall": 5.5,
+   "at": 5.0,
+   "width": 1.4,
+   "height": 1.6,
+   "sill": 3.9
+  },
+  {
+   "facing": "left",
+   "wall": 5.5,
+   "at": 8.0,
+   "width": 1.4,
+   "height": 1.6,
+   "sill": 3.9
+  },
+  {
+   "facing": "front",
+   "wall": 4.5,
+   "at": 22.5,
+   "width": 1.3,
+   "height": 2.4,
+   "sill": 4.1
+  },
+  {
+   "facing": "front",
+   "wall": 4.5,
+   "at": 25.5,
+   "width": 1.3,
+   "height": 2.4,
+   "sill": 4.1
+  },
+  {
+   "facing": "front",
+   "wall": 4.5,
+   "at": 28.5,
+   "width": 1.3,
+   "height": 2.4,
+   "sill": 4.1
+  },
+  {
+   "facing": "front",
+   "wall": 4.5,
+   "at": 31.5,
+   "width": 1.3,
+   "height": 2.4,
+   "sill": 4.1
+  },
+  {
+   "facing": "front",
+   "wall": 4.5,
+   "at": 34.5,
+   "width": 1.3,
+   "height": 2.4,
+   "sill": 4.1
+  }
+ ],
+ "paving": [
+  {
+   "x0": -6,
+   "y0": -3.5,
+   "x1": 68,
+   "y1": 0.8,
+   "colour": "#8d4a3a",
+   "kind": "brick"
+  },
+  {
+   "x0": -6,
+   "y0": 0.8,
+   "x1": 5.5,
+   "y1": 6.0,
+   "colour": "#b9a78e",
+   "kind": "concrete"
+  }
+ ],
+ "signs": [
+  {
+   "x0": 7.0,
+   "x1": 12.0,
+   "y": 3.3,
+   "z0": 2.3,
+   "z1": 2.9,
+   "text": "THE GOOD OLIVE",
+   "colour": "#2c2622",
+   "ink": "#efe8d6"
+  },
+  {
+   "x0": 25.0,
+   "x1": 31.0,
+   "y": 1.4,
+   "z0": 3.0,
+   "z1": 3.45,
+   "text": "DOME",
+   "colour": "#2b2f31",
+   "ink": "#efe8d6"
+  }
+ ],
+ "trees": [
+  {
+   "x": 1.5,
+   "y": -2.2,
+   "height": 9,
+   "spread": 6
+  },
+  {
+   "x": 21.0,
+   "y": -2.4,
+   "height": 10,
+   "spread": 7
+  },
+  {
+   "x": 45.0,
+   "y": -2.4,
+   "height": 9,
+   "spread": 6
+  }
+ ]
+}

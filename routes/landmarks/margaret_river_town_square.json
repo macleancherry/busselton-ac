@@ -1,0 +1,335 @@
+{
+ "note": "Fearn Avenue town square (the Festival precinct of the Main Street Makeover, Shire of Augusta Margaret River with Hassell, finished 2021-22): the old Fearn Ave west of Bussell Hwy closed to cars and paved as the town square, opposite Willmott Ave. From the Landgate aerial (Oct 2026). Pale paving from the Bussell Hwy footpath back about 52 m to the car park roundabout, two rows of young street trees, a long open shelter on posts near the highway end and a smaller one on the south side, timber benches and planter boxes, low timber seating fins, and a planted rain garden at the west end. No buildings: the blocks are the low timber planters and the garden-bed edge, so it clears nothing. Metres: x left to right as seen from Bussell Hwy (south to north), y back (west) from the footpath line.",
+ "wallHeight": 0.45,
+ "setback": 0,
+ "road": {
+  "width": 10,
+  "verge": 0.5
+ },
+ "lawn": "#7f8c4e",
+ "sunFrom": [
+  -0.5,
+  -0.7,
+  1.0
+ ],
+ "cameras": {
+  "street": {
+   "eye": [
+    4,
+    -16,
+    1.6
+   ],
+   "look": [
+    4,
+    20,
+    1.6
+   ],
+   "lens": 22
+  },
+  "aerial": {
+   "eye": [
+    -24,
+    -30,
+    26
+   ],
+   "look": [
+    5,
+    24,
+    0
+   ],
+   "lens": 30
+  },
+  "corner": {
+   "eye": [
+    16,
+    -6,
+    1.7
+   ],
+   "look": [
+    2,
+    18,
+    1.5
+   ],
+   "lens": 24
+  }
+ },
+ "walls": {
+  "kind": "cladding",
+  "colour": "#8a6a48"
+ },
+ "finishes": {
+  "garden": {
+   "kind": "render",
+   "colour": "#7a6a55"
+  }
+ },
+ "trim": "#e8e6df",
+ "roof": {
+  "pitch": 10,
+  "colour": "#e8e6df",
+  "eaves": 0.0
+ },
+ "blocks": [
+  {
+   "name": "planter_east",
+   "x0": 5.6,
+   "x1": 8.8,
+   "y0": 23.0,
+   "y1": 25.5,
+   "roof": "none"
+  },
+  {
+   "name": "planter_mid",
+   "x0": 4.6,
+   "x1": 5.8,
+   "y0": 34.4,
+   "y1": 41.0,
+   "roof": "none"
+  },
+  {
+   "name": "garden_edge_n",
+   "x0": 4.4,
+   "x1": 11.2,
+   "y0": 43.0,
+   "y1": 43.4,
+   "roof": "none",
+   "wallHeight": 0.4,
+   "walls": "garden"
+  },
+  {
+   "name": "garden_edge_s",
+   "x0": 4.4,
+   "x1": 4.8,
+   "y0": 43.0,
+   "y1": 51.8,
+   "roof": "none",
+   "wallHeight": 0.4,
+   "walls": "garden"
+  }
+ ],
+ "awnings": [
+  {
+   "x0": 6.6,
+   "x1": 9.6,
+   "y0": 8.7,
+   "y1": 17.8,
+   "z": 3.0,
+   "colour": "#ecebe6",
+   "posts": [
+    6.8,
+    9.4
+   ]
+  },
+  {
+   "x0": 6.6,
+   "x1": 9.6,
+   "y0": 17.6,
+   "y1": 17.8,
+   "z": 3.0,
+   "colour": "#ecebe6",
+   "posts": [
+    6.8,
+    9.4
+   ]
+  },
+  {
+   "x0": -3.7,
+   "x1": -0.6,
+   "y0": 30.3,
+   "y1": 35.7,
+   "z": 3.0,
+   "colour": "#ecebe6",
+   "posts": [
+    -3.5,
+    -0.8
+   ]
+  },
+  {
+   "x0": -3.7,
+   "x1": -0.6,
+   "y0": 35.5,
+   "y1": 35.7,
+   "z": 3.0,
+   "colour": "#ecebe6",
+   "posts": [
+    -3.5,
+    -0.8
+   ]
+  }
+ ],
+ "doors": [],
+ "windows": [],
+ "fences": [
+  {
+   "x0": 9.5,
+   "y0": 31.0,
+   "x1": 10.5,
+   "y1": 35.0,
+   "height": 0.55,
+   "colour": "#8a6a48",
+   "kind": "timber"
+  },
+  {
+   "x0": 10.5,
+   "y0": 35.0,
+   "x1": 9.5,
+   "y1": 39.0,
+   "height": 0.55,
+   "colour": "#8a6a48",
+   "kind": "timber"
+  },
+  {
+   "x0": 4.0,
+   "y0": 3.0,
+   "x1": 5.0,
+   "y1": 7.0,
+   "height": 0.55,
+   "colour": "#8a6a48",
+   "kind": "timber"
+  },
+  {
+   "x0": 5.0,
+   "y0": 7.0,
+   "x1": 4.0,
+   "y1": 10.5,
+   "height": 0.55,
+   "colour": "#8a6a48",
+   "kind": "timber"
+  }
+ ],
+ "paving": [
+  {
+   "x0": -4.0,
+   "y0": -3.0,
+   "x1": 13.5,
+   "y1": 52.0,
+   "colour": "#d3c5a8",
+   "kind": "concrete"
+  },
+  {
+   "x0": 4.8,
+   "y0": 43.4,
+   "x1": 11.2,
+   "y1": 51.8,
+   "colour": "#6f6a44",
+   "kind": "concrete"
+  }
+ ],
+ "tables": [
+  {
+   "x": 2.5,
+   "y": 20.0,
+   "length": 1.8,
+   "turned": true,
+   "colour": "#8a6a48"
+  },
+  {
+   "x": 2.5,
+   "y": 27.0,
+   "length": 1.8,
+   "turned": true,
+   "colour": "#8a6a48"
+  },
+  {
+   "x": 6.5,
+   "y": 31.0,
+   "length": 1.8,
+   "turned": true,
+   "colour": "#8a6a48"
+  },
+  {
+   "x": 7.0,
+   "y": 40.0,
+   "length": 1.8,
+   "turned": true,
+   "colour": "#8a6a48"
+  },
+  {
+   "x": 1.0,
+   "y": 12.0,
+   "length": 1.8,
+   "turned": true,
+   "colour": "#8a6a48"
+  }
+ ],
+ "trees": [
+  {
+   "x": 8.8,
+   "y": 42.7,
+   "height": 7,
+   "spread": 4.5
+  },
+  {
+   "x": 9.8,
+   "y": 35.7,
+   "height": 7,
+   "spread": 4.5
+  },
+  {
+   "x": 10.7,
+   "y": 29.3,
+   "height": 7,
+   "spread": 4.5
+  },
+  {
+   "x": 10.7,
+   "y": 21.0,
+   "height": 7,
+   "spread": 4.5
+  },
+  {
+   "x": 8.0,
+   "y": 6.4,
+   "height": 7,
+   "spread": 4.5
+  },
+  {
+   "x": -2.2,
+   "y": 37.0,
+   "height": 7,
+   "spread": 4.5
+  },
+  {
+   "x": -1.0,
+   "y": 28.3,
+   "height": 7,
+   "spread": 4.5
+  },
+  {
+   "x": -1.8,
+   "y": 21.1,
+   "height": 7,
+   "spread": 4.5
+  },
+  {
+   "x": -2.0,
+   "y": 14.5,
+   "height": 7,
+   "spread": 4.5
+  },
+  {
+   "x": -3.3,
+   "y": 6.6,
+   "height": 7,
+   "spread": 4.5
+  },
+  {
+   "x": 4.5,
+   "y": 14.2,
+   "height": 7,
+   "spread": 4.5
+  },
+  {
+   "x": 7.5,
+   "y": 47.5,
+   "height": 3,
+   "spread": 2.5
+  },
+  {
+   "x": 9.5,
+   "y": 50.0,
+   "height": 2.5,
+   "spread": 2
+  }
+ ]
+}

@@ -1,0 +1,314 @@
+{
+ "note": "The south end of the shops on the east side, one OSM footprint of three buildings (Main Street Historic Walk sites 34-36): The Tuckshop (the old Nixon electrical and bike shop, a small gabled building with its name painted on the roof), the dark ANZ and Morries building (on the 1935 Owen-Tucker house site: a flat-roofed block behind a tall charcoal street front with a gabled parapet over the north end and a blue band along the shopfront), and Arc of Iris (the 1928-29 McLeod and Auger grocery site) under an olive-green hip roof with a lean-to verandah. From the Landgate aerial (Oct 2026) and 2019 street photos. Names in plain lettering, no logos. Metres: x left to right as seen from Bussell Hwy (north to south), y back (east) from the ANZ front.",
+ "wallHeight": 5.0,
+ "setback": 3,
+ "road": {
+  "width": 10,
+  "verge": 0.5
+ },
+ "lawn": "#7f8c4e",
+ "sunFrom": [
+  -0.5,
+  -0.7,
+  1.0
+ ],
+ "cameras": {
+  "street": {
+   "eye": [
+    -14,
+    -22,
+    1.6
+   ],
+   "look": [
+    12,
+    8,
+    3.5
+   ],
+   "lens": 22
+  },
+  "aerial": {
+   "eye": [
+    -30,
+    -38,
+    30
+   ],
+   "look": [
+    12,
+    12,
+    2
+   ],
+   "lens": 30
+  },
+  "corner": {
+   "eye": [
+    34,
+    -10,
+    1.7
+   ],
+   "look": [
+    14,
+    6,
+    3.5
+   ],
+   "lens": 24
+  }
+ },
+ "walls": {
+  "kind": "cladding",
+  "colour": "#3d4246"
+ },
+ "finishes": {
+  "blue": {
+   "kind": "render",
+   "colour": "#1f6aa8"
+  },
+  "glass": {
+   "kind": "render",
+   "colour": "#2b3236"
+  },
+  "tuck": {
+   "kind": "weatherboard",
+   "colour": "#d8d2c2"
+  },
+  "iris": {
+   "kind": "render",
+   "colour": "#d6cbb4"
+  },
+  "plain": {
+   "kind": "render",
+   "colour": "#c9c4b8"
+  }
+ },
+ "trim": "#e8e6df",
+ "roof": {
+  "pitch": 22,
+  "colour": "#a7aaa8",
+  "eaves": 0.4
+ },
+ "blocks": [
+  {
+   "name": "tuckshop",
+   "x0": -16.5,
+   "x1": -5.9,
+   "y0": -4.0,
+   "y1": 6.1,
+   "roof": "gable",
+   "wallHeight": 3.4,
+   "pitch": 28,
+   "walls": "tuck",
+   "roofColour": "#a8aba8"
+  },
+  {
+   "name": "tuck_back",
+   "x0": -16.0,
+   "x1": -0.6,
+   "y0": 6.1,
+   "y1": 13.5,
+   "roof": "none",
+   "wallHeight": 3.6,
+   "walls": "plain"
+  },
+  {
+   "name": "tuck_side",
+   "x0": -5.9,
+   "x1": -0.6,
+   "y0": -3.4,
+   "y1": 6.1,
+   "roof": "none",
+   "wallHeight": 3.0,
+   "walls": "plain"
+  },
+  {
+   "name": "anz",
+   "x0": 0.0,
+   "x1": 22.8,
+   "y0": 0.0,
+   "y1": 19.6,
+   "roof": "none"
+  },
+  {
+   "name": "iris",
+   "x0": 23.2,
+   "x1": 40.5,
+   "y0": 2.6,
+   "y1": 25.8,
+   "roof": "hip",
+   "wallHeight": 3.6,
+   "walls": "iris",
+   "roofColour": "#8c8d52",
+   "pitch": 25
+  }
+ ],
+ "panels": [
+  {
+   "x0": 0.0,
+   "x1": 22.8,
+   "y0": -0.12,
+   "y1": 0.0,
+   "z0": 2.9,
+   "z1": 3.6,
+   "walls": "blue"
+  },
+  {
+   "x0": 0.4,
+   "x1": 22.4,
+   "y0": -0.06,
+   "y1": 0.0,
+   "z0": 0.1,
+   "z1": 2.8,
+   "walls": "glass"
+  }
+ ],
+ "pediments": [
+  {
+   "x0": 0.0,
+   "x1": 10.0,
+   "y": 0.0,
+   "z": 5.0,
+   "height": 3.2
+  }
+ ],
+ "awnings": [
+  {
+   "x0": 23.2,
+   "x1": 32.2,
+   "y0": -1.5,
+   "y1": 2.6,
+   "z": 2.8,
+   "colour": "#8c8d52",
+   "posts": [
+    23.4,
+    27.7,
+    32.0
+   ]
+  }
+ ],
+ "doors": [
+  {
+   "type": "front",
+   "x0": 15.0,
+   "x1": 16.8,
+   "y": 0.0,
+   "height": 2.4,
+   "z0": 0.1,
+   "colour": "#202426"
+  },
+  {
+   "type": "front",
+   "x0": -11.8,
+   "x1": -10.6,
+   "y": -4.0,
+   "height": 2.2,
+   "z0": 0.1,
+   "colour": "#2f5a3a"
+  }
+ ],
+ "windows": [
+  {
+   "facing": "front",
+   "wall": -4.0,
+   "at": -14.6,
+   "width": 1.4,
+   "height": 1.4,
+   "sill": 0.8
+  },
+  {
+   "facing": "front",
+   "wall": -4.0,
+   "at": -7.8,
+   "width": 1.4,
+   "height": 1.4,
+   "sill": 0.8
+  },
+  {
+   "facing": "front",
+   "wall": 2.6,
+   "at": 25.0,
+   "width": 1.6,
+   "height": 1.5,
+   "sill": 0.8
+  },
+  {
+   "facing": "front",
+   "wall": 2.6,
+   "at": 30.5,
+   "width": 1.6,
+   "height": 1.5,
+   "sill": 0.8
+  },
+  {
+   "facing": "front",
+   "wall": 2.6,
+   "at": 36.0,
+   "width": 1.6,
+   "height": 1.5,
+   "sill": 0.8
+  }
+ ],
+ "paving": [
+  {
+   "x0": -18,
+   "y0": -7.5,
+   "x1": 42,
+   "y1": 0.0,
+   "colour": "#8d4a3a",
+   "kind": "brick"
+  }
+ ],
+ "signs": [
+  {
+   "x0": 1.5,
+   "x1": 4.5,
+   "y": -0.16,
+   "z0": 3.0,
+   "z1": 3.5,
+   "text": "ANZ",
+   "colour": "#1f6aa8",
+   "ink": "#ffffff"
+  },
+  {
+   "x0": 8.0,
+   "x1": 14.0,
+   "y": -0.16,
+   "z0": 3.0,
+   "z1": 3.5,
+   "text": "MORRIES",
+   "colour": "#1f6aa8",
+   "ink": "#ffffff"
+  },
+  {
+   "x0": -14.5,
+   "x1": -8.0,
+   "y": -4.1,
+   "z0": 2.6,
+   "z1": 3.2,
+   "text": "THE TUCKSHOP",
+   "colour": "#2f5a3a",
+   "ink": "#f2eedf"
+  },
+  {
+   "x0": 25.0,
+   "x1": 31.0,
+   "y": -1.6,
+   "z0": 2.65,
+   "z1": 3.1,
+   "text": "ARC OF IRIS",
+   "colour": "#3a3a2a",
+   "ink": "#efe8d6"
+  }
+ ],
+ "trees": [
+  {
+   "x": -4.0,
+   "y": -6.0,
+   "height": 10,
+   "spread": 7
+  },
+  {
+   "x": 36.0,
+   "y": -5.0,
+   "height": 10,
+   "spread": 7
+  }
+ ]
+}
