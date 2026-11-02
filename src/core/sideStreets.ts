@@ -20,6 +20,7 @@ import { pad } from "./roadMesh";
 import { ChunkedMesh } from "./scenery";
 import { SEAL_LENGTH } from "./textures";
 import { surfaceKeyFor } from "./unsealed";
+import { PIT_CLASS } from "./pitRoad";
 
 export interface StreetLine {
   pts: LngLat[];
@@ -31,6 +32,8 @@ export interface StreetLine {
   service?: string;
   /** Busselton fork: OSM surface=* (or the vector tiles' paved/unpaved), for unsealed roads (unsealed.ts). */
   surface?: string;
+  /** Busselton fork: the width, metres, for a line whose class has none of its own (a pit lane: pitRoad.ts). */
+  width?: number;
 }
 
 export interface StreetName {
@@ -151,7 +154,7 @@ export function planSideStreets(
   const junctions: Junction[] = [];
 
   for (const line of lines) {
-    const width = SIDE_WIDTH[line.cls];
+    const width = line.width ?? SIDE_WIDTH[line.cls];
     if (!width || line.brunnel === "bridge" || line.brunnel === "tunnel" || line.pts.length < 2) continue;
     const dense = resample(line.pts.map((p) => proj.toLocal(p)), 2);
     // Keep points clear of the route and its verges, inside the terrain corridor.
@@ -342,6 +345,9 @@ export function buildSideStreets(
 ): Kn5MeshNode[] {
   const out: Kn5MeshNode[] = [];
   const meshes = new Map<string, ChunkedMesh>();
+  // Busselton fork: pit lanes (pitRoad.ts) are valid track, meshed apart from the streets, with edge lines.
+  const pitMeshes = new Map<string, ChunkedMesh>();
+  const pitLines = new ChunkedMesh(0);
   const surface = streetSurface(plan, index, opts, ground);
   streets.forEach((st0, si) => {
     const choice = materialFor(st0, si);
@@ -349,8 +355,10 @@ export function buildSideStreets(
     // can be 20 m or more apart, and the ground came up through the ribbon).
     const st = densifyStreet(st0, ground);
     const mat = typeof choice === "string" ? choice : choice.material;
-    if (!meshes.has(mat)) meshes.set(mat, new ChunkedMesh(0));
-    const mb = meshes.get(mat)!.next(st.pts.length * 2);
+    const pit = st.cls === PIT_CLASS;
+    const pool = pit ? pitMeshes : meshes;
+    if (!pool.has(mat)) pool.set(mat, new ChunkedMesh(0));
+    const mb = pool.get(mat)!.next(st.pts.length * 2);
     const n = st.pts.length;
     const along = [0];
     for (let k = 1; k < n; k++) along.push(along[k - 1] + Math.hypot(st.pts[k][0] - st.pts[k - 1][0], st.pts[k][1] - st.pts[k - 1][1]));
@@ -370,7 +378,16 @@ export function buildSideStreets(
       const p = base + k * 2, q = p + 2;
       mb.quad(p, p + 1, q + 1, q);
     }
+    if (pit) pitEdgeLines(pitLines, st, (k, t) => surface(st, k, t));
   });
+  let j = 0;
+  for (const [mat, cm] of pitMeshes) {
+    for (const m of cm.all()) {
+      m.normals = null; // from the faces
+      out.push(m.toKn5(`1ROAD_PIT_${pad(j++)}`, mat));
+    }
+  }
+  pitLines.all().forEach((m, k) => { m.normals = null; if (m.indices.length) out.push(m.toKn5(`MARKINGS_PIT_${pad(k)}`, "paint", { castShadows: false })); });
   let i = 0;
   for (const [mat, cm] of meshes) {
     for (const m of cm.all()) {
@@ -381,6 +398,34 @@ export function buildSideStreets(
     }
   }
   return out;
+}
+
+/** A pit lane's paint inset from its edges, its width and its lift over the surface, metres. */
+const PIT_LINE_INSET = 0.3, PIT_LINE_WIDTH = 0.12, PIT_LINE_LIFT = 0.012;
+
+/** White lines along both edges of a pit lane, PIT_LINE_INSET in, on the lane's own surface. */
+function pitEdgeLines(cm: ChunkedMesh, st: SideStreet, surface: (k: number, t: number) => number): void {
+  const n = st.pts.length;
+  if (n < 2) return;
+  for (const side of [1, -1]) {
+    const mb = cm.next(n * 2);
+    const base = mb.vertexCount;
+    for (let k = 0; k < n; k++) {
+      const a = st.pts[Math.max(0, k - 1)], b = st.pts[Math.min(n - 1, k + 1)];
+      const t = norm([b[0] - a[0], b[1] - a[1]]);
+      const left: Vec2 = [-t[1], t[0]];
+      const w = st.widths?.[k] ?? st.width;
+      for (const off of [w / 2 - PIT_LINE_INSET, w / 2 - PIT_LINE_INSET - PIT_LINE_WIDTH]) {
+        const o = side * off;
+        mb.vertex([st.pts[k][0] + left[0] * o, st.pts[k][1] + left[1] * o, surface(k, o) + PIT_LINE_LIFT], 0.5, 0.5);
+      }
+    }
+    for (let k = 0; k < n - 1; k++) {
+      const p = base + k * 2, q = p + 2;
+      // Counter-clockwise from above: left, right, next right, next left.
+      if (side > 0) mb.quad(p, p + 1, q + 1, q); else mb.quad(p + 1, p, q, q + 1);
+    }
+  }
 }
 
 /**

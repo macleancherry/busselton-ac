@@ -27,6 +27,7 @@ import { planRoad, type RoadPlan } from "./road";
 import type { LngLat, LocalProjection } from "./geo";
 import { simplify } from "./polyline";
 import { pitLaneFiles } from "./pitLane";
+import { pitLanePath } from "./pitRoad";
 import { clearAiPoint, GRID_CLEAR_AHEAD, junctionsOn, type GridAvoid } from "./gridSlots";
 import type { FixedSpots } from "./stages/routePlan";
 import { retimeAi, ringCircles, ringHintValues, smoothKinks, type WorldRing } from "./aiRings";
@@ -500,7 +501,7 @@ export function layoutFiles(world: World, layout: LayoutSpec, trackObjects: (pla
     const dummies = trackObjects(plan, opts, worldAvoid(world, plan.samples.map((smp) => smp.pos)), { toLocal: (p) => proj.toLocal(p), groundAt: bayGround });
     files[`${slug}/layout_${layout.id}.kn5`] = dummiesKn5(layout.id, dummies);
     // A pit lane past the grid's boxes, and the ideal line (pitLane.ts).
-    Object.assign(files, pitLaneFiles(base, ai, files[`${base}/ai/fast_lane.ai`], dummies, plan.closed));
+    Object.assign(files, pitLaneFiles(base, ai, files[`${base}/ai/fast_lane.ai`], dummies, plan.closed, pitLanePath(opts.pitLane, (p) => proj.toLocal(p), height)));
     const ground = (x: number, y: number) => height(x, y) ?? hs[0];
     // Busselton fork: the layout's hand-picked checkpoints and, point to point, its time trial.
     const challenges = layoutChallengesIni(layout.name, { plan, dummies }, (p) => proj.toLocal(p), ground, layout.challenges, opts.timeTrialSectors);
