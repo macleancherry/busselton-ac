@@ -345,11 +345,18 @@ class Slabs {
   }
 }
 
+/** Gap left between a footpath's two slabs either side of the strip's outer edge, metres. */
+export const STEP_GAP = 0.05;
+
 /**
  * Footpath and crossover slabs. `under(x, y)` is the ground before this concrete is added (nature
- * strip, kerb, terrain); slab tops stand 4 cm above it.
+ * strip, kerb, terrain); slab tops stand 4 cm above it. `stripOuter` (from the road edge) is where
+ * the strip stops, standing a kerb's height over the terrain: a footpath across it is two slabs, one
+ * on the strip and one on the terrain past it, with a gap of STEP_GAP between. One slab across that
+ * edge laid its half-metre cells from the strip's top down to the terrain and floated up to 14 cm
+ * over the terrain past it (Augusta).
  */
-export function buildVergeConcrete(plan: RoadPlan, verge: VergeConcrete, under: Ground): Kn5MeshNode[] {
+export function buildVergeConcrete(plan: RoadPlan, verge: VergeConcrete, under: Ground, stripOuter?: number): Kn5MeshNode[] {
   const { samples } = plan, n = samples.length;
   if (n < 2) return [];
   const sAt = (i: number) => (i < n ? samples[i].s : plan.length);
@@ -369,7 +376,14 @@ export function buildVergeConcrete(plan: RoadPlan, verge: VergeConcrete, under: 
       for (let i = a; i < b; i++) {
         const p = bands[i % n], q = bands[(i + 1) % n];
         if (!p || !q) continue;
-        slab(mb, section(i, side, p.d0, p.d1), section(i + 1, side, q.d0, q.d1), under);
+        const e = stripOuter;
+        const across = (b: PathBand) => e !== undefined && b.d0 < e - CELL / 2 && b.d1 > e + STEP_GAP + CELL / 2;
+        if (e !== undefined && across(p) && across(q)) {
+          slab(mb, section(i, side, p.d0, e), section(i + 1, side, q.d0, e), under);
+          slab(mb, section(i, side, e + STEP_GAP, p.d1), section(i + 1, side, e + STEP_GAP, q.d1), under);
+        } else {
+          slab(mb, section(i, side, p.d0, p.d1), section(i + 1, side, q.d0, q.d1), under);
+        }
       }
     }
     if (mb.indices.length) meshes.push(mb.toKn5(`1STREET_PATH_${pad(ci)}`, "concrete"));

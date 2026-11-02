@@ -158,7 +158,7 @@ export function buildRoadSurfaces(
   // Past the strip, the terrain grid as its chunks draw it (not the analytic terrain, which the grid cuts under on a slope).
   const stripRule = stripGround(plan, index, opts.crown, opts.vergeWidth, kb.kerbs, drops, meshDrawn(g.terrainAt, opts));
   const vergeGround = (x: number, y: number) => stripMesh(x, y) ?? stripRule(x, y);
-  const vergeConcrete = verge ? buildVergeConcrete(plan, verge, vergeGround) : [];
+  const vergeConcrete = verge ? buildVergeConcrete(plan, verge, vergeGround, stripOuter) : [];
 
   // 9. Side streets: a photo surface on the nearest 40 traced ones (roadSurface photo), gravel, or sealed.
   const photoStreets = new Set(
