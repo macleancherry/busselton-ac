@@ -49,19 +49,6 @@ AC can't load the whole South West as one map, so it's a set of tracks, each ins
 
 None of the South West tracks has been driven yet: retest 6 runs each once on the workstation ([docs/workstation-retest-6.md](docs/workstation-retest-6.md)).
 
---- | --- | --- |
-| **Busselton** (Foreshore and town centre; layouts Foreshore, Town, Sights, Free Roam) | Showcase | 🔨 base accepted (jetty precinct in); 22 landmarks in as layers; all the new features merged but not yet in an accepted base or tried in game |
-| **The whole map** (private: adds the estate and the Home Run) | Showcase | 🔨 base built; private landmarks described |
-| **Tuart Drive, Ludlow** (16 km) | Drive-anywhere | ✅ built, waiting on a drive |
-| **Caves Road, Dunsborough to Yallingup** (11 km) | Drive-anywhere, Yallingup a showcase later | 🔨 built once on the fallback heights (before the country roadsides); Caves House and the Yallingup store specced |
-| **Busselton to Dunsborough** (Caves Rd, 14 km) | Drive-anywhere | 🔨 route ready (`routes/busselton-dunsborough.json`), on 5 m LiDAR |
-| **Margaret River town** | Showcase | 🔨 route ready (`routes/margaret-river.json`); 4 landmarks specced (`margaret_river_looks.json`) |
-| **Caves Road, Yallingup to Margaret River** | Drive-anywhere | ⬜ |
-| **Boranup Drive and the karri** | Showcase | 🔨 routes ready: Caves Rd through Boranup and gravel Boranup Drive (`routes/boranup-drive.json`); gravel and 3D karri built |
-| **Cape Naturaliste Road and the lighthouse** | Showcase | 🔨 route ready; lighthouse and cottages specced (the route stops about 900 m short of them) |
-| **Cape Leeuwin, Augusta** | Showcase | 🔨 route ready; lighthouse, cottages and waterwheel specced |
-| **Collie Motorplex** (a real circuit: 1.6 km short, 2.57 km long) | Showcase | 🔨 route ready, taken from the OSM raceway (anticlockwise); start/finish line to place |
-| ❓ **Forest Rally stage, backroads** (Wildwood Rd, Tom Cullity Dr, Rosa Brook Rd) | Drive-anywhere | ⬜ drive them first, then pick |
 
 ---
 
