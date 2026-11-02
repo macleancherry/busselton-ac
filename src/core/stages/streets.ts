@@ -6,6 +6,7 @@ import type { Vec2 } from "../geo";
 import type { GridAvoid } from "../gridSlots";
 import type { JunctionCore } from "../network/phase1";
 import { layoutDriveLines } from "../layoutDrives";
+import { applyPitWidths, pitLaneLine, PIT_CLASS } from "../pitRoad";
 import { planNetworkStreets, type NetworkStreets } from "../network/phase2";
 import { LineIndex, planSideStreets, traceSideStreets, type Junction, type SideStreet, type StreetPlan } from "../sideStreets";
 import { displayOf, type RasterSampler } from "../trace";
@@ -44,7 +45,11 @@ export async function planStreets(ctx: BuildContext, rp: RoutePlan, tr: Traced, 
   const plan = rp.plan, index = g.index;
   // Every layout's drive along OSM ways is a street too (layoutDrives.ts); raceways only as a layout's drive.
   const lines = [...(opts.sideStreets ? (sources.streets?.lines ?? []).filter((l) => l.cls !== "raceway") : []), ...layoutDriveLines(opts.layoutDrives)];
+  // Busselton fork: a circuit's pit lane is a street too, valid track (pitRoad.ts).
+  const pitLine = pitLaneLine(opts.pitLane);
+  if (pitLine) lines.push(pitLine);
   const streetPlan = planSideStreets(lines, sources.streets?.names ?? [], plan, index, opts, proj, area);
+  applyPitWidths(streetPlan.streets, opts.pitLane, (p) => proj.toLocal(p));
   // networkCore phase 2: in an area build the streets and their mouths come from the network's graph.
   const withNet = !!(opts.networkCore && area);
   const netLines = withNet ? (sources.streets?.lines ?? []).map((l) => ({ ...l, pts: ctx.line(l.pts) })) : [];
@@ -74,7 +79,7 @@ export async function planStreets(ctx: BuildContext, rp: RoutePlan, tr: Traced, 
     }
   }
   // (Phase 2's streets keep the graph's lines: tracing that knows the junction caps is still to come.)
-  const sideTraced = streetRaster && opts.traceRoads && !net2 ? traceSideStreets(streetPlan.streets, streetRaster, opts, index) : 0;
+  const sideTraced = streetRaster && opts.traceRoads && !net2 ? traceSideStreets(streetPlan.streets.filter((s) => s.cls !== PIT_CLASS), streetRaster, opts, index) : 0;
   const streetIndex = new LineIndex(streetPlan.streets);
 
   const out: Streets = {

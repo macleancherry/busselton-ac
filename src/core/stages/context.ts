@@ -4,6 +4,7 @@
 
 import { Area, areaRings } from "../area";
 import { layoutDriveRings } from "../layoutDrives";
+import { pitLaneRings } from "../pitRoad";
 import { slugify } from "../acFiles";
 import { LocalProjection, type LngLat, type Vec2 } from "../geo";
 import type { BuildOptions } from "../options";
@@ -45,6 +46,8 @@ export function makeContext(route: LngLat[], opts: BuildOptions, sources: DataSo
   const rings = areaRings(opts.area);
   // And round every layout's drive, so a layout leaving the main drive has its road (layoutDrives.ts).
   const driveAreas = layoutDriveRings(opts.layoutDrives, toLocal, opts.corridor);
+  // And round a pit lane, so a lane that leaves the corridor has its ground (pitRoad.ts).
+  driveAreas.push(...pitLaneRings(opts.pitLane, toLocal));
   const area = rings.length || driveAreas.length ? new Area([...rings.map((r) => r.map(toLocal)), ...driveAreas]) : null;
   return {
     opts,

@@ -23,6 +23,7 @@ import { toAc } from "../mesh";
 import { networkPreview } from "../network/preview";
 import type { JunctionCore } from "../network/phase1";
 import { pitLaneFiles } from "../pitLane";
+import { pitLanePath } from "../pitRoad";
 import { retimeAi, ringHintValues } from "../aiRings";
 import { innerRadius, outerRadius } from "../roundabout";
 import { simplify } from "../polyline";
@@ -135,7 +136,7 @@ export function writeFiles(ctx: BuildContext, model: Kn5Model, a: FilesInput, me
     [`${slug}/${slug}.kn5`]: kn5,
     [`${slug}/ai/fast_lane.ai`]: ai,
     // A pit lane past the grid's boxes, and the ideal line (pitLane.ts).
-    ...pitLaneFiles(slug, aiPoints, ai, dummies, plan.closed),
+    ...pitLaneFiles(slug, aiPoints, ai, dummies, plan.closed, pitLanePath(opts.pitLane, ctx.toLocal, (x, y) => g.terrainH(x, y) + 0.1)),
     [`${slug}/data/ai_hints.ini`]: enc.encode(aiHintsIni(aiPoints, limitAt, !plan.closed, opts.aiRings ? ringHintValues(aiPoints, aiRingList, plan.closed) : undefined)),
     [`${slug}/data/surfaces.ini`]: enc.encode(surfacesIni(opts.traffic, opts.streetsValid ?? !!area, centre, sf.anyUnsealed(), true)),
     ...(tf ? { [`${slug}/data/traffic.json`]: enc.encode(tf.trafficText) } : {}),

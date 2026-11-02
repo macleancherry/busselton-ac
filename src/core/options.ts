@@ -12,6 +12,7 @@
 
 import type { ChallengesOption } from "./challenges";
 import type { CircuitKerbsOption } from "./circuitKerbs";
+import type { PitLaneOption } from "./pitRoad";
 import type { CourseMarksOption } from "./courseMarks";
 import type { LngLat } from "./geo";
 
@@ -47,6 +48,13 @@ export interface BuildOptions {
    * AC_PIT_0.. in order; boxes past the list stay on the grid's spots. Absent = the grid's spots.
    */
   pits?: [number, number, number][];
+  /**
+   * Busselton fork: the pit lane and paddock road (pitRoad.ts): points [lng, lat] or [lng, lat,
+   * width] from the pit entry on the track through the paddock past the boxes to the exit, built as
+   * valid asphalt (1ROAD_PIT) with edge lines, its ground part of the area, and pit_lane.ai along it
+   * (pitLane.ts). Absent = no pit lane (the boxes are on the AI line).
+   */
+  pitLane?: PitLaneOption;
   /** Road before the start, m. */
   runUp: number;
   /** Road after the finish, m. */
@@ -218,7 +226,7 @@ export const OPTIONAL_OPTION_KEYS: readonly (keyof BuildOptions)[] = Object.free
   "jettyTrain", "swimJetties", "jettyKinds", "trackSounds", "poleClear", "raceway", "treeMips", "shoreClear",
   "kerbside", "laneBayClear", "parkedBays", "padClear", "trafficLights", "shopNamesOverpass",
   "aiKeepLeft", "aiRings", "streetsValid", "challenges", "timeTrialSectors", "driftZones", "courseMarks",
-  "gridAt", "pits", "circuitKerbs", "gridPaint",
+  "gridAt", "pits", "pitLane", "circuitKerbs", "gridPaint",
 ] as const);
 
 type RequiredFields<T> = { [K in keyof T as undefined extends T[K] ? never : K]: T[K] };
