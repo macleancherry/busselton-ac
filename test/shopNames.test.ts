@@ -143,8 +143,16 @@ describe("wall signs", () => {
     expect(sign.normals[2]).toBeGreaterThan(0.9);
     const vs = Array.from({ length: sign.uvs.length / 2 }, (_, i) => sign.uvs[i * 2 + 1]);
     expect(vs.some((v) => Math.abs(v - SIGN_COUNT / (SIGN_COUNT + 1)) < 1e-6)).toBe(true);
-    // 8 cm proud of the wall at y = 30: AC z = -y.
-    for (let i = 0; i < sign.positions.length / 3; i++) expect(sign.positions[i * 3 + 2]).toBeCloseTo(-(30 - 0.08), 5);
+    // Its face 8 cm proud of the wall at y = 30 (AC z = -y), its edges back to the wall: mounted on it.
+    for (let i = 0; i < 4; i++) expect(sign.positions[i * 3 + 2]).toBeCloseTo(-(30 - 0.08), 5);
+    const zs = Array.from({ length: sign.positions.length / 3 }, (_, i) => sign.positions[i * 3 + 2]);
+    for (const z of zs) expect(z).toBeGreaterThanOrEqual(-30 - 1e-5);
+    for (const z of zs) expect(z).toBeLessThanOrEqual(-(30 - 0.08) + 1e-5);
+    expect(zs.some((z) => Math.abs(z + 30) < 1e-5)).toBe(true);
+    // Edges face out of the box: top up, bottom down (AC y is up).
+    const ny = Array.from({ length: sign.normals.length / 3 }, (_, i) => sign.normals[i * 3 + 1]);
+    expect(Math.max(...ny)).toBeGreaterThan(0.9);
+    expect(Math.min(...ny)).toBeLessThan(-0.9);
   });
 
   it("the sign texture squeezes a wall sign's lettering for its own size", () => {
