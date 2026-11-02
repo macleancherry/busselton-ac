@@ -1,6 +1,6 @@
 {
  "name": "Cape Leeuwin",
- "_note": "Augusta to Cape Leeuwin: Blackwood Avenue through the town, then Leeuwin Road south over the low hills past the turn to the water wheel, ending at the lighthouse car park where the Indian and Southern Oceans meet. Point to point, about 7.5 km, on the 30 m fallback heights. The last pin takes it into the lighthouse precinct car park (OSRM routes there cleanly).",
+ "_note": "Augusta to Cape Leeuwin: Blackwood Avenue through the town, then Leeuwin Road south over the low hills past the turn to the water wheel, into the lighthouse precinct. Point to point, about 7.5 km, on the 30 m fallback heights. The last pin is on the precinct's sealed service road (OSM way 101858082) between the keepers' cottages and the lighthouse, past the car park; OSRM routes there cleanly. The finish line sits at that pin and the run-off carries on along the service road to the lighthouse forecourt, about 25 m from the tower. (The service road is behind the precinct's ticket gate in real life; kept so the drive ends at the lighthouse.)",
  "loop": false,
  "preset": "country",
  "pins": [
@@ -63,7 +63,7 @@
    ]
   ],
   "streetsValid": false,
-  "_areaNote": "Landmark patches: small areas joining the road to landmarks that stand beyond the 70 m corridor, so they get detailed terrain (and their own streets) to stand on instead of the horizon mesh. streetsValid stays off so side streets along the road still count as off track, as without an area. One strip from the road's end south past the waterwheel and the keepers' cottages to the lighthouse (OSRM stops the route about 570 m short of it, at the precinct)."
+  "_areaNote": "Landmark patches: small areas joining the road to landmarks that stand beyond the 70 m corridor, so they get detailed terrain (and their own streets) to stand on instead of the horizon mesh. streetsValid stays off so side streets along the road still count as off track, as without an area. One strip from Leeuwin Road south past the waterwheel (on Water Wheel Road) and the keepers' cottages to the lighthouse."
  },
  "looks": [
   "routes/landmarks/cape_leeuwin_looks.json"
