@@ -1,19 +1,47 @@
 {
- "name": "Caves Road, Yallingup to Wilyabrup",
- "_note": "Caves Road (Tourist Drive 250) south from Yallingup, where routes/caves-road.json ends (its last pin is this route's first), along the Leeuwin-Naturaliste ridge through peppermint, marri and vineyards to Wilyabrup. Point to point, about 16.5 km by OSRM, all on Caves Road. The first half of Caves Road from Yallingup to Margaret River (35 km, too long for one track's triangle budget); routes/caves-road-margaret.json goes on from this route's last pin. Pins mid-block, each at least 500 m from a side road (the first pin is the old route's end), so nothing snaps off Caves Road. Not on 5 m LiDAR: the 30 m fallback heights. Country preset as it is (traffic, Armco, farmland, farm gates and mailboxes, landscape zones, keep-left AI). Tuart Drive at 16.8 km came to 1.33M triangles, so this should fit; if budget.ts fails, set build.terrainStep 3.",
- "loop": false,
- "preset": "country",
- "pins": [
-  [115.03086, -33.671],
-  [115.02811, -33.68951],
-  [115.02928, -33.71353],
-  [115.03536, -33.7348],
-  [115.02897, -33.75258],
-  [115.0336, -33.77819],
-  [115.03039, -33.79586],
-  [115.03531, -33.81234]
- ],
- "build": {
-  "origin": [115.032, -33.742]
- }
+  "name": "Caves Road, Yallingup to Wilyabrup",
+  "_note": "Caves Road (Tourist Drive 250) south from Yallingup, where routes/caves-road.json ends (its last pin is this route's first), along the Leeuwin-Naturaliste ridge through peppermint, marri and vineyards to Wilyabrup. Point to point, about 16.5 km by OSRM, all on Caves Road. The first half of Caves Road from Yallingup to Margaret River (35 km, too long for one track's triangle budget); routes/caves-road-margaret.json goes on from this route's last pin. Pins mid-block, each at least 500 m from a side road (the first pin is the old route's end), so nothing snaps off Caves Road. Not on 5 m LiDAR: the 30 m fallback heights. Country preset as it is (traffic, Armco, farmland, farm gates and mailboxes, landscape zones, keep-left AI). Tuart Drive at 16.8 km came to 1.33M triangles, so this should fit; if budget.ts fails, set build.terrainStep 3.",
+  "loop": false,
+  "preset": "country",
+  "pins": [
+    [
+      115.03086,
+      -33.671
+    ],
+    [
+      115.02811,
+      -33.68951
+    ],
+    [
+      115.02928,
+      -33.71353
+    ],
+    [
+      115.03536,
+      -33.7348
+    ],
+    [
+      115.02897,
+      -33.75258
+    ],
+    [
+      115.0336,
+      -33.77819
+    ],
+    [
+      115.03039,
+      -33.79586
+    ],
+    [
+      115.03531,
+      -33.81234
+    ]
+  ],
+  "build": {
+    "origin": [
+      115.032,
+      -33.742
+    ],
+    "terrainStep": 3
+  }
 }
