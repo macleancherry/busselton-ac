@@ -1,0 +1,287 @@
+{
+ "note": "Cape Leeuwin lighthouse precinct gate, where Leeuwin Road passes from the visitor car park into the precinct, from the Landgate aerial (Oct 2026) and Mapillary (2019). Coursed tan limestone piers with caps and short limestone walls either side of the road, closing the gap the generated precinct fence (OSM way 219412327, built as a Colorbond fence along the car park's south edge) leaves at the road. The real opening is about 4.5 m; here the piers stand clear of the built road and the west Armco (7.2 m apart). Ground falls to the east here, so the east piers and wall are lower blocks over plinths that run down into the ground. Metres: x left (east) to right (west) as seen from the car park, y back (south) from the walls' front face.",
+ "wallHeight": 1.5,
+ "setback": 25.0,
+ "road": {
+  "width": 12.0,
+  "verge": 1.0
+ },
+ "lawn": "#8f8a5a",
+ "sunFrom": [
+  -0.5,
+  -0.4,
+  1.0
+ ],
+ "cameras": {
+  "street": {
+   "eye": [
+    2.5,
+    -26,
+    1.5
+   ],
+   "look": [
+    0.5,
+    2,
+    1.2
+   ],
+   "lens": 26
+  },
+  "aerial": {
+   "eye": [
+    -16,
+    -22,
+    14
+   ],
+   "look": [
+    0,
+    2,
+    0.5
+   ],
+   "lens": 28
+  }
+ },
+ "walls": {
+  "kind": "render",
+  "colour": "#cfb07a"
+ },
+ "finishes": {
+  "cap": {
+   "kind": "render",
+   "colour": "#e2d3b0"
+  },
+  "tank": {
+   "kind": "corrugated",
+   "colour": "#c4c8c4"
+  }
+ },
+ "trim": "#d8c49a",
+ "roof": {
+  "pitch": 10,
+  "colour": "#bdbfba",
+  "eaves": 0.0
+ },
+ "blocks": [
+  {
+   "name": "pier_e_out",
+   "x0": -8.3,
+   "x1": -7.6,
+   "y0": -0.1,
+   "y1": 0.5,
+   "roof": "none",
+   "wallHeight": 1.33
+  },
+  {
+   "name": "wall_e",
+   "x0": -7.6,
+   "x1": -4.7,
+   "y0": 0.0,
+   "y1": 0.4,
+   "roof": "none",
+   "wallHeight": 1.0
+  },
+  {
+   "name": "pier_e_in",
+   "x0": -4.7,
+   "x1": -4.0,
+   "y0": -0.1,
+   "y1": 0.5,
+   "roof": "none",
+   "wallHeight": 1.55
+  },
+  {
+   "name": "pier_w_in",
+   "x0": 3.15,
+   "x1": 3.85,
+   "y0": -0.1,
+   "y1": 0.5,
+   "roof": "none",
+   "wallHeight": 1.73
+  },
+  {
+   "name": "wall_w",
+   "x0": 3.85,
+   "x1": 7.5,
+   "y0": 0.0,
+   "y1": 0.4,
+   "roof": "none",
+   "wallHeight": 1.29
+  },
+  {
+   "name": "pier_w_out",
+   "x0": 7.5,
+   "x1": 8.2,
+   "y0": -0.1,
+   "y1": 0.5,
+   "roof": "none",
+   "wallHeight": 1.7
+  },
+  {
+   "name": "tank",
+   "x0": -8.7,
+   "x1": -4.5,
+   "y0": 0.9,
+   "y1": 5.1,
+   "roof": "none",
+   "wallHeight": 2.0,
+   "walls": "tank",
+   "outbuilding": true
+  }
+ ],
+ "panels": [
+  {
+   "x0": -8.36,
+   "x1": -7.54,
+   "y0": -0.16,
+   "y1": 0.56,
+   "z0": 1.33,
+   "z1": 1.45,
+   "walls": "cap"
+  },
+  {
+   "x0": -8.3,
+   "x1": -7.6,
+   "y0": -0.1,
+   "y1": 0.5,
+   "z0": -1.0,
+   "z1": -0.25,
+   "walls": "main"
+  },
+  {
+   "x0": -7.6,
+   "x1": -4.7,
+   "y0": -0.03,
+   "y1": 0.43000000000000005,
+   "z0": 1.0,
+   "z1": 1.07,
+   "walls": "cap"
+  },
+  {
+   "x0": -7.6,
+   "x1": -4.7,
+   "y0": 0.0,
+   "y1": 0.4,
+   "z0": -1.0,
+   "z1": -0.25,
+   "walls": "main"
+  },
+  {
+   "x0": -4.76,
+   "x1": -3.94,
+   "y0": -0.16,
+   "y1": 0.56,
+   "z0": 1.55,
+   "z1": 1.67,
+   "walls": "cap"
+  },
+  {
+   "x0": -4.7,
+   "x1": -4.0,
+   "y0": -0.1,
+   "y1": 0.5,
+   "z0": -1.0,
+   "z1": -0.25,
+   "walls": "main"
+  },
+  {
+   "x0": 3.09,
+   "x1": 3.91,
+   "y0": -0.16,
+   "y1": 0.56,
+   "z0": 1.73,
+   "z1": 1.85,
+   "walls": "cap"
+  },
+  {
+   "x0": 3.85,
+   "x1": 7.5,
+   "y0": -0.03,
+   "y1": 0.43000000000000005,
+   "z0": 1.29,
+   "z1": 1.36,
+   "walls": "cap"
+  },
+  {
+   "x0": 7.44,
+   "x1": 8.26,
+   "y0": -0.16,
+   "y1": 0.56,
+   "z0": 1.7,
+   "z1": 1.82,
+   "walls": "cap"
+  },
+  {
+   "x0": -8.7,
+   "x1": -4.5,
+   "y0": 0.9,
+   "y1": 5.1,
+   "z0": -1.0,
+   "z1": -0.25,
+   "walls": "tank"
+  }
+ ],
+ "windows": [],
+ "doors": [],
+ "umbrellas": [
+  {
+   "x": -6.6,
+   "y": 3.0,
+   "radius": 2.35,
+   "height": 2.35,
+   "colour": "#d4d7d3"
+  }
+ ],
+ "signs": [
+  {
+   "x0": -7.3,
+   "x1": -5.0,
+   "y": -0.1,
+   "z0": 0.18,
+   "z1": 0.78,
+   "text": "CAPE LEEUWIN LIGHTHOUSE",
+   "colour": "#2f4a3c",
+   "ink": "#efe7d2"
+  }
+ ],
+ "trees": [
+  {
+   "x": -10.5,
+   "y": 3.0,
+   "height": 3.5
+  },
+  {
+   "x": -13.5,
+   "y": 3.5,
+   "height": 3.5
+  },
+  {
+   "x": -16.5,
+   "y": 3.0,
+   "height": 3.5
+  },
+  {
+   "x": -19.5,
+   "y": 3.5,
+   "height": 3.5
+  },
+  {
+   "x": -10.0,
+   "y": 7.0,
+   "height": 3.5
+  },
+  {
+   "x": -6.5,
+   "y": 8.0,
+   "height": 3.5
+  },
+  {
+   "x": 10.5,
+   "y": 4.5,
+   "height": 3.5
+  },
+  {
+   "x": 9.5,
+   "y": -3.5,
+   "height": 3.5
+  }
+ ]
+}

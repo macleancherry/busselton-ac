@@ -1,0 +1,430 @@
+{
+ "note": "Augusta Hotel, Blackwood Avenue, Augusta: the street front of the reception, restaurant and dining room, on the left at the start of the Cape Leeuwin route. From the Landgate aerial (Oct 2026) and Mapillary (2019). Cream render under red Colorbond roofs: a white flat entry canopy, a long red verandah on square cream posts lettered RECEPTION & RESTAURANT, the green AUGUSTA HOTEL board on its post, then the gabled glazed dining room that sticks out to the footpath, white with dark half-timbering in the gable and pink streamers along the eaves, behind a low rendered planter wall with red brick capping, and a lower hipped wing to the south. The big single-storey roof behind covers the bars and kitchen. The drive-in bottle shop (augusta_hotel_bottleshop.json) is next door to the north and the two-storey motel wing (augusta_hotel_motel.json) to the south. Metres: x left (north-north-west) to right (south-south-east) as seen from the road, y back from the building line.",
+ "wallHeight": 3.6,
+ "setback": 3.4,
+ "road": {
+  "width": 12.0,
+  "verge": 0.4
+ },
+ "lawn": "#8b9455",
+ "sunFrom": [
+  -0.7,
+  -0.4,
+  1.0
+ ],
+ "cameras": {
+  "street": {
+   "eye": [
+    -12,
+    -9.6,
+    1.5
+   ],
+   "look": [
+    10,
+    4,
+    2.6
+   ],
+   "lens": 24
+  },
+  "aerial": {
+   "eye": [
+    -14,
+    -32,
+    22
+   ],
+   "look": [
+    9,
+    8,
+    1
+   ],
+   "lens": 26
+  },
+  "corner": {
+   "eye": [
+    30,
+    -8,
+    1.6
+   ],
+   "look": [
+    12,
+    3,
+    2.6
+   ],
+   "lens": 24
+  }
+ },
+ "walls": {
+  "kind": "render",
+  "colour": "#efe7d3"
+ },
+ "finishes": {
+  "cap": {
+   "kind": "brick",
+   "colour": "#9c4434"
+  },
+  "planter": {
+   "kind": "render",
+   "colour": "#ece4d0"
+  },
+  "white": {
+   "kind": "render",
+   "colour": "#f3f1ea"
+  },
+  "timber": {
+   "kind": "render",
+   "colour": "#3b2f28"
+  },
+  "pink": {
+   "kind": "render",
+   "colour": "#d0609a"
+  }
+ },
+ "trim": "#f3efe4",
+ "roof": {
+  "pitch": 22,
+  "colour": "#5e1d1d",
+  "eaves": 0.45
+ },
+ "blocks": [
+  {
+   "name": "body",
+   "x0": -6.0,
+   "x1": 25.0,
+   "y0": 5.4,
+   "y1": 22.4,
+   "roof": "hip",
+   "wallHeight": 3.8
+  },
+  {
+   "name": "dining",
+   "x0": 12.0,
+   "x1": 17.2,
+   "y0": 0.2,
+   "y1": 11.4,
+   "roof": "gable",
+   "pitch": 45,
+   "wallHeight": 3.0,
+   "walls": "white"
+  },
+  {
+   "name": "south_wing",
+   "x0": 19.8,
+   "x1": 25.0,
+   "y0": 1.0,
+   "y1": 12.0,
+   "roof": "hip",
+   "wallHeight": 3.4
+  }
+ ],
+ "panels": [
+  {
+   "x0": 0.0,
+   "x1": 12.0,
+   "y0": 0.5,
+   "y1": 0.56,
+   "z0": 2.42,
+   "z1": 2.58,
+   "walls": "pink"
+  },
+  {
+   "x0": 12.0,
+   "x1": 17.2,
+   "y0": 0.12,
+   "y1": 0.2,
+   "z0": 2.95,
+   "z1": 3.15,
+   "walls": "timber"
+  },
+  {
+   "x0": 14.5,
+   "x1": 14.7,
+   "y0": 0.12,
+   "y1": 0.2,
+   "z0": 3.15,
+   "z1": 5.25,
+   "walls": "timber"
+  },
+  {
+   "x0": 13.200000000000001,
+   "x1": 13.4,
+   "y0": 0.12,
+   "y1": 0.2,
+   "z0": 3.15,
+   "z1": 4.05,
+   "walls": "timber"
+  },
+  {
+   "x0": 15.8,
+   "x1": 16.0,
+   "y0": 0.12,
+   "y1": 0.2,
+   "z0": 3.15,
+   "z1": 4.05,
+   "walls": "timber"
+  },
+  {
+   "x0": 12.0,
+   "x1": 17.2,
+   "y0": 0.05,
+   "y1": 0.11,
+   "z0": 2.55,
+   "z1": 2.85,
+   "walls": "pink"
+  },
+  {
+   "x0": 11.97,
+   "x1": 25.03,
+   "y0": -0.63,
+   "y1": -0.31999999999999995,
+   "z0": 0.55,
+   "z1": 0.63,
+   "walls": "cap"
+  }
+ ],
+ "verandahs": [
+  {
+   "x0": 0.0,
+   "x1": 12.0,
+   "y0": 0.7,
+   "y1": 5.4,
+   "height": 2.75,
+   "wallHeight": 3.6,
+   "deckHeight": 0.12,
+   "posts": [
+    0.25,
+    3.2,
+    6.1,
+    9.0,
+    11.75
+   ]
+  }
+ ],
+ "awnings": [
+  {
+   "x0": -5.0,
+   "x1": 0.0,
+   "y0": 0.4,
+   "y1": 5.4,
+   "z": 3.0,
+   "colour": "#f1f0ec",
+   "posts": [
+    -4.85,
+    -0.15
+   ]
+  },
+  {
+   "x0": 17.2,
+   "x1": 19.8,
+   "y0": 0.4,
+   "y1": 4.4,
+   "z": 2.8,
+   "colour": "#f1f0ec",
+   "posts": [
+    19.65
+   ]
+  }
+ ],
+ "windows": [
+  {
+   "facing": "front",
+   "wall": 5.4,
+   "at": 1.6,
+   "width": 1.4,
+   "height": 1.5,
+   "sill": 0.8
+  },
+  {
+   "facing": "front",
+   "wall": 5.4,
+   "at": 8.2,
+   "width": 1.4,
+   "height": 1.5,
+   "sill": 0.8
+  },
+  {
+   "facing": "front",
+   "wall": 5.4,
+   "at": 10.5,
+   "width": 1.4,
+   "height": 1.5,
+   "sill": 0.8
+  },
+  {
+   "facing": "front",
+   "wall": 0.2,
+   "at": 13.1,
+   "width": 1.25,
+   "height": 2.0,
+   "sill": 0.5
+  },
+  {
+   "facing": "front",
+   "wall": 0.2,
+   "at": 14.6,
+   "width": 1.25,
+   "height": 2.0,
+   "sill": 0.5
+  },
+  {
+   "facing": "front",
+   "wall": 0.2,
+   "at": 16.1,
+   "width": 1.25,
+   "height": 2.0,
+   "sill": 0.5
+  },
+  {
+   "facing": "left",
+   "wall": 12.0,
+   "at": 6.4,
+   "width": 1.5,
+   "height": 2.0,
+   "sill": 0.5
+  },
+  {
+   "facing": "left",
+   "wall": 12.0,
+   "at": 8.4,
+   "width": 1.5,
+   "height": 2.0,
+   "sill": 0.5
+  },
+  {
+   "facing": "left",
+   "wall": 12.0,
+   "at": 10.2,
+   "width": 1.5,
+   "height": 2.0,
+   "sill": 0.5
+  },
+  {
+   "facing": "right",
+   "wall": 17.2,
+   "at": 2.0,
+   "width": 1.5,
+   "height": 2.0,
+   "sill": 0.5
+  },
+  {
+   "facing": "right",
+   "wall": 17.2,
+   "at": 4.0,
+   "width": 1.5,
+   "height": 2.0,
+   "sill": 0.5
+  },
+  {
+   "facing": "right",
+   "wall": 17.2,
+   "at": 6.0,
+   "width": 1.5,
+   "height": 2.0,
+   "sill": 0.5
+  },
+  {
+   "facing": "right",
+   "wall": 17.2,
+   "at": 8.0,
+   "width": 1.5,
+   "height": 2.0,
+   "sill": 0.5
+  },
+  {
+   "facing": "right",
+   "wall": 17.2,
+   "at": 10.2,
+   "width": 1.5,
+   "height": 2.0,
+   "sill": 0.5
+  },
+  {
+   "facing": "front",
+   "wall": 1.0,
+   "at": 21.2,
+   "width": 1.3,
+   "height": 1.4,
+   "sill": 0.9
+  },
+  {
+   "facing": "front",
+   "wall": 1.0,
+   "at": 23.6,
+   "width": 1.3,
+   "height": 1.4,
+   "sill": 0.9
+  }
+ ],
+ "doors": [
+  {
+   "type": "front",
+   "x0": 4.6,
+   "x1": 6.4,
+   "y": 5.4,
+   "height": 2.3,
+   "z0": 0.12,
+   "colour": "#3a2d27"
+  },
+  {
+   "type": "front",
+   "x0": -3.4,
+   "x1": -1.6,
+   "y": 5.4,
+   "height": 2.3,
+   "z0": 0.05,
+   "colour": "#3a2d27"
+  },
+  {
+   "type": "front",
+   "x0": 18.0,
+   "x1": 19.2,
+   "y": 5.4,
+   "height": 2.2,
+   "colour": "#3a2d27"
+  }
+ ],
+ "fences": [
+  {
+   "x0": 12.0,
+   "y0": -0.6,
+   "x1": 25.0,
+   "y1": -0.35,
+   "height": 0.55,
+   "colour": "#ece4d0",
+   "kind": "concrete"
+  }
+ ],
+ "hedges": [
+  {
+   "x0": 0.2,
+   "x1": 11.8,
+   "y0": -0.3,
+   "depth": 0.8,
+   "height": 0.6
+  }
+ ],
+ "signs": [
+  {
+   "x0": 2.0,
+   "x1": 9.0,
+   "y": 0.58,
+   "z0": 2.3,
+   "z1": 2.72,
+   "text": "RECEPTION & RESTAURANT",
+   "colour": "#2e5a3a",
+   "ink": "#f3e9c8"
+  },
+  {
+   "x0": 9.7,
+   "x1": 11.3,
+   "y": 0.3,
+   "z0": 2.8,
+   "z1": 3.8,
+   "text": "AUGUSTA HOTEL",
+   "colour": "#2e5a3a",
+   "ink": "#f3e9c8",
+   "posts": true,
+   "back": true
+  }
+ ],
+ "trees": []
+}

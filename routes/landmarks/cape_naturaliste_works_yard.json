@@ -1,0 +1,203 @@
+{
+ "note": "Cape Naturaliste light station works yard, north-east of the keepers' cottages and reached from the car park loop, from the Landgate aerial (Oct 2026), OSM (ways 297320447, 297320452, 297320456) and the inHerit record: the 1940s store, shed and 1948 garage, timber-framed and clad in asbestos-cement sheet, round a sealed yard. A gabled shed (gable end to the north-north-east), a small near-flat-roofed store, and a long hipped garage, all with pale metal roofs. Back of house, seen across the trees from the car park's northern loop; it replaces the plain boxes the base builds from the OSM outlines. Metres: x left (east-south-east) to right (west-north-west) as seen from the north-north-east, y back.",
+ "wallHeight": 2.8,
+ "setback": 8.0,
+ "road": {
+  "width": 5.0,
+  "verge": 1.5
+ },
+ "lawn": "#8f8b60",
+ "sunFrom": [
+  -0.4,
+  -0.7,
+  1.0
+ ],
+ "cameras": {
+  "street": {
+   "eye": [
+    -16,
+    -18,
+    1.6
+   ],
+   "look": [
+    3,
+    6,
+    2.0
+   ],
+   "lens": 24
+  },
+  "aerial": {
+   "eye": [
+    -26,
+    -30,
+    22
+   ],
+   "look": [
+    3,
+    7,
+    0.5
+   ],
+   "lens": 24
+  }
+ },
+ "walls": {
+  "kind": "fibro",
+  "colour": "#e4e0d3"
+ },
+ "finishes": {
+  "store": {
+   "kind": "fibro",
+   "colour": "#d9d6cb"
+  }
+ },
+ "trim": "#e9e6dc",
+ "roof": {
+  "pitch": 20,
+  "colour": "#dcdeda",
+  "eaves": 0.3
+ },
+ "blocks": [
+  {
+   "name": "shed",
+   "x0": 10.8,
+   "x1": 16.8,
+   "y0": 4.35,
+   "y1": 13.45,
+   "roof": "gable",
+   "pitch": 18,
+   "wallHeight": 3.0
+  },
+  {
+   "name": "store",
+   "x0": 0.75,
+   "x1": 6.25,
+   "y0": 0.05,
+   "y1": 5.55,
+   "roof": "hip",
+   "pitch": 5,
+   "wallHeight": 2.6,
+   "walls": "store"
+  },
+  {
+   "name": "garage",
+   "x0": -9.25,
+   "x1": -2.75,
+   "y0": 0.1,
+   "y1": 13.7,
+   "roof": "hip",
+   "pitch": 20,
+   "wallHeight": 2.8
+  }
+ ],
+ "windows": [
+  {
+   "facing": "front",
+   "wall": 0.05,
+   "at": 1.9,
+   "width": 1.0,
+   "height": 0.9,
+   "sill": 1.1
+  },
+  {
+   "facing": "right",
+   "wall": -2.75,
+   "at": 3.5,
+   "width": 1.2,
+   "height": 0.9,
+   "sill": 1.2
+  },
+  {
+   "facing": "right",
+   "wall": -2.75,
+   "at": 7.0,
+   "width": 1.2,
+   "height": 0.9,
+   "sill": 1.2
+  },
+  {
+   "facing": "right",
+   "wall": -2.75,
+   "at": 10.5,
+   "width": 1.2,
+   "height": 0.9,
+   "sill": 1.2
+  }
+ ],
+ "doors": [
+  {
+   "type": "roller",
+   "x0": 12.3,
+   "x1": 15.3,
+   "y": 4.35,
+   "height": 2.6
+  },
+  {
+   "type": "front",
+   "x0": 3.0,
+   "x1": 4.0,
+   "y": 0.05,
+   "height": 2.1,
+   "z0": 0.1,
+   "colour": "#5b6660"
+  },
+  {
+   "type": "garage",
+   "x0": -8.6,
+   "x1": -6.2,
+   "y": 0.1,
+   "height": 2.3
+  },
+  {
+   "type": "garage",
+   "x0": -5.8,
+   "x1": -3.4,
+   "y": 0.1,
+   "height": 2.3
+  }
+ ],
+ "paving": [
+  {
+   "x0": -2.75,
+   "y0": -3.0,
+   "x1": 10.8,
+   "y1": 14.0,
+   "colour": "#77756f",
+   "kind": "concrete"
+  },
+  {
+   "x0": -9.25,
+   "y0": -3.0,
+   "x1": -2.75,
+   "y1": 0.1,
+   "colour": "#77756f",
+   "kind": "concrete"
+  }
+ ],
+ "trees": [
+  {
+   "x": 19.5,
+   "y": 1.0,
+   "height": 7.0
+  },
+  {
+   "x": 20.0,
+   "y": 12.0,
+   "height": 7.0
+  },
+  {
+   "x": -12.0,
+   "y": 4.0,
+   "height": 7.0
+  },
+  {
+   "x": -12.5,
+   "y": 12.5,
+   "height": 6.5
+  },
+  {
+   "x": 6.0,
+   "y": 17.0,
+   "height": 6.5
+  }
+ ]
+}

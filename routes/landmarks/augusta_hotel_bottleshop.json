@@ -1,0 +1,325 @@
+{
+ "note": "Augusta Hotel's north end on Blackwood Avenue: the drive-in bottle shop and public and lounge bars, beside the start of the Cape Leeuwin route. From the Landgate aerial (Oct 2026) and Mapillary (2019). A single-storey block under a red Colorbond hip with a verandah on cream posts and a raised fascia lettered DRIVE-IN BOTTLE SHOP, a drive-through canopy at its north end off the sealed forecourt, then the hotel's two-storey cream rendered block with a red hip roof behind a single-storey verandah, and the low rendered planter wall with red brick capping along the footpath. The rest of the hotel is augusta_hotel.json. Metres: x left (north-north-west) to right (south-south-east) as seen from the road, y back from the building line.",
+ "wallHeight": 3.6,
+ "setback": 3.4,
+ "road": {
+  "width": 12.0,
+  "verge": 0.4
+ },
+ "lawn": "#8b9455",
+ "sunFrom": [
+  -0.7,
+  -0.4,
+  1.0
+ ],
+ "cameras": {
+  "street": {
+   "eye": [
+    -6,
+    -9.6,
+    1.5
+   ],
+   "look": [
+    -22,
+    6,
+    2.8
+   ],
+   "lens": 24
+  },
+  "aerial": {
+   "eye": [
+    -6,
+    -30,
+    22
+   ],
+   "look": [
+    -22,
+    8,
+    1
+   ],
+   "lens": 26
+  }
+ },
+ "walls": {
+  "kind": "render",
+  "colour": "#efe7d3"
+ },
+ "finishes": {
+  "cap": {
+   "kind": "brick",
+   "colour": "#9c4434"
+  },
+  "planter": {
+   "kind": "render",
+   "colour": "#ece4d0"
+  }
+ },
+ "trim": "#f3efe4",
+ "roof": {
+  "pitch": 22,
+  "colour": "#5e1d1d",
+  "eaves": 0.45
+ },
+ "blocks": [
+  {
+   "name": "bottleshop",
+   "x0": -36.0,
+   "x1": -20.0,
+   "y0": 3.9,
+   "y1": 10.4,
+   "roof": "hip",
+   "pitch": 18,
+   "wallHeight": 3.2
+  },
+  {
+   "name": "two_storey",
+   "x0": -20.0,
+   "x1": -7.0,
+   "y0": 7.4,
+   "y1": 17.4,
+   "roof": "hip",
+   "pitch": 22,
+   "wallHeight": 6.4
+  },
+  {
+   "name": "rear",
+   "x0": -36.0,
+   "x1": -20.0,
+   "y0": 10.4,
+   "y1": 22.0,
+   "roof": "hip",
+   "pitch": 18,
+   "wallHeight": 3.4,
+   "outbuilding": true
+  }
+ ],
+ "panels": [
+  {
+   "x0": -35.83,
+   "x1": -7.47,
+   "y0": -0.43000000000000005,
+   "y1": -0.12,
+   "z0": 0.55,
+   "z1": 0.63,
+   "walls": "cap"
+  }
+ ],
+ "verandahs": [
+  {
+   "x0": -34.0,
+   "x1": -20.0,
+   "y0": 1.2,
+   "y1": 3.9,
+   "height": 2.7,
+   "wallHeight": 3.0,
+   "deckHeight": 0.1,
+   "posts": [
+    -33.8,
+    -29.5,
+    -25.0,
+    -20.2
+   ]
+  },
+  {
+   "x0": -20.0,
+   "x1": -6.2,
+   "y0": 3.4,
+   "y1": 7.4,
+   "height": 2.75,
+   "wallHeight": 3.0,
+   "deckHeight": 0.1,
+   "posts": [
+    -19.8,
+    -16.4,
+    -12.9,
+    -9.5,
+    -6.4
+   ]
+  }
+ ],
+ "awnings": [
+  {
+   "x0": -41.0,
+   "x1": -36.0,
+   "y0": 1.0,
+   "y1": 10.4,
+   "z": 3.3,
+   "colour": "#e9e7e1",
+   "posts": [
+    -40.8,
+    -36.2
+   ]
+  }
+ ],
+ "windows": [
+  {
+   "facing": "front",
+   "wall": 3.9,
+   "at": -34.0,
+   "width": 1.5,
+   "height": 1.6,
+   "sill": 0.7
+  },
+  {
+   "facing": "front",
+   "wall": 3.9,
+   "at": -27.4,
+   "width": 1.5,
+   "height": 1.6,
+   "sill": 0.7
+  },
+  {
+   "facing": "front",
+   "wall": 3.9,
+   "at": -25.8,
+   "width": 1.5,
+   "height": 1.6,
+   "sill": 0.7
+  },
+  {
+   "facing": "front",
+   "wall": 7.4,
+   "at": -18.0,
+   "width": 1.3,
+   "height": 1.5,
+   "sill": 0.8
+  },
+  {
+   "facing": "front",
+   "wall": 7.4,
+   "at": -10.0,
+   "width": 1.3,
+   "height": 1.5,
+   "sill": 0.8
+  },
+  {
+   "facing": "front",
+   "wall": 7.4,
+   "at": -8.4,
+   "width": 1.3,
+   "height": 1.5,
+   "sill": 0.8
+  },
+  {
+   "facing": "front",
+   "wall": 7.4,
+   "at": -17.6,
+   "width": 1.1,
+   "height": 1.2,
+   "sill": 3.9
+  },
+  {
+   "facing": "front",
+   "wall": 7.4,
+   "at": -13.6,
+   "width": 1.1,
+   "height": 1.2,
+   "sill": 3.9
+  },
+  {
+   "facing": "front",
+   "wall": 7.4,
+   "at": -9.6,
+   "width": 1.1,
+   "height": 1.2,
+   "sill": 3.9
+  },
+  {
+   "facing": "left",
+   "wall": -20.0,
+   "at": 9.5,
+   "width": 1.1,
+   "height": 1.2,
+   "sill": 3.9
+  },
+  {
+   "facing": "left",
+   "wall": -20.0,
+   "at": 13.0,
+   "width": 1.1,
+   "height": 1.2,
+   "sill": 3.9
+  },
+  {
+   "facing": "left",
+   "wall": -20.0,
+   "at": 16.0,
+   "width": 1.1,
+   "height": 1.2,
+   "sill": 3.9
+  }
+ ],
+ "doors": [
+  {
+   "type": "front",
+   "x0": -31.5,
+   "x1": -29.7,
+   "y": 3.9,
+   "height": 2.3,
+   "z0": 0.1,
+   "colour": "#2f2a28"
+  },
+  {
+   "type": "front",
+   "x0": -23.6,
+   "x1": -22.4,
+   "y": 3.9,
+   "height": 2.2,
+   "z0": 0.1,
+   "colour": "#2f2a28"
+  },
+  {
+   "type": "front",
+   "x0": -14.2,
+   "x1": -13.0,
+   "y": 7.4,
+   "height": 2.2,
+   "z0": 0.1,
+   "colour": "#2f2a28"
+  }
+ ],
+ "fences": [
+  {
+   "x0": -35.8,
+   "y0": -0.4,
+   "x1": -7.5,
+   "y1": -0.15000000000000002,
+   "height": 0.55,
+   "colour": "#ece4d0",
+   "kind": "concrete"
+  }
+ ],
+ "paving": [
+  {
+   "x0": -41.0,
+   "y0": -0.2,
+   "x1": -36.0,
+   "y1": 10.4,
+   "colour": "#6f6d69",
+   "kind": "concrete"
+  }
+ ],
+ "signs": [
+  {
+   "x0": -35.6,
+   "x1": -26.4,
+   "y": 1.05,
+   "z0": 2.75,
+   "z1": 3.45,
+   "text": "DRIVE-IN BOTTLE SHOP",
+   "colour": "#f2efe6",
+   "ink": "#3a2a26"
+  },
+  {
+   "x0": -25.5,
+   "x1": -20.5,
+   "y": 1.05,
+   "z0": 2.3,
+   "z1": 2.7,
+   "text": "PUBLIC BAR & LOUNGE",
+   "colour": "#f2efe6",
+   "ink": "#3a2a26"
+  }
+ ],
+ "trees": []
+}

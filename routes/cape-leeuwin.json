@@ -1,74 +1,78 @@
 {
- "name": "Cape Leeuwin",
- "_note": "Augusta to Cape Leeuwin: Blackwood Avenue through the town, then Leeuwin Road south over the low hills past the turn to the water wheel, into the lighthouse precinct. Point to point, about 7.5 km, on the 30 m fallback heights. The last pin is on the precinct's sealed service road (OSM way 101858082) between the keepers' cottages and the lighthouse, past the car park; OSRM routes there cleanly. The finish line sits at that pin and the run-off carries on along the service road to the lighthouse forecourt, about 25 m from the tower. (The service road is behind the precinct's ticket gate in real life; kept so the drive ends at the lighthouse.)",
- "loop": false,
- "preset": "country",
- "pins": [
-  [
-   115.16068,
-   -34.31778
-  ],
-  [
-   115.16229,
-   -34.32137
-  ],
-  [
-   115.16585,
-   -34.33317
-  ],
-  [
-   115.16653,
-   -34.34649
-  ],
-  [
-   115.16447,
-   -34.35975
-  ],
-  [
-   115.15182,
-   -34.36646
-  ],
-  [
-   115.13645,
-   -34.3699
-  ],
-  [
-   115.1362,
-   -34.3735
-  ]
- ],
- "build": {
-  "origin": [
-   115.155,
-   -34.343
-  ],
-  "area": [
-   [
+  "name": "Cape Leeuwin",
+  "_note": "Augusta to Cape Leeuwin: Blackwood Avenue through the town, then Leeuwin Road south over the low hills past the turn to the water wheel, into the lighthouse precinct. Point to point, about 7.5 km, on the 30 m fallback heights. The last pin is on the precinct's sealed service road (OSM way 101858082) between the keepers' cottages and the lighthouse, past the car park; OSRM routes there cleanly. The finish line sits at that pin and the run-off carries on along the service road to the lighthouse forecourt, about 25 m from the tower. (The service road is behind the precinct's ticket gate in real life; kept so the drive ends at the lighthouse.)",
+  "loop": false,
+  "preset": "country",
+  "pins": [
     [
-     115.1343,
-     -34.368
+      115.15762,
+      -34.31151
     ],
     [
-     115.1381,
-     -34.368
+      115.16068,
+      -34.31778
     ],
     [
-     115.1381,
-     -34.3765
+      115.16229,
+      -34.32137
     ],
     [
-     115.1343,
-     -34.3765
+      115.16585,
+      -34.33317
+    ],
+    [
+      115.16653,
+      -34.34649
+    ],
+    [
+      115.16447,
+      -34.35975
+    ],
+    [
+      115.15182,
+      -34.36646
+    ],
+    [
+      115.13645,
+      -34.3699
+    ],
+    [
+      115.1362,
+      -34.3735
     ]
-   ]
   ],
-  "streetsValid": false,
-  "_areaNote": "Landmark patches: small areas joining the road to landmarks that stand beyond the 70 m corridor, so they get detailed terrain (and their own streets) to stand on instead of the horizon mesh. streetsValid stays off so side streets along the road still count as off track, as without an area. One strip from Leeuwin Road south past the waterwheel (on Water Wheel Road) and the keepers' cottages to the lighthouse."
- },
- "looks": [
-  "routes/landmarks/cape_leeuwin_looks.json"
- ],
- "layers": [
-  "routes/layers/cape_leeuwin"
- ]
+  "build": {
+    "origin": [
+      115.155,
+      -34.343
+    ],
+    "area": [
+      [
+        [
+          115.1343,
+          -34.368
+        ],
+        [
+          115.1381,
+          -34.368
+        ],
+        [
+          115.1381,
+          -34.3765
+        ],
+        [
+          115.1343,
+          -34.3765
+        ]
+      ]
+    ],
+    "streetsValid": false,
+    "_areaNote": "Landmark patches: small areas joining the road to landmarks that stand beyond the 70 m corridor, so they get detailed terrain (and their own streets) to stand on instead of the horizon mesh. streetsValid stays off so side streets along the road still count as off track, as without an area. One strip from Leeuwin Road south past the waterwheel (on Water Wheel Road) and the keepers' cottages to the lighthouse."
+  },
+  "looks": [
+    "routes/landmarks/cape_leeuwin_looks.json"
+  ],
+  "layers": [
+    "routes/layers/cape_leeuwin"
+  ]
 }

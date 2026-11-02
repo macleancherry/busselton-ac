@@ -1,0 +1,433 @@
+{
+ "note": "Augusta Hotel motel wing on Blackwood Avenue, south of the hotel, on the left of the Cape Leeuwin route just after the start. From the Landgate aerial (Oct 2026) and Mapillary (2019). A long two-storey block of cream render under a red terracotta tile hip roof, its long side to the road behind a small car park: the upper floor carried over a ground-floor walkway on square posts, room doors and windows along both floors. The ground falls about 0.8 m to its south end, so a plinth runs under it. Metres: x left (north-north-west) to right (south-south-east) as seen from the road, y back from the building line.",
+ "wallHeight": 5.8,
+ "setback": 3.4,
+ "road": {
+  "width": 12.0,
+  "verge": 0.4
+ },
+ "lawn": "#8b9455",
+ "sunFrom": [
+  -0.7,
+  -0.4,
+  1.0
+ ],
+ "cameras": {
+  "street": {
+   "eye": [
+    20,
+    -9.6,
+    1.5
+   ],
+   "look": [
+    40,
+    8,
+    3.0
+   ],
+   "lens": 24
+  },
+  "aerial": {
+   "eye": [
+    24,
+    -26,
+    22
+   ],
+   "look": [
+    40,
+    11,
+    1
+   ],
+   "lens": 26
+  }
+ },
+ "walls": {
+  "kind": "render",
+  "colour": "#efe7d3"
+ },
+ "finishes": {
+  "cap": {
+   "kind": "brick",
+   "colour": "#9c4434"
+  },
+  "planter": {
+   "kind": "render",
+   "colour": "#ece4d0"
+  }
+ },
+ "trim": "#f3efe4",
+ "roof": {
+  "pitch": 24,
+  "colour": "#b0583a",
+  "eaves": 0.5
+ },
+ "blocks": [
+  {
+   "name": "motel",
+   "x0": 25.5,
+   "x1": 55.0,
+   "y0": 7.9,
+   "y1": 16.4,
+   "roof": "hip"
+  },
+  {
+   "name": "post0",
+   "x0": 25.65,
+   "x1": 25.95,
+   "y0": 6.45,
+   "y1": 6.75,
+   "roof": "none",
+   "wallHeight": 2.75,
+   "outbuilding": true
+  },
+  {
+   "name": "post1",
+   "x0": 29.3,
+   "x1": 29.6,
+   "y0": 6.45,
+   "y1": 6.75,
+   "roof": "none",
+   "wallHeight": 2.75,
+   "outbuilding": true
+  },
+  {
+   "name": "post2",
+   "x0": 32.95,
+   "x1": 33.25,
+   "y0": 6.45,
+   "y1": 6.75,
+   "roof": "none",
+   "wallHeight": 2.75,
+   "outbuilding": true
+  },
+  {
+   "name": "post3",
+   "x0": 36.6,
+   "x1": 36.9,
+   "y0": 6.45,
+   "y1": 6.75,
+   "roof": "none",
+   "wallHeight": 2.75,
+   "outbuilding": true
+  },
+  {
+   "name": "post4",
+   "x0": 40.25,
+   "x1": 40.55,
+   "y0": 6.45,
+   "y1": 6.75,
+   "roof": "none",
+   "wallHeight": 2.75,
+   "outbuilding": true
+  },
+  {
+   "name": "post5",
+   "x0": 43.9,
+   "x1": 44.2,
+   "y0": 6.45,
+   "y1": 6.75,
+   "roof": "none",
+   "wallHeight": 2.75,
+   "outbuilding": true
+  },
+  {
+   "name": "post6",
+   "x0": 47.55,
+   "x1": 47.85,
+   "y0": 6.45,
+   "y1": 6.75,
+   "roof": "none",
+   "wallHeight": 2.75,
+   "outbuilding": true
+  },
+  {
+   "name": "post7",
+   "x0": 51.2,
+   "x1": 51.5,
+   "y0": 6.45,
+   "y1": 6.75,
+   "roof": "none",
+   "wallHeight": 2.75,
+   "outbuilding": true
+  },
+  {
+   "name": "post8",
+   "x0": 54.85,
+   "x1": 55.15,
+   "y0": 6.45,
+   "y1": 6.75,
+   "roof": "none",
+   "wallHeight": 2.75,
+   "outbuilding": true
+  }
+ ],
+ "panels": [
+  {
+   "x0": 25.5,
+   "x1": 55.0,
+   "y0": 6.4,
+   "y1": 7.9,
+   "z0": 2.75,
+   "z1": 5.8,
+   "walls": "main"
+  },
+  {
+   "x0": 25.5,
+   "x1": 55.0,
+   "y0": 6.4,
+   "y1": 16.4,
+   "z0": -1.0,
+   "z1": -0.25,
+   "walls": "main"
+  }
+ ],
+ "windows": [
+  {
+   "facing": "front",
+   "wall": 7.9,
+   "at": 28.65,
+   "width": 1.2,
+   "height": 1.2,
+   "sill": 0.9
+  },
+  {
+   "facing": "front",
+   "wall": 6.4,
+   "at": 27.9,
+   "width": 1.4,
+   "height": 1.3,
+   "sill": 3.6
+  },
+  {
+   "facing": "front",
+   "wall": 7.9,
+   "at": 32.3,
+   "width": 1.2,
+   "height": 1.2,
+   "sill": 0.9
+  },
+  {
+   "facing": "front",
+   "wall": 6.4,
+   "at": 31.55,
+   "width": 1.4,
+   "height": 1.3,
+   "sill": 3.6
+  },
+  {
+   "facing": "front",
+   "wall": 7.9,
+   "at": 35.95,
+   "width": 1.2,
+   "height": 1.2,
+   "sill": 0.9
+  },
+  {
+   "facing": "front",
+   "wall": 6.4,
+   "at": 35.2,
+   "width": 1.4,
+   "height": 1.3,
+   "sill": 3.6
+  },
+  {
+   "facing": "front",
+   "wall": 7.9,
+   "at": 39.6,
+   "width": 1.2,
+   "height": 1.2,
+   "sill": 0.9
+  },
+  {
+   "facing": "front",
+   "wall": 6.4,
+   "at": 38.85,
+   "width": 1.4,
+   "height": 1.3,
+   "sill": 3.6
+  },
+  {
+   "facing": "front",
+   "wall": 7.9,
+   "at": 43.25,
+   "width": 1.2,
+   "height": 1.2,
+   "sill": 0.9
+  },
+  {
+   "facing": "front",
+   "wall": 6.4,
+   "at": 42.5,
+   "width": 1.4,
+   "height": 1.3,
+   "sill": 3.6
+  },
+  {
+   "facing": "front",
+   "wall": 7.9,
+   "at": 46.9,
+   "width": 1.2,
+   "height": 1.2,
+   "sill": 0.9
+  },
+  {
+   "facing": "front",
+   "wall": 6.4,
+   "at": 46.15,
+   "width": 1.4,
+   "height": 1.3,
+   "sill": 3.6
+  },
+  {
+   "facing": "front",
+   "wall": 7.9,
+   "at": 50.55,
+   "width": 1.2,
+   "height": 1.2,
+   "sill": 0.9
+  },
+  {
+   "facing": "front",
+   "wall": 6.4,
+   "at": 49.8,
+   "width": 1.4,
+   "height": 1.3,
+   "sill": 3.6
+  },
+  {
+   "facing": "front",
+   "wall": 7.9,
+   "at": 54.2,
+   "width": 1.2,
+   "height": 1.2,
+   "sill": 0.9
+  },
+  {
+   "facing": "front",
+   "wall": 6.4,
+   "at": 53.45,
+   "width": 1.4,
+   "height": 1.3,
+   "sill": 3.6
+  },
+  {
+   "facing": "left",
+   "wall": 25.5,
+   "at": 9.5,
+   "width": 1.1,
+   "height": 1.2,
+   "sill": 3.6
+  },
+  {
+   "facing": "left",
+   "wall": 25.5,
+   "at": 12.2,
+   "width": 1.1,
+   "height": 1.2,
+   "sill": 3.6
+  },
+  {
+   "facing": "left",
+   "wall": 25.5,
+   "at": 14.9,
+   "width": 1.1,
+   "height": 1.2,
+   "sill": 3.6
+  }
+ ],
+ "doors": [
+  {
+   "type": "front",
+   "x0": 26.85,
+   "x1": 27.75,
+   "y": 7.9,
+   "height": 2.1,
+   "z0": 0.05,
+   "colour": "#6a4a3a"
+  },
+  {
+   "type": "front",
+   "x0": 30.5,
+   "x1": 31.4,
+   "y": 7.9,
+   "height": 2.1,
+   "z0": 0.05,
+   "colour": "#6a4a3a"
+  },
+  {
+   "type": "front",
+   "x0": 34.15,
+   "x1": 35.05,
+   "y": 7.9,
+   "height": 2.1,
+   "z0": 0.05,
+   "colour": "#6a4a3a"
+  },
+  {
+   "type": "front",
+   "x0": 37.8,
+   "x1": 38.7,
+   "y": 7.9,
+   "height": 2.1,
+   "z0": 0.05,
+   "colour": "#6a4a3a"
+  },
+  {
+   "type": "front",
+   "x0": 41.45,
+   "x1": 42.35,
+   "y": 7.9,
+   "height": 2.1,
+   "z0": 0.05,
+   "colour": "#6a4a3a"
+  },
+  {
+   "type": "front",
+   "x0": 45.1,
+   "x1": 46.0,
+   "y": 7.9,
+   "height": 2.1,
+   "z0": 0.05,
+   "colour": "#6a4a3a"
+  },
+  {
+   "type": "front",
+   "x0": 48.75,
+   "x1": 49.65,
+   "y": 7.9,
+   "height": 2.1,
+   "z0": 0.05,
+   "colour": "#6a4a3a"
+  },
+  {
+   "type": "front",
+   "x0": 52.4,
+   "x1": 53.3,
+   "y": 7.9,
+   "height": 2.1,
+   "z0": 0.05,
+   "colour": "#6a4a3a"
+  }
+ ],
+ "paving": [
+  {
+   "x0": 25.0,
+   "y0": -0.2,
+   "x1": 55.5,
+   "y1": 6.4,
+   "colour": "#5f5e5b",
+   "kind": "concrete"
+  }
+ ],
+ "trees": [
+  {
+   "x": 22.5,
+   "y": 3.0,
+   "height": 9.0
+  },
+  {
+   "x": 57.0,
+   "y": 3.0,
+   "height": 8.0
+  }
+ ]
+}

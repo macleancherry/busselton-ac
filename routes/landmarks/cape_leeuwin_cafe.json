@@ -1,0 +1,269 @@
+{
+ "note": "Cape Leeuwin Lighthouse visitor centre and cafe: the north (granite) keepers' cottage of 1896, the one by the car park, now the interpretive centre, gift shop and ticket desk, with the Cape Leeuwin Lighthouse Cafe in its enclosed verandah. From the Landgate aerial (Oct 2026), Mapillary (2019), OSM and visitor reviews ('cafe on the enclosed verandah of the old keepers cottage'). This spec only adds what the keepers' cottages spec (cape_leeuwin_cottages.json) leaves out: the glazed enclosure under the north eave, its signs, and the timber deck along the north and east sides with a white balustrade, where the path from the car park arrives. It stands under that spec's roof, so the two must stay together. Metres: x left (east) to right (west) as seen from the car park, y back (south) from the enclosure's front.",
+ "wallHeight": 2.66,
+ "setback": 12.0,
+ "road": {
+  "width": 8.0,
+  "verge": 2.0
+ },
+ "lawn": "#8d8a58",
+ "sunFrom": [
+  -0.5,
+  -0.6,
+  1.0
+ ],
+ "cameras": {
+  "street": {
+   "eye": [
+    16,
+    -24,
+    1.6
+   ],
+   "look": [
+    4,
+    2,
+    1.6
+   ],
+   "lens": 26
+  },
+  "aerial": {
+   "eye": [
+    -14,
+    -26,
+    16
+   ],
+   "look": [
+    4,
+    3,
+    0.5
+   ],
+   "lens": 28
+  }
+ },
+ "walls": {
+  "kind": "fibro",
+  "colour": "#ece6d6"
+ },
+ "finishes": {
+  "deck": {
+   "kind": "timber",
+   "colour": "#8d7a62"
+  },
+  "granite": {
+   "kind": "render",
+   "colour": "#a59a8c"
+  }
+ },
+ "trim": "#f2efe6",
+ "roof": {
+  "pitch": 26,
+  "colour": "#b9bcb8",
+  "eaves": 0.0
+ },
+ "blocks": [
+  {
+   "name": "enclosure",
+   "x0": -4.3,
+   "x1": 12.3,
+   "y0": 0.0,
+   "y1": 2.05,
+   "roof": "none"
+  },
+  {
+   "name": "deck_n",
+   "x0": -6.5,
+   "x1": 13.7,
+   "y0": -2.5,
+   "y1": -0.02,
+   "roof": "none",
+   "wallHeight": 0.3,
+   "walls": "deck",
+   "outbuilding": true
+  },
+  {
+   "name": "deck_e",
+   "x0": -6.5,
+   "x1": -4.32,
+   "y0": -0.02,
+   "y1": 9.4,
+   "roof": "none",
+   "wallHeight": 0.3,
+   "walls": "deck",
+   "outbuilding": true
+  }
+ ],
+ "panels": [
+  {
+   "x0": -4.3,
+   "x1": 12.3,
+   "y0": 0.0,
+   "y1": 2.05,
+   "z0": -1.0,
+   "z1": -0.25,
+   "walls": "granite"
+  },
+  {
+   "x0": -6.5,
+   "x1": 13.7,
+   "y0": -2.5,
+   "y1": -0.02,
+   "z0": -1.2,
+   "z1": -0.25,
+   "walls": "deck"
+  },
+  {
+   "x0": -6.5,
+   "x1": -4.32,
+   "y0": -0.02,
+   "y1": 9.4,
+   "z0": -1.2,
+   "z1": -0.25,
+   "walls": "deck"
+  }
+ ],
+ "windows": [
+  {
+   "facing": "front",
+   "wall": 0.0,
+   "at": -3.2,
+   "width": 1.6,
+   "height": 1.45,
+   "sill": 0.75
+  },
+  {
+   "facing": "front",
+   "wall": 0.0,
+   "at": -1.15,
+   "width": 1.6,
+   "height": 1.45,
+   "sill": 0.75
+  },
+  {
+   "facing": "front",
+   "wall": 0.0,
+   "at": 0.9,
+   "width": 1.6,
+   "height": 1.45,
+   "sill": 0.75
+  },
+  {
+   "facing": "front",
+   "wall": 0.0,
+   "at": 2.95,
+   "width": 1.6,
+   "height": 1.45,
+   "sill": 0.75
+  },
+  {
+   "facing": "front",
+   "wall": 0.0,
+   "at": 5.0,
+   "width": 1.6,
+   "height": 1.45,
+   "sill": 0.75
+  },
+  {
+   "facing": "front",
+   "wall": 0.0,
+   "at": 7.05,
+   "width": 1.6,
+   "height": 1.45,
+   "sill": 0.75
+  },
+  {
+   "facing": "front",
+   "wall": 0.0,
+   "at": 9.1,
+   "width": 1.6,
+   "height": 1.45,
+   "sill": 0.75
+  },
+  {
+   "facing": "front",
+   "wall": 0.0,
+   "at": 11.15,
+   "width": 1.6,
+   "height": 1.45,
+   "sill": 0.75
+  },
+  {
+   "facing": "left",
+   "wall": -4.3,
+   "at": 1.0,
+   "width": 1.2,
+   "height": 1.45,
+   "sill": 0.75
+  },
+  {
+   "facing": "right",
+   "wall": 12.3,
+   "at": 1.0,
+   "width": 1.2,
+   "height": 1.45,
+   "sill": 0.75
+  }
+ ],
+ "doors": [
+  {
+   "type": "front",
+   "x0": 3.5,
+   "x1": 4.5,
+   "y": 0.0,
+   "height": 2.2,
+   "z0": 0.3,
+   "colour": "#3f4a44"
+  }
+ ],
+ "fences": [
+  {
+   "x0": -6.5,
+   "y0": -2.5,
+   "x1": 11.5,
+   "y1": -2.45,
+   "height": 1.3,
+   "colour": "#f2efe6",
+   "open": true
+  },
+  {
+   "x0": -6.5,
+   "y0": -2.5,
+   "x1": -6.45,
+   "y1": 5.0,
+   "height": 1.3,
+   "colour": "#f2efe6",
+   "open": true
+  },
+  {
+   "x0": -6.5,
+   "y0": 6.6,
+   "x1": -6.45,
+   "y1": 9.4,
+   "height": 1.3,
+   "colour": "#f2efe6",
+   "open": true
+  }
+ ],
+ "signs": [
+  {
+   "x0": 0.3,
+   "x1": 3.3,
+   "y": -0.1,
+   "z0": 2.12,
+   "z1": 2.56,
+   "text": "LIGHTHOUSE CAFE",
+   "colour": "#24384a",
+   "ink": "#f2efe6"
+  },
+  {
+   "x0": 5.0,
+   "x1": 9.0,
+   "y": -0.1,
+   "z0": 2.12,
+   "z1": 2.56,
+   "text": "VISITOR CENTRE",
+   "colour": "#24384a",
+   "ink": "#f2efe6"
+  }
+ ],
+ "trees": []
+}

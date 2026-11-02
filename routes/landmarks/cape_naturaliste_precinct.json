@@ -1,0 +1,263 @@
+{
+ "note": "Cape Naturaliste lighthouse precinct by the car park, from the Landgate aerial (Oct 2026), OSM and the DBCA site notes: what stands round the tea rooms (the eastern keepers' cottage, in cape_naturaliste_cottages.json) on the car park side. The toilet block at the car park's west edge (OSM way 369992411), the small gabled information and tour kiosk where the paths meet on the lawn north of the cottages (OSM's information office), and the round water tank in the garden bed at the tea rooms' north corner, with the peppermints round them put back. Both buildings follow the cottage row (bearing about 119 degrees). Metres: x left (east-south-east) to right (west-north-west) as seen from the north-north-east, y back.",
+ "wallHeight": 2.7,
+ "setback": 14.0,
+ "road": {
+  "width": 6.0,
+  "verge": 2.0
+ },
+ "lawn": "#9a9466",
+ "sunFrom": [
+  -0.4,
+  -0.7,
+  1.0
+ ],
+ "cameras": {
+  "street": {
+   "eye": [
+    -22,
+    -16,
+    1.6
+   ],
+   "look": [
+    2,
+    4,
+    1.8
+   ],
+   "lens": 24
+  },
+  "aerial": {
+   "eye": [
+    -30,
+    -36,
+    26
+   ],
+   "look": [
+    4,
+    6,
+    0.5
+   ],
+   "lens": 24
+  }
+ },
+ "walls": {
+  "kind": "render",
+  "colour": "#e2dccd"
+ },
+ "finishes": {
+  "kiosk": {
+   "kind": "fibro",
+   "colour": "#e9e4d4"
+  },
+  "tank": {
+   "kind": "render",
+   "colour": "#d4d1c9"
+  }
+ },
+ "trim": "#3f5a4a",
+ "roof": {
+  "pitch": 15,
+  "colour": "#888b87",
+  "eaves": 0.35
+ },
+ "blocks": [
+  {
+   "name": "toilets",
+   "x0": -13.45,
+   "x1": -5.35,
+   "y0": 0.6,
+   "y1": 4.0,
+   "roof": "gable",
+   "wallHeight": 3.2,
+   "pitch": 15
+  },
+  {
+   "name": "kiosk",
+   "x0": 15.6,
+   "x1": 23.4,
+   "y0": 1.3,
+   "y1": 4.7,
+   "roof": "gable",
+   "wallHeight": 2.6,
+   "pitch": 22,
+   "walls": "kiosk",
+   "roofColour": "#bdbfba"
+  },
+  {
+   "name": "tank",
+   "x0": -6.65,
+   "x1": -2.75,
+   "y0": 14.95,
+   "y1": 18.85,
+   "roof": "none",
+   "wallHeight": 2.0,
+   "walls": "tank",
+   "outbuilding": true
+  }
+ ],
+ "panels": [
+  {
+   "x0": -6.65,
+   "x1": -2.75,
+   "y0": 14.95,
+   "y1": 18.85,
+   "z0": -0.9,
+   "z1": -0.25,
+   "walls": "tank"
+  }
+ ],
+ "windows": [
+  {
+   "facing": "front",
+   "wall": 1.3,
+   "at": 20.9,
+   "width": 1.6,
+   "height": 1.0,
+   "sill": 1.0
+  },
+  {
+   "facing": "front",
+   "wall": 1.3,
+   "at": 16.6,
+   "width": 1.0,
+   "height": 1.0,
+   "sill": 1.0
+  }
+ ],
+ "doors": [
+  {
+   "type": "front",
+   "x0": -12.2,
+   "x1": -11.2,
+   "y": 0.6,
+   "height": 2.6,
+   "z0": 0.45,
+   "colour": "#3f5a4a"
+  },
+  {
+   "type": "front",
+   "x0": -9.9,
+   "x1": -8.9,
+   "y": 0.6,
+   "height": 2.6,
+   "z0": 0.45,
+   "colour": "#3f5a4a"
+  },
+  {
+   "type": "front",
+   "x0": -7.6,
+   "x1": -6.5,
+   "y": 0.6,
+   "height": 2.6,
+   "z0": 0.45,
+   "colour": "#3f5a4a"
+  },
+  {
+   "type": "front",
+   "x0": 18.0,
+   "x1": 19.0,
+   "y": 1.3,
+   "height": 2.2,
+   "colour": "#3f5a4a"
+  }
+ ],
+ "hedges": [
+  {
+   "x0": -9.5,
+   "x1": -7.2,
+   "y0": 14.0,
+   "depth": 4.0,
+   "height": 0.5
+  },
+  {
+   "x0": -2.3,
+   "x1": 0.0,
+   "y0": 14.0,
+   "depth": 3.5,
+   "height": 0.5
+  }
+ ],
+ "paving": [
+  {
+   "x0": -14.2,
+   "y0": -1.0,
+   "x1": -4.6,
+   "y1": 0.6,
+   "colour": "#bdb8ac",
+   "kind": "concrete"
+  }
+ ],
+ "tables": [
+  {
+   "x": 13.0,
+   "y": -1.5,
+   "length": 1.8,
+   "colour": "#6b5844"
+  },
+  {
+   "x": 10.0,
+   "y": -1.0,
+   "length": 1.8,
+   "colour": "#6b5844"
+  }
+ ],
+ "signs": [
+  {
+   "x0": 20.0,
+   "x1": 22.4,
+   "y": 1.2,
+   "z0": 2.05,
+   "z1": 2.45,
+   "text": "INFORMATION",
+   "colour": "#2d4b3c",
+   "ink": "#f1ede0"
+  }
+ ],
+ "trees": [
+  {
+   "x": 5.0,
+   "y": -1.1,
+   "height": 6.5
+  },
+  {
+   "x": -5.7,
+   "y": -1.2,
+   "height": 7.0
+  },
+  {
+   "x": -8.9,
+   "y": -6.8,
+   "height": 7.0
+  },
+  {
+   "x": -14.2,
+   "y": 7.9,
+   "height": 7.0
+  },
+  {
+   "x": -11.2,
+   "y": 15.9,
+   "height": 7.0
+  },
+  {
+   "x": 6.7,
+   "y": 15.5,
+   "height": 8.0
+  },
+  {
+   "x": 16.2,
+   "y": 14.4,
+   "height": 7.0
+  },
+  {
+   "x": 13.5,
+   "y": 0.0,
+   "height": 5.0
+  },
+  {
+   "x": 0.5,
+   "y": 9.0,
+   "height": 6.0
+  }
+ ]
+}
