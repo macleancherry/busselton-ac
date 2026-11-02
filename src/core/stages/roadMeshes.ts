@@ -4,6 +4,7 @@
 
 import { encodeDdsDxt1 } from "../dds";
 import { buildVergeConcrete, laybacks, readVerge, stripGround, type VergeConcrete } from "../footpaths";
+import { meshDrawn } from "../terrain";
 import { material } from "../materials";
 import type { Vec2 } from "../geo";
 import { buildKerbReturns, buildKerbs, STRIP_EXTRA, stripPhotoTexture, type KerbMeshes, type StreetEdgePoint, type StripMaterialFn } from "../kerbs";
@@ -154,7 +155,8 @@ export function buildRoadSurfaces(
   const kerbMeshes = buildKerbs(plan, opts, kb.kerbs, stripMaterial, net ? new Set([...(returns?.noRamp ?? []), ...net.noRamp]) : returns?.noRamp, drops);
   // The ground under the verge concrete: the strip and kerb meshes as built, else the strip worked out, terrain beyond.
   const stripMesh = verge ? topSurface([...kerbMeshes.strip, ...kerbMeshes.kerb, ...kerbReturns]) : () => null;
-  const stripRule = stripGround(plan, index, opts.crown, opts.vergeWidth, kb.kerbs, drops, (x, y) => g.terrainAt(x, y).h);
+  // Past the strip, the terrain grid as its chunks draw it (not the analytic terrain, which the grid cuts under on a slope).
+  const stripRule = stripGround(plan, index, opts.crown, opts.vergeWidth, kb.kerbs, drops, meshDrawn(g.terrainAt, opts));
   const vergeGround = (x: number, y: number) => stripMesh(x, y) ?? stripRule(x, y);
   const vergeConcrete = verge ? buildVergeConcrete(plan, verge, vergeGround) : [];
 
