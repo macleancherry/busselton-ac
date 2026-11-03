@@ -73,3 +73,5 @@ From Queen Street southbound, or from the Albert Street lights:
 - Mapillary 2019 dashcam frames (Albert Street eastbound at Queen Street)
 - Landgate Locate aerial; OpenStreetMap (node 6982509838 "The Tav", way 370736565)
 - Reference files: `out/refs/the_tav/` (aerial.jpg, aerial_z.jpg, aerial_grid.jpg, summerstar.jpg, mly*.jpg)
+
+3 Nov 2026: placed 1.5 m east and 1 m north of the aerial fit (115.34531, -33.651784) so its Queen St awning and Albert St verandah stay clear of the built road's corner (road clear check). That's just outside the aerial's ±1 m.
