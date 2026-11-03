@@ -146,6 +146,9 @@ Each starts as a drive-anywhere base, then gets the Phase B treatment: Yallingup
   - ✅ Researched: no ready-made Aussie traffic car pack exists; single mods listed with their licence notes in `docs/traffic-cars.md`.
   - ✅ Answered: offline traffic doesn't work in CM LAN (it's an online session); AssettoServer's AI traffic would, but needs server software.
   - ⬜ Next: an in-game test with the planner, the flood and the kids' setting (`docs/workstation-retest-2.md`).
+- 🔨 **Real local cars** (Mac, 3 Nov: the boxy cars should be the cars you see around town). Our own generated models, no badges: Hilux/Ranger-type utes, 4WD wagons, SUVs, hatches, sedans, vans, a local colour mix (`docs/plans/local-cars.md`).
+  - ✅ Plan, and a dual-cab ute prototype (`src/core/vehicles/`; about 280 triangles near, 90 far).
+  - ⬜ Phase 1: the other bodies. Phase 2: into the build behind `localCars` (per-bay model and colour, near and far versions). Phase 3: mix by place, caravans and boat trailers. Phase 4: the same cars for CSP traffic.
 - 🔨 **The beach and the water** (Mac, 31 Oct: what makes the South West special; built 31 Oct and 2 Nov, in-game look still to see). The bay goes from turquoise over the sand to deep blue further out, with dark patches of seagrass and reef, and the beaches are some of the whitest sand anywhere. When the sea was the aerial photo it looked real; as CSP water it's a flat, odd blue.
   - ✅ The sea's colour from the aerial (`photoSea`, 31 Oct): the photo's own shallows, sand bars and weed patches as the water's base colour under CSP's reflections and waves, fading to deep blue past the photo's edge.
   - ✅ White sand (`beachDetail`, 2 Nov): the beaches from the photo, brightened, with a fine sand detail texture; wet sand and a foam line at the water's edge.
