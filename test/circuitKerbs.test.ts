@@ -7,8 +7,6 @@ import { buildTrack, trackObjects } from "../src/core/track";
 import { DemGrid } from "../src/core/elevation";
 import { readKn5, type Kn5Node } from "../src/core/kn5";
 import { GRID_GAP } from "../src/core/gridSlots";
-import { buildAiLine } from "../src/core/aiLine";
-import { pitLaneFiles } from "../src/core/pitLane";
 import { frames, resample } from "../src/core/polyline";
 import { withDefaults } from "../src/core/options";
 import type { RoadPlan } from "../src/core/road";
@@ -208,7 +206,7 @@ describe("grid at a real box, pits in real bays", () => {
     expect(pos(named(ds, "AC_START_0"))[0]).toBeCloseTo(pos(named(ds, "AC_START_1"))[0], 3);
   });
 
-  it("puts the listed pit boxes in their bays, on the ground, facing their heading; the rest on the grid", () => {
+  it("puts the listed pit boxes in their bays, on the ground, facing their heading; never the rest on the grid", () => {
     const plan = loopPlan(12);
     const opts = withDefaults({ name: "C", pitCount: 4, raceway: true, pits: [[10, 50, 270], [10, 45, 270]] });
     const ds = trackObjects(plan, opts, {}, fixed);
@@ -219,13 +217,8 @@ describe("grid at a real box, pits in real bays", () => {
     // Facing west: forward (AC) is -x.
     expect(b0.transform[8]).toBeCloseTo(-1, 5);
     expect(pos(named(ds, "AC_PIT_1"))[1]).toBeCloseTo(45, 5);
-    expect(pos(named(ds, "AC_PIT_2"))).toEqual(pos(named(ds, "AC_START_2")));
-    expect(ds.filter((d) => d.name.startsWith("AC_PIT_"))).toHaveLength(4);
-    // The pit lane still ships: past the grid, as the bays are off the AI line.
-    const ai = buildAiLine(plan);
-    const all = trackObjects(plan, withDefaults({ name: "C", pitCount: 2, raceway: true, pits: [[10, 50, 270], [10, 45, 270]] }), {}, fixed);
-    const files = pitLaneFiles("t/x", ai, new Uint8Array(4), all, true);
-    expect(files["t/x/ai/pit_lane.ai"]).toBeDefined();
+    // The other two go in a pit row once the world is built (pitRow.ts), not on the grid's spots.
+    expect(ds.filter((d) => d.name.startsWith("AC_PIT_"))).toHaveLength(2);
   });
 });
 

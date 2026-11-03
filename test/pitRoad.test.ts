@@ -111,13 +111,13 @@ describe("pit_lane.ai along a paved lane", () => {
     expect(b[0].position).toEqual(a[0].position);
   });
 
-  it("isn't used when the lane is nowhere near the AI line, and the files fall back", () => {
+  it("isn't used when the lane is nowhere near the AI line: then no pit_lane.ai", () => {
     const ai = circle();
     const far: PitPath = { pts: [[1000, 0, 1000], [1010, 0, 1000]], widths: [8, 8] };
     expect(pitLaneAlong(ai, far, true)).toBeNull();
-    const files = pitLaneFiles("t/lay", ai, writeFastLaneAi(ai), [], true, far);
+    const files = pitLaneFiles("t/lay", ai, writeFastLaneAi(ai), true, far);
     expect(files["t/lay/ai/pit_lane.ai"]).toBeUndefined();
-    const ok = pitLaneFiles("t/lay", ai, writeFastLaneAi(ai), [], true, chord(0.3, 1.2));
+    const ok = pitLaneFiles("t/lay", ai, writeFastLaneAi(ai), true, chord(0.3, 1.2));
     expect(readFastLaneAi(ok["t/lay/ai/pit_lane.ai"]).length).toBeGreaterThan(50);
   });
 

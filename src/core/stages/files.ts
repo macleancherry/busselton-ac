@@ -25,6 +25,7 @@ import { carriagewayLines } from "../network/streets";
 import type { JunctionCore } from "../network/phase1";
 import { pitLaneFiles } from "../pitLane";
 import { pitLanePath } from "../pitRoad";
+import { addPitRow, pitWorld } from "../pitRow";
 import { retimeAi, ringHintValues } from "../aiRings";
 import { innerRadius, outerRadius } from "../roundabout";
 import { simplify } from "../polyline";
@@ -94,7 +95,6 @@ export function writeFiles(ctx: BuildContext, model: Kn5Model, a: FilesInput, me
   const { opts, sources, slug, proj, centre, area } = ctx;
   const { rp, g, st, img, bp, sf, rn, gm, sc, hs, tf, net } = a;
   const plan = rp.plan, nS = plan.samples.length, index = g.index;
-  const kn5 = writeKn5(model);
   const aiPoints = buildAiLine(plan, { keepLeft: opts.aiKeepLeft, bays: rn.bayBoxes.filter((b) => b.street === 0) });
   // networkCore: through a junction the AI line sits on the junction's surface.
   if (net) for (const p of aiPoints) { const z = net.surfaceAt([p.position[0], -p.position[2]]); if (z !== null) p.position = [p.position[0], z, p.position[2]]; }
@@ -125,6 +125,17 @@ export function writeFiles(ctx: BuildContext, model: Kn5Model, a: FilesInput, me
   ] : undefined;
   const treeFiles = cspTreeFiles(ctx, sc, hs, gm);
   const dummies = trackObjects(plan, opts, st.gridAvoid, { toLocal: ctx.toLocal, groundAt: g.terrainH });
+  // Busselton fork: the pit boxes not in hand-placed bays go in a pit row off the road, with its own
+  // pit lane (pitRow.ts); a paved pit lane (build.pitLane, pitRoad.ts) past the bays comes first.
+  const shown = dummies.length;
+  const rowLane = addPitRow(dummies, aiPoints, plan.closed, opts.pitCount, pitWorld(model, [aiPoints]), {
+    rings: [...plan.roundabouts.map((rb) => ({ c: rb.c, rOut: outerRadius(rb) })), ...(st.gridAvoid.rings ?? [])].map((r) => ({ c: [r.c[0], -r.c[1]] as [number, number], rOut: r.rOut })),
+    junctions: (st.gridAvoid.junctions ?? []).map((j) => [j[0], -j[1]] as [number, number]),
+  }, (m) => console.warn(`${slug}: ${m}`));
+  // A one-layout track carries its dummies in the world kn5 (assemble.ts), so its boxes go there too.
+  if (!opts.layout) model.root.children.push(...dummies.slice(shown));
+  const kn5 = writeKn5(model);
+  const pitLane = pitLanePath(opts.pitLane, ctx.toLocal, (x, y) => g.terrainH(x, y) + 0.1) ?? rowLane;
   const lights = [...sc.utilities.lights, ...sc.carPark.lights, ...sc.jettyLamps.lights];
   const train = sc.jettyPrecinct.train;
   const radiusKm = outline.length ? Math.max(...outline.map((p) => Math.hypot(p[0] - outline[0][0], p[1] - outline[0][1]))) / 2000 : 0;
@@ -136,8 +147,8 @@ export function writeFiles(ctx: BuildContext, model: Kn5Model, a: FilesInput, me
     ...(sounds?.length && mode === "lua" ? { [`${slug}/extension/${SOUND_SCRIPT}`]: enc.encode(soundLua(sounds)) } : {}),
     [`${slug}/${slug}.kn5`]: kn5,
     [`${slug}/ai/fast_lane.ai`]: ai,
-    // A pit lane past the grid's boxes, and the ideal line (pitLane.ts).
-    ...pitLaneFiles(slug, aiPoints, ai, dummies, plan.closed, pitLanePath(opts.pitLane, ctx.toLocal, (x, y) => g.terrainH(x, y) + 0.1)),
+    // The pit lane out to the boxes and back, and the ideal line (pitLane.ts).
+    ...pitLaneFiles(slug, aiPoints, ai, plan.closed, pitLane),
     [`${slug}/data/ai_hints.ini`]: enc.encode(aiHintsIni(aiPoints, limitAt, !plan.closed, opts.aiRings ? ringHintValues(aiPoints, aiRingList, plan.closed) : undefined)),
     [`${slug}/data/surfaces.ini`]: enc.encode(surfacesIni(opts.traffic, opts.streetsValid ?? !!area, centre, sf.anyUnsealed(), true)),
     ...(tf ? { [`${slug}/data/traffic.json`]: enc.encode(tf.trafficText) } : {}),

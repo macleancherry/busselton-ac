@@ -130,11 +130,13 @@ export function nearestSample(plan: RoadPlan, p: Vec2, reach = Infinity): number
 }
 
 /**
- * Spawn points and timing gates. The grid (and the pit boxes, the same spots) on the nearest
- * straight before the start line clear of roundabouts and `avoid`'s junctions (gridSlots.ts),
- * single file in the AI line's lane on town streets or when keeping left; two columns on a wide
- * road, staggered on a circuit (raceway). Busselton fork: with `fixed`, the option gridAt puts
- * the front of the grid at a real grid box, and pits puts AC_PIT_n in real pit bays.
+ * Spawn points and timing gates. The grid on the nearest straight before the start line clear of
+ * roundabouts and `avoid`'s junctions (gridSlots.ts), single file in the AI line's lane on town
+ * streets or when keeping left; two columns on a wide road, staggered on a circuit (raceway).
+ * Busselton fork: with `fixed`, the option gridAt puts the front of the grid at a real grid box,
+ * and pits puts AC_PIT_n in real pit bays. The other pit boxes aren't placed here: they go in a pit
+ * row off the road once the world's ground is built (pitRow.ts addPitRow), never on the grid's
+ * spots, where AC parked stuck AI cars on the racing line for good (retest 6).
  */
 export function trackObjects(plan: RoadPlan, opts: BuildOptions, avoid: GridAvoid = {}, fixed?: FixedSpots): Kn5GroupNode[] {
   const out: Kn5GroupNode[] = [];
@@ -178,7 +180,7 @@ export function trackObjects(plan: RoadPlan, opts: BuildOptions, avoid: GridAvoi
     for (let k = 0; k < opts.pitCount; k++) {
       const g = slot(k, lineS);
       place(`AC_START_${k}`, g.s, g.t, 0.5);
-      if (!pitBay(k)) place(`AC_PIT_${k}`, g.s, g.t, 0.5);
+      pitBay(k);
     }
   };
   const samples = plan.samples;

@@ -1,5 +1,6 @@
-// Checks a map with several layouts: every layout's spawn and timing dummies and its AI line sit on
-// the shared world's road surface.
+// Checks a map with several layouts: every layout's spawn dummies (AC_START_n) and its AI line sit on
+// the shared world's road surface. The pit boxes (AC_PIT_n) stand off the road in a pit row
+// (pitRow.ts); pit_check.ts checks those.
 //   npx tsx scripts/check/layout_check.ts out/<slug>.zip [--where] [--keep-left]
 // Exits non-zero if a spawn is off the road, or more than 2% of an AI line is, or a keep-left line
 // (aiKeepLeft: one with more room on its right than its left; every line with --keep-left) has under
@@ -24,14 +25,14 @@ const height = surfaceHeight(readKn5(files[`${slug}/${slug}.kn5`]));
 let bad = 0;
 for (const id of layouts) {
   const dummies = readKn5(files[`${slug}/layout_${id}.kn5`]).root.children as Kn5GroupNode[];
-  const spawns = dummies.filter((d) => /^AC_(START|PIT)_/.test(d.name));
+  const spawns = dummies.filter((d) => /^AC_START_/.test(d.name));
   const lifts = spawns.map((d) => {
     const t = d.transform, g = height(t[12], -t[14]);
     return g === null ? null : t[13] - g;
   });
   const off = lifts.filter((l) => l === null).length;
   const range = lifts.filter((l): l is number => l !== null);
-  let line = `${id}: ${spawns.length} spawn and pit spots, ${off} off the road`;
+  let line = `${id}: ${spawns.length} spawn spots, ${off} off the road`;
   if (range.length) line += `, ${Math.min(...range).toFixed(2)} to ${Math.max(...range).toFixed(2)} m above it`;
   if (off) bad++;
   const ai = files[`${slug}/${id}/ai/fast_lane.ai`];

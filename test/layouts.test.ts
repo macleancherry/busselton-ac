@@ -4,6 +4,7 @@ import { carriagewayOffset, floodPits, layoutFiles, snapToLines, spawnsOnLine, s
 import { readFastLaneAi, type AiPoint } from "../src/core/aiSpline";
 import { DemGrid } from "../src/core/elevation";
 import { readKn5 } from "../src/core/kn5";
+import { lineDistance, PIT_CLEAR } from "../src/core/pitRow";
 import type { LngLat } from "../src/core/geo";
 
 const lat0 = -33.6, lng0 = 115.4;
@@ -24,7 +25,7 @@ describe("layouts", () => {
     expect(keys).toContain(`${slug}/sprint/ai/fast_lane.ai`);
     expect(keys).toContain(`${slug}/sprint/data/surfaces.ini`);
     expect(keys).toContain(`${slug}/sprint/map.png`);
-    // A pit lane past the grid and the ideal line (pitLane.ts), so AC finds both.
+    // A pit lane out to the pit row and the ideal line (pitLane.ts), so AC finds both.
     expect(readFastLaneAi(r.files[`${slug}/sprint/ai/pit_lane.ai`]).length).toBeGreaterThan(10);
     expect(keys).toContain(`${slug}/sprint/data/ideal_line.ai`);
     expect(keys).toContain(`${slug}/ui/sprint/ui_track.json`);
@@ -56,7 +57,7 @@ describe("layouts", () => {
     expect(dummyNames(roam[`${slug}/layout_roam.kn5`])).toEqual(expect.arrayContaining(["AC_START_0", "AC_PIT_1", "AC_TIME_0_L"]));
     expect(roam[`${slug}/roam/ai/fast_lane.ai`]).toBe(world2.mainAi);
     expect(readFastLaneAi(roam[`${slug}/roam/ai/pit_lane.ai`]).length).toBeGreaterThan(10);
-    // AI Flood: more pit boxes on the AI line, as many as ui_track.json says, each on the road.
+    // AI Flood: more starts on the AI line, a pit box for each, as many as ui_track.json says.
     const roamNames = dummyNames(roam[`${slug}/layout_roam.kn5`]);
     const pits = roamNames.filter((n) => n.startsWith("AC_PIT_"));
     expect(pits.length).toBeGreaterThan(10);
@@ -65,17 +66,23 @@ describe("layouts", () => {
     expect(Number(ui.pitboxes)).toBe(pits.length);
     expect(Number(ui.length)).toBeGreaterThan(700);
     const roamAi = readFastLaneAi(world2.mainAi);
+    const dist = lineDistance([roamAi]);
     for (const c of readKn5(roam[`${slug}/layout_roam.kn5`]).root.children.filter((c) => c.name.startsWith("AC_PIT_"))) {
+      // Every pit box is off the AI line (retest 6: a stuck car sent back to a box on the line sat there for good).
+      const m = (c as { transform: number[] }).transform;
+      expect(dist(m[12], m[14])).toBeGreaterThanOrEqual(PIT_CLEAR);
+    }
+    for (const c of readKn5(roam[`${slug}/layout_roam.kn5`]).root.children.filter((c) => c.name.startsWith("AC_START_"))) {
       const m = (c as { transform: number[] }).transform;
       expect(height(m[12], -m[14])).not.toBeNull();
-      // Every box, the player's (box 0) too, is on the AI line, facing along it.
+      // Every start, the player's (start 0) too, is on the AI line, facing along it.
       const near = roamAi.reduce((b, p) => (Math.hypot(p.position[0] - m[12], p.position[2] - m[14]) < Math.hypot(b.position[0] - m[12], b.position[2] - m[14]) ? p : b));
       expect(Math.hypot(near.position[0] - m[12], near.position[2] - m[14])).toBeLessThan(SPAWN_ON_LINE);
       expect(near.forward[0] * m[8] + near.forward[2] * m[10]).toBeGreaterThan(0.9);
     }
-    // Box 0 is the on-line spawn, and the hot lap start is there too.
+    // Start 0 is the on-line spawn, and the hot lap start is there too.
     const roamKids = readKn5(roam[`${slug}/layout_roam.kn5`]).root.children as { name: string; transform: number[] }[];
-    const b0 = roamKids.find((c) => c.name === "AC_PIT_0")!.transform, hot = roamKids.find((c) => c.name === "AC_HOTLAP_START_0")!.transform;
+    const b0 = roamKids.find((c) => c.name === "AC_START_0")!.transform, hot = roamKids.find((c) => c.name === "AC_HOTLAP_START_0")!.transform;
     const [bx, by] = r.proj.toLocal(ll(200, 0));
     expect(Math.hypot(b0[12] - bx, -b0[14] - by)).toBeLessThan(0.01);
     expect(Math.hypot(hot[12] - b0[12], hot[14] - b0[14])).toBeLessThan(0.01);

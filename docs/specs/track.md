@@ -398,7 +398,7 @@ Groups are created even when empty (an empty group is still written). Keep the o
 Pure; called three times (root, challengeFiles, layout dummies; B13). `width = samples[0].width`, `rows = ceil(pitCount/2)`.
 - `slot(k, lineS)`: if the width at `lineS − 8` is under 8 m: single file on the centre line, `s = lineS − 8 − 8k`, t 0. Else `row = floor(k/2)`, `t = ±width/4` (even k left +, odd right −), `s = lineS − 8 − 8·row`.
 - `place(name, s, t, lift)`: `along(plan, s, t, lift, crown)`, transform `frameTransform(pos, fwd)` (Z along the driving direction).
-- Loop: line 0; for k < pitCount: `AC_START_k` and `AC_PIT_k` at the same slot, lift .5; `AC_HOTLAP_START_0` at `length − 150`; `AC_TIME_0_L/R` at s 0, t ±(width/2 + 1), lift 1.
+- Loop: line 0; for k < pitCount: `AC_START_k` at its slot, lift .5, and `AC_PIT_k` only in a hand-placed bay (`pits`); the rest of the boxes are added in the files stage, in a pit row off the road (pitRow.ts `addPitRow`); `AC_HOTLAP_START_0` at `length − 150`; `AC_TIME_0_L/R` at s 0, t ±(width/2 + 1), lift 1.
 - Point to point: `startLine = timed ? max(GRID_DEPTH + 8·rows, s[timed.start]) : GRID_DEPTH + 8·rows`; START/PIT slots as above; `AC_HOTLAP_START_0` at s 4; `AC_AB_START_L/R` at startLine, t ±(width there/2 + 1); `finish = timed ? min(end − 25, s[timed.finish]) : end − 25`; `AC_AB_FINISH_L/R` likewise.
 - `along(plan, s, t, lift, crown)`: wrap s on loops, clamp otherwise; start from the uniform-spacing index estimate and walk to the sample with `s_i ≤ s < s_{i+1}`; no interpolation (the sample's own frame); `z = surfaceHeight(sample, t, crown) + lift`.
 
@@ -662,7 +662,7 @@ Each fix changes output: its own commit, a base upgrade (`base.mjs build|accept`
 - **B9.** networkCore output carries `ms` timings: not reproducible. Drop timings from files (log them instead).
 - **B10.** Area rings (sIn NaN): the ring material's "nearest sample to sIn" is always sample 0 (NaN comparisons), so chunk index 0. Make it explicit (nearest sample to the ring centre, or a fixed variant).
 - **B11. Index from distance assumes uniform spacing**: `round(sd/spacing)` in markings' kerb/unsealed tests and `sampleNear`; `round(d/total·(nS−1))` for AI hint and cruise limits; `(k+.5)/100·(nS−1)` for test limits. After tracing, `s ≠ i·spacing`. One `sampleAtS(s)` (binary search) for all.
-- **B12. Grid stagger width** is `samples[0].width`, not the width at the grid (point to point starts elsewhere). And `AC_PIT_k` = `AC_START_k`: pit boxes on the grid (works, but pits and grid collide in a race with pits).
+- **B12. Grid stagger width** is `samples[0].width`, not the width at the grid (point to point starts elsewhere). `AC_PIT_k` used to be `AC_START_k` (pit boxes on the grid); that parked stuck AI on the racing line (retest 6), so the boxes now go in a pit row off the road (pitRow.ts).
 - **B13.** `trackObjects` computed up to three times; compute once.
 - **B14.** The LIMITS list and the "built up" majority are each computed twice.
 - **B15. Traffic heights**: street lanes take `terrainAt + 0.1`, not the street as built (sceneGround); lanes can float or dip where the built street differs (networkCore streets, flattened mouths).
@@ -691,7 +691,7 @@ Fresh tests (the old `test/track.test.ts`, `gates`, `kangaroo`, `origin`, `round
 5. Progress: the strings appear in section 4's order for (b)/(c); "Done" last with fraction 1; imagery fractions rise from 0 to < 1.
 6. Model groups: root children names in section 7's order, every group present (empty ones too); with `layout` no `AC_` dummies in the world and a `layout_<id>.kn5` holding them; the names in groundCheck's SURFACE_GROUPS/PLACED_GROUPS, poleCheck's POLE_GROUPS and padClear's STANDING_GROUPS all exist in the root (so a rename can't silently empty a check).
 7. Registry: no two textures and no two materials share a name (catches B6-type duplicates); every material's textures exist; with detailShaders off no `_nm`/`_mask` textures.
-8. trackObjects: loop has START/PIT 0..pitCount−1, HOTLAP, TIME_0_L/R; point to point has AB_START/FINISH L/R on the timed samples (within a sample), grid behind the start line by ≥ 8 m, finish ≥ 25 m before the end; single file under 8 m wide; spawn Z axis points along the road direction.
+8. trackObjects: loop has START 0..pitCount−1 (PIT only in bays), HOTLAP, TIME_0_L/R; point to point has AB_START/FINISH L/R on the timed samples (within a sample), grid behind the start line by ≥ 8 m, finish ≥ 25 m before the end; single file under 8 m wide; spawn Z axis points along the road direction.
 9. Clears: a clear circle over a mapped building and trees → no building or tree mesh vertex inside it, house looks inside it ignored; `trees: false` keeps the trees.
 10. Area roundabouts: a closed tile ring inside the area becomes a plan roundabout with NaN sIn, `kerbed`, and a ring mesh; one outside the area doesn't; two OSM ways of one ring merge into one.
 11. Kerbs: recorded on samples exactly where the kerb arrays are > 0; none on unsealed samples; a ring near kerbs is kerbed, one in the country isn't.

@@ -47,8 +47,9 @@ describe("grid slots", () => {
     const opts = withDefaults({ name: "Grid", aiKeepLeft: true });
     const dummies = trackObjects(plan, opts, { junctions: [junction] });
     const starts = Array.from({ length: opts.pitCount }, (_, k) => dummies.find((d) => d.name === `AC_START_${k}`)!);
-    const pits = Array.from({ length: opts.pitCount }, (_, k) => dummies.find((d) => d.name === `AC_PIT_${k}`)!);
     expect(starts.every(Boolean)).toBe(true);
+    // No pit box on the grid's spots (retest 6): those go in a pit row off the road (pitRow.ts).
+    expect(dummies.some((d) => d.name.startsWith("AC_PIT_"))).toBe(false);
     starts.forEach((d, k) => {
       const p = pos(d);
       // On the bottom straight (y = 0 give or take the lane offset), going east.
@@ -60,7 +61,6 @@ describe("grid slots", () => {
       expect(p[0]).toBeLessThan(0);
       // Nose to tail: 8 m behind the one in front, half a metre either side of the lane at most.
       if (k) expect(Math.abs(pos(starts[k - 1])[0] - p[0] - GRID_GAP)).toBeLessThan(0.5);
-      expect(pos(pits[k])).toEqual(p);
     });
     // Between the junction and the roundabout there's no room for 8 cars: the grid is behind the junction.
     expect(pos(starts[0])[0]).toBeLessThan(junction[0]);

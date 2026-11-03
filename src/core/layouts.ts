@@ -26,8 +26,9 @@ import { withDefaults, type BuildOptions } from "./options";
 import { planRoad, type RoadPlan } from "./road";
 import type { LngLat, LocalProjection } from "./geo";
 import { simplify } from "./polyline";
-import { pitLaneFiles } from "./pitLane";
+import { pitLaneFiles, type PitPath } from "./pitLane";
 import { pitLanePath } from "./pitRoad";
+import { addPitRow, pitWorld } from "./pitRow";
 import { clearAiPoint, GRID_CLEAR_AHEAD, junctionsOn, type GridAvoid } from "./gridSlots";
 import type { FixedSpots } from "./stages/routePlan";
 import { retimeAi, ringCircles, ringHintValues, smoothKinks, type WorldRing } from "./aiRings";
@@ -118,14 +119,15 @@ export interface LayoutSpec {
    * Free roam: where cars start, [lng, lat] and heading in degrees clockwise from north. With
    * `coords` as well, those are the free roam's own AI loop (for AI Flood) instead of the main
    * layout's line. Spawns are starts only where they sit on the AI line (spawnsOnLine), the first of
-   * those being the player's; the rest of the boxes go on its straights (floodPits).
+   * those being the player's; the rest of the starts go on its straights (floodPits). The pit boxes,
+   * one per start, go in a pit row off the road (pitRow.ts).
    */
   spawns?: { at: LngLat; heading: number }[];
   /** Busselton fork: hand-picked checkpoints for the Busselton Challenges app (challenges.ts). */
   challenges?: ChallengesOption;
   /**
-   * Free roam: pit boxes in all (default FLOOD_PITS). Track Day gives each AI car a pit box, so
-   * this caps how many AI cars AI Flood can use; the extra boxes go on the AI line (floodPits).
+   * Free roam: starts and pit boxes in all (default FLOOD_PITS). Track Day gives each AI car a pit
+   * box, so this caps how many AI cars AI Flood can use; the extra starts go on the AI line (floodPits).
    */
   aiPits?: number;
 }
@@ -347,9 +349,9 @@ export function worldAvoid(world: World, road: Vec2[]): GridAvoid {
 }
 
 /**
- * Pit boxes for AI Flood (CSP, Track Day): `n` spots spread evenly round the AI line, each on the
- * line (in its lane: the line keeps left) and facing along it, so every AI car starts on its line
- * and drives straight off (there is no pit lane). On straights (radius GRID_MIN_RADIUS and up),
+ * Free roam's extra starts (AC_START_n) for a race with many cars: `n` spots spread evenly round the
+ * AI line, each on the line (in its lane: the line keeps left) and facing along it, so every car
+ * starts on its line and drives straight off. (The pit boxes are elsewhere: pitRow.ts.) On straights (radius GRID_MIN_RADIUS and up),
  * clear of `clear`'s roundabouts and junctions; where a stretch has no such spot, any spot off a
  * tight corner (radius under 80 m) will do. 25 m clear of `avoid` (spots already taken, local
  * metres) and of each other. Positions in AC space, on the line.
@@ -409,6 +411,20 @@ export function spawnsOnLine(spots: { x: number; y: number; fwd: Vec2 }[], ai: A
   });
 }
 
+/**
+ * Busselton fork: a layout's pit boxes (the AC_PIT_n not in hand-placed bays) in a pit row off the
+ * road beside its AI line, clear of the main drive's line too, and the row's pit lane (pitRow.ts).
+ */
+function layoutPitRow(world: World, dummies: Kn5GroupNode[], ai: AiPoint[], closed: boolean, count: number, junctions: Vec2[]): PitPath | null {
+  const main = world.mainAi ? readFastLaneAi(world.mainAi) : [];
+  const lines = main.length > 1 ? [ai, main] : [ai];
+  return addPitRow(dummies, ai, closed, count, pitWorld(world.model, lines), {
+    clearOf: lines.slice(1),
+    rings: (world.rings ?? []).map((r) => ({ c: [r.c[0], -r.c[1]] as Vec2, rOut: r.rOut })),
+    junctions: junctions.map((j) => [j[0], -j[1]] as Vec2),
+  }, (m) => console.warn(`${world.slug}: ${m}`));
+}
+
 /** A layout's own files (dummies kn5, AI line, data, ui), on the world's road surface. */
 export function layoutFiles(world: World, layout: LayoutSpec, trackObjects: (plan: RoadPlan, opts: BuildOptions, avoid?: GridAvoid, fixed?: FixedSpots) => Kn5GroupNode[]): Record<string, Uint8Array> {
   const opts = withDefaults({ ...world.options, name: layout.name });
@@ -458,9 +474,12 @@ export function layoutFiles(world: World, layout: LayoutSpec, trackObjects: (pla
     for (const p of extra) boxes.push({ x: p.pos[0], y: -p.pos[2], h: (height(p.pos[0], -p.pos[2]) ?? p.pos[1]) + 0.5, fwd: [p.fwd[0], -p.fwd[2]] });
     // No AI line and no spawn kept can't happen (without a line every spawn stays), but never ship no start.
     if (!boxes.length) boxes.push({ x: spots[0].x, y: spots[0].y, h: (spots[0].h ?? 0) + 0.5, fwd: spots[0].fwd });
+    // The spawns are the starts (on the line); the pit boxes, one per start, go in a pit row off the
+    // road (below). Without an AI line there's no row, and the boxes stay on the spawns.
     boxes.forEach((b, k) => {
       const pos: [number, number, number] = [b.x, b.h, -b.y], fwd: [number, number, number] = [b.fwd[0], 0, -b.fwd[1]];
-      dummies.push(dummy(`AC_START_${k}`, pos, fwd), dummy(`AC_PIT_${k}`, pos, fwd));
+      dummies.push(dummy(`AC_START_${k}`, pos, fwd));
+      if (ai.length < 2) dummies.push(dummy(`AC_PIT_${k}`, pos, fwd));
     });
     pitboxes = boxes.length;
     // A timing line 15 m ahead of the player's start, so sessions that want one have it.
@@ -472,9 +491,10 @@ export function layoutFiles(world: World, layout: LayoutSpec, trackObjects: (pla
       dummy("AC_TIME_0_L", [ahead[0] + left[0] * 5, h0, -(ahead[1] + left[1] * 5)], f3),
       dummy("AC_TIME_0_R", [ahead[0] - left[0] * 5, h0, -(ahead[1] - left[1] * 5)], f3),
     );
+    const rowLane = ai.length > 1 ? layoutPitRow(world, dummies, ai, closed, boxes.length, clear.junctions ?? []) : null;
     files[`${slug}/layout_${layout.id}.kn5`] = dummiesKn5(layout.id, dummies);
-    // A pit lane past the first AI box, and the ideal line (pitLane.ts).
-    if (ai.length > 1) Object.assign(files, pitLaneFiles(base, ai, files[`${base}/ai/fast_lane.ai`], dummies, closed));
+    // The pit row's lane, and the ideal line (pitLane.ts).
+    if (ai.length > 1) Object.assign(files, pitLaneFiles(base, ai, files[`${base}/ai/fast_lane.ai`], closed, rowLane));
     const challenges = layoutChallengesIni(layout.name, null, (p) => proj.toLocal(p), (x, y) => height(x, y) ?? spots[0].h ?? 0, layout.challenges);
     if (challenges) files[`${base}/data/challenges.ini`] = enc.encode(challenges);
     // Busselton fork: cruise mode (cruise.ts): in free roam every landmark is a sight.
@@ -498,10 +518,13 @@ export function layoutFiles(world: World, layout: LayoutSpec, trackObjects: (pla
     // Busselton fork: hand-placed grid front and pit bays (gridAt, pits) on the world's ground (terrain included).
     // Only built with pits set: it grids every terrain triangle.
     const bayGround = opts.pits?.length ? surfaceHeight(world.model, /^\d(ROAD|STREET|KERB|UNSEALED|UNPAVED|GRASS)/) : undefined;
-    const dummies = trackObjects(plan, opts, worldAvoid(world, plan.samples.map((smp) => smp.pos)), { toLocal: (p) => proj.toLocal(p), groundAt: bayGround });
+    const avoid = worldAvoid(world, plan.samples.map((smp) => smp.pos));
+    const dummies = trackObjects(plan, opts, avoid, { toLocal: (p) => proj.toLocal(p), groundAt: bayGround });
+    // The pit boxes not in bays in a pit row off the road; the pit lane along a paved one first.
+    const rowLane = layoutPitRow(world, dummies, ai, plan.closed, opts.pitCount, avoid.junctions ?? []);
     files[`${slug}/layout_${layout.id}.kn5`] = dummiesKn5(layout.id, dummies);
-    // A pit lane past the grid's boxes, and the ideal line (pitLane.ts).
-    Object.assign(files, pitLaneFiles(base, ai, files[`${base}/ai/fast_lane.ai`], dummies, plan.closed, pitLanePath(opts.pitLane, (p) => proj.toLocal(p), height)));
+    // The pit lane, and the ideal line (pitLane.ts).
+    Object.assign(files, pitLaneFiles(base, ai, files[`${base}/ai/fast_lane.ai`], plan.closed, pitLanePath(opts.pitLane, (p) => proj.toLocal(p), height) ?? rowLane));
     const ground = (x: number, y: number) => height(x, y) ?? hs[0];
     // Busselton fork: the layout's hand-picked checkpoints and, point to point, its time trial.
     const challenges = layoutChallengesIni(layout.name, { plan, dummies }, (p) => proj.toLocal(p), ground, layout.challenges, opts.timeTrialSectors);

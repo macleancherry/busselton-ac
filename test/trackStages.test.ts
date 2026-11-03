@@ -237,10 +237,11 @@ describe("track stages: small pieces", () => {
     expect(plain.textures.map((t) => t.name)).toEqual(["b.png"]);
   });
 
-  it("trackObjects on a loop: starts and pits, a hot lap start and the timing line", () => {
+  it("trackObjects on a loop: the grid, a hot lap start and the timing line, no pit boxes on the grid", () => {
     const p = plan(300, true);
     const names = trackObjects(p, withDefaults({ pitCount: 4 })).map((d) => d.name);
-    expect(names).toEqual(["AC_START_0", "AC_PIT_0", "AC_START_1", "AC_PIT_1", "AC_START_2", "AC_PIT_2", "AC_START_3", "AC_PIT_3", "AC_HOTLAP_START_0", "AC_TIME_0_L", "AC_TIME_0_R"]);
+    // The pit boxes go in a pit row off the road once the world is built (pitRow.ts), never on the grid.
+    expect(names).toEqual(["AC_START_0", "AC_START_1", "AC_START_2", "AC_START_3", "AC_HOTLAP_START_0", "AC_TIME_0_L", "AC_TIME_0_R"]);
   });
 
   it("puts a narrow street's grid in single file", () => {
