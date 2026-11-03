@@ -19,6 +19,7 @@
 
 import type { Vec2 } from "./geo";
 import { frames, gaussianSmooth } from "./polyline";
+import { easeFolds } from "./offsetFold";
 import type { RoadPlan } from "./road";
 
 /** Aerial colour at a local point, RGB 0..1, or null where there is no imagery. */
@@ -346,6 +347,9 @@ export function traceRoad(plan: { samples: TraceSample[]; closed: boolean }, ras
   return { offset, width, conf, coverage };
 }
 
+/** Busselton fork: the trace may not bend the centreline tighter than this radius, metres, where the map line wasn't. */
+export const TRACE_MIN_RADIUS = 2;
+
 /** Moves a plan's centreline and widths onto a trace, blended by confidence. Ring samples stay put. */
 export function applyTrace(plan: RoadPlan, tr: TraceResult, onRing: (i: number) => boolean): void {
   const smp = plan.samples;
@@ -354,6 +358,10 @@ export function applyTrace(plan: RoadPlan, tr: TraceResult, onRing: (i: number) 
   const oldS = smp.map((s) => s.s);
   const ringIdx = plan.roundabouts.map((rb) => ({ rb, inAt: nearestIndex(oldS, rb.sIn), outAt: nearestIndex(oldS, rb.sOut) }));
   const ring = smp.map((_, i) => onRing(i));
+  // Busselton fork: an offset into a tight bend can fold the line (offsetFold.ts); take it back
+  // where the moved line would bend tighter than TRACE_MIN_RADIUS and tighter than the map's.
+  const off = easeFolds(smp.map((s) => s.pos), smp.map((s) => s.left), smp.map((_, i) => (ring[i] ? 0 : tr.offset[i])), () => TRACE_MIN_RADIUS, plan.closed, (i) => ring[i]);
+  for (let i = 0; i < n; i++) if (!ring[i]) tr.offset[i] = off[i];
   const pts: Vec2[] = smp.map((s, i) => (ring[i] ? s.pos : [s.pos[0] + s.left[0] * tr.offset[i], s.pos[1] + s.left[1] * tr.offset[i]]));
   const f = frames(pts, plan.closed);
   const curv = gaussianSmooth(f.map((x) => x.curvature), 4, plan.closed);

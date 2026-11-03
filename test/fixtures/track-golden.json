@@ -388,7 +388,7 @@
  },
  "d": {
   "files": {
-   "golden_town/golden_town.kn5": "4d5eb5c6893039899808f0ead3289e4ac721da4c112bdf4694856f5927171556",
+   "golden_town/golden_town.kn5": "c1361db28e8eb56b375db7db9ed866c61f69a2b98803343dd7d7b865e99612fb",
    "golden_town/main/ai/fast_lane.ai": "d8310c94cd00d5bc49aa83097a6f7d0931c983977dd5e3d4354fe3dece77ac48",
    "golden_town/main/data/ideal_line.ai": "d8310c94cd00d5bc49aa83097a6f7d0931c983977dd5e3d4354fe3dece77ac48",
    "golden_town/main/ai/pit_lane.ai": "e848c357359ed287b663f6bf66edc6d801c13ba0030f444812433b0c124f1e8e",
@@ -426,9 +426,9 @@
    "climb": 4.42152062467026,
    "meanWidth": 7.443703201423855,
    "vertices": 288059,
-   "triangles": 254150,
+   "triangles": 254126,
    "terrainChunks": 8,
-   "kn5Bytes": 33379600,
+   "kn5Bytes": 33379456,
    "trees": 986,
    "buildings": 42,
    "buildingsDetected": 9,

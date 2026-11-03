@@ -89,7 +89,7 @@ Constants: `DT = 0.1` m (pixel across), `WIDER = 6` m, `MAX_DRIFT = 5` m, refere
 
 ## applyTrace rules
 
-19. New points: for each sample i, `pos` unchanged if `onRing(i)`, else `pos + left × offset[i]`.
+19. New points: for each sample i, `pos` unchanged if `onRing(i)`, else `pos + left × offset[i]`. Busselton fork (3 Nov 2026): first the offsets go through `easeFolds` (`src/core/offsetFold.ts`) with a minimum radius of `TRACE_MIN_RADIUS` = 2 m, ring samples fixed at 0, and the eased offsets are written back into `offset`. An offset into a tight bend folds the line (Caves Road at Yallingup: 3 m into a 12 m junction bend left a 0.3 m corner); `easeFolds` shrinks the offsets round any sample where the moved line is tighter than 2 m and more than 5% tighter than before, and changes nothing anywhere else.
 20. `frames(points, closed)` (polyline.ts) gives new pos, tan, left, s and curvature per sample; curvature is then `gaussianSmooth(curvature, σ = 4, closed)`. Write these five into each sample. Sample count, `h`, `bank`, `kerb` and anything else are untouched.
 21. Width: for samples not on a ring and with a non-NaN traced width: width += (traced − width) × conf[i].
 22. plan.length = last sample's s, plus the closing segment for a closed plan.
