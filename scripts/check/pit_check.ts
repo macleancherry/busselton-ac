@@ -103,7 +103,8 @@ for (const L of layouts) {
     if (on > PIT_ON_LINE_MAX) problems.push(`${on.toFixed(0)} m of the pit lane is on the AI line`);
     for (const b of pits) {
       const d = Math.min(...L.pit.map((p) => Math.hypot(p.position[0] - b.at[0], p.position[2] - b.at[2])));
-      if (d > 3) problems.push(`${b.name} ${d.toFixed(1)} m from the pit lane`);
+      // 5 m: a box beside the lane (Collie's real bays are 3.5 m off its paved lane, and AI pit there fine).
+      if (d > 5) problems.push(`${b.name} ${d.toFixed(1)} m from the pit lane`);
     }
     // The layout's own meshes (course markings: barrier blocks, boards) across the lane's off-line
     // stretch or on a box.
