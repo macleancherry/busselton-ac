@@ -22,8 +22,9 @@
 -- included-apps/CspDebug/CspDebug.lua), because in retest 3 (CSP 0.2.12-preview1, Pure 2.57) weather FX
 -- started at the PC's clock whatever race.ini said. CSP only gives that call to Lua apps and tools
 -- (it was nil here in retest 4), so the Busselton Map app (apps/lua/BusseltonMap/test_clock.lua)
--- does the same; whichever gets there first stores 'moved' under ac.store('busselton.clock') and the
--- other leaves the clock alone. It logs a "clock ..." note either way.
+-- does it: it stores 'app' under ac.store('busselton.clock') when it loads, sets the clock once the
+-- session runs and keeps it there for the whole run (Pure Planner's Live plan sets it to the PC's
+-- clock, retest 6). This script only tries when the app isn't there. It logs a "clock ..." note either way.
 
 local MAX_TIME = 480
 local MIN_TIME = 480
@@ -158,7 +159,9 @@ local CLOCK_KEY = 'busselton.clock' -- shared with the Busselton Map app (test_c
 local function setClock()
   if not TARGET_TIME then return end
   local okL, by = pcall(ac.load, CLOCK_KEY)
-  if okL and by == 'moved' then log('note', 'clock: set by the Busselton Map app') return end
+  -- 'app': the Busselton Map app watches the clock for the whole run (test_clock.lua); 'moved': it
+  -- (or an older app) already moved it.
+  if okL and (by == 'app' or by == 'moved') then log('note', 'clock: left to the Busselton Map app') return end
   local delta, now = clockOff()
   if not delta then log('note', 'clock: the game time is unreadable, left as it is') return end
   if math.abs(delta) < 300 then return end

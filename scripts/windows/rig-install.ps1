@@ -7,7 +7,7 @@
 .EXAMPLE
   .\scripts\windows\rig-install.ps1                 # install what's new in <share>\builds
   .\scripts\windows\rig-install.ps1 -DryRun         # only say what it would install
-  .\scripts\windows\rig-install.ps1 -Force          # reinstall everything (AO bakes kept if the geometry is the same)
+  .\scripts\windows\rig-install.ps1 -Force          # reinstall everything (each build gets its own AO bake back)
   .\scripts\windows\rig-install.ps1 -InstallTask    # also check the share each time you log in
   .\scripts\windows\rig-install.ps1 -RemoveTask
   .\scripts\windows\rig-install.ps1 -PublishKit     # from a repo checkout: copy this installer into <share>\rig
@@ -17,8 +17,10 @@
   zip), so AO bakes are kept the same way as on the workstation. Nothing else is needed on the rig:
   no Node, no Python, no repo (the kit in <share>\rig is enough).
 
-  What's "new": the newest zip of each track folder (an older zip holding the same folder, like
-  busselton.zip next to busselton_1.zip, is skipped) when the installed track didn't come from it.
+  What's "new": each track's build, <slug>.zip, when the installed track didn't come from it. Other
+  zips holding the same folder (busselton_roadcore.zip, a renamed busselton_1.zip) are variants and
+  skipped (share.ps1 Get-BuildZipKind). AO bakes are kept per build (share.ps1 Save-BusseltonVao),
+  so a bake made on the workstation for this very build comes back here too.
   install-track.ps1 records the zip's name, time and size in the track folder (installed_from.txt,
   share.ps1), so a track installed from that zip by any script on this PC counts as up to date.
   Tracks installed before that record existed fall back to %LOCALAPPDATA%\BusseltonAC\installed.json.
@@ -249,8 +251,12 @@ try {
   $now = (Get-Date).ToUniversalTime()
   foreach ($z in @(Get-ChildItem -LiteralPath $builds -Filter *.zip -File | Sort-Object LastWriteTimeUtc)) {
     if (($now - $z.LastWriteTimeUtc).TotalSeconds -lt 60) { $skipped += "$($z.Name): still being copied in; next time"; continue }
-    try { $infos += Read-ZipInfo $z }
-    catch { $skipped += "$($z.Name): can't open it ($($_.Exception.Message)); still being copied?" }
+    try { $zi = Read-ZipInfo $z }
+    catch { $skipped += "$($z.Name): can't open it ($($_.Exception.Message)); still being copied?"; continue }
+    # Only <slug>.zip and <slug>_polish*.zip (share.ps1): a variant holding the same folder, like
+    # busselton_roadcore.zip, would replace the track's own build.
+    if ((Get-BuildZipKind $z $zi.Slug) -eq "variant") { $skipped += "$($z.Name): a variant of $($zi.Slug) (not $($zi.Slug).zip); install it by name if wanted"; continue }
+    $infos += $zi
   }
   # The newest zip per track folder (share.ps1); older ones holding the same folder are skipped.
   $picked = @(Select-NewestPerTrack $infos)
@@ -293,8 +299,8 @@ try {
       $gone = @($before | Where-Object { $after -notcontains $_ })
       if ($wasThere -and $added.Count) { $line += "; new: $($added -join ', ')" }
       if ($gone.Count) { $line += "; removed: $($gone -join ', ')" }
-      if ($hadAo -and (Test-Ao $dest)) { $line += ". Same geometry: AO bake kept." }
-      elseif ($hadAo) { $line += ". New geometry: AO bake dropped (rebake when there's time)." }
+      if (Test-Ao $dest) { $line += ". AO bake for this build in place." }
+      elseif ($hadAo) { $line += ". No AO bake for this build yet (the old one is kept for its own build; rebake when there's time)." }
       $note = Get-Note $b.File
       if ($note) { $line += "`r`n$note" }
       $changes += $line

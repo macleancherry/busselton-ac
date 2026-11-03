@@ -66,7 +66,7 @@ describe("autotest.lua's night clock", () => {
     expect(run("night")).toContain("CALL,store,busselton.clock,moved");
     const lines = run("night_app");
     expect(lines.some((l) => l.startsWith("CALL,setWeatherTimeOffset"))).toBe(false);
-    expect(lines.map((l) => note([l], "note")).filter(Boolean)).toContain("clock: set by the Busselton Map app");
+    expect(lines.map((l) => note([l], "note")).filter(Boolean)).toContain("clock: left to the Busselton Map app");
     expect(note(lines, "env")).toMatch(/^time=22:00;/);
   });
 });
@@ -109,28 +109,57 @@ function runClock(scenario: string): string[] {
 const clockNotes = (lines: string[]) => lines.filter((l) => l.startsWith("BTEST,note,")).map((l) => l.split(",").slice(10).join(","));
 
 describe("the Busselton Map app's test clock", () => {
-  it("is loaded by the app and moves the clock as CSP Debug does", () => {
+  it("is loaded by the app and sets the clock with the calls CSP gives apps", () => {
     const map = readFileSync("apps/lua/BusseltonMap/BusseltonMap.lua", "utf8");
     expect(map).toContain("require('test_clock')");
     expect(map).toContain("testClock.update(dt)");
-    expect(readFileSync("apps/lua/BusseltonMap/test_clock.lua", "utf8")).toContain("pcall(ac.setWeatherTimeOffset, delta, true)");
+    const src = readFileSync("apps/lua/BusseltonMap/test_clock.lua", "utf8");
+    expect(src).toContain("pcall(ac.setWeatherExactUTC0Timestamp, ts + delta - tz, true)");
+    expect(src).toContain("pcall(ac.setWeatherTimeOffset, delta, true)");
   });
 
-  it.skipIf(!LUA)("moves the clock from the PC's time to 22:00 in a test run and checks it took", () => {
+  it.skipIf(!LUA)("waits for the session, sets 22:00 as an exact UTC time and watches it stay", () => {
     const lines = runClock("moves");
-    expect(lines).toContain("CALL,setWeatherTimeOffset,29700,true");
-    expect(lines).toContain("CALL,store,busselton.clock,moved");
-    expect(clockNotes(lines)).toEqual(["clock (app): moved from 13:45 to 22:00", "clock (app): now 22:00"]);
+    // Not on the setup screen, where the clock read 05:45 (no time zone): the first look is in the session.
+    expect(lines).toContain("CALL,store,busselton.clock,app");
+    // 22:00 local on 3 Nov is 14:00 UTC.
+    expect(lines).toContain("CALL,setWeatherExactUTC0Timestamp,1793714400,true");
+    expect(lines.some((l) => l.startsWith("CALL,setWeatherTimeOffset"))).toBe(false);
+    const notes = clockNotes(lines);
+    expect(notes[0]).toMatch(/^clock \(app\): asked for 22:00; game clock 13:45; timestamp \d+; time zone \+8\.0 h \(CSP\); exact-time call yes; offset call yes; watching 60 s$/);
+    expect(notes.slice(1)).toEqual([
+      "clock (app): off at the start: set from 13:45 to 22:00 (exact UTC time; move 1 of 6)",
+      "clock (app): now 22:00",
+      "clock (app): at 22:00 after 60 s; moves: 1",
+    ]);
   });
 
-  it.skipIf(!LUA)("says exactly why when it can't", () => {
-    expect(clockNotes(runClock("noapi"))).toEqual(["clock (app): move from 13:45 to 22:00 failed: ac.setWeatherTimeOffset is missing for Lua apps on this CSP"]);
-    expect(clockNotes(runClock("inert"))[1]).toBe("clock (app): still at 13:45; not 22:00 (the move did nothing)");
+  it.skipIf(!LUA)("falls back to CSP Debug's offset call on a CSP without the exact one", () => {
+    const lines = runClock("offset_only");
+    expect(lines.some((l) => /^CALL,setWeatherTimeOffset,2969\d,true$/.test(l))).toBe(true);
+    expect(clockNotes(lines)).toContain("clock (app): now 22:00");
   });
 
-  it.skipIf(!LUA)("leaves the clock when race.ini worked, the track script moved it, or it isn't a test run", () => {
-    expect(clockNotes(runClock("already"))).toEqual(["clock (app): already at 22:02 (race.ini worked)"]);
-    expect(runClock("track_did")).toEqual([]);
+  it.skipIf(!LUA)("puts the clock back when another script (Pure Planner's Live plan) moves it", () => {
+    const notes = clockNotes(runClock("pure_live"));
+    expect(notes[1]).toBe("clock (app): already at 22:02 (race.ini worked)");
+    expect(notes[2]).toMatch(/^clock \(app\): jumped to 13:46 at 20 s: another script set the clock \(Pure Planner/);
+    expect(notes[3]).toBe("clock (app): put back: set from 13:46 to 22:00 (exact UTC time; move 1 of 6)");
+    expect(notes[4]).toBe("clock (app): now 22:00");
+  });
+
+  it.skipIf(!LUA)("says exactly why when it can't, and stops after 6 tries", () => {
+    expect(clockNotes(runClock("noapi"))[1]).toBe(
+      "clock (app): off at the start: setting from 13:45 to 22:00 failed: no ac.setWeatherExactUTC0Timestamp; offset: ac.setWeatherTimeOffset is missing for Lua apps on this CSP");
+    const inert = clockNotes(runClock("inert"));
+    expect(inert[2]).toBe("clock (app): the last move did nothing: set from 13:45 to 22:00 (offset; move 2 of 6)");
+    expect(inert).toContain("clock (app): gave up after 6 moves: still at 13:45; not 22:00");
+  });
+
+  it.skipIf(!LUA)("leaves the clock when race.ini worked, and does nothing outside a test run", () => {
+    const lines = runClock("already");
+    expect(lines.some((l) => l.startsWith("CALL,set"))).toBe(false);
+    expect(clockNotes(lines)[1]).toBe("clock (app): already at 22:02 (race.ini worked)");
     expect(runClock("idle")).toEqual([]);
   });
 });

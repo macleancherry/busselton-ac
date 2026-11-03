@@ -15,6 +15,9 @@
   Every build ships baked_shadow_params.ini (the bakery's settings) in the track folder. The bakery
   writes <name>.vao-patch next to each models_<layout>.ini (one per layout), and CSP loads it by
   itself. Builds change the geometry, so bake again after installing each new build.
+  Each bake is also kept per build (share.ps1 Save-BusseltonVao: this PC and the share's
+  bakes\vao\<track>\<geometry key>), so installing another build and then this one again brings the
+  bake back (install-track.ps1), here or on the rig.
   Close AC first.
 #>
 param(
@@ -62,12 +65,15 @@ $p = Start-Process -FilePath $Bakery -ArgumentList ($inputs | ForEach-Object { "
 Remove-Item $empty
 if ($null -ne $saved) { Set-Content $params $saved -NoNewline }
 $mins = [math]::Round(((Get-Date) - $started).TotalMinutes, 1)
-# The log and its time in the share's bakes folder, for the laptop session.
 . (Join-Path $PSScriptRoot "share.ps1")
+# Keep the bake for this build, so reinstalling the build later brings it back.
+$key = $null
+if ($p.ExitCode -eq 0) { $key = Save-BusseltonVao $dir $Track }
+# The log and its time in the share's bakes folder, for the laptop session.
 $share = Get-BusseltonShare
 if ($share) {
   $sum = Join-Path $share ("bakes\" + $started.ToString("yyyy-MM-dd_HHmm") + "-$Track.log")
-  $head = @("track: $Track", "quality: $Quality", "exit: $($p.ExitCode)", "minutes: $mins", "inputs: $($inputs -join ', ')",
+  $head = @("track: $Track", "quality: $Quality", "exit: $($p.ExitCode)", "minutes: $mins", "geometry key: $key", "inputs: $($inputs -join ', ')",
     "settings used:", $usedSettings, "", "patches:",
     (Get-ChildItem $dir -Filter *.vao-patch | ForEach-Object { "$($_.Name) $($_.Length) bytes" }), "", "--- vao-bake.log ---")
   $head | Set-Content $sum
@@ -79,3 +85,4 @@ if ($p.ExitCode -ne 0) { throw "AO bake failed (exit $($p.ExitCode)) after $mins
 Write-Host "Baked in $mins min:" -ForegroundColor Green
 Get-ChildItem $dir -Filter *.vao-patch | Format-Table Name, @{ n = "MB"; e = { [math]::Round($_.Length / 1MB, 1) } }, LastWriteTime
 Write-Host "The time and log are in the share's bakes folder."
+if ($key) { Write-Host "Bake kept for this build (geometry $key): reinstalling it brings the bake back." }

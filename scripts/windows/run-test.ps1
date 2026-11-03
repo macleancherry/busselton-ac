@@ -15,8 +15,8 @@
 .NOTES
   Runs code from the repo, never edits it (see CLAUDE.md). Needs CSP installed. Every build ships the
   test script (extension\autotest.lua), traffic or not.
-  The track is a slug (the newest zip in <share>\builds holding that track folder, so busselton_1.zip
-  beats an older busselton.zip; share.ps1's Resolve-BusseltonZip) or a zip's path. Results go to
+  The track is a zip's name in <share>\builds (busselton is busselton.zip exactly; busselton_roadcore
+  the road-core variant; share.ps1's Resolve-BusseltonZip) or a zip's path. Results go to
   <share>\tests\<date>_<time>-<slug>-<layout> and a zip of it (share.ps1 has the share's layout).
   The car is an everyday hatch (the Abarth 500 that comes with AC) driven at AI level 75, so the
   test drives a town street the way a person would, not flat out in a race car. -Car and -AiLevel
@@ -34,12 +34,18 @@
        0.2.12-preview1 b3467, Pure 2.57, pureCtrl) weather FX started at the PC's clock ("Weather FX:
        start time=..." in the CSP log) whatever SUN_ANGLE said; this is the key CSP reads for a
        time it must not change.
-    3. If the clock is still off when AC is running, the Busselton Map app moves CSP's weather clock
-       there (ac.setWeatherTimeOffset, as CSP Debug's time buttons do; CSP gives that call to Lua apps
-       but not to track scripts, so autotest.lua's own try was nil in retest 4), from race.ini's
-       [BUSSELTON_TEST] TIME. Both scripts log "clock ..." notes, and the summary below prints them
-       with CSP's start time, so a run that stays at the wrong time says why. -SkipInstall doesn't
-       reinstall the apps: run one normal install after pulling.
+       Retest 6 showed this works: weather FX starts at the time asked for (its "start time" is UTC:
+       7200 is 02:00 UTC, 10:00 in WA).
+    3. The Busselton Map app (apps/lua/BusseltonMap/test_clock.lua) then holds the clock there for
+       the whole run, from race.ini's [BUSSELTON_TEST] TIME: in retest 6 something set it to the PC's
+       clock after the start. Pure Planner does that (its Live plan with "use location time" on calls
+       ac.setWeatherExactUTC0Timestamp with the PC's time once live weather arrives). The app checks
+       every second once the session runs and puts the clock back (the same exact-time call, or
+       ac.setWeatherTimeOffset as CSP Debug's buttons do; CSP gives both to Lua apps, not to track
+       scripts). It logs "clock (app): ..." notes for every move and every jump it didn't make, and
+       the summary below prints them with CSP's start time. To stop the tug of war, pick a plan other
+       than Live in Pure Planner. -SkipInstall doesn't reinstall the apps: run one normal install
+       after pulling.
   In game, the Busselton Map window has the time with -1h and +1h buttons (CSP Debug has the same).
   -Weather sets race.ini's weather by name.
   -Rain drives in the rain: race.ini's weather becomes a rain weather from content\weather (the first
@@ -269,8 +275,8 @@ if ($null -ne $sunAngle) {
     @("LIGHTING", "SUN_ANGLE", $sunAngle.ToString("0.00", $inv)), @("LIGHTING", "TIME_MULT", "1"),
     # 2. A forced date and time, as CM writes it for a new mode's FORCE_DATETIME (see .NOTES).
     @("LIGHTING", "__CM_DATE", "$cmDate"), @("LIGHTING", "__CM_DATE_USE_TIME", "1"),
-    # 3. The Busselton Map app (and the track script, where CSP lets it) moves CSP's weather clock
-    # here if weather FX started elsewhere anyway (see .NOTES).
+    # 3. The Busselton Map app holds CSP's weather clock here for the whole run, putting it back if
+    # another script (Pure Planner's Live plan) moves it (see .NOTES).
     @("BUSSELTON_TEST", "TIME", "$timeOfDay")
   )) { $ini = Set-Ini $ini $kv[0] $kv[1] $kv[2] }
 }
@@ -292,6 +298,7 @@ Copy-Item $raceIni $used -Force
 
 # 3. Drive: AC quits itself when the run ends; this waits a little longer, then closes it.
 $started = Get-Date
+$blackShots = 0
 $what = @()
 if ($Time) { $what += "at $Time" }
 if ($Cars -gt 0) { $what += "with $Cars AI cars" }
@@ -350,9 +357,11 @@ public static class BtClick {
     System.Threading.Thread.Sleep(150); mouse_event(2, 0, 0, 0, UIntPtr.Zero); System.Threading.Thread.Sleep(80); mouse_event(4, 0, 0, 0, UIntPtr.Zero);
     return "front before: '" + before + "', after: '" + after + "', at " + p.X + "," + p.Y;
   }
+  [DllImport("user32.dll")] public static extern bool IsIconic(IntPtr h);
   // AC's own screenshot key (F8), pressed with AC in front: track scripts can't take screenshots.
+  // Front() (with its Alt tap) only when AC isn't in front already.
   public static void Key(IntPtr h, byte vk) {
-    Front(h); System.Threading.Thread.Sleep(200);
+    if (GetForegroundWindow() != h) { Front(h); System.Threading.Thread.Sleep(200); }
     keybd_event(vk, 0, 0, UIntPtr.Zero); System.Threading.Thread.Sleep(60); keybd_event(vk, 0, 2, UIntPtr.Zero);
   }
 }
@@ -382,6 +391,41 @@ public static class BtClick {
       if ($proc.WaitForExit(10000)) { break }
     }
   }
+  # Screenshots that come out black. Retest 6: 34 of 35 in one run (base sights) were pure black
+  # 4K frames of the same size while CSP logged each one saved, AC up front; the next run's were
+  # fine. So each shot is checked: black means delete it and press F8 again (twice at most).
+  Add-Type -AssemblyName System.Drawing -ErrorAction SilentlyContinue
+  $screensDir = Join-Path $docs "screens"
+  function Test-BlackShot([string]$file) {
+    # 64 pixels on a grid, every one near black.
+    try {
+      $bmp = [System.Drawing.Bitmap]::FromFile($file)
+      try {
+        $max = 0
+        for ($i = 1; $i -le 8; $i++) {
+          for ($j = 1; $j -le 8; $j++) {
+            $c = $bmp.GetPixel([int]($bmp.Width * $i / 9), [int]($bmp.Height * $j / 9))
+            $max = [Math]::Max($max, [Math]::Max([int]$c.R, [Math]::Max([int]$c.G, [int]$c.B)))
+          }
+        }
+        return ($max -lt 8)
+      } finally { $bmp.Dispose() }
+    } catch { return $false }
+  }
+  # The screenshot F8 made after $since, once CSP has finished writing it (up to 5 s), or $null.
+  function Wait-Shot([DateTime]$since) {
+    $until = (Get-Date).AddSeconds(5)
+    while ((Get-Date) -lt $until) {
+      $f = Get-ChildItem $screensDir -File -ErrorAction SilentlyContinue | Where-Object { $_.LastWriteTime -ge $since } | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+      if ($f) {
+        $len = $f.Length
+        Start-Sleep -Milliseconds 300
+        $f.Refresh()
+        if ($f.Length -eq $len -and $len -gt 0) { return $f }
+      } else { Start-Sleep -Milliseconds 200 }
+    }
+    return $null
+  }
   # Wait for the script's finish line (AC can't always quit itself), then a little more logging,
   # then close AC the normal way so it saves the replay; force it only if that doesn't work.
   $deadline = (Get-Date).AddMinutes($Minutes + 2)
@@ -392,10 +436,29 @@ public static class BtClick {
       $shots = @(Select-String -Path $cspLog -Pattern "BTEST,shot" -SimpleMatch -ErrorAction SilentlyContinue).Count
       $proc.Refresh()
       while ($shotsTaken -lt $shots -and $proc.MainWindowHandle -ne [IntPtr]::Zero) {
-        [BtClick]::Key($proc.MainWindowHandle, 0x77)
         $shotsTaken++
-        Add-Content $clickLog "$(Get-Date -Format HH:mm:ss) pressed F8 (shot $shotsTaken)"
-        Start-Sleep -Milliseconds 700
+        for ($try = 0; $try -le 2; $try++) {
+          $since = Get-Date
+          [BtClick]::Key($proc.MainWindowHandle, 0x77)
+          # A retry logs the same "pressed F8 (shot N)" line, so autotest_report.py pairs the new
+          # screenshot with shot N; the rest of the line is for people reading clicks.txt. (In a
+          # PowerShell window that ran an older run-test, BtClick is the older type, without IsIconic.)
+          $state = ""
+          try { $state = "front: '" + [BtClick]::Title([BtClick]::GetForegroundWindow()) + "'" + $(if ([BtClick]::IsIconic($proc.MainWindowHandle)) { "; AC minimised" } else { "" }) } catch { }
+          Add-Content $clickLog "$(Get-Date -Format HH:mm:ss) pressed F8 (shot $shotsTaken) $state"
+          $shotFile = Wait-Shot $since
+          if (-not $shotFile) { Add-Content $clickLog "  no screenshot within 5 s"; break }
+          if (-not (Test-BlackShot $shotFile.FullName)) { break }
+          $blackShots++
+          if ($try -lt 2) {
+            Add-Content $clickLog "  $($shotFile.Name) is black: deleted, pressing F8 again"
+            Remove-Item -LiteralPath $shotFile.FullName -ErrorAction SilentlyContinue
+            Start-Sleep -Milliseconds 500
+          } else {
+            Add-Content $clickLog "  $($shotFile.Name) is black after 3 tries: kept"
+          }
+        }
+        Start-Sleep -Milliseconds 300
       }
     }
     if (Test-Logged "BTEST,finish") {
@@ -467,6 +530,7 @@ Write-Host "Test run: $slug" -ForegroundColor Green
 Write-Host ("  started:   " + ($(if ($start) { $start } else { "no BTEST lines: the test script didn't run (check logs\custom_shaders_patch.log for autotest.lua)" })))
 Write-Host ("  finished:  " + ($(if ($finish) { $finish } else { "no finish line (timed out or crashed)" })))
 Write-Host "  off-road events: $off"
+if ($blackShots -gt 0) { Write-Host "  black screenshots: $blackShots (retried; clicks.txt says which)" -ForegroundColor Yellow }
 if ($env0) { Write-Host ("  time of day: " + (($env0 -split ',', 11)[10])) }
 if ($Time) {
   # Where CSP's weather FX started, and what the app and the track script did about it.

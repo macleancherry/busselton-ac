@@ -164,9 +164,9 @@ def run_info(src):
     return info
 
 
-def env_hours(rows):
-    """Hours of the day the game reported (the track script's env line), or None."""
-    env = next((r for r in rows if r["kind"] == "env"), None)
+def env_hours(rows, kind="env"):
+    """Hours of the day the game reported (the track script's env line, or "envend" at the finish), or None."""
+    env = next((r for r in rows if r["kind"] == kind), None)
     m = re.match(r"^(\d{1,2}):(\d{2})$", (env or {}).get("kv", {}).get("time", ""))
     return int(m.group(1)) + int(m.group(2)) / 60 if m else None
 
@@ -476,7 +476,13 @@ def main():
         for r in rows:
             if r["kind"] == "note" and r["note"].startswith("clock"):
                 print(f"  {r['note']}")
-        if h is None:
+        # The Busselton Map app can put the clock right after the env line (another script, such as
+        # Pure Planner's Live plan, set it to the PC's clock): then the finish's time counts.
+        h_end = env_hours(rows, "envend")
+        end = next((r for r in rows if r["kind"] == "envend"), None)
+        if h is not None and not is_night_hour(h) and h_end is not None and is_night_hour(h_end):
+            print(f"  the game started at {env['kv']['time']} and finished at {end['kv']['time']}: the clock was put right during the drive")
+        elif h is None:
             print("  the game's time of day wasn't logged (no env line): can't tell it was night")
         elif not is_night_hour(h):
             print(f"  WARNING: the game ran at {env['kv']['time']}, not at night. AC stops at 18:00 without CSP's weather FX:"

@@ -18,19 +18,45 @@ describe("Windows scripts", () => {
     }
   });
 
-  it("pick the newest zip per track folder everywhere", () => {
+  // Retest 6: busselton_roadcore.zip holds the busselton folder and was newer, so "busselton" and -All
+  // installed road core. A slug is now exactly <slug>.zip, and -All and the rig take only <slug>.zip
+  // and <slug>_polish*.zip.
+  it("take <slug>.zip for a track, never a variant holding the same folder", () => {
     const share = read("share.ps1");
-    for (const fn of ["Get-ZipTrackFolder", "Select-NewestPerTrack", "Get-BusseltonBuilds", "Resolve-BusseltonZip"]) {
+    for (const fn of ["Get-ZipTrackFolder", "Get-BuildZipKind", "Select-NewestPerTrack", "Get-BusseltonBuilds", "Resolve-BusseltonZip"]) {
       expect(share).toContain(`function ${fn}(`);
     }
-    // Resolve-BusseltonZip looks up the track folder before a zip's own name.
-    const resolve = share.slice(share.indexOf("function Resolve-BusseltonZip"));
-    expect(resolve.indexOf("Get-BusseltonBuilds")).toBeLessThan(resolve.indexOf('"$track.zip"'));
-    expect(read("rig-install.ps1")).toContain("Select-NewestPerTrack $infos");
+    const kind = share.slice(share.indexOf("function Get-BuildZipKind"), share.indexOf("function Select-NewestPerTrack"));
+    expect(kind).toContain('if ($file.BaseName -eq $slug) { return "base" }');
+    expect(kind).toContain("'^' + [regex]::Escape($slug) + '_polish'");
+    // Resolve-BusseltonZip: the zip's own name only, no lookup by the folder inside.
+    const resolve = share.slice(share.indexOf("function Resolve-BusseltonZip"), share.indexOf("function Get-BusseltonVaoStores"));
+    expect(resolve).toContain('$zip = Join-Path $builds "$track.zip"');
+    expect(resolve).not.toContain("Get-BusseltonBuilds");
+    const builds = share.slice(share.indexOf("function Get-BusseltonBuilds"), share.indexOf("function Resolve-BusseltonZip"));
+    expect(builds).toContain("(Get-BuildZipKind $z $slug) -ne $want");
+    const rig = read("rig-install.ps1");
+    expect(rig).toContain("Select-NewestPerTrack $infos");
+    expect(rig).toContain('if ((Get-BuildZipKind $z $zi.Slug) -eq "variant")');
     const install = read("install-track.ps1");
     expect(install).toContain("Get-BusseltonBuilds $builds -Polish");
+    expect(install).toContain("Get-BusseltonBuilds $builds -Variants");
     expect(install).not.toMatch(/foreach \(\$z in Get-ChildItem \(Join-Path \$share "builds"\)/);
     expect(read("run-test.ps1")).toContain("Resolve-BusseltonZip $Zip");
+  });
+
+  // Retest 6: installing road core dropped base's bake, and reinstalling base didn't bring it back.
+  it("keep AO bakes per build and bring them back on reinstall", () => {
+    const share = read("share.ps1");
+    for (const fn of ["Get-BusseltonVaoStores", "Get-BusseltonGeometryKey", "Save-BusseltonVao", "Restore-BusseltonVao"]) {
+      expect(share).toContain(`function ${fn}`);
+    }
+    const install = read("install-track.ps1");
+    // Kept before the folder is replaced or overlaid, restored after.
+    expect(install.indexOf("Save-BusseltonVao $dest $slug")).toBeLessThan(install.indexOf("Remove-Item $dest -Recurse -Force"));
+    expect(install.indexOf("Remove-Item $dest -Recurse -Force")).toBeLessThan(install.lastIndexOf("Restore-BusseltonVao $dest $slug"));
+    expect(install).not.toContain("no longer fits and was removed");
+    expect(read("bake-vao.ps1")).toContain("$key = Save-BusseltonVao $dir $Track");
   });
 
   it("record the installed zip and compare it in the rig's dry run", () => {
