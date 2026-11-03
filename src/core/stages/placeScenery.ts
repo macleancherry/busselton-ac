@@ -77,7 +77,8 @@ export async function placeScenery(
   const { opts, sources, proj, area } = ctx;
   const plan = rp.plan, index = g.index, nS = plan.samples.length;
   const ground = gm.ground;
-  const streetClear = (x: number, y: number) => st.streetIndex.clearance(x, y);
+  // The streets as built (traced widths; networkCore's junction surfaces too).
+  const streetClear = (x: number, y: number) => st.clear(x, y);
   const inKept = (x: number, y: number, list: Building[] = bp.kept) => list.some((b) => pointInRing(x, y, b.ring));
   const routeNear = (x: number, y: number, r: number) => {
     const n = index.nearest(x, y, 30);

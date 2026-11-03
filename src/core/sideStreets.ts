@@ -21,6 +21,8 @@ import { ChunkedMesh } from "./scenery";
 import { SEAL_LENGTH } from "./textures";
 import { surfaceKeyFor } from "./unsealed";
 import { PIT_CLASS } from "./pitRoad";
+import { clipTraceAtPaths } from "./pathTraceClip";
+import type { PathLine } from "./paths";
 
 export interface StreetLine {
   pts: LngLat[];
@@ -81,19 +83,30 @@ export interface SideStreet {
   surface?: string;
 }
 
-/** Grid hash of line segments for "how far to the nearest street" queries. */
+/**
+ * Grid hash of line segments for "how far to the nearest street" queries. Busselton fork: a line's
+ * per-point `widths` (a street traced in the photo: traceSideStreets) are used where it has them,
+ * so the index is as wide as the street mesh built from the same widths (buildSideStreets), not
+ * the class width (6 m on a minor street, where the traced asphalt is often 9 to 12 m).
+ */
 export class LineIndex {
-  private cells = new Map<string, [Vec2, Vec2, number][]>();
-  constructor(lines: { pts: Vec2[]; width: number }[], private readonly cell = 20) {
+  /** Segment ends and the street's width at each end. */
+  private cells = new Map<string, [Vec2, Vec2, number, number][]>();
+  constructor(lines: { pts: Vec2[]; width: number; widths?: number[] }[], private readonly cell = 20) {
     for (const l of lines) {
+      const w = (i: number) => {
+        const v = l.widths?.[i];
+        return v !== undefined && Number.isFinite(v) ? v : l.width;
+      };
       for (let i = 1; i < l.pts.length; i++) {
         const a = l.pts[i - 1], b = l.pts[i];
         const x0 = Math.floor(Math.min(a[0], b[0]) / cell), x1 = Math.floor(Math.max(a[0], b[0]) / cell);
         const y0 = Math.floor(Math.min(a[1], b[1]) / cell), y1 = Math.floor(Math.max(a[1], b[1]) / cell);
+        const seg: [Vec2, Vec2, number, number] = [a, b, w(i - 1), w(i)];
         for (let x = x0; x <= x1; x++) for (let y = y0; y <= y1; y++) {
           const k = x + "," + y;
           if (!this.cells.has(k)) this.cells.set(k, []);
-          this.cells.get(k)!.push([a, b, l.width]);
+          this.cells.get(k)!.push(seg);
         }
       }
     }
@@ -105,15 +118,71 @@ export class LineIndex {
     let best = Infinity;
     for (let gx = cx - 1; gx <= cx + 1; gx++) {
       for (let gy = cy - 1; gy <= cy + 1; gy++) {
-        for (const [a, b, w] of this.cells.get(gx + "," + gy) ?? []) {
+        for (const [a, b, wa, wb] of this.cells.get(gx + "," + gy) ?? []) {
           const dx = b[0] - a[0], dy = b[1] - a[1], L2 = dx * dx + dy * dy || 1e-9;
           const t = Math.max(0, Math.min(1, ((x - a[0]) * dx + (y - a[1]) * dy) / L2));
-          best = Math.min(best, Math.hypot(x - a[0] - dx * t, y - a[1] - dy * t) - w / 2);
+          best = Math.min(best, Math.hypot(x - a[0] - dx * t, y - a[1] - dy * t) - (wa + (wb - wa) * t) / 2);
         }
       }
     }
     return best;
   }
+
+  /**
+   * Busselton fork: the room between a closed ring (a building's outline) and the nearest street's
+   * edge, metres; negative when a street reaches inside it. Unlike testing the ring's corners, this
+   * sees a street crossing between two corners, one whose edge cuts a wall, and one that ends
+   * inside the outline (-Infinity when a street's line has a point inside the ring).
+   */
+  ringClearance(ring: Vec2[]): number {
+    if (ring.length < 3) return Infinity;
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (const [x, y] of ring) {
+      x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y);
+    }
+    const seen = new Set<[Vec2, Vec2, number, number]>();
+    let best = Infinity;
+    // Segments indexed in the cells round the ring's box (one cell of margin, as clearance()).
+    for (let gx = Math.floor(x0 / this.cell) - 1; gx <= Math.floor(x1 / this.cell) + 1; gx++) {
+      for (let gy = Math.floor(y0 / this.cell) - 1; gy <= Math.floor(y1 / this.cell) + 1; gy++) {
+        for (const seg of this.cells.get(gx + "," + gy) ?? []) {
+          if (seen.has(seg)) continue;
+          seen.add(seg);
+          const [a, b, wa, wb] = seg;
+          if (inRing(a, ring) || inRing(b, ring)) return -Infinity;
+          const half = Math.max(wa, wb) / 2;
+          for (let k = 0; k < ring.length; k++) {
+            const d = segDist(a, b, ring[k], ring[(k + 1) % ring.length]);
+            if (d - half < best) best = d - half;
+          }
+        }
+      }
+    }
+    return best;
+  }
+}
+
+function inRing(p: Vec2, ring: Vec2[]): boolean {
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const a = ring[i], b = ring[j];
+    if ((a[1] > p[1]) !== (b[1] > p[1]) && p[0] < ((b[0] - a[0]) * (p[1] - a[1])) / (b[1] - a[1]) + a[0]) inside = !inside;
+  }
+  return inside;
+}
+
+function pointSegDist(p: Vec2, a: Vec2, b: Vec2): number {
+  const dx = b[0] - a[0], dy = b[1] - a[1], L2 = dx * dx + dy * dy || 1e-9;
+  const t = Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / L2));
+  return Math.hypot(p[0] - a[0] - dx * t, p[1] - a[1] - dy * t);
+}
+
+/** Shortest distance between segments ab and cd (0 when they cross). */
+export function segDist(a: Vec2, b: Vec2, c: Vec2, d: Vec2): number {
+  const cross = (o: Vec2, p: Vec2, q: Vec2) => (p[0] - o[0]) * (q[1] - o[1]) - (p[1] - o[1]) * (q[0] - o[0]);
+  const d1 = cross(c, d, a), d2 = cross(c, d, b), d3 = cross(a, b, c), d4 = cross(a, b, d);
+  if (((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) && ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0))) return 0;
+  return Math.min(pointSegDist(a, c, d), pointSegDist(b, c, d), pointSegDist(c, a, b), pointSegDist(d, a, b));
 }
 
 function nearestName(p: Vec2, names: { pts: Vec2[]; name: string }[], max: number): string | undefined {
@@ -433,7 +502,7 @@ function pitEdgeLines(cm: ChunkedMesh, st: SideStreet, surface: (k: number, t: n
  * moving it onto its real line and width. Junction ends stay pinned to the
  * route's edge.
  */
-export function traceSideStreets(streets: SideStreet[], raster: RasterSampler, opts: BuildOptions, route?: SegmentIndex): number {
+export function traceSideStreets(streets: SideStreet[], raster: RasterSampler, opts: BuildOptions, route?: SegmentIndex, paths?: PathLine[]): number {
   let traced = 0;
   for (const st of streets) {
     const length = st.pts.reduce((a, p, k) => (k ? a + Math.hypot(p[0] - st.pts[k - 1][0], p[1] - st.pts[k - 1][1]) : 0), 0);
@@ -448,6 +517,8 @@ export function traceSideStreets(streets: SideStreet[], raster: RasterSampler, o
       const d = Math.min(Infinity, ...ends.map((e) => Math.abs(sub.samples[i].s - sub.samples[e].s)));
       return o * Math.min(1, d / 12);
     });
+    // Busselton fork: the traced edges stop short of the mapped paths beside the street (pathTraceClip.ts).
+    if (paths?.length) clipTraceAtPaths(sub.samples, tr, paths);
     applyTrace(sub, tr, () => false);
     // A trace that drifts onto the route (a street running beside it, pulled onto its asphalt)
     // would leave the street under the road: keep the mapped line instead.

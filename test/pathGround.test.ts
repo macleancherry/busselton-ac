@@ -76,12 +76,14 @@ describe("paths lie on the ground meshes", () => {
         }
       }
     }
-    // The steps (the cut band's edges, the strip's sides) cut the path, so it never bridges one:
-    // everywhere it's LIFT up.
+    // The steps (the strip's sides) cut the path, so it never bridges one: everywhere it's LIFT up.
     expect(worstDown).toBeGreaterThanOrEqual(-0.005);
     expect(worstUp).toBeLessThan(LIFT + 0.035);
-    // Mid-band and mid-strip it's on the drawn ground, not the terrain function.
-    expect(heightOf(path, 10, 23)! - 1.6).toBeCloseTo(LIFT, 2);
+    // Mid-band and mid-strip it's on the drawn ground, not the terrain function. (Busselton fork,
+    // 3 Nov: the band's 1.5 m ramps are no longer steps (STEP_JUMP 12 cm), so the path runs down
+    // them unbroken and mid-band it may be a long quad up to MERGE_HEIGHT, 2 cm, over the ground.)
+    expect(heightOf(path, 10, 23)! - 1.6).toBeGreaterThan(LIFT - 0.005);
+    expect(heightOf(path, 10, 23)! - 1.6).toBeLessThan(LIFT + 0.02 + 1e-6);
     expect(heightOf(path, 33, 30)! - 2.15).toBeCloseTo(LIFT, 2);
     expect(heightOf(path, 10, 10)! - 2).toBeCloseTo(LIFT, 2);
   });

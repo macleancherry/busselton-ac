@@ -2,6 +2,7 @@
 // edges (faded out in noTrace zones), and the plan moved onto them. Silent on failure: the road
 // stays on the map's line.
 
+import { clipTraceAtPaths } from "../pathTraceClip";
 import { inRoundabout } from "../road";
 import { applyTrace, traceRoad, type RasterSampler, type TraceResult } from "../trace";
 import type { BuildContext } from "./context";
@@ -37,6 +38,8 @@ export async function traceRoute(ctx: BuildContext, rp: RoutePlan, progress: Pro
       result.conf[i] *= keep;
     }
   }
+  // Busselton fork: the traced edges stop short of the mapped paths beside the road (pathTraceClip.ts).
+  if (opts.pathTraceClip !== false && sources.paths?.length) clipTraceAtPaths(samples, result, sources.paths.map((p) => ({ pts: ctx.line(p.pts), kind: p.kind })));
   // (applyTrace may move the samples while it asks: read them live.)
   const onRing = (i: number) => inRoundabout(plan, plan.samples[i].pos[0], plan.samples[i].pos[1], 0.5) !== undefined;
   applyTrace(plan, result, onRing);
