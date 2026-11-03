@@ -15,6 +15,7 @@ import { buildGraph, type Graph } from "./graph";
 import { collapseDuals, type DualInfo, type DualOptions } from "./dual";
 import { planeAt, type HeightAt } from "./heights";
 import { waysFromStreets } from "./index";
+import { polygonSdf } from "./junction";
 import { junctionOutline, junctionSurface, type Outline, type SurfaceMesh } from "./outline";
 import { insertStreetCaps, matchJunctions, type Failure, type RingIn, type RJunction, type RouteRibbon, type StreetRibbon } from "./ribbons";
 
@@ -37,6 +38,12 @@ export interface JunctionCoreInput {
   mergeMax?: number;
   /** Phase 2: the graph already built (networkGraph, with divided roads as one), and `streets` planned from it. */
   graph?: Graph;
+  /**
+   * Busselton fork: outlines the junction surfaces keep clear of (landmark blocks, verandahs and
+   * awnings), by keepOutRoom metres. A junction is cut back only where its driving width stays.
+   */
+  keepOut?: P2[][];
+  keepOutRoom?: number;
 }
 
 export interface PlannedJunction {
@@ -184,6 +191,8 @@ export function planJunctionCore(input: JunctionCoreInput): JunctionCore {
   const n = route?.samples.length ?? 0;
   for (const j of matched) {
     const fail = (reason: string) => failures.push({ node: j.node, at: j.centre, reason });
+    const plain = j.sdf;
+    if (input.keepOut?.length) keepClear(j, input.keepOut, input.keepOutRoom ?? 0.5, route);
     let outline = junctionOutline(j, j.legs.map((l) => l.cap), input.outlineStep ?? 0.4, OUTLINE_TOL);
     // A cap the outline can't splice (it cuts a neighbouring leg's fillet): move it out, up to 8 m.
     for (let tries = 0; typeof outline === "string" && tries < 4; tries++) {
@@ -195,6 +204,11 @@ export function planJunctionCore(input: JunctionCoreInput): JunctionCore {
     if (typeof outline === "string" && /cuts the outline twice/.test(outline)) {
       const o2 = junctionOutline(j, j.legs.map((l) => l.cap), input.outlineStep ?? 0.4, OUTLINE_TOL, 3);
       if (typeof o2 !== "string") outline = o2;
+    }
+    // Cut back for a landmark and the outline can't be traced: keep the junction's own shape.
+    if (typeof outline === "string" && j.sdf !== plain) {
+      j.sdf = plain;
+      outline = junctionOutline(j, j.legs.map((l) => l.cap), input.outlineStep ?? 0.4, OUTLINE_TOL);
     }
     if (typeof outline === "string") { fail(outline); continue; }
     const why = foreignOverlap(j);
@@ -564,3 +578,35 @@ export function planJunctionCore(input: JunctionCoreInput): JunctionCore {
 }
 
 export { KERB, dist };
+
+/**
+ * Busselton fork: cut a junction's surface back from the outlines near it (keepOut), each by `room`.
+ * An outline is skipped if the cut would reach the middle 70% of a leg's width at its cap, or of the
+ * route's width on the rows the junction covers: those are lanes, and the landmark is the one to move.
+ */
+function keepClear(j: RJunction, outlines: P2[][], room: number, route: RouteRibbon | null): void {
+  const [x0, y0, x1, y1] = j.box;
+  const near = outlines.filter((o) => o.some(([x, y]) => x > x0 - 10 && x < x1 + 10 && y > y0 - 10 && y < y1 + 10));
+  if (!near.length) return;
+  const probes: P2[] = [];
+  const across = (c: P2, left: P2, hw: number) => { for (const t of [-0.7, -0.35, 0, 0.35, 0.7]) probes.push([c[0] + left[0] * t * hw, c[1] + left[1] * t * hw]); };
+  for (const l of j.legs) {
+    if (l.cap) across(l.cap.c, l.cap.left, l.cap.hw);
+  }
+  if (route) {
+    const n = route.samples.length;
+    for (const [e, x] of j.spans) for (let i = e, k = 0; k <= n; i = (i + 1) % n, k++) {
+      const smp = route.samples[i];
+      across(smp.pos, smp.left, smp.width / 2);
+      if (i === x) break;
+    }
+  }
+  const cuts = near.map((o) => polygonSdf(o)).filter((f) => probes.every((p) => f(p) > room));
+  if (!cuts.length) return;
+  const base = j.sdf;
+  j.sdf = (p) => {
+    let v = base(p);
+    for (const f of cuts) v = Math.max(v, room - f(p));
+    return v;
+  };
+}

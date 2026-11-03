@@ -30,6 +30,8 @@ export function planNetwork(ctx: BuildContext, rp: RoutePlan, g: Ground, st: Str
     inArea: ([x, y]) => area.signed(x, y) < -5,
     routeRowOk: (i) => sf.unsealedAt[i] !== 1,
     streetOk: (si) => !(sf.gravelOn && isUnsealed(streets[si].surface, streets[si].cls)),
+    // Busselton fork: junction surfaces keep off the landmarks at their corners (as the streets do).
+    keepOut: ctx.opts.buildingTraceClip !== false ? (ctx.opts.clears ?? []).flatMap((c) => c.outline ?? []).map((r) => ctx.line(r)) : [],
   });
   st.setNet(net);
   return net;

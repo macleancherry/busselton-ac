@@ -264,3 +264,31 @@ describe("junction surface", () => {
     expect(xy.length).toBeGreaterThan(outer.length);
   });
 });
+
+describe("networkCore phase 1: keep-out outlines (Busselton fork)", () => {
+  const route = straightRoute();
+  const base = (keepOut?: P2[][]): JunctionCoreInput => ({
+    lines: [{ pts: [[-100, 0], [0, 0], [100, 0]], cls: "primary" }, { pts: [[0, 0], [0, 80]], cls: "minor" }],
+    rings: [], route, streets: [{ pts: line([0, 3.5], [0, 80]), width: 6, joins: [0], cls: "minor" }], builtRings: [], terrain, inArea: () => true,
+    ...(keepOut ? { keepOut } : {}),
+  });
+  // An awning over the north-east corner's fillet, clear of the lanes.
+  const awning: P2[] = [[3.6, 3.9], [12, 3.9], [12, 12], [3.6, 12]];
+
+  it("cuts the junction's corner back from an outline, room 0.5 m, and keeps the lanes", () => {
+    const plain = planJunctionCore(base()).junctions[0].j.sdf;
+    const net = planJunctionCore(base([awning]));
+    expect(net.failures).toEqual([]);
+    const sdf = net.junctions[0].j.sdf;
+    expect(plain([4.2, 3.6])).toBeLessThan(0);
+    expect(sdf([4.2, 3.6])).toBeGreaterThan(0);
+    for (const p of [[0, 0], [0, 2.5], [-2, 5], [2, 5], [10, 2]] as P2[]) { expect(plain(p)).toBeLessThan(0); expect(sdf(p)).toBeLessThan(0); }
+  });
+
+  it("leaves the junction alone when the outline reaches the lanes", () => {
+    const inLane: P2[] = [[-1, 1], [1, 1], [1, 2], [-1, 2]];
+    const plain = planJunctionCore(base()).junctions[0].j.sdf;
+    const sdf = planJunctionCore(base([inLane])).junctions[0].j.sdf;
+    expect(sdf([0, 1.5])).toBe(plain([0, 1.5]));
+  });
+});

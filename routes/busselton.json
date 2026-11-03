@@ -29,6 +29,7 @@
   "banking": false
  },
  "build": {
+  "networkCore": true,
   "noTrace": [
    {
     "at": [

@@ -51,7 +51,7 @@ function legSdf(line: P2[], hw: number, s1: number): (p: P2) => number {
 }
 
 /** Signed distance to a simple polygon (negative inside). */
-function polygonSdf(poly: P2[]): (p: P2) => number {
+export function polygonSdf(poly: P2[]): (p: P2) => number {
   return (p) => {
     let d = Infinity, inside = false;
     for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
