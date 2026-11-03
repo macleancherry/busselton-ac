@@ -3,7 +3,7 @@
 //   node scripts/check/all.mjs <slug> [--json out/<slug>.checks.json]
 //
 // Runs: check_build (spikes, heights), budget, layout_check and course_marks_check (when it has layouts), dump_surface then
-// surface_check and street_ground, path_ground, ground_check (placed things on the ground, parked cars
+// surface_check, line_check (AI line folds, Armco by the line) and street_ground, path_ground, ground_check (placed things on the ground, parked cars
 // off the roads), shore_check (no trees on water, sand, groynes or jetties; nothing on water), parked_check (parked cars in bays, on asphalt, not overlapping), road_clear (nothing standing on the roads, no holes in the streets, the shared paths all there), traffic_check and lane_bay_check (when it has traffic). Exits non-zero if any fails.
 // The headline numbers (triangles, AI off the road per layout, tilt, edge steps, ground through
 // streets, traffic loose ends) go in the JSON, so scripts/upgrade/base.mjs can compare two builds.
@@ -59,6 +59,12 @@ results.push(r);
 summary.maxTilt = num(r.text, /cross-slope 95% [\d.]+%, max ([\d.]+)%/);
 summary.edgeMedianCm = num(r.text, /biggest step within 12 m of the line: median ([\d.]+) cm/);
 summary.kinks10 = num(r.text, />10 cm (\d+)/);
+// Busselton fork: AI lines that fold back on themselves, Armco too close to a line (line_check.py).
+r = run("ai line", "python3", ["-I", "scripts/check/line_check.py", `out/${slug}.surface.json`]);
+results.push(r);
+summary.aiLineFolds = [...r.text.matchAll(/AI line folds [^:]*: (\d+)/g)].reduce((s, m) => s + Number(m[1]), 0);
+summary.armcoNearLine = [...r.text.matchAll(/Armco within [\d.]+ m of the AI line: (\d+)/g)].reduce((s, m) => s + Number(m[1]), 0);
+summary.roadFolds = num(r.text, /folded road\): (\d+)/);
 r = run("streets", "python3", ["-I", "scripts/check/street_ground.py", `out/${slug}.surface.json`]);
 results.push(r);
 summary.groundThroughStreetsCm = num(r.text, /worst ([\d.]+) cm/);

@@ -6,6 +6,7 @@ import { toAc } from "./mesh";
 import type { RoadPlan } from "./road";
 import { innerRadius, outerRadius } from "./roundabout";
 import { keepLeftOffsets } from "./keepLeft";
+import { easeFolds } from "./offsetFold";
 import type { BayBox } from "./bayLanes";
 
 const G = 9.81;
@@ -14,6 +15,8 @@ const BRAKE = 7; // m/s^2
 const ACCEL = 3.5; // m/s^2
 const VMAX = 70; // m/s
 const KERB_CLEARANCE = 1.0; // m
+/** Busselton fork: the keep-left line may not bend tighter than this radius, metres, where the centreline doesn't. */
+export const AI_MIN_RADIUS = 1.5;
 
 /** How far either side of a roundabout the line is smoothed, metres. */
 const RING_REACH = 25;
@@ -74,7 +77,9 @@ export function buildAiLine(plan: RoadPlan, lineOpts: AiLineOptions = {}): AiPoi
   const n = s.length;
   const { pos, nearRing } = ringLine(plan);
   // Busselton fork: keep left, metres to the left of the centreline (0 = centred).
-  const off = lineOpts.keepLeft ? keepLeftOffsets(plan, lineOpts.bays) : s.map(() => 0);
+  let off = lineOpts.keepLeft ? keepLeftOffsets(plan, lineOpts.bays) : s.map(() => 0);
+  // Busselton fork: not so far into a tight bend that the line turns back on itself (offsetFold.ts).
+  if (lineOpts.keepLeft) off = easeFolds(pos, s.map((p) => p.left), off, () => AI_MIN_RADIUS, plan.closed);
   off.forEach((o, i) => {
     if (o !== 0) pos[i] = [pos[i][0] + s[i].left[0] * o, pos[i][1] + s[i].left[1] * o];
   });
