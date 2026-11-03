@@ -26,8 +26,27 @@ const TEXTURE_LENGTH = { shared: 6, foot: 3 } as const;
 export const LIFT = 0.025;
 /** Metres between the points the ground is sampled at along a path. */
 export const SAMPLE = 0.35;
-/** The ground steps (a kerb, a strip, a cut) where it bends by more than this over three neighbouring samples, metres. */
-export const STEP_JUMP = 0.06;
+/**
+ * The ground steps (a kerb, a strip, a cut) where, along the path, a sample stands more than half
+ * this off the straight line between its neighbours, metres. Busselton fork: 12 cm (it was 6 cm,
+ * across and along alike, which cut the shared path at every small bend in the verge and left it
+ * dashed). The ribbon follows smaller steps: it's sampled finely across them (REFINE_STEP).
+ */
+export const STEP_JUMP = 0.12;
+/** The same across the path: a step running along under it would come up through the ribbon between its vertices, so the old 6 cm stays. */
+export const STEP_ACROSS = 0.06;
+/** Where the ground bends along by more than this (metres, as STEP_JUMP), the path is sampled every REFINE_STEP metres there. */
+const REFINE_JUMP = 0.03;
+const REFINE_STEP = 0.05;
+/**
+ * Busselton fork: how far a path may be moved sideways off a road, street or kerb it would
+ * otherwise be cut for (a mapped line hard against the kerb, or under a road traced a little
+ * wide), metres; and how fast the move eases in and out, metres sideways per metre along. Foot
+ * paths aren't moved: beside the route, the photo's own footpath (the verge band) takes over.
+ */
+export const PATH_SHIFT: Record<PathLine["kind"], number> = { shared: 3, foot: 0 };
+const SHIFT_STEP = 0.5;
+const SHIFT_TAPER = 0.25;
 /** Samples merged into one stretch of ribbon: at most this long, metres, ... */
 const MERGE_MAX = 15;
 /** ... with every sample between within this of the straight line sideways ... */
@@ -103,13 +122,19 @@ function ribbonAt(cols: number[], g: number[], c: number): number {
   return g[c];
 }
 
+/** How far sample k of a run stands off the straight line between its neighbours at point c across, metres, doubled (the second difference on even spacing). */
+function bendAlong(run: { s: number; g: number[] }[], k: number, c: number): number {
+  const a = run[k - 1], q = run[k], b = run[k + 1];
+  const f = (q.s - a.s) / (b.s - a.s || 1);
+  return 2 * Math.abs(q.g[c] - (a.g[c] + (b.g[c] - a.g[c]) * f));
+}
+
 /** Whether the ground steps at sample k of a run: it bends sharply across, or along against its neighbours. */
-function steps(run: { g: number[] }[], k: number): boolean {
+export function steps(run: { s: number; g: number[] }[], k: number): boolean {
   const g = run[k].g;
-  for (let c = 1; c < g.length - 1; c++) if (Math.abs(g[c - 1] - 2 * g[c] + g[c + 1]) > STEP_JUMP) return true;
+  for (let c = 1; c < g.length - 1; c++) if (Math.abs(g[c - 1] - 2 * g[c] + g[c + 1]) > STEP_ACROSS) return true;
   if (k > 0 && k < run.length - 1) {
-    const a = run[k - 1].g, b = run[k + 1].g;
-    for (let c = 0; c < g.length; c++) if (Math.abs(a[c] - 2 * g[c] + b[c]) > STEP_JUMP) return true;
+    for (let c = 0; c < g.length; c++) if (bendAlong(run, k, c) > STEP_JUMP) return true;
   }
   return false;
 }
@@ -163,6 +188,7 @@ export function buildPaths(
   ground: (x: number, y: number) => number,
   clear: (x: number, y: number, half: number, kind: PathLine["kind"]) => boolean,
   inCorridor: (x: number, y: number) => boolean,
+  shift: Record<PathLine["kind"], number> = PATH_SHIFT,
 ): Kn5MeshNode[] {
   const out: Kn5MeshNode[] = [];
   for (const kind of ["shared", "foot"] as const) {
@@ -201,8 +227,11 @@ export function buildPaths(
         }
       }
     };
-    // One stretch of clear samples: cut at steps, the pieces laid as ribbon.
-    const lay = (samples: Sample[]) => {
+    const sampleAt = (p: Vec2, n: Vec2, s: number): Sample => ({ p, n, s, g: across.map((c) => ground(p[0] + n[0] * c, p[1] + n[1] * c)) });
+    // One stretch of clear samples: sampled finely where the ground bends along, cut at steps, the
+    // pieces laid as ribbon.
+    const lay = (coarse: Sample[]) => {
+      const samples = refine(coarse, sampleAt);
       let piece: Sample[] = [];
       for (let k = 0; k <= samples.length; k++) {
         if (k < samples.length && !steps(samples, k)) {
@@ -221,19 +250,18 @@ export function buildPaths(
         const n = Math.max(1, Math.ceil(L / SAMPLE));
         for (let k = i === 1 ? 0 : 1; k <= n; k++) pts.push([a[0] + ((b[0] - a[0]) * k) / n, a[1] + ((b[1] - a[1]) * k) / n]);
       }
+      const along = alongOf(pts);
+      // Moved sideways off the roads where it must be (shiftPath), then cut wherever it still isn't clear.
+      const placed = shiftPath(pts, along, normalsOf(pts), shift[kind], (p) => inCorridor(p[0], p[1]), (p) => clear(p[0], p[1], half, kind));
+      const normals = normalsOf(placed.pts), placedAlong = alongOf(placed.pts);
       let run: Sample[] = [];
-      let s = 0;
-      for (let i = 0; i < pts.length; i++) {
-        const p = pts[i], q = pts[Math.min(pts.length - 1, i + 1)], o = pts[Math.max(0, i - 1)];
-        if (i > 0) s += Math.hypot(p[0] - o[0], p[1] - o[1]);
-        const dx = q[0] - o[0], dy = q[1] - o[1], L = Math.hypot(dx, dy) || 1;
-        const n: Vec2 = [-dy / L, dx / L];
-        if (!inCorridor(p[0], p[1]) || !clear(p[0], p[1], half, kind)) {
+      for (let i = 0; i < placed.pts.length; i++) {
+        if (!placed.ok[i]) {
           lay(run);
           run = [];
           continue;
         }
-        run.push({ p, n, s, g: across.map((c) => ground(p[0] + n[0] * c, p[1] + n[1] * c)) });
+        run.push(sampleAt(placed.pts[i], normals[i], placedAlong[i]));
         // Very long runs in pieces (each piece fits a mesh), joined at a shared sample.
         if (run.length >= 8000) {
           const last = run[run.length - 1];
@@ -244,6 +272,93 @@ export function buildPaths(
       lay(run);
     }
     emit();
+  }
+  return out;
+}
+
+/** Distance along a polyline at each of its points. */
+function alongOf(pts: Vec2[]): number[] {
+  const s = [0];
+  for (let i = 1; i < pts.length; i++) s.push(s[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]));
+  return s;
+}
+
+/** Unit left normals of a polyline, from each point's neighbours. */
+function normalsOf(pts: Vec2[]): Vec2[] {
+  return pts.map((_, i) => {
+    const q = pts[Math.min(pts.length - 1, i + 1)], o = pts[Math.max(0, i - 1)];
+    const dx = q[0] - o[0], dy = q[1] - o[1], L = Math.hypot(dx, dy) || 1;
+    return [-dy / L, dx / L] as Vec2;
+  });
+}
+
+/**
+ * Busselton fork: a path moved sideways off what it may not lie on. Each sample that isn't `clear`
+ * looks for the smallest move, SHIFT_STEP at a time up to `max` metres either way, that is (inside
+ * the corridor). The moves are then eased in and out along the path at SHIFT_TAPER (the larger of
+ * the moves either way wins where both are wanted), so the path bends gently round a kerb instead
+ * of stepping. Every sample is tested where it ends up: `ok` is false where it still isn't clear
+ * (the path is cut there, as before). Samples outside the corridor are never moved.
+ */
+export function shiftPath(pts: Vec2[], along: number[], normals: Vec2[], max: number, inCorridor: (p: Vec2) => boolean, clear: (p: Vec2) => boolean): { pts: Vec2[]; ok: boolean[]; off: number[] } {
+  const n = pts.length;
+  const at = (i: number, o: number): Vec2 => [pts[i][0] + normals[i][0] * o, pts[i][1] + normals[i][1] * o];
+  const inside = pts.map((p) => inCorridor(p));
+  const clear0 = pts.map((p, i) => inside[i] && clear(p));
+  const want = new Array<number>(n).fill(0);
+  let lastSign = 1;
+  if (max > 0) {
+    for (let i = 0; i < n; i++) {
+      if (!inside[i] || clear0[i]) continue;
+      for (let m = SHIFT_STEP; m <= max + 1e-9; m += SHIFT_STEP) {
+        const hit = [lastSign, -lastSign].find((sg) => { const q = at(i, sg * m); return inCorridor(q) && clear(q); });
+        if (hit !== undefined) {
+          want[i] = hit * m;
+          lastSign = hit;
+          break;
+        }
+      }
+    }
+  }
+  // Eased envelopes of the moves wanted to the left (+) and to the right (-).
+  const ease = (sign: 1 | -1) => {
+    const e = want.map((w) => Math.max(0, sign * w));
+    for (let i = 1; i < n; i++) e[i] = Math.max(e[i], e[i - 1] - SHIFT_TAPER * (along[i] - along[i - 1]));
+    for (let i = n - 2; i >= 0; i--) e[i] = Math.max(e[i], e[i + 1] - SHIFT_TAPER * (along[i + 1] - along[i]));
+    return e;
+  };
+  const L = ease(1), R = ease(-1);
+  const off = L.map((l, i) => (l >= R[i] ? l : -R[i]));
+  const out = off.map((o, i) => (o === 0 ? pts[i] : at(i, o)));
+  const ok = out.map((q, i) => inside[i] && (off[i] === 0 ? clear0[i] : off[i] === want[i] || (inCorridor(q) && clear(q))));
+  return { pts: out, ok, off };
+}
+
+/**
+ * The run with extra samples every REFINE_STEP metres either side of each sample where the ground
+ * bends along by more than REFINE_JUMP (but not past STEP_JUMP), so the ribbon follows a small step (a low lip, a crease in
+ * the verge) closely instead of being cut there or bridging it.
+ */
+function refine<S extends { p: Vec2; n: Vec2; s: number; g: number[] }>(run: S[], sampleAt: (p: Vec2, n: Vec2, s: number) => S): S[] {
+  if (run.length < 3) return run;
+  // (A bend over STEP_JUMP on the coarse samples is a step, cut there as it always was.)
+  const bent = run.map((q, k) => {
+    if (k === 0 || k === run.length - 1) return false;
+    const most = Math.max(...q.g.map((_, c) => bendAlong(run, k, c)));
+    return most > REFINE_JUMP && most <= STEP_JUMP;
+  });
+  const out: S[] = [run[0]];
+  for (let k = 1; k < run.length; k++) {
+    const a = run[k - 1], b = run[k];
+    if (bent[k - 1] || bent[k]) {
+      const m = Math.ceil((b.s - a.s) / REFINE_STEP);
+      for (let j = 1; j < m; j++) {
+        const f = j / m;
+        const nx = a.n[0] + (b.n[0] - a.n[0]) * f, ny = a.n[1] + (b.n[1] - a.n[1]) * f, nl = Math.hypot(nx, ny) || 1;
+        out.push(sampleAt([a.p[0] + (b.p[0] - a.p[0]) * f, a.p[1] + (b.p[1] - a.p[1]) * f], [nx / nl, ny / nl], a.s + (b.s - a.s) * f));
+      }
+    }
+    out.push(b);
   }
   return out;
 }

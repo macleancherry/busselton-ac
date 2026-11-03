@@ -31,6 +31,12 @@ export interface Streets {
   streetRaster: RasterSampler | null;
   sideTraced: number;
   streetIndex: LineIndex;
+  /**
+   * Busselton fork: room from a point to the nearest built street surface, metres (negative on
+   * it): the street index (traced widths), and with networkCore, its junction surfaces too once
+   * they're planned (setNet; before that the index alone).
+   */
+  clear: (x: number, y: number) => number;
   /** The junctions that are mouths on the route (networkCore takes some over: setNet). */
   mouths: Junction[];
   net: JunctionCore | null;
@@ -79,11 +85,16 @@ export async function planStreets(ctx: BuildContext, rp: RoutePlan, tr: Traced, 
     }
   }
   // (Phase 2's streets keep the graph's lines: tracing that knows the junction caps is still to come.)
-  const sideTraced = streetRaster && opts.traceRoads && !net2 ? traceSideStreets(streetPlan.streets.filter((s) => s.cls !== PIT_CLASS), streetRaster, opts, index) : 0;
+  const sideTraced = streetRaster && opts.traceRoads && !net2 ? traceSideStreets(streetPlan.streets.filter((s) => s.cls !== PIT_CLASS), streetRaster, opts, index,
+    opts.pathTraceClip !== false ? (sources.paths ?? []).map((p) => ({ pts: ctx.line(p.pts), kind: p.kind })) : undefined) : 0;
   const streetIndex = new LineIndex(streetPlan.streets);
 
   const out: Streets = {
     streetPlan, net2, netLines, netRings, routeRibbon, gridAvoid, streetRaster, sideTraced, streetIndex,
+    clear: (x, y) => {
+      const c = streetIndex.clearance(x, y);
+      return out.net ? Math.min(c, out.net.sdfAt([x, y])) : c;
+    },
     mouths: streetPlan.junctions,
     net: null,
     mouth: (side, sd) => out.mouths.some((j) => j.side === side && Math.abs(j.s - sd) < j.width / 2 + 1.5) || !!out.net?.routeSInside(sd),

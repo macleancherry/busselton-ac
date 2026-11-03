@@ -90,7 +90,8 @@ export function planBuildings(ctx: BuildContext, rp: RoutePlan, g: Ground, st: S
   const pois = (sources.pois ?? []).map((p) => ({ ...p, at: ctx.toLocal(p.at) }));
   const roadEdge = (x: number, y: number) => {
     const n = index.nearest(x, y, 40);
-    return Math.min(n ? n.dist - index.at(n).width / 2 : Infinity, streetIndex.clearance(x, y));
+    // (st.clear: the streets as built, and networkCore's junctions once planned: lots ask later.)
+    return Math.min(n ? n.dist - index.at(n).width / 2 : Infinity, st.clear(x, y));
   };
 
   let frontage: Building[] = [];
@@ -125,7 +126,10 @@ export function planBuildings(ctx: BuildContext, rp: RoutePlan, g: Ground, st: S
   const kept = filterBuildings([...mapped, ...img.detected, ...frontage], index, opts, opts.buildingRadius).filter((b) => {
     if (b.ring.some(([x, y]) => inRoundabout(plan, x, y, opts.vergeWidth + 2))) return false;
     const min = b.source === "osm" ? -0.5 : 1;
-    if (b.ring.some(([x, y]) => streetIndex.clearance(x, y) < min)) return false;
+    // The whole outline, not just its corners: a street crossing between two corners, cutting a
+    // wall or ending inside drops the building (any class, service lanes too: cutting the street
+    // at the outline instead would leave networkCore's graph-built street mesh uncut).
+    if (streetIndex.ringClearance(b.ring) < min) return false;
     const [cx, cy] = centroid(b.ring);
     if (g.onJetty(cx, cy)) return false;
     return !jettyHouses.some((j) => pointInRing(cx, cy, j.pts));

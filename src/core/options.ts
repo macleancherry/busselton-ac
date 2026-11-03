@@ -160,6 +160,8 @@ export interface BuildOptions {
   treeMips?: boolean;
   /** No trees on water, wetland, beaches and sand, groynes, jetties or the shore strip (shoreClear.ts); ships extension/shore_mask.png. On unless false. */
   shoreClear?: boolean;
+  /** Busselton fork: a traced road or street edge stops short of a mapped path running beside it (pathTraceClip.ts), so the trace can't take in the red shared path. On unless false. */
+  pathTraceClip?: boolean;
 
   // Road surface, markings, kerbs, parking
   roadSurface: "auto" | "asphalt" | "chipseal" | "photo";
@@ -223,7 +225,7 @@ export const OPTIONAL_OPTION_KEYS: readonly (keyof BuildOptions)[] = Object.free
   "origin", "area", "layout", "layoutDrives", "unsealed", "gravelRoads", "networkCore",
   "terrainLodFarTol", "photoSea", "beachDetail", "zones", "pureTuning", "rainHollows",
   "cspTrees", "houseStyle", "clears", "armco", "farmland", "farmRoadsides", "wavingFlags",
-  "jettyTrain", "swimJetties", "jettyKinds", "trackSounds", "poleClear", "raceway", "treeMips", "shoreClear",
+  "jettyTrain", "swimJetties", "jettyKinds", "trackSounds", "poleClear", "raceway", "treeMips", "shoreClear", "pathTraceClip",
   "kerbside", "laneBayClear", "parkedBays", "padClear", "trafficLights", "shopNamesOverpass",
   "aiKeepLeft", "aiRings", "streetsValid", "challenges", "timeTrialSectors", "driftZones", "courseMarks",
   "gridAt", "pits", "pitLane", "circuitKerbs", "gridPaint",

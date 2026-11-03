@@ -317,6 +317,9 @@ export function buildLots(houses: Building[], ground: HeightFn, opts: LotOptions
     for (const [g0, g1] of runs) {
       if (g1 - g0 < 1.5) continue;
       const corners = [at(g0, 0.05), at(g1, 0.05), at(g1, bedDepth), at(g0, bedDepth)];
+      // Busselton fork: the bed's depth is set from the road gap at the front wall's middle; on a
+      // bend or a corner block its ends can reach a street. Keep every corner off it.
+      if (corners.some((p) => !(opts.roadGap(p[0], p[1]) > ROAD_MARGIN))) continue;
       quadUp(beds.next(4), corners.map((p) => [p[0], p[1], ground(p[0], p[1]) + 0.04] as Vec3), (p) => [p[0] / 2, p[1] / 2]);
       for (let s = g0 + 0.7; s < g1 - 0.4;) {
         const c = at(s, bedDepth / 2 + 0.05);
