@@ -8,6 +8,7 @@ import { keepOffRoute, onRoute, type OnRoad } from "../clearance";
 import type { Kn5MeshNode } from "../kn5";
 import { onRoadFrom } from "../poleSpot";
 import { buildWalls } from "../roadMesh";
+import { LineIndex } from "../sideStreets";
 import { ROAD_SURFACE, sceneGround, topSurface, type SceneGround } from "../sceneGround";
 import { buildTerrainChunk, isNetSurfaceNode, isStreetNode, streetCeiling, underStreets } from "../terrain";
 import type { BuildContext } from "./context";
@@ -59,7 +60,11 @@ export async function buildGroundMeshes(
     const node = buildBackdropChunk(chunk, g.farDem, index, opts, img.textured.has(chunk.key), cover, g.terrainH);
     if (node) backdropNodes.push(node);
   }
-  const walls = buildWalls(plan, opts, g.terrainH, index);
+  // Busselton fork: the walls open where another layout's drive crosses them (Collie's short layout
+  // took its southern link through the long layout's wall in retest 6). 10 m: a raceway's width.
+  const drives = (opts.layoutDrives ?? []).filter((d) => d.coords.length > 1);
+  const driveIndex = drives.length ? new LineIndex(drives.map((d) => ({ pts: d.coords.map(ctx.toLocal), width: 10 }))) : null;
+  const walls = buildWalls(plan, opts, g.terrainH, index, driveIndex ? (x, y) => driveIndex.clearance(x, y) < 0 : undefined);
   const onRoad = onRoute(plan, index);
   const km = rm.kerbMeshes;
   const kerbsClear = keepOffRoute([...km.gutter, ...km.kerb, ...km.strip, ...rm.kerbReturns, ...rm.vergeConcrete], onRoad);

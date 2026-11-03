@@ -229,9 +229,10 @@ const WALL_ROAD_GAP = 0.3;
 /**
  * Invisible walls each side of the road. The wall pulls in where another
  * stretch of the same road passes close by (switchbacks) and on the inside
- * of tight hairpins, so it never cuts across drivable road.
+ * of tight hairpins, so it never cuts across drivable road. Busselton fork: `alsoRoad(x, y)` marks
+ * other drivable ground (another layout's drive) that the walls leave open as well.
  */
-export function buildWalls(plan: RoadPlan, opts: BuildOptions, terrain: HeightFn, index: SegmentIndex): Kn5MeshNode[] {
+export function buildWalls(plan: RoadPlan, opts: BuildOptions, terrain: HeightFn, index: SegmentIndex, alsoRoad?: (x: number, y: number) => boolean): Kn5MeshNode[] {
   if (opts.wallOffset <= 0) return [];
   const samples = plan.samples;
   const n = samples.length;
@@ -269,6 +270,7 @@ export function buildWalls(plan: RoadPlan, opts: BuildOptions, terrain: HeightFn
   // WALL_ROAD_GAP of an asphalt edge) drops the sections either side of it: a gap in the inside wall
   // of a corner, where the outside wall and the corner itself keep cars in.
   const overRoad = (x: number, y: number) => {
+    if (alsoRoad?.(x, y)) return true;
     const near = index.nearest(x, y, 20);
     return !!near && near.dist < index.at(near).width / 2 + WALL_ROAD_GAP;
   };
