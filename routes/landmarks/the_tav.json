@@ -1,5 +1,5 @@
 {
- "note": "The Tav: the Vasse Tavern, 44 Queen Street, Busselton, in the old Vasse Hotel (1906, heavily rebuilt 2002-03), on the north-east corner of Queen and Albert Streets. From the Landgate aerial (Oct 2026), a 2019 street photo and a recent photo of the Queen Street front. Two-storey painted brick hotel, hipped pale roofs behind a cream parapet with VASSE HOTEL lettering, navy ground floor under a deep grey awning on navy posts along Queen Street, and a two-storey navy verandah down the Albert Street side. Signs are plain lettering only, no logos. Metres: x left to right as seen from Queen Street (north to south), y back from the awning edge (east).",
+ "note": "The Tav: the Vasse Tavern, 44 Queen Street, Busselton, in the old Vasse Hotel (1906, heavily rebuilt 2002-03), on the north-east corner of Queen and Albert Streets. From the Landgate aerial (Oct 2026), a 2019 street photo and a recent photo of the Queen Street front. Two-storey painted brick hotel, hipped pale roofs behind a cream parapet with VASSE HOTEL lettering, navy ground floor under a deep grey awning on navy posts along Queen Street, and a two-storey navy verandah down the Albert Street side. Signs are plain lettering only, no logos. Metres: x left to right as seen from Queen Street (north to south), y back from the awning edge (east). The Queen Street awning is drawn 1 m shallower than the aerial shows so it stays clear of the built road (road clear, 3 Nov).",
  "wallHeight": 7.2,
  "setback": 0.3,
  "road": {
@@ -290,7 +290,7 @@
   {
    "x0": 0.3,
    "x1": 33.4,
-   "y0": 0.0,
+   "y0": 1.0,
    "y1": 2.8,
    "z": 3.4,
    "thickness": 0.25,

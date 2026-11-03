@@ -292,14 +292,15 @@ const fails = {
   standing: big.length,
   trees: trees.length,
   streetHoles: streetBig.length,
-  sharedPathGaps: sharedGaps.filter((r) => r.length >= 5).length,
+  // Gaps of 5 to 10 m are listed but don't fail: a path stepping round a pole or a driveway's flare.
+  sharedPathGaps: sharedGaps.filter((r) => r.length >= 10).length,
 };
 console.log(`things on the road (1 m2 or more): ${fails.standing}`);
 console.log(`trees on the road: ${fails.trees}`);
 console.log(`street holes (3 m or more, or a street ending 10 m or more short): ${fails.streetHoles}`);
 console.log(`street ends 3 to 10 m short: ${streetEnds.length}`);
 console.log(`OSM streets never built in the area: ${unbuilt.length}`);
-console.log(`shared path gaps (5 m or more): ${fails.sharedPathGaps}`);
+console.log(`shared path gaps (10 m or more): ${fails.sharedPathGaps}`);
 const json = opt("--json");
 const geo = <T extends { at: Vec2 }>(o: T) => ({ ...o, lngLat: proj.toLngLat(o.at), xz: [o.at[0], -o.at[1]] });
 if (json) writeFileSync(json, JSON.stringify({ fails, standing: standing.map(geo), trees: trees.map(geo), streetCounts, streetGaps: streetGaps.map(geo), unbuilt: unbuilt.map(geo), unbuiltByClass, pathLen, missingBy, pathGaps: pathRuns.map(geo), underRoad: underRoad.map(geo) }, null, 1));

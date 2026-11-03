@@ -581,15 +581,15 @@ export { KERB, dist };
 
 /**
  * Busselton fork: cut a junction's surface back from the outlines near it (keepOut), each by `room`.
- * An outline is skipped if the cut would reach the middle 70% of a leg's width at its cap, or of the
- * route's width on the rows the junction covers: those are lanes, and the landmark is the one to move.
+ * An outline is skipped if the cut would reach the middle 70% of a leg's width at its cap, or the middle
+ * half of the route's width on the rows the junction covers: those are lanes, and the landmark is the one to move.
  */
 function keepClear(j: RJunction, outlines: P2[][], room: number, route: RouteRibbon | null): void {
   const [x0, y0, x1, y1] = j.box;
   const near = outlines.filter((o) => o.some(([x, y]) => x > x0 - 10 && x < x1 + 10 && y > y0 - 10 && y < y1 + 10));
   if (!near.length) return;
   const probes: P2[] = [];
-  const across = (c: P2, left: P2, hw: number) => { for (const t of [-0.7, -0.35, 0, 0.35, 0.7]) probes.push([c[0] + left[0] * t * hw, c[1] + left[1] * t * hw]); };
+  const across = (c: P2, left: P2, hw: number, f = 0.7) => { for (const t of [-f, -f / 2, 0, f / 2, f]) probes.push([c[0] + left[0] * t * hw, c[1] + left[1] * t * hw]); };
   for (const l of j.legs) {
     if (l.cap) across(l.cap.c, l.cap.left, l.cap.hw);
   }
@@ -597,7 +597,8 @@ function keepClear(j: RJunction, outlines: P2[][], room: number, route: RouteRib
     const n = route.samples.length;
     for (const [e, x] of j.spans) for (let i = e, k = 0; k <= n; i = (i + 1) % n, k++) {
       const smp = route.samples[i];
-      across(smp.pos, smp.left, smp.width / 2);
+      // The route's traced width takes in parking lanes: its lanes are the middle half.
+      across(smp.pos, smp.left, smp.width / 2, 0.5);
       if (i === x) break;
     }
   }
