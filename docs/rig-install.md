@@ -12,9 +12,9 @@ A window opens, installs whatever is new, prints what changed, and waits for a k
 It does:
 
 - **Finds AC by itself:** Steam's registry entry, then every library in `libraryfolders.vdf` (using `appmanifest_244210.acf`), then Content Manager's settings (`%LOCALAPPDATA%\AcTools Content Manager\Values.data`). If it still can't, run it once with `-AcPath "D:\SteamLibrary\steamapps\common\assettocorsa"`, or `setx BUSSELTON_AC_PATH <that folder>`.
-- **Installs only what's new:** the newest zip of each track, when the installed track didn't come from it, or a track that isn't installed yet. Each install (by this script or `install-track.ps1`) records the zip's name, time and size in the track folder (`installed_from.txt`), so a track already installed from that zip isn't reinstalled or listed. When two zips hold the same track folder (a renamed download: `busselton.zip` and `busselton_1.zip`), only the newest is installed and the older one is listed as skipped. Tracks installed before the record existed fall back to `%LOCALAPPDATA%\BusseltonAC\installed.json`.
+- **Installs only what's new:** each track's build, `<slug>.zip` (named exactly after the track folder it holds), when the installed track didn't come from it, or a track that isn't installed yet. Each install (by this script or `install-track.ps1`) records the zip's name, time and size in the track folder (`installed_from.txt`), so a track already installed from that zip isn't reinstalled or listed. Other zips holding the same track folder are variants (`busselton_roadcore.zip`, a renamed `busselton_1.zip`) and are listed as skipped: install one by name with `install-track.ps1 -Zip busselton_roadcore`. Tracks installed before the record existed fall back to `%LOCALAPPDATA%\BusseltonAC\installed.json`.
 - **Bases first, then polish.** A polish zip is laid over its installed track (`install-track.ps1 -Overlay`), and only when it's newer than the base build. A base build already has the landmarks it was built with, so an older polish is skipped.
-- **Keeps AO bakes** when the new build has the same geometry (the same rule `install-track.ps1` uses on the workstation). When the geometry is new, the bake is dropped and the summary says so.
+- **Keeps AO bakes per build** (the same rule `install-track.ps1` uses on the workstation): before a track is replaced its bake is kept under its geometry key, in `%LOCALAPPDATA%\BusseltonAC\vao` and the share's `bakes\vao`, and a build that was ever baked (here or on the workstation) gets its bake back. When there's no bake for the new build, the summary says so.
 - **Installs the apps:** Busselton Challenges and Busselton Map, into `<AC>\apps\lua`, whenever they've changed.
 - **Shows what changed:** for each track, new build or first install, the build's time and size, its layouts (with new and removed ones), and what happened to the AO bake. If the laptop session left a note next to the zip (`builds\<zip name>.txt`), the note is shown too.
 - **Stays out of the way:** it won't touch anything while AC (`acs.exe`) is running, and it leaves zips written in the last minute alone (they may still be copying in).
@@ -24,7 +24,7 @@ Options (add them after the file name in a Command Prompt, or to the task):
 | Option | What it does |
 | --- | --- |
 | `-DryRun` | Only says what it would install. |
-| `-Force` | Reinstalls everything. AO bakes are still kept when the geometry is the same. |
+| `-Force` | Reinstalls everything. Each build still gets its own AO bake back. |
 | `-InstallTask` | Also checks the share each time you log in (below). |
 | `-RemoveTask` | Stops that. |
 | `-AcPath <folder>` | Where AC is, if it can't find it. |

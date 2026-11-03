@@ -5,9 +5,10 @@
   a route file here, but code and route changes are never made on this machine (see CLAUDE.md).
 
 .EXAMPLE
-  .\scripts\windows\install-track.ps1 -Zip busselton            # the newest zip in <share>\builds holding busselton
+  .\scripts\windows\install-track.ps1 -Zip busselton            # <share>\builds\busselton.zip, exactly
+  .\scripts\windows\install-track.ps1 -Zip busselton_roadcore   # a variant, by its own name (installs as busselton)
   .\scripts\windows\install-track.ps1 -Zip busselton -RigTracks \\GAMINGRIG\tracks
-  .\scripts\windows\install-track.ps1 -All                       # newest build of each track in <share>\builds, then polish
+  .\scripts\windows\install-track.ps1 -All                       # every <slug>.zip in <share>\builds, then polish
   .\scripts\windows\install-track.ps1 -Zip C:\somewhere\busselton_foreshore.zip
   .\scripts\windows\install-track.ps1 routes\foreshore.json
   .\scripts\windows\install-track.ps1 routes\foreshore.json -RigTracks \\GAMINGRIG\tracks
@@ -26,10 +27,11 @@ param(
   [string]$RigTracks = $env:BUSSELTON_RIG_TRACKS,
   [switch]$SkipBuild,
   [switch]$SkipCheck,
-  # Install the newest build of each track in the share's builds folder, then newer polish zips over them.
+  # Install each track's build (<slug>.zip) in the share's builds folder, then newer polish zips over them.
   [switch]$All,
   # Unzip over the installed track without removing it first: for a polish zip (landmarks as layers,
-  # scripts/polish/landmarks.ts) on top of an installed base. The AO bake stays.
+  # scripts/polish/landmarks.ts) on top of an installed base. The AO bake stays (or the one made for
+  # base plus this polish comes back).
   [switch]$Overlay
 )
 $ErrorActionPreference = "Stop"
@@ -48,12 +50,15 @@ if (Get-Command py -ErrorAction SilentlyContinue) { $pyExe = "py"; $pyArgs = @("
 if ($All) {
   $share = Get-BusseltonShare
   if (-not $share) { throw "No share: set BUSSELTON_SHARE." }
-  # The newest build of each track folder (an older zip holding the same folder is skipped), then the
-  # newest polish of each, laid over its build when it's newer than the build.
+  # Each track's build, <slug>.zip, then the newest polish of each (<slug>_polish*.zip), laid over its
+  # build when it's newer than the build. Variants holding the same folder (busselton_roadcore.zip)
+  # are skipped: they'd replace the track's own build (retest 6). Install one by name if wanted.
   $builds = Join-Path $share "builds"
+  foreach ($v in @(Get-BusseltonBuilds $builds -Variants)) {
+    Write-Host "Skipping $($v.File.Name): a variant of $($v.Slug), not $($v.Slug).zip (install it with -Zip $($v.File.BaseName))." -ForegroundColor DarkGray
+  }
   $bases = @(Get-BusseltonBuilds $builds)
   foreach ($b in $bases) {
-    foreach ($o in @($b.Older)) { Write-Host "Skipping $($o.File.Name): $($b.File.Name) is a newer build of $($b.Slug)." -ForegroundColor DarkGray }
     & $PSCommandPath -Zip $b.File.FullName -AcPath $AcPath -RigTracks $RigTracks
   }
   foreach ($p in @(Get-BusseltonBuilds $builds -Polish)) {
@@ -108,39 +113,31 @@ function Install-Into([string]$tracks) {
   $tmp = Join-Path $env:TEMP "busselton-$slug"
   if (Test-Path $tmp) { Remove-Item $tmp -Recurse -Force }
   Expand-Archive -Path $zip -DestinationPath $tmp
+  # AO bakes (*.vao-patch, bake-vao.ps1) are kept per build, keyed by the geometry they were baked
+  # on (share.ps1 Save-BusseltonVao): the installed bake is kept before anything is replaced, and
+  # the bake for the new geometry, if one was ever made, comes back after.
+  $hadBake = (Test-Path $dest) -and (@(Get-ChildItem $dest -Filter *.vao-patch -ErrorAction SilentlyContinue).Count -gt 0)
+  if ($hadBake) {
+    $oldKey = Save-BusseltonVao $dest $slug
+    if ($oldKey) { Write-Host "Kept the installed AO bake for its build (geometry $oldKey)." }
+  }
   if ($Overlay) {
     if (-not (Test-Path $dest)) { Remove-Item $tmp -Recurse -Force; throw "No $slug installed in $tracks to lay the polish over: install its base first." }
     Copy-Item (Join-Path (Join-Path $tmp $slug) "*") $dest -Recurse -Force
     Remove-Item $tmp -Recurse -Force
     Write-BusseltonInstallMark $dest $zip -Polish
-    Write-Host "Polish laid over $dest (rebake AO to shade what's new)." -ForegroundColor Green
+    $from = Restore-BusseltonVao $dest $slug
+    if ($from) { Write-Host "Polish laid over $dest, with the AO bake made for this build ($from)." -ForegroundColor Green }
+    else { Write-Host "Polish laid over $dest (rebake AO to shade what's new)." -ForegroundColor Green }
     return
   }
-  # An AO bake (*.vao-patch, scripts/windows/bake-vao.ps1) matches the geometry it was baked on:
-  # keep it when every kn5 is the same as before, so reinstalling the same build doesn't need a rebake.
-  $keep = Join-Path $env:TEMP "busselton-vao-$slug"
-  if (Test-Path $keep) { Remove-Item $keep -Recurse -Force }
-  $sameGeometry = $false
-  if (Test-Path $dest) {
-    $patches = @(Get-ChildItem $dest -Filter *.vao-patch -ErrorAction SilentlyContinue)
-    if ($patches) {
-      $hashes = { param($dir) (Get-ChildItem $dir -Filter *.kn5 | Sort-Object Name | ForEach-Object { "$($_.Name)=$((Get-FileHash $_.FullName -Algorithm SHA1).Hash)" }) -join ";" }
-      $sameGeometry = (& $hashes $dest) -eq (& $hashes (Join-Path $tmp $slug))
-      if ($sameGeometry) {
-        New-Item -ItemType Directory -Path $keep | Out-Null
-        $patches | Copy-Item -Destination $keep
-      } else {
-        Write-Warning "New geometry: the AO bake for $slug no longer fits and was removed. Bake again with scripts\windows\bake-vao.ps1 -Track $slug."
-      }
-    }
-    Remove-Item $dest -Recurse -Force
-  }
+  if (Test-Path $dest) { Remove-Item $dest -Recurse -Force }
   Copy-Item (Join-Path $tmp $slug) $dest -Recurse
   Remove-Item $tmp -Recurse -Force
-  if ($sameGeometry) {
-    Copy-Item (Join-Path $keep "*") $dest
-    Remove-Item $keep -Recurse -Force
-    Write-Host "Same geometry as before: kept the AO bake." -ForegroundColor Green
+  $from = Restore-BusseltonVao $dest $slug
+  if ($from) { Write-Host "AO bake for this build put back ($from)." -ForegroundColor Green }
+  elseif ($hadBake) {
+    Write-Warning "No AO bake for this build yet: the installed one was for other geometry (it's kept, and comes back when that build is installed again). Bake with scripts\windows\bake-vao.ps1 -Track $slug."
   }
   # Which zip this came from (share.ps1), so rig-install.ps1 knows it's up to date.
   Write-BusseltonInstallMark $dest $zip

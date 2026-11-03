@@ -9,7 +9,7 @@
 --   default_limit   point to point with no race.ini setting on a 12,196 m road: limit from the length
 --   night           a circuit at 13:45 with race.ini TIME=79200 (22:00): the script moves the clock
 --   night_noapi     the same where CSP has no ac.setWeatherTimeOffset for track scripts
---   night_app       the same where the Busselton Map app already moved it (ac.store 'busselton.clock')
+--   night_app       the same where the Busselton Map app has the clock (ac.store 'busselton.clock' = 'app')
 
 local path, scenario = arg[1], arg[2]
 local f = assert(io.open(path, 'r'))
@@ -29,7 +29,7 @@ if night then race = { BUSSELTON_TEST = { MAX_SECONDS = 600, TIME = 79200 } } en
 
 local clock = 13 * 3600 + 45 * 60 -- the game's time of day, seconds
 local stored = {} -- ac.store / ac.load
-if scenario == 'night_app' then stored['busselton.clock'] = 'moved'; clock = 22 * 3600 end
+if scenario == 'night_app' then stored['busselton.clock'] = 'app'; clock = 22 * 3600 end
 local finishedAt = nil
 local function out(s) io.write(s, '\n') end
 

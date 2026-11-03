@@ -254,10 +254,25 @@ class EndToEnd(unittest.TestCase):
             with open(p) as f:
                 text = f.read()
             with open(p, "w") as f:
-                f.write(text.replace("time=22:00;", "time=18:00;"))
+                f.write(text.replace("time=22:00;", "time=18:00;").replace("time=22:03;", "time=18:03;"))
             code, out = run(d, os.path.join(FIX, "surface.json"))
             self.assertEqual(code, 0, out)
             self.assertIn("WARNING: the game ran at 18:00", out)
+
+    def test_night_clock_put_right_during_drive(self):
+        # Retest 6: another script set the clock to the PC's time after the env line; the Busselton
+        # Map app put it back, so the drive finished at night.
+        with tempfile.TemporaryDirectory() as tmp:
+            d = night_folder(tmp)
+            p = os.path.join(d, "btest.csv")
+            with open(p) as f:
+                text = f.read()
+            with open(p, "w") as f:
+                f.write(text.replace("time=22:00;", "time=13:25;"))
+            code, out = run(d, os.path.join(FIX, "surface.json"))
+            self.assertEqual(code, 0, out)
+            self.assertIn("the game started at 13:25 and finished at 22:03", out)
+            self.assertNotIn("WARNING: the game ran at", out)
 
     def test_rain_hollows(self):
         with tempfile.TemporaryDirectory() as tmp:

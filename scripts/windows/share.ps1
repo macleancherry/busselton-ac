@@ -3,11 +3,15 @@
   rig. Dot-source it (. "$PSScriptRoot\share.ps1") and call Get-BusseltonShare.
 
   Layout (made on first use):
-    builds\    track zips from the laptop session, <slug>.zip (the newest build of each track). When
-               two zips hold the same track folder (a renamed download, busselton_1.zip next to
-               busselton.zip), the scripts take the newest (Get-BusseltonBuilds, Resolve-BusseltonZip).
+    builds\    track zips from the laptop session: <slug>.zip is the track's build, named exactly after
+               the track folder it holds, and <slug>_polish*.zip its polish. Other zips holding the
+               same folder are variants (busselton_roadcore.zip, a renamed busselton_1.zip): the
+               scripts install them only when named (-Zip busselton_roadcore, or a path), never for
+               a slug or -All (retest 6: picking the newest put road core on as busselton).
     tests\     one folder and zip per automatic run: <date>_<time>-<slug>-<layout>
-    bakes\     one log per AO bake, with its time: <date>_<time>-<track>.log
+    bakes\     one log per AO bake, with its time: <date>_<time>-<track>.log; and bakes\vao\<slug>\<key>\,
+               each bake's .vao-patch files kept per build (Save-BusseltonVao), so reinstalling a
+               build brings its bake back, on any machine
     reports\   reports for the laptop session (<date>-<topic>.md) and anything they point to,
                e.g. reports\<date>-<topic>\tuart_cm.bin
     snapshots\ each track's frozen inputs, <slug>-<date>.zip (scripts/snapshot/snapshot.mjs): what its
@@ -61,9 +65,20 @@ function Get-ZipTrackFolder([string]$path) {
 # A polish zip (<slug>_polish*.zip): landmarks laid over an installed track, not a whole build.
 function Test-PolishZip($file) { return [bool]($file.BaseName -match '_polish') }
 
+# What a zip is, from its name and the track folder it holds: "base" for <slug>.zip, "polish" for
+# <slug>_polish*.zip, "variant" for anything else (busselton_roadcore.zip, busselton_1.zip), which
+# is only installed when asked for by its own name or path.
+function Get-BuildZipKind($file, [string]$slug) {
+  if (-not $slug) { return "variant" }
+  if ($file.BaseName -eq $slug) { return "base" }
+  if ($file.BaseName -match ('^' + [regex]::Escape($slug) + '_polish')) { return "polish" }
+  return "variant"
+}
+
 # From objects with Slug, File (a FileInfo) and Polish: the newest file per track folder, base builds
 # and polish zips apart, each with Older = the other objects holding the same folder (oldest first).
-# Two zips can hold the same folder when a download gets renamed (busselton.zip and busselton_1.zip).
+# Callers pass only base and polish zips (Get-BuildZipKind), so a base has one candidate; there can
+# be several polish zips.
 function Select-NewestPerTrack($items) {
   $list = @($items | Where-Object { $_ })
   if (-not $list.Count) { return }
@@ -77,42 +92,107 @@ function Select-NewestPerTrack($items) {
   }
 }
 
-# The newest zip per track folder in a builds folder (base builds; -Polish for the polish zips): one
-# object per track with Slug, File, Polish and Older. Zips that can't be opened are left out.
-function Get-BusseltonBuilds([string]$builds, [switch]$Polish) {
+# Each track's build in a builds folder, <slug>.zip (-Polish: the newest <slug>_polish*.zip of each
+# track): one object per track with Slug, File, Polish and Older. Variants (Get-BuildZipKind) are
+# left out; -Variants lists them instead (Slug, File), for a "skipped" line. Zips that can't be
+# opened are left out.
+function Get-BusseltonBuilds([string]$builds, [switch]$Polish, [switch]$Variants) {
+  $want = if ($Variants) { "variant" } elseif ($Polish) { "polish" } else { "base" }
   $items = foreach ($z in @(Get-ChildItem -LiteralPath $builds -Filter *.zip -File -ErrorAction SilentlyContinue)) {
-    if ((Test-PolishZip $z) -ne [bool]$Polish) { continue }
     $slug = $null
     try { $slug = Get-ZipTrackFolder $z.FullName } catch { continue }
-    if ($slug) { New-Object PSObject -Property @{ Slug = $slug; File = $z; Polish = [bool]$Polish } }
+    if (-not $slug -or (Get-BuildZipKind $z $slug) -ne $want) { continue }
+    New-Object PSObject -Property @{ Slug = $slug; File = $z; Polish = ($want -eq "polish") }
   }
+  if ($Variants) { return $items }
   Select-NewestPerTrack $items
 }
 
-# A track's zip in the share's builds folder (or a path, returned as is). A track folder name gets the
-# newest build holding that folder, whatever the zip is called; otherwise a zip's own name
-# (busselton_1, busselton_polish).
+# A track's zip in the share's builds folder (or a path, returned as is): exactly <name>.zip. So
+# "busselton" is busselton.zip and never busselton_roadcore.zip, which holds the same folder;
+# "busselton_roadcore" is that variant, "busselton_polish" the polish.
 function Resolve-BusseltonZip([string]$track) {
   if (-not $track) { return $null }
   if (Test-Path $track) { return (Resolve-Path $track).Path }
   $share = Get-BusseltonShare
   if (-not $share) { throw "No share (set BUSSELTON_SHARE), and $track isn't a file." }
   $builds = Join-Path $share "builds"
-  $hit = @(Get-BusseltonBuilds $builds | Where-Object { $_.Slug -eq $track })
-  if ($hit.Count) {
-    $b = $hit[0]
-    if ($b.Older.Count) {
-      $names = @($b.Older | ForEach-Object { $_.File.Name }) + $b.File.Name
-      Write-Host "${track}: using $($b.File.Name), the newest of $($names -join ', ') (all hold the folder $track)." -ForegroundColor Yellow
-    }
-    return $b.File.FullName
-  }
   $zip = Join-Path $builds "$track.zip"
-  if (-not (Test-Path $zip)) {
+  if (-not (Test-Path -LiteralPath $zip)) {
     $have = (Get-ChildItem $builds -Filter *.zip | ForEach-Object BaseName) -join ", "
-    throw "No build of $track in $builds. There: $have"
+    throw "No $track.zip in $builds. There: $have"
+  }
+  $folder = $null
+  try { $folder = Get-ZipTrackFolder $zip } catch { }
+  if ($folder -and $folder -ne $track) {
+    Write-Host "${track}.zip holds the track folder ${folder}, so it installs as ${folder} (a variant of ${folder}.zip)." -ForegroundColor Yellow
   }
   return $zip
+}
+
+# AO bakes (*.vao-patch, bake-vao.ps1) fit the geometry they were baked on, so they're kept per build:
+# <store>\<slug>\<key>\, the key a hash of every kn5 in the track folder (names and contents).
+# Installing a build brings back the bake made on that same geometry (install-track.ps1), so
+# installing road core and then base again doesn't lose base's bake (retest 6). Two stores: this PC's
+# (%LOCALAPPDATA%\BusseltonAC\vao) and the share's bakes\vao, so a bake made on the workstation also
+# reaches the rig. A store that can't be written (the rig may only read the share) is skipped.
+function Get-BusseltonVaoStores {
+  $s = @()
+  if ($env:LOCALAPPDATA) { $s += (Join-Path $env:LOCALAPPDATA "BusseltonAC\vao") }
+  $share = Get-BusseltonShare
+  if ($share) { $s += (Join-Path $share "bakes\vao") }
+  return $s
+}
+
+# The geometry key of an installed track folder: 16 hex digits, or $null with no kn5.
+function Get-BusseltonGeometryKey([string]$dir) {
+  $list = (Get-ChildItem -LiteralPath $dir -Filter *.kn5 -File -ErrorAction SilentlyContinue | Sort-Object Name |
+      ForEach-Object { "$($_.Name)=$((Get-FileHash -LiteralPath $_.FullName -Algorithm SHA1).Hash)" }) -join ";"
+  if (-not $list) { return $null }
+  $sha = [Security.Cryptography.SHA1]::Create()
+  try { $bytes = $sha.ComputeHash([Text.Encoding]::ASCII.GetBytes($list)) } finally { $sha.Dispose() }
+  return ((($bytes | ForEach-Object { $_.ToString("x2") }) -join "").Substring(0, 16))
+}
+
+# Keeps the track folder's bake under its geometry key in every store. Returns the key, or $null
+# when there's no bake. $key saves computing it again when the caller has it.
+function Save-BusseltonVao([string]$dir, [string]$slug, [string]$key = "") {
+  $patches = @(Get-ChildItem -LiteralPath $dir -Filter *.vao-patch -File -ErrorAction SilentlyContinue)
+  if (-not $patches.Count) { return $null }
+  if (-not $key) { $key = Get-BusseltonGeometryKey $dir }
+  if (-not $key) { return $null }
+  $from = Read-BusseltonInstallMark $dir
+  foreach ($store in @(Get-BusseltonVaoStores)) {
+    try {
+      $d = Join-Path $store "$slug\$key"
+      New-Item -ItemType Directory -Force -Path $d -ErrorAction Stop | Out-Null
+      $patches | Copy-Item -Destination $d -Force -ErrorAction Stop
+      $info = @("; An AO bake kept per build (share.ps1 Save-BusseltonVao).", "track=$slug", "key=$key",
+        "saved=$((Get-Date).ToString('yyyy-MM-dd HH:mm:ss'))", "build_zip=$($from['zip'])", "polish_zip=$($from['polish_zip'])")
+      Set-Content -LiteralPath (Join-Path $d "bake.txt") -Value $info -Encoding ASCII -ErrorAction Stop
+    } catch {
+      Write-Host "  (couldn't keep the AO bake in ${store}: $($_.Exception.Message))" -ForegroundColor DarkGray
+    }
+  }
+  return $key
+}
+
+# Copies the bake kept for the track folder's geometry into it. Returns where it came from, or $null
+# when no store has one.
+function Restore-BusseltonVao([string]$dir, [string]$slug) {
+  $stores = @(Get-BusseltonVaoStores | Where-Object { Test-Path -LiteralPath (Join-Path $_ $slug) })
+  if (-not $stores.Count) { return $null }
+  $key = Get-BusseltonGeometryKey $dir
+  if (-not $key) { return $null }
+  foreach ($store in $stores) {
+    $d = Join-Path $store "$slug\$key"
+    $p = @(Get-ChildItem -LiteralPath $d -Filter *.vao-patch -File -ErrorAction SilentlyContinue)
+    if ($p.Count) {
+      $p | Copy-Item -Destination $dir -Force
+      return $d
+    }
+  }
+  return $null
 }
 
 # Which zip an installed track came from: <track folder>\installed_from.txt, written by
