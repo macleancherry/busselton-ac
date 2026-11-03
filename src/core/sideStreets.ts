@@ -5,7 +5,8 @@
 // verge (and edge line) opens up for the junction mouth.
 //
 // Grade-separated roads (motorways, links, bridges, tunnels) are left out:
-// drawn on the ground they would make crossings that don't exist.
+// drawn on the ground they would make crossings that don't exist. Busselton fork: a bridge that
+// crosses no other road (a river, a drain) is built, as a flat deck (bridges.ts, bridgeDecks).
 
 import type { HeightFn } from "./elevation";
 import type { LngLat, LocalProjection, Vec2 } from "./geo";
@@ -21,6 +22,7 @@ import { ChunkedMesh } from "./scenery";
 import { SEAL_LENGTH } from "./textures";
 import { surfaceKeyFor } from "./unsealed";
 import { PIT_CLASS } from "./pitRoad";
+import { deckBridges, deckGround } from "./bridges";
 
 export interface StreetLine {
   pts: LngLat[];
@@ -79,6 +81,8 @@ export interface SideStreet {
   service?: string;
   /** Busselton fork: OSM surface=* (unsealed.ts). */
   surface?: string;
+  /** Busselton fork: a bridge, built as a flat deck between its ends' ground (bridges.ts). */
+  deck?: true;
 }
 
 /** Grid hash of line segments for "how far to the nearest street" queries. */
@@ -153,9 +157,14 @@ export function planSideStreets(
   const streets: SideStreet[] = [];
   const junctions: Junction[] = [];
 
-  for (const line of lines) {
+  // Busselton fork: bridges over no other road are built as decks (bridges.ts).
+  const decks = opts.bridgeDecks !== false && lines.some((l) => l.brunnel === "bridge")
+    ? deckBridges(lines.map((l) => ({ pts: l.pts.map((p) => proj.toLocal(p)), cls: l.cls, brunnel: l.brunnel })))
+    : new Set<number>();
+  for (const [li, line] of lines.entries()) {
     const width = line.width ?? SIDE_WIDTH[line.cls];
-    if (!width || line.brunnel === "bridge" || line.brunnel === "tunnel" || line.pts.length < 2) continue;
+    const deck = decks.has(li);
+    if (!width || (line.brunnel === "bridge" && !deck) || line.brunnel === "tunnel" || line.pts.length < 2) continue;
     const dense = resample(line.pts.map((p) => proj.toLocal(p)), 2);
     // Keep points clear of the route and its verges, inside the terrain corridor.
     const state = dense.map(([x, y]) => {
@@ -223,7 +232,7 @@ export function planSideStreets(
       const length = pts.reduce((a, p, k) => (k ? a + Math.hypot(p[0] - pts[k - 1][0], p[1] - pts[k - 1][1]) : 0), 0);
       if (length >= 8) {
         const name = nearestName(pts[Math.floor(pts.length / 2)], localNames, 8);
-        streets.push({ pts, width, cls: line.cls, name, joins, ...(line.oneway ? { oneway: line.oneway } : {}), ...(line.service ? { service: line.service } : {}), ...(line.surface ? { surface: line.surface } : {}) });
+        streets.push({ pts, width, cls: line.cls, name, joins, ...(line.oneway ? { oneway: line.oneway } : {}), ...(line.service ? { service: line.service } : {}), ...(line.surface ? { surface: line.surface } : {}), ...(deck ? { deck: true as const } : {}) });
         for (let k = junctions.length - joins.length; k < junctions.length; k++) junctions[k].name = name;
       } else {
         junctions.splice(junctions.length - joins.length, joins.length);
@@ -271,12 +280,19 @@ export function streetSurface(plan: RoadPlan, index: SegmentIndex, opts: BuildOp
     const s = plan.samples[near.seg];
     return surfaceHeight(s, near.t, opts.crown);
   };
+  // Busselton fork: a bridge's deck runs flat from its ends' ground (bridges.ts).
+  const decks = new WeakMap<Vec2[], HeightFn>();
+  const deckAt = (st: SideStreet): HeightFn => {
+    let f = decks.get(st.pts);
+    if (!f) decks.set(st.pts, (f = deckGround(ground, [{ pts: st.pts, width: st.width }], Math.max(...(st.widths ?? [st.width])) / 2)));
+    return f;
+  };
   return (st: SideStreet, k: number, t: number) => {
     const n = st.pts.length;
     const a = st.pts[Math.max(0, k - 1)], b = st.pts[Math.min(n - 1, k + 1)];
     const d = norm([b[0] - a[0], b[1] - a[1]]);
     const x = st.pts[k][0] - d[1] * t, y = st.pts[k][1] + d[0] * t;
-    const draped = ground(x, y) + 0.1;
+    const draped = (st.deck ? deckAt(st)(x, y) : ground(x, y)) + 0.1;
     let along = 0, dJoin = Infinity;
     const at: number[] = [0];
     for (let q = 1; q < n; q++) at.push(at[q - 1] + Math.hypot(st.pts[q][0] - st.pts[q - 1][0], st.pts[q][1] - st.pts[q - 1][1]));

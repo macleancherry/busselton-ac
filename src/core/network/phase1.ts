@@ -107,9 +107,9 @@ export interface JunctionCore {
  */
 export function networkGraph(
   lines: JunctionCoreInput["lines"], rings: JunctionCoreInput["rings"],
-  o: { duals?: boolean; mergeMax?: number } & DualOptions = {},
+  o: { duals?: boolean; mergeMax?: number; bridgeDecks?: boolean } & DualOptions = {},
 ): { graph: Graph; duals: DualInfo[] } {
-  const ways = waysFromStreets(lines, rings);
+  const ways = waysFromStreets(lines, rings, { bridgeDecks: o.bridgeDecks });
   const { ways: w2, duals } = o.duals === false ? { ways, duals: [] } : collapseDuals(ways, o);
   return { graph: buildGraph(w2, o.mergeMax ? { mergeMax: o.mergeMax } : {}), duals };
 }

@@ -216,6 +216,11 @@ export interface BuildOptions {
    * without traffic. Off unless set.
    */
   courseMarks?: CourseMarksOption;
+  /**
+   * Busselton fork: road bridges over no other road (a river, a drain) built as flat street decks
+   * with a railing each side, in both street builders (bridges.ts). On unless false.
+   */
+  bridgeDecks?: boolean;
 }
 
 /** Fields with no default (their readers decide what absent means). */
@@ -226,7 +231,7 @@ export const OPTIONAL_OPTION_KEYS: readonly (keyof BuildOptions)[] = Object.free
   "jettyTrain", "swimJetties", "jettyKinds", "trackSounds", "poleClear", "raceway", "treeMips", "shoreClear",
   "kerbside", "laneBayClear", "parkedBays", "padClear", "trafficLights", "shopNamesOverpass",
   "aiKeepLeft", "aiRings", "streetsValid", "challenges", "timeTrialSectors", "driftZones", "courseMarks",
-  "gridAt", "pits", "pitLane", "circuitKerbs", "gridPaint",
+  "gridAt", "pits", "pitLane", "circuitKerbs", "gridPaint", "bridgeDecks",
 ] as const);
 
 type RequiredFields<T> = { [K in keyof T as undefined extends T[K] ? never : K]: T[K] };

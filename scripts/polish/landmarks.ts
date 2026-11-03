@@ -12,6 +12,14 @@
 //       Prints the spots the base build must clear, as JSON (build-track.mjs reads it).
 //   npx tsx scripts/polish/landmarks.ts <route.json> --list
 //       Prints the landmarks' names and map positions, as JSON (for the automatic test's shots).
+//   npx tsx scripts/polish/landmarks.ts <route.json> <base.zip> --check
+//       Builds them without writing anything and exits non-zero if any building part stands on a
+//       built road or kerb (what the compile only warns about).
+//
+// Every landmark keeps off the base's built roads and kerbs: ground-level parts (paving, hedges,
+// fences, trees, tables, umbrellas, flags, sails, signs on posts) are cut back where they'd stand on
+// one, and the compile lists what it cut. A building on a road is never cut, only reported: fix
+// the spec (routes/landmarks/<slug>.json) or its look's position.
 //
 // Looks come from the route's "looks" files plus HOUSE_LOOKS (comma-separated), as for build-track.mjs.
 
@@ -24,7 +32,7 @@ import { LocalProjection, type LngLat } from "../../src/core/geo";
 import { readKn5, writeKn5 } from "../../src/core/kn5";
 import { surfaceHeight } from "../../src/core/layouts";
 import { landmarkGround } from "../../src/core/landmarkGround";
-import { landmarkClear, landmarkModel } from "../../src/core/landmarkLayer";
+import { LANDMARK_KEEP_OFF, landmarkClear, landmarkModel } from "../../src/core/landmarkLayer";
 import type { HouseSpec } from "../../src/core/specHouse";
 import { drawSignsOn } from "../../src/services/signs";
 import { demTiles } from "./demTiles";
@@ -65,6 +73,9 @@ const proj = new LocalProjection(route.build.origin);
 const dem = await demTiles(resolve(root, "public/dem/wa"), looks.map((l) => l.at));
 const ground = landmarkGround(world, { dem: (x, y) => dem(proj.toLngLat([x, y])) });
 const roads = surfaceHeight(world, /^\d(ROAD|STREET|UNSEALED|UNPAVED)/);
+/** The built road or kerb (not paths, driveways or car parks): where a landmark's yard can't go. */
+const kept = surfaceHeight(world, LANDMARK_KEEP_OFF);
+const blocked = (x: number, y: number) => kept(x, y) !== null;
 /** Unit direction (local x east, y north) from a point to the nearest road within 80 m. */
 const toNearestRoad = (x: number, y: number): [number, number] => {
   for (let r = 2; r <= 80; r += 2) {
@@ -78,8 +89,10 @@ const toNearestRoad = (x: number, y: number): [number, number] => {
 const drawSigns = (names: Parameters<typeof drawSignsOn>[1], w: number, h: number) => drawSignsOn((cw, ch) => createCanvas(cw, ch), names, w, h);
 
 const only = flag("--only");
+const checking = args.includes("--check");
 const out: Record<string, Uint8Array> = {};
 const built: string[] = [];
+const onRoad: string[] = [];
 for (const l of looks) {
   const name = slugOf(l);
   if (only && only !== name) continue;
@@ -87,10 +100,22 @@ for (const l of looks) {
   const toRoad: [number, number] = Number.isFinite(l.facing)
     ? [Math.sin((l.facing! * Math.PI) / 180), Math.cos((l.facing! * Math.PI) / 180)]
     : toNearestRoad(x, y);
-  const lm = landmarkModel(l.spec!, { centre: [x, y], toRoad, z: ground(x, y) + 0.05 }, name, ground, { drawSigns, detailShaders: route.build?.detailShaders !== false });
+  const lm = landmarkModel(l.spec!, { centre: [x, y], toRoad, z: ground(x, y) + 0.05 }, name, ground, { drawSigns, detailShaders: route.build?.detailShaders !== false, blocked });
+  for (const c of lm.clipped) console.warn(`lm_${name}.kn5: ${c}`);
+  for (const o of lm.overRoad) {
+    const line = `lm_${name}.kn5: BUILDING ON THE ROAD: ${o.part}, ${o.area} m2 (fix ${l.specFile} or its look's position)`;
+    console.warn(line);
+    if (o.area >= 1) onRoad.push(line);
+  }
+  if (checking) continue;
   out[`${slug}/lm_${name}.kn5`] = writeKn5(lm.model);
   built.push(`lm_${name}.kn5`);
   console.log(`lm_${name}.kn5: ${lm.triangles} triangles, ${lm.model.materials.length} materials, ground ${ground(x, y).toFixed(2)} m (${ground.source(x, y)})${Number.isFinite(l.facing) ? `, facing ${l.facing}` : ", facing its nearest road"}`);
+}
+
+if (checking) {
+  console.log(onRoad.length ? `${onRoad.length} landmark building parts on the road (1 m2 or more)` : "no landmark buildings on the road");
+  process.exit(onRoad.length ? 1 : 0);
 }
 
 // Every layout's models ini (or the single models.ini) gets the landmarks it doesn't list yet; a

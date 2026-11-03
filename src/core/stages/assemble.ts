@@ -57,7 +57,7 @@ export function assemble(ctx: BuildContext, reg: Registry, a: AssembleInput): Kn
         // Kerb faces lean their normals up so the AO bake doesn't blacken them (kerbAo.ts).
         group("KERBS", softenKerbFaces(gm.kerbsClear.nodes)),
         group("TREES", [...sc.trees, ...(hs.houseTrees.length && !opts.cspTrees ? buildTrees(hs.houseTrees, ground, "HOUSETREES") : [])]),
-        group("RAILS", [...railsClear.nodes, ...sc.rails.posts]),
+        group("RAILS", [...railsClear.nodes, ...sc.rails.posts, ...rm.bridgeRails]),
         group("GUIDEPOSTS", sc.posts),
         group("FARMROAD", sc.farmRoad?.nodes ?? []),
         group("TRAFFICLIGHTS", sc.signals?.nodes ?? []),

@@ -7,6 +7,7 @@ import { dist, type P2 } from "./geom";
 import { edgeProfile, junctionField, type EdgeProfile, type HeightAt, type HeightOptions, type JunctionField } from "./heights";
 import { junctionShape, type JunctionShape } from "./junction";
 import { edgeMesh, junctionMesh, type JunctionMesh, type Tris } from "./mesh";
+import { deckBridges } from "../bridges";
 
 export { buildGraph, junctionShape, junctionField, junctionMesh, edgeProfile, edgeMesh };
 export type { Graph, NetWay, JunctionShape, JunctionField, JunctionMesh, EdgeProfile, Tris, HeightAt };
@@ -66,23 +67,30 @@ export function buildNetwork(ways: NetWay[], height: HeightAt, o: NetworkOptions
   return { graph, junctions, edges, failures };
 }
 
-/** Ways for the network from the build's street lines (exact OSM geometry) and roundabout rings. */
+/**
+ * Ways for the network from the build's street lines (exact OSM geometry) and roundabout rings.
+ * Busselton fork: a bridge that crosses no other road (bridges.ts) is on the ground's layer, so it
+ * joins the street either side as one edge and is built as a deck; `bridgeDecks: false` keeps every
+ * bridge on its own layer (left out).
+ */
 export function waysFromStreets(
   lines: { pts: P2[]; cls: string; oneway?: 1 | -1; brunnel?: string; service?: string; surface?: string }[],
   rings: { pts: P2[]; lanes?: number }[],
+  o: { bridgeDecks?: boolean } = {},
 ): NetWay[] {
+  const decks = o.bridgeDecks !== false && lines.some((l) => l.brunnel === "bridge") ? deckBridges(lines) : new Set<number>();
   const ringKeys = new Set<string>();
   const key = (p: P2) => `${Math.round(p[0] * 1000)},${Math.round(p[1] * 1000)}`;
   for (const r of rings) for (let i = 1; i < r.pts.length; i++) ringKeys.add(key(r.pts[i - 1]) + "|" + key(r.pts[i]));
   const drivable = /^(motorway|trunk|primary|secondary|tertiary|minor|residential|unclassified|living_street|road|service)(_link)?$/;
   const out: NetWay[] = [];
-  for (const l of lines) {
+  for (const [li, l] of lines.entries()) {
     if (!drivable.test(l.cls) || l.pts.length < 2) continue;
     // A street line that runs along a ring is the ring itself.
     const onRing = l.pts.length > 1 && ringKeys.has(key(l.pts[0]) + "|" + key(l.pts[1]));
     if (onRing) continue;
     out.push({
-      pts: l.pts, cls: l.cls, ...(l.oneway ? { oneway: l.oneway } : {}), ...(l.brunnel === "bridge" ? { layer: 1 } : l.brunnel === "tunnel" ? { layer: -1 } : {}),
+      pts: l.pts, cls: l.cls, ...(l.oneway ? { oneway: l.oneway } : {}), ...(l.brunnel === "bridge" && !decks.has(li) ? { layer: 1 } : l.brunnel === "tunnel" ? { layer: -1 } : {}),
       ...(l.service ? { service: l.service } : {}), ...(l.surface ? { surface: l.surface } : {}),
     });
   }

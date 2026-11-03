@@ -109,7 +109,8 @@ export function buildHouses(ctx: BuildContext, g: Ground, bp: BuildingPlan, gm: 
       const z = probe.footprints.length
         ? Math.min(...probe.footprints.map((f) => (onBaseRing(f) ? ground.underRing(f) : horizonGround(...centroid(f)))))
         : buildingGround(at[0], at[1]);
-      const house = buildSpecHouse(look.spec, { centre: at, toRoad, z }, tag);
+      // Its yard keeps off the road and kerb (a kerb's width past the asphalt's edge).
+      const house = buildSpecHouse(look.spec, { centre: at, toRoad, z }, tag, { blocked: (x, y) => roadGap(x, y) < 0.3 });
       removeIn(house.footprints);
       for (const f of house.facades) reg.building(`facade_${f.name}`, facadeTexture(f), L(0.45, 0.45, 0.05, 10), 3);
       for (const r of house.roofs) {

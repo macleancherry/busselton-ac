@@ -18,6 +18,7 @@ import { buildRoadMeshes, type RoadMeshes } from "../roadMesh";
 import { outerRadius } from "../roundabout";
 import { topSurface } from "../sceneGround";
 import { buildSideStreets, streetSurface, type SideStreet } from "../sideStreets";
+import { bridgeRailings, deckGround, deckRuns, decksOf, type Deck } from "../bridges";
 import { displayOf } from "../trace";
 import { isUnsealed, surfaceKeyFor } from "../unsealed";
 import type { BuildContext } from "./context";
@@ -39,6 +40,8 @@ export interface RoadSurfaces {
   sideStreets: Kn5MeshNode[];
   /** networkCore phase 2's street meshes (dress, markings, kerbed streets). */
   netStreets: StreetMeshes | null;
+  /** Busselton fork: railings along the bridge decks (bridges.ts). */
+  bridgeRails: Kn5MeshNode[];
 }
 
 const pad3 = (i: number) => String(i).padStart(3, "0");
@@ -187,6 +190,10 @@ export function buildRoadSurfaces(
     const mid = s.pts[Math.floor(s.pts.length / 2)];
     return sf.roadMaterial(i, s.width, { ...plan.samples[0], pos: mid });
   };
+  // Busselton fork: bridges as flat decks (bridges.ts). The old side streets carry their own (`deck`);
+  // networkCore's streets drape on deckGround, which is flat over each bridge's span.
+  const decks: Deck[] = opts.bridgeDecks === false ? [] : st.net2 ? decksOf(st.netLines) : streets.filter((s) => s.deck).map((s) => ({ pts: s.pts, width: s.width }));
+  const deckH = deckGround((x, y) => g.terrainAt(x, y).h, decks);
   // networkCore phase 2's streets are meshed from the graph's plan with kerbs, medians and markings.
   const netStreets = st.net2 && net ? (() => {
     const jn = net;
@@ -195,7 +202,7 @@ export function buildRoadSurfaces(
       return nr ? nr.dist - index.at(nr).width / 2 : Infinity;
     };
     return buildStreetMeshes(streets as MeshStreet[], {
-      ground: jn.streetGround((x, y) => g.terrainAt(x, y).h), lift: 0.1, skip: jn.streetSkip as (s: MeshStreet, s0: number, s1: number) => boolean,
+      ground: jn.streetGround(deckH), lift: 0.1, skip: jn.streetSkip as (s: MeshStreet, s0: number, s1: number) => boolean,
       joinZ: ([x, y]) => {
         const nr = index.nearest(x, y, 40);
         if (!nr) return null;
@@ -211,5 +218,9 @@ export function buildRoadSurfaces(
   const sideStreets = netStreets ? netStreets.road
     : buildSideStreets(streets, plan, index, opts, net ? net.streetGround((x, y) => g.terrainAt(x, y).h) : (x, y) => g.terrainAt(x, y).h, sideMaterial, net?.streetSkip);
 
-  return { roadMeshes, kerbReturns, kerbMeshes, verge, vergeConcrete, sideStreets, netStreets };
+  // The railings stand on the deck, just inside its edges.
+  const railZ = st.net2 && net ? net.streetGround(deckH) : deckH;
+  const bridgeRails = decks.length ? bridgeRailings(deckRuns(streets, decks), (x, y) => railZ(x, y) + 0.1) : [];
+
+  return { roadMeshes, kerbReturns, kerbMeshes, verge, vergeConcrete, sideStreets, netStreets, bridgeRails };
 }

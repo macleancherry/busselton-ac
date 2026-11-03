@@ -58,6 +58,7 @@ export async function planStreets(ctx: BuildContext, rp: RoutePlan, tr: Traced, 
   const net2 = withNet && area && opts.sideStreets ? planNetworkStreets({
     lines: netLines, rings: netRings, names: (sources.streets?.names ?? []).map((n) => ({ name: n.name, pts: ctx.line(n.pts) })),
     route: routeRibbon, builtRings: plan.roundabouts, inArea: ([x, y]) => area.signed(x, y) < -3, corridor: opts.corridor, vergeWidth: opts.vergeWidth,
+    bridgeDecks: opts.bridgeDecks,
   }) : null;
   if (net2) {
     streetPlan.streets = net2.streets as SideStreet[];
