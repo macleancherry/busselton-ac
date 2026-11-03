@@ -178,7 +178,7 @@ export function bridgeRailings(decks: Deck[], surface: HeightFn): Kn5MeshNode[] 
         const r0 = ring[k - 1], r1 = ring[k];
         slab(plinth, r0.p, r1.p, r0.out, 0, PLINTH_W, r0.z, r1.z, -0.05, PLINTH_H);
         for (const rz of RAIL_ZS) slab(rail, r0.p, r1.p, r0.out, PLINTH_W / 2 - 0.03, PLINTH_W / 2 + 0.03, r0.z, r1.z, rz - RAIL_H, rz);
-        slab(wall, r0.p, r1.p, r0.out, 0, PLINTH_W, r0.z, r1.z, -0.2, WALL_H);
+        slab(wall, r0.p, r1.p, r0.out, 0, PLINTH_W, r0.z, r1.z, 0, WALL_H);
       }
       // Posts every 2 m, centred on the upstand.
       const total = ring[ring.length - 1]?.s ?? 0;
