@@ -65,9 +65,11 @@ export async function buildGroundMeshes(
     if (node) backdropNodes.push(node);
   }
   // Busselton fork: the walls open where another layout's drive crosses them (Collie's short layout
-  // took its southern link through the long layout's wall in retest 6). 10 m: a raceway's width.
+  // took its southern link through the long layout's wall in retest 6). 16 m: a raceway's width, plus
+  // room for a drive cutting a junction corner inside the drive's own coordinates (the town layout's
+  // AI line passed 0.9 m from the main drive's wall at Queen and Albert, sights 0.4 m, at 10 m).
   const drives = (opts.layoutDrives ?? []).filter((d) => d.coords.length > 1);
-  const driveIndex = drives.length ? new LineIndex(drives.map((d) => ({ pts: d.coords.map(ctx.toLocal), width: 10 }))) : null;
+  const driveIndex = drives.length ? new LineIndex(drives.map((d) => ({ pts: d.coords.map(ctx.toLocal), width: 16 }))) : null;
   // Busselton fork: and where they come within AI_WALL_GAP of the AI line (the inside of a junction
   // turn: retest 6's town and sights layouts had walls 0.4 to 0.9 m off it). The line as files.ts
   // builds it, without the bays (they move it by centimetres).
