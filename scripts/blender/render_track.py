@@ -22,6 +22,7 @@ What the importer gets wrong for a track, put right here:
 """
 import json
 import math
+import os
 import sys
 import time
 
@@ -30,6 +31,11 @@ import numpy as np
 from mathutils import Vector
 
 SUN = (0.25, 0.55, 0.8)  # towards the sun: high in the north, as at midday in WA
+# RENDER_MOOD=golden: afternoon, the sun lower in the west (SUN_DIR), warmer light, a bluer sky and
+# more contrast (RENDER_LOOK): for pictures, not for checking.
+GOLDEN = os.environ.get("RENDER_MOOD") == "golden"
+if GOLDEN:
+    SUN = tuple(float(v) for v in os.environ.get("SUN_DIR", "-0.55,0.45,0.7").split(","))
 
 
 def args():
@@ -232,19 +238,22 @@ def setup_scene(samples, res):
     sep = nt.nodes.new("ShaderNodeSeparateXYZ")
     ramp = nt.nodes.new("ShaderNodeValToRGB")
     ramp.color_ramp.elements[0].position = 0.0
-    ramp.color_ramp.elements[0].color = (0.62, 0.74, 0.88, 1)  # pale at the horizon
+    ramp.color_ramp.elements[0].color = (0.98, 0.76, 0.52, 1) if GOLDEN else (0.62, 0.74, 0.88, 1)  # pale at the horizon
     ramp.color_ramp.elements[1].position = 0.6
-    ramp.color_ramp.elements[1].color = (0.18, 0.38, 0.78, 1)  # deeper blue overhead
+    ramp.color_ramp.elements[1].color = (0.26, 0.42, 0.76, 1) if GOLDEN else (0.18, 0.38, 0.78, 1)  # deeper blue overhead
     nt.links.new(coords.outputs["Generated"], sep.inputs["Vector"])
     nt.links.new(sep.outputs["Z"], ramp.inputs["Fac"])
     nt.links.new(ramp.outputs["Color"], bg.inputs["Color"])
     bg.inputs["Strength"].default_value = 1.0
     nt.links.new(bg.outputs["Background"], out.inputs["Surface"])
-
+    if GOLDEN:  # a clearer sky: pale at the horizon (Generated Z = 0), deep blue higher up
+        els = ramp.color_ramp.elements
+        els[0].position, els[0].color = 0.0, (0.78, 0.87, 0.97, 1)
+        els[1].position, els[1].color = 0.3, (0.2, 0.44, 0.9, 1)
     ld = bpy.data.lights.new("sun", "SUN")
-    ld.energy = 4.5
+    ld.energy = 5.0 if GOLDEN else 4.5
     ld.angle = math.radians(1.0)
-    ld.color = (1.0, 0.97, 0.92)
+    ld.color = (1.0, 0.9, 0.78) if GOLDEN else (1.0, 0.97, 0.92)
     sun = bpy.data.objects.new("sun", ld)
     scene.collection.objects.link(sun)
     sun.rotation_euler = Vector(SUN).normalized().to_track_quat("Z", "Y").to_euler()
@@ -272,6 +281,11 @@ def setup_scene(samples, res):
     scene.render.image_settings.file_format = "PNG"
     scene.render.image_settings.color_mode = "RGB"
     scene.view_settings.exposure = -0.3
+    if GOLDEN:
+        try:
+            scene.view_settings.look = os.environ.get("RENDER_LOOK", "AgX - Punchy")
+        except TypeError as e:
+            print(f"look not set: {e}")
 
     cd = bpy.data.cameras.new("cam")
     cd.clip_start = 0.1
