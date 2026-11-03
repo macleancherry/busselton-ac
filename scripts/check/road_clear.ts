@@ -52,7 +52,12 @@ if (!slug) throw new Error(`no <slug>/<slug>.kn5 in ${zipPath}`);
 const zipBase = basename(zipPath, ".zip");
 
 // ---- the route: origin and area ----
-const routePath = opt("--route") ?? [join(root, "routes", `${slug}.json`), join(root, "routes/private", `${slug}.json`)].find(existsSync);
+// A route file named unlike its slug (routes/caves-road.json builds caves_road_yallingup): the
+// build's out/<slug>.inputs.json names it.
+const inputs = join(root, "out", `${slug}.inputs.json`);
+const builtFrom = existsSync(inputs) ? (JSON.parse(readFileSync(inputs, "utf8")) as { route?: string }).route : undefined;
+const routePath = opt("--route") ?? [`${slug}.json`, ...(builtFrom ? [basename(builtFrom)] : [])]
+  .flatMap((f) => [join(root, "routes", f), join(root, "routes/private", f)]).find(existsSync);
 const route = routePath ? JSON.parse(readFileSync(routePath, "utf8")) : {};
 const origin = (opt("--origin")?.split(",").map(Number) ?? route.build?.origin) as LngLat | undefined;
 if (!origin) throw new Error("no origin: pass --route with build.origin, or --origin lng,lat");
