@@ -8,6 +8,7 @@ import { readKn5, type Kn5GroupNode, type Kn5MeshNode, type Kn5Node } from "../s
 import { clearOfRoute, KEEP_OFF, onRoute } from "../src/core/clearance";
 import { SegmentIndex } from "../src/core/road";
 import { readFastLaneAi } from "../src/core/aiSpline";
+import { lineDistance, PIT_CLEAR } from "../src/core/pitRow";
 import { zipTrack } from "../src/core/zip";
 import { encodePng } from "../src/core/png";
 import type { ArtRequest } from "../src/core/art";
@@ -110,7 +111,7 @@ describe("a point-to-point road over hills, ending in a hairpin", () => {
   it("spawns every car behind the start, on the asphalt, facing up the road", () => {
     const startS = r.plan.samples[r.plan.timed!.start].s;
     const grid = nodes.map((n) => n.name).filter((n) => /^AC_START_\d+$/.test(n)).sort((a, b) => Number(a.slice(9)) - Number(b.slice(9)));
-    for (const name of [grid[0], grid[grid.length - 1], "AC_PIT_0", "AC_HOTLAP_START_0"]) {
+    for (const name of [grid[0], grid[grid.length - 1], "AC_HOTLAP_START_0"]) {
       const p = where(name), t = dummy(name);
       const smp = r.plan.samples[nearestSample(r, p)];
       expect(smp.s, name).toBeLessThan(startS);
@@ -118,6 +119,15 @@ describe("a point-to-point road over hills, ending in a hairpin", () => {
       expect(across, name).toBeLessThan(smp.width / 2 - 0.5);
       // The car's +Z axis, as local east and north.
       expect(t[8] * smp.tan[0] - t[10] * smp.tan[1], name).toBeGreaterThan(0.95);
+    }
+  });
+
+  it("puts every pit box off the AI line (a pit row, pitRow.ts), never on the grid", () => {
+    const ai = readFastLaneAi(r.files[`${r.slug}/ai/fast_lane.ai`]);
+    const dist = lineDistance([ai]);
+    for (let k = 0; k < 8; k++) {
+      const t = dummy(`AC_PIT_${k}`);
+      expect(dist(t[12], t[14]), `AC_PIT_${k}`).toBeGreaterThanOrEqual(PIT_CLEAR);
     }
   });
 

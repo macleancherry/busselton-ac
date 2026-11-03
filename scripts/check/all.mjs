@@ -4,7 +4,7 @@
 //
 // Runs: check_build (spikes, heights), budget, layout_check and course_marks_check (when it has layouts), dump_surface then
 // surface_check, line_check (AI line folds, Armco and corridor walls by the line) and street_ground, path_ground, ground_check (placed things on the ground, parked cars
-// off the roads), shore_check (no trees on water, sand, groynes or jetties; nothing on water), parked_check (parked cars in bays, on asphalt, not overlapping), road_clear (nothing standing on the roads, no holes in the streets, the shared paths all there), traffic_check and lane_bay_check (when it has traffic). Exits non-zero if any fails.
+// off the roads), shore_check (no trees on water, sand, groynes or jetties; nothing on water), parked_check (parked cars in bays, on asphalt, not overlapping), road_clear (nothing standing on the roads, no holes in the streets, the shared paths all there), pit_check (pit boxes off every AI line, each layout's pit lane its own), traffic_check and lane_bay_check (when it has traffic). Exits non-zero if any fails.
 // The headline numbers (triangles, AI off the road per layout, tilt, edge steps, ground through
 // streets, traffic loose ends) go in the JSON, so scripts/upgrade/base.mjs can compare two builds.
 
@@ -95,6 +95,12 @@ summary.treesOnRoad = num(r.text, /trees on the road: (\d+)/);
 summary.streetHoles = num(r.text, /street holes [^:]*: (\d+)/);
 summary.streetsNeverBuilt = num(r.text, /OSM streets never built in the area: (\d+)/);
 summary.sharedPathGaps = num(r.text, /shared path gaps \(5 m or more\): (\d+)/);
+
+// Busselton fork: pit boxes off every AI line, and a pit lane of their own (pit_check.ts).
+r = run("pits", "npx", ["tsx", "scripts/check/pit_check.ts", `out/${slug}.zip`]);
+results.push(r);
+summary.pitsOnLine = [...r.text.matchAll(/^\s+AC_PIT_\d+ [\d.]+ m from \w+'s AI line/gm)].length;
+summary.pitLanes = [...r.text.matchAll(/; pit lane \d+ m/g)].length;
 
 if (names.some((n) => n.endsWith("traffic.json"))) {
   r = run("traffic", "python3", ["-I", "scripts/check/traffic_check.py", `out/${slug}.zip`, `out/${slug}.surface.json`]);

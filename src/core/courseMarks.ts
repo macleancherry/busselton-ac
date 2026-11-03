@@ -369,7 +369,16 @@ export interface CourseLayoutInput {
   bays?: BayBox[];
   /** The layout's dummies (AC_START_n, AC_TIME_0_L/R), for the grid and the start. */
   dummies?: Kn5GroupNode[];
+  /**
+   * Busselton fork: points of the layout's pit lane off the AI line, and its pit boxes (local x, y):
+   * no board or barrier within PIT_KEEP of them (pitRow.ts puts the pit row on a verge, where an
+   * arrow board stood in its lane: retest 6 fix).
+   */
+  pitKeep?: Vec2[];
 }
+
+/** Boards and barriers keep this far from the pit lane and its boxes, metres. */
+export const PIT_KEEP = 3;
 
 const signedAngle = (a: Vec2, b: Vec2) => Math.atan2(cross(a, b), dot(a, b)) * 180 / Math.PI;
 
@@ -1207,12 +1216,14 @@ export function courseMarks(input: CourseLayoutInput, settings: CourseMarksSetti
     const w = g.nearest(q, aiGap);
     return !w || w.d >= aiGap;
   };
+  const pitKeep = input.pitKeep ?? [];
+  const offPit = (q: Vec2) => !pitKeep.some((p) => dist(p, q) < PIT_KEEP);
   for (const m of mouths) {
     const fallback = c.h[m.i];
     const r = m.kind === "ring" ? found.rings.find((x) => x.ring === m.ring) : undefined;
     stripMesh(mm, probe, m.strip, m.dir, fallback, "1RIPPLE", r ? offRing(r, -0.6, 2.5) : offCourse(-0.1));
     closedPatch(mm, probe, m.strip, m.dir, fallback, r ? offRing(r, 0.3, 3) : offCourse(0.3));
-    if (settings.barriers && m.barrier && m.kind !== "entry") barrierMesh(mm, probe, m.barrier[0], m.barrier[1], fallback, input.bays, settings.solid, r ? offRing(r, 1.0, 2.5) : offCourse(1.0));
+    if (settings.barriers && m.barrier && m.kind !== "entry") barrierMesh(mm, probe, m.barrier[0], m.barrier[1], fallback, input.bays, settings.solid, (q) => offPit(q) && (r ? offRing(r, 1.0, 2.5) : offCourse(1.0))(q));
   }
   // Phase 2: the rings the course uses, chevrons, arrows, the inside of each turn.
   let boards = 0, arrows = 0, apexes = 0;
@@ -1234,6 +1245,7 @@ export function courseMarks(input: CourseLayoutInput, settings: CourseMarksSetti
     const back = m.side ? mul(leftOf(c.t[m.i]), m.side) : m.dir;
     for (let k = 0; k < count; k++) {
       const q = add(add(a, mul(sub(b, a), (k + 0.5) / count)), mul(back, 0.4));
+      if (!offPit(q)) continue;
       board(mm, probe, q, face, m.turn, TURN_BOARD, c.h[m.i]);
       boards++;
     }
@@ -1242,7 +1254,7 @@ export function courseMarks(input: CourseLayoutInput, settings: CourseMarksSetti
     if (t.ring === undefined && apexStrip(mm, probe, c, found.edges, t)) apexes++;
     if (!settings.arrows) continue;
     const spot = arrowSpot(c, probe, found.edges, t, found.turns, mouths);
-    if (!spot) continue;
+    if (!spot || !offPit(spot.pos)) continue;
     board(mm, probe, spot.pos, spot.face, t.dir, ARROW_BOARD, c.h[t.from], "arrow");
     arrows++;
   }
@@ -1289,6 +1301,22 @@ export interface MarkWorld {
  * loses the traffic tag), and data/course_marks.json says what was laid, for the checks. Returns
  * the files to delete from the zip, and a summary.
  */
+/**
+ * Busselton fork: the layout's pit lane where it's off the AI line (more than 2 m), every metre or
+ * so, and its pit boxes, local x, y (courseMarks pitKeep).
+ */
+export function pitKeepOut(ai: AiPoint[], pitFile: Uint8Array | undefined, dummies: Kn5GroupNode[]): Vec2[] {
+  const out: Vec2[] = dummies.filter((d) => /^AC_PIT_\d+$/.test(d.name)).map((d) => [d.transform[12], -d.transform[14]]);
+  if (!pitFile) return out;
+  const line = ai.map((a): Vec2 => [a.position[0], -a.position[2]]);
+  const near = (q: Vec2) => line.some((p) => Math.abs(p[0] - q[0]) < 2 && Math.abs(p[1] - q[1]) < 2 && dist(p, q) < 2);
+  for (const p of readFastLaneAi(pitFile)) {
+    const q: Vec2 = [p.position[0], -p.position[2]];
+    if (!near(q)) out.push(q);
+  }
+  return out;
+}
+
 export function courseMarkLayout(files: Record<string, Uint8Array>, world: MarkWorld, id: string, opt: CourseMarksOption): { drop: string[]; summary: Record<string, unknown> } | null {
   const settings = courseMarksSettings(opt);
   if (!settings) return null;
@@ -1297,7 +1325,8 @@ export function courseMarkLayout(files: Record<string, Uint8Array>, world: MarkW
   if (!aiFile || !kn5File) return null;
   const layout = readKn5(kn5File);
   const dummies = layout.root.children.filter((n): n is Kn5GroupNode => n.kind === "node");
-  const marks = courseMarks({ ai: readFastLaneAi(aiFile), lines: world.lines, rings: world.rings, probe: world.probe, bays: world.bays, dummies }, settings);
+  const ai = readFastLaneAi(aiFile);
+  const marks = courseMarks({ ai, lines: world.lines, rings: world.rings, probe: world.probe, bays: world.bays, dummies, pitKeep: pitKeepOut(ai, files[`${slug}/${id}/ai/pit_lane.ai`], dummies) }, settings);
   const model: Kn5Model = {
     textures: [...layout.textures, ...marks.textures],
     materials: [...layout.materials, ...marks.materials],

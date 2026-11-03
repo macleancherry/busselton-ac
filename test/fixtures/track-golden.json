@@ -1,10 +1,10 @@
 {
  "a": {
   "files": {
-   "golden_hills/golden_hills.kn5": "3f9120c513b9f5962331ba67cfc07143b6c0115515ff3a3e47868b3066103514",
+   "golden_hills/golden_hills.kn5": "4d78c1f8d0e4bef0d25fcf1f160117cca8a7c2af579fb658908d5b6c90af3094",
    "golden_hills/ai/fast_lane.ai": "676a3c02b4151ad22f4d941fca0a36a256da0b71e3f783988b854b2d38205b8b",
    "golden_hills/data/ideal_line.ai": "676a3c02b4151ad22f4d941fca0a36a256da0b71e3f783988b854b2d38205b8b",
-   "golden_hills/ai/pit_lane.ai": "d834bdb5452d61fcc59dc10cf160999ca3d6e52d7ec1c036869e4e20f89d46f5",
+   "golden_hills/ai/pit_lane.ai": "70e7e73250f9de06dd0662b9e2f7ace13df165088de5e66101a6a4ab52bf1f82",
    "golden_hills/data/ai_hints.ini": "783985f926d0abc2731b62bdac9af19a1e323d1580581f402a0454e1de89a2e0",
    "golden_hills/data/surfaces.ini": "eccbc0c9bb33d79805569456d9563d4b6f71c814ca2ee2481eb96b0d25596d7c",
    "golden_hills/data/map.ini": "89a0e31358879adb8310a57d4c62a6f4915ca75ac9ba64e84f350d34f18785fa",
@@ -91,10 +91,10 @@
   "files": {
    "golden_country/extension/sfx/README.txt": "d07b1a5007763b85fae2b3ea989ab780b5483605ff8155ae926d3641c918580e",
    "golden_country/extension/sounds.lua": "6a2259303ca9ab6ad1481ab8100278952e9255fa06827b45adef291d7f3aa156",
-   "golden_country/golden_country.kn5": "4e4fc6585924a0acb2125e75c765753b047a20c6ffce099d5e7a92135d40d964",
+   "golden_country/golden_country.kn5": "0250a4a5d3ca0a5ec6fcea89418643b69c3fbb45ae1c3ad4fdc2a7393d672ad6",
    "golden_country/ai/fast_lane.ai": "e9e0a8921e09a63d7eb3a6c9e82c46c9208e925296de8e6ea07a590f0013f25e",
    "golden_country/data/ideal_line.ai": "e9e0a8921e09a63d7eb3a6c9e82c46c9208e925296de8e6ea07a590f0013f25e",
-   "golden_country/ai/pit_lane.ai": "f5ab7d1f049c03e07b2c50cea785a591b5d034105075af265b8769f1d432762c",
+   "golden_country/ai/pit_lane.ai": "49d1b8284cce08d2b21fd2959b8a9bdf53a224281ee7419172e96dac47c0c1dc",
    "golden_country/data/ai_hints.ini": "a5ebaae99626eb40b3bd2ad3993e0c01680c8978410167787fb30bccf8c32171",
    "golden_country/data/surfaces.ini": "ff67267e3e0c70841b332316bb592e0895f05de5ccc62aed60f2f2bec305a9ec",
    "golden_country/data/traffic.json": "c5f14c864e039984a84530a51fcaafd6e8fa4fd253df7365af1510114d51a532",
@@ -190,7 +190,7 @@
    "golden_loop/golden_loop.kn5": "299e15f1c7bc5720aadebcdfb57d62901e4c36f578e4b32bc558eb3ec961f40b",
    "golden_loop/main/ai/fast_lane.ai": "e2b0800deeec12f579a4a74454a75575bef7aca75b59f1545a6ae8d1a8644c08",
    "golden_loop/main/data/ideal_line.ai": "e2b0800deeec12f579a4a74454a75575bef7aca75b59f1545a6ae8d1a8644c08",
-   "golden_loop/main/ai/pit_lane.ai": "ab655f18ae7637f50a84544846c5d98d084a288b4a4bd6f32a8fa57f59866967",
+   "golden_loop/main/ai/pit_lane.ai": "7dd249efb3dbb7e3810f465e4503c1d29d7c226fea4530dc0506eda4fae49cba",
    "golden_loop/main/data/ai_hints.ini": "0fd51866f1caaf5c44f62c43d12979e5efe5be04c1444b1626a7f4369fd95332",
    "golden_loop/main/data/surfaces.ini": "add39a6d2fab44be9222b57ec154b300cf8e199a634c98389f55eeee1cd0bd5f",
    "golden_loop/main/data/traffic.json": "e6966670af80e9646bcb902225b41795157f8b84f54db486aec0cbf2c9805ee2",
@@ -211,7 +211,7 @@
    "golden_loop/ui/main/outline.png": "926c625f6cc2494c55f18aab1b0acd34a76b10d394bda84530443f01392c5276",
    "golden_loop/ui/main/preview.png": "092419a423758e603f68284a95d67f70d2f8896c5770c4383683a47217ae5f18",
    "golden_loop/README.txt": "0ac6a7223a771394549c1f077035aa2b3d85c23aec54087f4289b71d0d613fcd",
-   "golden_loop/layout_main.kn5": "96d5f0270ffe3b37f674fa9c82f75f76d1bea2282aac217b7a378ffd5bb4548f",
+   "golden_loop/layout_main.kn5": "0f88034517aea3eeede41e654ce186d48c19fa04d5d1ce175e6126789e91d24f",
    "golden_loop/models_main.ini": "0d296e4021271d3b63b293c4c4b7eff621f35460beda87a2fa60b700922b15e1"
   },
   "stats": {
@@ -288,7 +288,7 @@
    "golden_coast/golden_coast.kn5": "13a91447cb3037d81070ae28ac249262de9b9c2c35b5c407375bfdd7c8c8ee9d",
    "golden_coast/main/ai/fast_lane.ai": "419d3d18f96a1c50965214554766aaced3d81fa04ee637d49d237e4440dc3dd6",
    "golden_coast/main/data/ideal_line.ai": "419d3d18f96a1c50965214554766aaced3d81fa04ee637d49d237e4440dc3dd6",
-   "golden_coast/main/ai/pit_lane.ai": "db1820d66f890cd659eb31973ccdfd827833b24d9b64677282e4e47acfb68c69",
+   "golden_coast/main/ai/pit_lane.ai": "647bbae093f1573de8e5643729790665042f205164a17bc5aefbdc285a0bba6d",
    "golden_coast/main/data/ai_hints.ini": "2cc44112dab64d8ee37bf1e5a54343701ca3e88378739344c33f46bc40827bcc",
    "golden_coast/main/data/surfaces.ini": "add39a6d2fab44be9222b57ec154b300cf8e199a634c98389f55eeee1cd0bd5f",
    "golden_coast/main/data/traffic.json": "b9b824c2c4c688d2737bdaeeae7a9869515600e13e03f8cfdbcd7efa2c7f789f",
@@ -311,7 +311,7 @@
    "golden_coast/ui/main/outline.png": "d1d10d013ad07d79e640ee0b14e7f0c4890960b8073f45b8910c1f7b69c331e2",
    "golden_coast/ui/main/preview.png": "342bd2bb6a25dbbb22bd14178c6aa48bb02422d251162dc296ff6278b6d2dca4",
    "golden_coast/README.txt": "650fabb705abfef85ce096b9fc4056bf7b74a2e4ddad04017f249d7216b05a63",
-   "golden_coast/layout_main.kn5": "1becc1746981dfcef3c55d360e4db49d6446c8f69cc468bbc7b3506a83f03b07",
+   "golden_coast/layout_main.kn5": "a0c77a79d90b1d3e2d6e484bd7f258778b12f685c96c6423f00d0d291ec0c213",
    "golden_coast/models_main.ini": "e5e27e1ecfb4ad49781b52e0241ee2428b43dfa7c4c4db27662192ead82db379"
   },
   "stats": {
@@ -391,7 +391,7 @@
    "golden_town/golden_town.kn5": "c1361db28e8eb56b375db7db9ed866c61f69a2b98803343dd7d7b865e99612fb",
    "golden_town/main/ai/fast_lane.ai": "d8310c94cd00d5bc49aa83097a6f7d0931c983977dd5e3d4354fe3dece77ac48",
    "golden_town/main/data/ideal_line.ai": "d8310c94cd00d5bc49aa83097a6f7d0931c983977dd5e3d4354fe3dece77ac48",
-   "golden_town/main/ai/pit_lane.ai": "e848c357359ed287b663f6bf66edc6d801c13ba0030f444812433b0c124f1e8e",
+   "golden_town/main/ai/pit_lane.ai": "d8b398daae5572dacdb77b122640a7a9b0c390fe8d7faa6548591a35dace49b9",
    "golden_town/main/data/ai_hints.ini": "cf84baf930b20f6500750a9614fea63da2222c0db34e1c4d3c5837491433ab6d",
    "golden_town/main/data/surfaces.ini": "add39a6d2fab44be9222b57ec154b300cf8e199a634c98389f55eeee1cd0bd5f",
    "golden_town/main/data/traffic.json": "dc1fa3ff84e162049c0e57ee1b215918ea73c2da5245fb3eb1cab6c07bf59a8e",
@@ -414,7 +414,7 @@
    "golden_town/ui/main/outline.png": "4dadbe1f161fc027caa8898b4d6a35bd23e7f4e3b7a39d8074c954b166893079",
    "golden_town/ui/main/preview.png": "4e91f37996ca5cc958c1cceba89b293398a5f8fa1fc0367d61831afaae40f722",
    "golden_town/README.txt": "12673691fb4df70650ea4ac494dc702d4d7c3db6a59030e76dbb9e862d8177ff",
-   "golden_town/layout_main.kn5": "9556303ff0445c6df684b5349d12ce0c122003bc644da49812e8ea48b396a54e",
+   "golden_town/layout_main.kn5": "6a0d70a600a63745e434778c2f61b0988c9f30e9ce306f61598b6b3f84c30983",
    "golden_town/models_main.ini": "96bb420cc6bfbe5e9a87f69695f56345185d9dfc6705983855c3aeb00a96ebf6"
   },
   "stats": {
@@ -497,10 +497,10 @@
  },
  "f": {
   "files": {
-   "golden_network/golden_network.kn5": "cd8db8fd3a3eff835dfc5a3b064f04bc34c9f2851d1f6dce83a8b3005818b153",
+   "golden_network/golden_network.kn5": "85282a88eb0cec49250eeed375a2d4e09265303e4288499f0f6a8dd4596074d1",
    "golden_network/ai/fast_lane.ai": "e2b0800deeec12f579a4a74454a75575bef7aca75b59f1545a6ae8d1a8644c08",
    "golden_network/data/ideal_line.ai": "e2b0800deeec12f579a4a74454a75575bef7aca75b59f1545a6ae8d1a8644c08",
-   "golden_network/ai/pit_lane.ai": "ab655f18ae7637f50a84544846c5d98d084a288b4a4bd6f32a8fa57f59866967",
+   "golden_network/ai/pit_lane.ai": "7dd249efb3dbb7e3810f465e4503c1d29d7c226fea4530dc0506eda4fae49cba",
    "golden_network/data/ai_hints.ini": "0fd51866f1caaf5c44f62c43d12979e5efe5be04c1444b1626a7f4369fd95332",
    "golden_network/data/surfaces.ini": "6c9e0ef722328318a268884391f0ad1c9f73c365c04697cad7342c9783ba7939",
    "golden_network/data/traffic.json": "f87c3e74b6ccd67cb00866f73db025d38e70de912dac4f1617ad34ecc6a38ff2",

@@ -1,9 +1,10 @@
-// Busselton fork: where the race grid and the pit boxes go. AC has no pit lane on these tracks, so
-// every car starts on the road: the grid (AC_START_n) and the boxes (AC_PIT_n) are spots on the
-// AI line. A grid laid back from the start line, whatever the road does there, put cars round a
-// roundabout at angles, side-on across an exit, and the back of the grid never got going (retest 3,
-// 31 Oct). So the grid goes on the nearest straight stretch before the line that is clear of
-// roundabouts and junctions, nose to tail along the line, and AI Flood's boxes on straights too.
+// Busselton fork: where the race grid and free roam's spawns go. Every car starts on the road: the
+// grid (AC_START_n) is spots on the AI line. A grid laid back from the start line, whatever the road
+// does there, put cars round a roundabout at angles, side-on across an exit, and the back of the
+// grid never got going (retest 3, 31 Oct). So the grid goes on the nearest straight stretch before
+// the line that is clear of roundabouts and junctions, nose to tail along the line, and free roam's
+// spawns on straights too. The pit boxes (AC_PIT_n) are not these spots: they go in a pit row off
+// the road (pitRow.ts).
 
 import type { RoadPlan } from "./road";
 import { outerRadius } from "./roundabout";

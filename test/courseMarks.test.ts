@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { AiPoint } from "../src/core/aiSpline";
 import { writeFastLaneAi } from "../src/core/aiSpline";
 import {
-  BARRIER_BACK, courseMarkLayout, courseMarks, courseMarksSettings, findMouths, MARK_MESH, surfaceKind, surfaceProbe, withMarkSurfaces,
+  BARRIER_BACK, courseMarkLayout, courseMarks, courseMarksSettings, findMouths, MARK_MESH, pitKeepOut, surfaceKind, surfaceProbe, withMarkSurfaces,
 } from "../src/core/courseMarks";
 import { frameTransform, IDENTITY, readKn5, writeKn5, type Kn5GroupNode, type Kn5MeshNode, type Kn5Model, type Kn5Node } from "../src/core/kn5";
 import { checkLayoutMarks } from "../scripts/check/course_marks_lib";
@@ -318,5 +318,23 @@ describe("course marks: a layout's files", () => {
     expect(JSON.parse(dec.decode(files["t/ui/race/ui_track.json"])).tags).toEqual(["street"]);
     expect(JSON.parse(dec.decode(files["t/race/data/course_marks.json"])).mouths.side).toBe(1);
     expect(courseMarkLayout(files, { slug: "t", probe, lines, rings: [] }, "race", false)).toBeNull();
+  });
+});
+
+describe("course marks and the pit lane", () => {
+  it("keep out of the pit lane's off-line stretch and the pit boxes (pitKeepOut)", () => {
+    // An AI line along x (AC z 0), and a pit lane that swings 6 m out (AC z -6, local y 6) and back.
+    const pt = (x: number, z: number, i: number): AiPoint => ({
+      position: [x, 0, z], distance: i * 2, speed: 14, gas: 1, brake: 0, radius: 1000, sideLeft: 3, sideRight: 3,
+      camber: 0, direction: 1, normal: [0, 1, 0], length: 2, forward: [1, 0, 0], grade: 0,
+    });
+    const ai = Array.from({ length: 101 }, (_, i) => pt(i * 2, 0, i));
+    const lane = Array.from({ length: 51 }, (_, i) => pt(40 + i * 2, i < 10 ? -0.6 * i : i > 40 ? -0.6 * (50 - i) : -6, i));
+    const box: Kn5GroupNode = { kind: "node", name: "AC_PIT_0", transform: frameTransform([80, 0.5, -8.5], [1, 0, 0]), children: [] };
+    const keep = pitKeepOut(ai, writeFastLaneAi(lane), [box]);
+    expect(keep.some((q) => Math.abs(q[0] - 80) < 0.01 && Math.abs(q[1] - 8.5) < 0.01)).toBe(true);
+    expect(keep.some((q) => Math.abs(q[0] - 80) < 1.1 && Math.abs(q[1] - 6) < 0.01)).toBe(true);
+    // Nothing from the stretches on the AI line.
+    expect(keep.every((q) => q[1] > 2)).toBe(true);
   });
 });

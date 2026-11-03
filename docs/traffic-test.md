@@ -100,11 +100,13 @@ The Free Roam layout (`layouts` entry with `spawns`, src/core/layouts.ts) ships:
   it gets its own loop instead, built like any layout's (pulled onto the built streets, limits from
   each street).
 - **24 pit boxes** (`aiPits` in the layout overrides that). Track Day gives every car a pit box, so
-  this caps the AI count at 23. The free roam's own spawns come first (the player starts on spawn
-  0). The rest are spread evenly round the AI line, on the line and facing along it, off
-  roundabouts and tight corners (radius under 80 m), and 25 m clear of the spawns and of each
-  other. With no pit lane, each AI car starts on its line and just drives off. `AC_START_n` sits
-  on the same spots, so a Race session with that many cars works too.
+  this caps the AI count at 23. The starts (`AC_START_n`) are the free roam's own spawns first
+  (the player starts on spawn 0), then the rest spread evenly round the AI line, on the line and
+  facing along it, off roundabouts and tight corners (radius under 80 m), and 25 m clear of the
+  spawns and of each other, so a Race session with that many cars starts every car on its line.
+  The pit boxes (`AC_PIT_n`, one per start) are not those spots: they stand in one pit row off the
+  road beside a straight, with a pit lane out to them and back (`src/core/pitRow.ts`). Boxes on the
+  line parked every car AC sent back to its box on the racing line for good (retest 6).
 - **`ui_track.json`** with the real loop length and the pit box count, so Content Manager's
   opponent limit matches.
 
