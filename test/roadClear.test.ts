@@ -120,6 +120,15 @@ describe("roadClear: lines along the streets and paths", () => {
     expect(pathState(p, [27, 11.25], 0.75)).toBe("buried");
     expect(pathState(p, [12, 0], 0.75)).toBe("road");
     expect(pathState(p, [100, 100], 0.75)).toBe("outside");
+    // A shared path's line 2.5 m from its ribbon: missing, unless the ribbon may have been moved there.
+    expect(pathState(p, [0, 8.25], 0.75)).toBe("missing");
+    expect(pathState(p, [0, 8.25], 0.75, 2.5)).toBe("ok");
+  });
+
+  it("counts only a shared ribbon as a moved shared path", () => {
+    const p = rasterise([world(...base(), group("PATHS", [flat("1ROAD_PATH_FOOT_T", -10, 10, 10, 11.6, 0.025)]))]);
+    expect(pathState(p, [0, 8.25], 0.75, 2.5)).toBe("missing");
+    expect(pathState(p, [0, 10.8], 0.75, 2.5)).toBe("ok");
   });
 
   it("runs of bad points, and holes told from street ends", () => {

@@ -5,7 +5,7 @@ import type { Kn5MeshNode } from "../src/core/kn5";
 import type { Building } from "../src/core/buildings";
 import { buildLots } from "../src/core/lots";
 import { LineIndex, segDist } from "../src/core/sideStreets";
-import { buildPaths, LIFT, shiftPath, steps } from "../src/core/paths";
+import { buildPaths, flatAcross, LIFT, shiftPath, steps } from "../src/core/paths";
 import { clipTraceAtPaths, CLIP_ROOM } from "../src/core/pathTraceClip";
 import type { TraceResult, TraceSample } from "../src/core/trace";
 
@@ -135,6 +135,50 @@ describe("paths: moved off the kerb, not cut", () => {
     // Foot paths aren't moved (beside the route the photo's own footpath takes over).
     const foot = buildPaths([{ kind: "foot", pts: [[0, 0], [60, 0]] }], flat, (x, y) => xy([x, y]), () => true).flatMap(verts);
     expect(foot.some(([x]) => x > 21 && x < 39)).toBe(false);
+  });
+});
+
+describe("paths: moved off a step running along under them (3 Nov)", () => {
+  // A nature strip's outer edge along y = 0.4: 8 cm down to the terrain north of it, for x 10..50.
+  // The shared path's mapped line (y = 0) straddles it, so its ground across has a step in it.
+  const ground = (x: number, y: number) => (x > 10 && x < 50 && y > 0.4 ? 0.92 : 1);
+
+  it("tells a step across from flat ground", () => {
+    expect(flatAcross([1, 1, 1, 1, 1])).toBe(true);
+    expect(flatAcross([1, 1.02, 1.04, 1.06, 1.08])).toBe(true);
+    expect(flatAcross([1, 1, 1, 0.92, 0.92])).toBe(false);
+  });
+
+  it("lays the shared path whole, moved to flat ground, never across the step", () => {
+    const out = buildPaths([{ kind: "shared", pts: [[0, 0], [60, 0]] }], ground, () => true, () => true);
+    const v = out.flatMap(verts);
+    expect(Math.min(...v.map((p) => p[0]))).toBeLessThan(0.5);
+    expect(Math.max(...v.map((p) => p[0]))).toBeGreaterThan(59.5);
+    // Along the strip edge the ribbon is wholly to one side of it, on the ground.
+    const mid = v.filter(([x]) => x > 12 && x < 48);
+    expect(mid.length).toBeGreaterThan(0);
+    const north = mid.every(([, y]) => y > 0.4), south = mid.every(([, y]) => y < 0.4);
+    expect(north || south).toBe(true);
+    for (const [x, y, z] of v) expect(z - ground(x, y)).toBeCloseTo(LIFT, 4);
+    // One ribbon all the way: no gap along it.
+    const xs = [...new Set(v.map(([x]) => Math.round(x)))].sort((a, b) => a - b);
+    for (let k = 1; k < xs.length; k++) expect(xs[k] - xs[k - 1]).toBeLessThanOrEqual(15);
+  });
+
+  it("still cuts a foot path there (foot paths don't move)", () => {
+    const v = buildPaths([{ kind: "foot", pts: [[0, 0], [60, 0]] }], ground, () => true, () => true).flatMap(verts);
+    expect(v.some(([x]) => x > 12 && x < 48)).toBe(false);
+  });
+
+  it("holds a move along, so a run of uneven moves is one straight offset", () => {
+    const pts: Vec2[] = Array.from({ length: 201 }, (_, i) => [i * 0.3, 0]);
+    const along = pts.map((p) => p[0]);
+    const normals = pts.map(() => [0, 1] as Vec2);
+    // Clear 1 m off for x 20..40 except every few samples, where 1.5 m is needed.
+    const clear = (p: Vec2, i: number) => !(p[0] > 20 && p[0] < 40) || p[1] >= (i % 7 === 0 ? 1.5 : 1);
+    const r = shiftPath(pts, along, normals, 3, () => true, clear);
+    expect(r.ok.every(Boolean)).toBe(true);
+    for (let i = 0; i < 201; i++) if (pts[i][0] > 20 && pts[i][0] < 40) expect(r.off[i]).toBeCloseTo(1.5, 6);
   });
 });
 
