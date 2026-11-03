@@ -8,6 +8,10 @@ import { keepOffRoute, onRoute, type OnRoad } from "../clearance";
 import type { Kn5MeshNode } from "../kn5";
 import { onRoadFrom } from "../poleSpot";
 import { buildWalls } from "../roadMesh";
+import { buildAiLine } from "../aiLine";
+
+/** Busselton fork: corridor walls keep at least this far off the AI line, metres. */
+const AI_WALL_GAP = 1.2;
 import { LineIndex } from "../sideStreets";
 import { ROAD_SURFACE, sceneGround, topSurface, type SceneGround } from "../sceneGround";
 import { buildTerrainChunk, isNetSurfaceNode, isStreetNode, streetCeiling, underStreets } from "../terrain";
@@ -64,7 +68,11 @@ export async function buildGroundMeshes(
   // took its southern link through the long layout's wall in retest 6). 10 m: a raceway's width.
   const drives = (opts.layoutDrives ?? []).filter((d) => d.coords.length > 1);
   const driveIndex = drives.length ? new LineIndex(drives.map((d) => ({ pts: d.coords.map(ctx.toLocal), width: 10 }))) : null;
-  const walls = buildWalls(plan, opts, g.terrainH, index, driveIndex ? (x, y) => driveIndex.clearance(x, y) < 0 : undefined);
+  // Busselton fork: and where they come within AI_WALL_GAP of the AI line (the inside of a junction
+  // turn: retest 6's town and sights layouts had walls 0.4 to 0.9 m off it). The line as files.ts
+  // builds it, without the bays (they move it by centimetres).
+  const aiIndex = new LineIndex([{ pts: buildAiLine(plan, { keepLeft: opts.aiKeepLeft }).map((p): [number, number] => [p.position[0], -p.position[2]]), width: AI_WALL_GAP * 2 }]);
+  const walls = buildWalls(plan, opts, g.terrainH, index, (x, y) => aiIndex.clearance(x, y) < 0 || (!!driveIndex && driveIndex.clearance(x, y) < 0));
   const onRoad = onRoute(plan, index);
   const km = rm.kerbMeshes;
   const kerbsClear = keepOffRoute([...km.gutter, ...km.kerb, ...km.strip, ...rm.kerbReturns, ...rm.vergeConcrete], onRoad);
