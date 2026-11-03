@@ -249,6 +249,18 @@ try {
     buildOpts = { ...(buildOpts ?? {}), layoutDrives: [...(buildOpts?.layoutDrives ?? []), ...drives] };
     log("layout drives built into the world:", wayLayouts.map((l) => l.id).join(", "));
   }
+  // Busselton fork: the main drive's invisible walls open along every other layout's drive (a layout
+  // turning off the main drive cuts the junction corner past its wall; groundMeshes.ts).
+  const pinLayouts = (spec.layouts ?? []).filter((l) => !l.ways && l.pins?.length >= 2);
+  if (pinLayouts.length) {
+    const openings = await page.evaluate(async (ls) => {
+      const { route } = await import("/src/services/osm.ts");
+      const out = [];
+      for (const l of ls) out.push((await route(l.loop ? [...l.pins, l.pins[0]] : l.pins)).coords);
+      return out;
+    }, pinLayouts);
+    buildOpts = { ...(buildOpts ?? {}), wallOpenings: openings };
+  }
 
   const buildInput = { name: spec.name, options: { ...(spec.options ?? {}) }, build: buildOpts, token, houseLooks, landmarks, ...(shopNames.length ? { shopNames } : {}) };
   let last = "", changed = Date.now();

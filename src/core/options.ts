@@ -72,6 +72,8 @@ export interface BuildOptions {
   layout?: string;
   /** Other layouts' drives along OSM ways, built into the world too (layoutDrives.ts; build-track.mjs sets it); absent = none. */
   layoutDrives?: { coords: LngLat[]; raceway?: boolean }[];
+  /** Busselton fork: every other layout's drive (as routed), where the main drive's invisible walls open (groundMeshes.ts; build-track.mjs sets it); absent = none. */
+  wallOpenings?: LngLat[][];
   /** The whole route is gravel; absent = OSM decides. */
   unsealed?: boolean;
   /** Gravel on unsealed roads; on unless false. */
@@ -238,7 +240,7 @@ export interface BuildOptions {
 
 /** Fields with no default (their readers decide what absent means). */
 export const OPTIONAL_OPTION_KEYS: readonly (keyof BuildOptions)[] = Object.freeze([
-  "origin", "area", "layout", "layoutDrives", "unsealed", "gravelRoads", "networkCore",
+  "origin", "area", "layout", "layoutDrives", "wallOpenings", "unsealed", "gravelRoads", "networkCore",
   "terrainLodFarTol", "photoSea", "beachDetail", "zones", "pureTuning", "rainHollows",
   "cspTrees", "houseStyle", "clears", "armco", "farmland", "farmRoadsides", "wavingFlags",
   "jettyTrain", "swimJetties", "jettyKinds", "trackSounds", "poleClear", "raceway", "treeMips", "shoreClear", "pathTraceClip", "buildingTraceClip",
