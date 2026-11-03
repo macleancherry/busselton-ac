@@ -49,8 +49,9 @@ PLINTH_SINK = 0.25                   # below it, so a slope never shows a gap
 
 # slug: (title, at [lng, lat], facing bearing, plinth (width across, depth along facing))
 STATUES = {
-    # On the ArtGeo (old Agricultural Bank) paving on Queen St, across from the courthouse, looking to sea.
-    "whalers_wife": ("THE WHALER'S WIFE", (115.3436723, -33.6469034), 345.0, (1.5, 0.95)),
+    # On the ArtGeo (old Agricultural Bank) paving on Queen St, across from the courthouse, looking to sea
+    # (2 m east of the first guess, 115.3436723: that stood on the built street).
+    "whalers_wife": ("THE WHALER'S WIFE", (115.3436939, -33.6469034), 345.0, (1.5, 0.95)),
     # On the Saltwater frontage of Queen St (the 2015 site, 7-9 Queen St, is now Saltwater's forecourt).
     "timber_worker": ("TIMBER WORKER", (115.3438353, -33.6474334), 257.0, (2.3, 1.25)),
     # In the courthouse forecourt between the main group and the police cottages, facing Queen St.

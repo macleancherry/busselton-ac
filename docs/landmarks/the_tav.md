@@ -12,8 +12,8 @@ Heritage: on the City of Busselton's local heritage list (inHerit "Vasse Hotel",
 
 Measured from the Landgate aerial `out/refs/the_tav/aerial_z.jpg` (centre 115.34525,-33.65185, half 25 m, so 0.049 m/px), checked against the OSM outline (way 370736565, the "The Tav" node sits on it). About ±1 m.
 
-- **Orientation:** the long side runs along Queen Street (bearing 166/346). The **front faces Queen Street, bearing about 256**. The south side is on Albert Street.
-- **Middle (of the main blocks):** **115.345288, -33.651794**.
+- **Orientation:** the long side runs along Queen Street (bearing 170/350). The **front faces Queen Street, bearing about 260** (256 until 3 Nov 2026: turned 4 degrees to the Landgate aerial, which put the awning's north end 2 m out over the parking lane). The south side is on Albert Street.
+- **Middle (of the main blocks):** **115.345294, -33.651793** (0.6 m east of the first measure, 115.345288, -33.651794, with the turn below: the awning edge on the aerial's).
 - **Size:** about 33 m along Queen Street by 14 m deep. A wider north end is 21 m deep. A 2.8 m awning runs along Queen Street, and a 3.6 m two-storey verandah down the Albert Street side.
 - **Roof outline:**
   - pale grey-white hipped roofs: one block at the north end with its ridge across, and a run of smaller hips behind the Queen Street parapet

@@ -91,6 +91,30 @@ describe("roadClear: things standing on the road", () => {
     expect(ps[0].at[0]).toBeCloseTo(20, 0);
     expect(trunksOf(tree("t", 5, 7))).toEqual([[5, 7, 0], [5, 7, 0]]);
   });
+
+  it("puts a sprite cut across two area tiles back together: no trunk at its end", () => {
+    // A 16 m card beside the street (trunk at y 9, outside it), its end reaching into the street;
+    // front and back faces with their own vertices, each face's two triangles in different tiles.
+    const a = [-8, 4.5, 0], b = [8, 4.5, 0], bh = [8, 4.5, 14], ah = [-8, 4.5, 14];
+    const at = ([x, y, h]: number[]) => [x + 20, y + 4.5, h];
+    const t1 = mesh("TREES_000_T1", [a, b, bh, b, ah, bh].map(at), [0, 1, 2, 3, 4, 5]);
+    const t2 = mesh("TREES_000_T2", [a, bh, ah, b, a, ah].map(at), [0, 1, 2, 3, 4, 5]);
+    // Turned about the trunk so the card's end reaches into the street.
+    const turn = (m: Mesh) => {
+      const p = m.positions;
+      for (let v = 0; v < p.length; v += 3) {
+        const x = p[v] - 20, y = -p[v + 2] - 9;
+        const c = Math.cos(1.2), s = Math.sin(1.2);
+        p[v] = 20 + x * c - y * s;
+        p[v + 2] = -(9 + x * s + y * c);
+      }
+      return m;
+    };
+    const p = rasterise([world(...base(), group("TREES", [turn(t1), turn(t2)]))]);
+    expect(obstaclePieces(p).filter((x) => x.kind === "tree")).toHaveLength(0);
+    // A triangle alone (a tile's part of a face) has its trunk at the card's end, in the street.
+    expect(trunksOf(turn(mesh("TREES_000_T1", [a, bh, ah].map(at), [0, 1, 2]))).some(([, y]) => y < 3)).toBe(true);
+  });
 });
 
 describe("roadClear: lines along the streets and paths", () => {
