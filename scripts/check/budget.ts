@@ -10,7 +10,10 @@ import { readFileSync } from "node:fs";
 import { unzipSync } from "fflate";
 import { readKn5, type Kn5Node } from "../../src/core/kn5";
 
-const LIMITS = { triangles: 1_500_000, meshes: 4000, textureMB: 1500, kn5MB: 600 };
+// Triangles are cheap for the 4060 (AC culls per mesh); draw calls are what AC's single-threaded DX11
+// renderer feels, so meshes keep the tight limit. Triangles raised from 1.5M to 2M on 3 Nov 2026
+// (Mac's question: big community maps carry far more); to be set from retest 6's frame rates.
+const LIMITS = { triangles: 2_000_000, meshes: 4000, textureMB: 1500, kn5MB: 600 };
 
 const files = unzipSync(new Uint8Array(readFileSync(process.argv[2])));
 // The world kn5 (<slug>/<slug>.kn5), not a layout's dummies or a layer.
