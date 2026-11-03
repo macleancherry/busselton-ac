@@ -9,7 +9,7 @@ import type { Kn5Material, Kn5MeshNode, Kn5Model, Kn5Texture } from "./kn5";
 import { IDENTITY } from "./kn5";
 import { encodeDdsDxt1 } from "./dds";
 import { decodeOwnPng, encodePng } from "./png";
-import { buildSpecHouse, type HouseSpec, type SpecPlacement } from "./specHouse";
+import { buildSpecHouse, type HouseSpec, type OverRoad, type SpecPlacement } from "./specHouse";
 import { ROOF_COLOURS, facadeTexture, roofTexture } from "./buildingStyles";
 import { normalFromHeight, solidTexture, windowTexture } from "./textures";
 import { hedgeTexture } from "./houseTextures";
@@ -20,6 +20,12 @@ import type { SignDrawer } from "./shops";
 import { material, nmMaterial } from "./materials";
 import { flagMaterial } from "./flags";
 
+/**
+ * The base's surfaces a landmark keeps its yard off (by mesh name): the route, streets and their
+ * kerbs and gutters, not paths, driveways or car parks.
+ */
+export const LANDMARK_KEEP_OFF = /^\d(ROAD(?!_PATH)|STREET(?!_PATH|_DRIVE|_CARPARK)|UNSEALED|UNPAVED|KERB)/;
+
 type Light = { ambient: number; diffuse: number; specular: number; exp: number };
 
 export interface LandmarkModel {
@@ -27,6 +33,10 @@ export interface LandmarkModel {
   /** The blocks' footprints on the map (local metres), and the yard's reach from the centre, metres. */
   footprints: [number, number][][];
   triangles: number;
+  /** Ground-level parts cut back or left out to keep off the built road (with `blocked`). */
+  clipped: string[];
+  /** Building parts standing on the built road (with `blocked`): reported, never cut. */
+  overRoad: OverRoad[];
 }
 
 /** How far the landmark's spec reaches from its centre (blocks, yard, fences), metres: the spot the base clears. */
@@ -59,9 +69,9 @@ export function landmarkModel(
   place: SpecPlacement,
   tag: string,
   ground: HeightFn,
-  opts: { detailShaders?: boolean; drawSigns?: SignDrawer } = {},
+  opts: { detailShaders?: boolean; drawSigns?: SignDrawer; blocked?: (x: number, y: number) => boolean } = {},
 ): LandmarkModel {
-  const sh = buildSpecHouse(spec, place, tag);
+  const sh = buildSpecHouse(spec, place, tag, opts.blocked ? { blocked: opts.blocked } : undefined);
   const textures: Kn5Texture[] = [];
   const materials: Kn5Material[] = [];
   const have = new Set<string>();
@@ -123,5 +133,7 @@ export function landmarkModel(
     model: { textures, materials, root: { kind: "node", name: `LANDMARK_${tag}`, transform: IDENTITY, children: nodes } },
     footprints: sh.footprints as [number, number][][],
     triangles,
+    clipped: sh.clipped,
+    overRoad: sh.overRoad,
   };
 }

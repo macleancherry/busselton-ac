@@ -21,6 +21,7 @@ import { landmarkShots } from "../landmarkShots";
 import { asLayout, dummiesKn5 } from "../layouts";
 import { toAc } from "../mesh";
 import { networkPreview } from "../network/preview";
+import { carriagewayLines } from "../network/streets";
 import type { JunctionCore } from "../network/phase1";
 import { pitLaneFiles } from "../pitLane";
 import { pitLanePath } from "../pitRoad";
@@ -182,7 +183,8 @@ export function writeFiles(ctx: BuildContext, model: Kn5Model, a: FilesInput, me
     })),
     [`${slug}/map.png`]: map.png,
     ...(() => {
-      const sm = streetMap(st.streetPlan.streets.map((s) => ({ pts: s.pts.map(flip), width: s.width })),
+      // A divided road as its two carriageways (network/streets.ts), not one band over its median.
+      const sm = streetMap(st.streetPlan.streets.flatMap((s) => carriagewayLines(s as { pts: Vec2[]; width: number; median?: number })).map((s) => ({ pts: s.pts.map(flip), width: s.width })),
         plan.samples.map((s) => flip(s.pos)).concat(plan.closed ? [flip(plan.samples[0].pos)] : []));
       return { [`${slug}/extension/street_map.png`]: sm.png, [`${slug}/extension/street_map.ini`]: enc.encode(sm.ini) };
     })(),

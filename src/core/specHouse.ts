@@ -83,6 +83,23 @@ export interface SpecPlacement {
   z: number;
 }
 
+/**
+ * Busselton fork: where the built roads are, so the yard stays off them. `blocked(x, y)` (map
+ * metres) is true on the road or kerb. Ground-level parts (paving, hedges, fences, trees, tables,
+ * umbrellas, flags, sails, signs on posts, awning posts) are cut back or left out where they'd stand
+ * on it, and listed in `clipped`; buildings (blocks, verandahs, ground panels) are never cut, only
+ * listed in `overRoad` with how much of them is on it.
+ */
+export interface SpecClear {
+  blocked: (x: number, y: number) => boolean;
+}
+
+/** A building part standing on the road: the part and its area there, m2. */
+export interface OverRoad {
+  part: string;
+  area: number;
+}
+
 export interface SpecHouse {
   nodes: Kn5MeshNode[];
   /** Wall finishes it needs: facade_<name> materials with upstream's facade textures. */
@@ -102,6 +119,56 @@ export interface SpecHouse {
    * texture's shape). A two-sided sign's back shares its front's material and texture.
    */
   signs: { name: string; text: string; bg: RGB; ink: RGB; width: number; height: number }[];
+  /** What was cut back or left out to keep off the road (with a SpecClear), one line each. */
+  clipped: string[];
+  /** Building parts on the road (with a SpecClear): reported, never cut. */
+  overRoad: OverRoad[];
+}
+
+type Rect = { x0: number; y0: number; x1: number; y1: number };
+
+/**
+ * The parts of an axis-aligned rectangle (spec metres) that are clear, as rectangles: cells of at
+ * most `cell` metres, each kept when its corners (just inside) and middle are all clear, merged
+ * into runs along x and then runs of equal rows. The whole rectangle itself when nothing is cut.
+ */
+export function clearRects(r: Rect, clear: (x: number, y: number) => boolean, cell = 1): { rects: Rect[]; kept: number; cells: number } {
+  const X0 = Math.min(r.x0, r.x1), X1 = Math.max(r.x0, r.x1), Y0 = Math.min(r.y0, r.y1), Y1 = Math.max(r.y0, r.y1);
+  const nx = Math.max(1, Math.ceil((X1 - X0) / cell - 1e-9)), ny = Math.max(1, Math.ceil((Y1 - Y0) / cell - 1e-9));
+  const dx = (X1 - X0) / nx, dy = (Y1 - Y0) / ny, ix = Math.min(0.05, dx / 4), iy = Math.min(0.05, dy / 4);
+  const ok: boolean[][] = [];
+  let kept = 0;
+  for (let j = 0; j < ny; j++) {
+    const row: boolean[] = [];
+    for (let i = 0; i < nx; i++) {
+      const a = X0 + i * dx, b = a + dx, c = Y0 + j * dy, d = c + dy;
+      const free = clear(a + ix, c + iy) && clear(b - ix, c + iy) && clear(b - ix, d - iy) && clear(a + ix, d - iy) && clear((a + b) / 2, (c + d) / 2);
+      row.push(free);
+      if (free) kept++;
+    }
+    ok.push(row);
+  }
+  if (kept === nx * ny) return { rects: [r], kept, cells: nx * ny };
+  // Runs along each row, then stack equal runs on the rows above.
+  const open = new Map<string, Rect>();
+  const rects: Rect[] = [];
+  for (let j = 0; j < ny; j++) {
+    const runs = new Set<string>();
+    for (let i = 0; i < nx;) {
+      if (!ok[j][i]) { i++; continue; }
+      let k = i;
+      while (k < nx && ok[j][k]) k++;
+      const key = `${i},${k}`;
+      runs.add(key);
+      const prev = open.get(key);
+      if (prev) prev.y1 = Y0 + (j + 1) * dy;
+      else open.set(key, { x0: X0 + i * dx, x1: X0 + k * dx, y0: Y0 + j * dy, y1: Y0 + (j + 1) * dy });
+      i = k;
+    }
+    for (const [key, rc] of [...open]) if (!runs.has(key)) { rects.push(rc); open.delete(key); }
+  }
+  rects.push(...open.values());
+  return { rects, kept, cells: nx * ny };
 }
 
 export function nearestRoof(rgb: RGB): number {
@@ -116,7 +183,7 @@ export function nearestRoof(rgb: RGB): number {
 
 const PERIOD = 4, STOREY = 3; // the "blank" facade layout: 4 m along by 3 m up
 
-export function buildSpecHouse(spec: HouseSpec, place: SpecPlacement, tag: string): SpecHouse {
+export function buildSpecHouse(spec: HouseSpec, place: SpecPlacement, tag: string, clear?: SpecClear): SpecHouse {
   const H0 = spec.wallHeight ?? 2.7;
   const pitchDeg = spec.roof?.pitch ?? 24, eaves0 = spec.roof?.eaves ?? 0.45;
   // Centre on the house proper (outbuildings left out).
@@ -129,6 +196,42 @@ export function buildSpecHouse(spec: HouseSpec, place: SpecPlacement, tag: strin
     place.centre[1] + t[1] * (x - cx) - o[1] * (y - cy),
     place.z + z,
   ];
+  // Keeping off the road (SpecClear): free(x, y) in spec metres.
+  const clipped: string[] = [];
+  const overRoad: OverRoad[] = [];
+  const free = (x: number, y: number) => {
+    if (!clear) return true;
+    const p = W(x, y, 0);
+    return !clear.blocked(p[0], p[1]);
+  };
+  /** Free at a point and round it at radius r (8 points). */
+  const freeRound = (x: number, y: number, r: number) => {
+    if (!free(x, y)) return false;
+    for (let k = 0; k < 8; k++) if (!free(x + r * Math.cos((k * Math.PI) / 4), y + r * Math.sin((k * Math.PI) / 4))) return false;
+    return true;
+  };
+  /** The clear rectangles of a ground-level part, noting what was cut. */
+  const clipRect = (what: string, r: Rect, unit: "m2" | "m"): Rect[] => {
+    if (!clear) return [r];
+    const c = clearRects(r, free);
+    if (c.kept < c.cells) {
+      const w = Math.abs(r.x1 - r.x0), d = Math.abs(r.y1 - r.y0);
+      const size = unit === "m2" ? w * d : Math.max(w, d);
+      const cut = size * (1 - c.kept / c.cells);
+      clipped.push(`${what}: ${cut.toFixed(cut < 10 ? 1 : 0)} of ${size.toFixed(size < 10 ? 1 : 0)} ${unit} cut off the road`);
+    }
+    return c.rects;
+  };
+  /** How much of a building part (spec rectangle) stands on the road, m2 (0.5 m samples). */
+  const onRoadArea = (part: string, r: Rect) => {
+    if (!clear) return;
+    const X0 = Math.min(r.x0, r.x1), X1 = Math.max(r.x0, r.x1), Y0 = Math.min(r.y0, r.y1), Y1 = Math.max(r.y0, r.y1);
+    const nx = Math.max(1, Math.round((X1 - X0) / 0.5)), ny = Math.max(1, Math.round((Y1 - Y0) / 0.5));
+    let n = 0;
+    for (let i = 0; i < nx; i++) for (let j = 0; j < ny; j++) if (!free(X0 + ((i + 0.5) * (X1 - X0)) / nx, Y0 + ((j + 0.5) * (Y1 - Y0)) / ny)) n++;
+    const area = (n / (nx * ny)) * (X1 - X0) * (Y1 - Y0);
+    if (area >= 0.25) overRoad.push({ part, area: Math.round(area * 10) / 10 });
+  };
 
   // Finishes: the main walls, and any named in `finishes`.
   const facades: Facade[] = [];
@@ -206,6 +309,7 @@ export function buildSpecHouse(spec: HouseSpec, place: SpecPlacement, tag: strin
 
   const footprints: Vec2[][] = [];
   for (const b of spec.blocks) {
+    onRoadArea(`block ${b.name}`, b);
     const H = b.wallHeight ?? H0;
     const wm = finish(b.walls ?? "main");
     box(wm, b.x0, b.y0, -0.3, b.x1, b.y1, H, true, true);
@@ -269,7 +373,10 @@ export function buildSpecHouse(spec: HouseSpec, place: SpecPlacement, tag: strin
       }
     }
   }
-  for (const p of spec.panels ?? []) box(finish(p.walls), p.x0, p.y0, p.z0 ?? 0, p.x1, p.y1, p.z1 ?? H0, true);
+  for (const [k, p] of (spec.panels ?? []).entries()) {
+    if ((p.z0 ?? 0) < 0.5) onRoadArea(`panel${k}`, p);
+    box(finish(p.walls), p.x0, p.y0, p.z0 ?? 0, p.x1, p.y1, p.z1 ?? H0, true);
+  }
   for (const pd of spec.pediments ?? []) {
     const wm = finish(pd.walls ?? "main"), xm = (pd.x0 + pd.x1) / 2, L = pd.x1 - pd.x0;
     const uv = (_p: Vec3, j: number): [number, number] => [j === 1 ? L / PERIOD : j === 2 ? L / 2 / PERIOD : 0, 1 - (j === 2 ? pd.z + pd.height : pd.z) / STOREY];
@@ -284,11 +391,14 @@ export function buildSpecHouse(spec: HouseSpec, place: SpecPlacement, tag: strin
   for (const [k, aw] of (spec.awnings ?? []).entries()) {
     const m = solid(`awning${k}`, hex(aw.colour, [235, 235, 232]), "steel"), th = aw.thickness ?? 0.2;
     box(m, aw.x0, aw.y0, aw.z - th, aw.x1, aw.y1, aw.z);
-    for (const px of aw.posts ?? []) box(solid("pole", [70, 70, 72], "steel"), px - 0.05, aw.y0 + 0.1, 0, px + 0.05, aw.y0 + 0.2, aw.z - th, false, true);
+    const posts = (aw.posts ?? []).filter((px) => freeRound(px, aw.y0 + 0.15, 0.1));
+    if (posts.length < (aw.posts ?? []).length) clipped.push(`awning${k}: ${(aw.posts ?? []).length - posts.length} posts left off the road`);
+    for (const px of posts) box(solid("pole", [70, 70, 72], "steel"), px - 0.05, aw.y0 + 0.1, 0, px + 0.05, aw.y0 + 0.2, aw.z - th, false, true);
   }
 
   const deck = solid("deck", [138, 106, 79], "timber");
-  for (const v of spec.verandahs ?? []) {
+  for (const [k, v] of (spec.verandahs ?? []).entries()) {
+    onRoadArea(`verandah${k}`, v);
     const H = v.wallHeight ?? H0, lo = v.height ?? H - 0.25;
     box(deck, v.x0, v.y0, -0.2, v.x1, v.y1, v.deckHeight ?? 0.25);
     for (const px of v.posts ?? []) box(trim, px - 0.06, v.y0 + 0.1, 0, px + 0.06, v.y0 + 0.22, lo);
@@ -313,8 +423,20 @@ export function buildSpecHouse(spec: HouseSpec, place: SpecPlacement, tag: strin
     const [g0, g1, g2, g3] = r(ww / 2, 0.08);
     box("window", g0, g1, sill, g2, g3, sill + wh);
   }
-  spec.fences?.forEach((f, k) => {
-    const m = solid(`fence${k}`, hex(f.colour, [236, 235, 230]), f.kind ?? (f.open ? "timber" : "colorbond")), H = f.height ?? 1.8;
+  spec.fences?.forEach((f0, k) => {
+    const m = solid(`fence${k}`, hex(f0.colour, [236, 235, 230]), f0.kind ?? (f0.open ? "timber" : "colorbond")), H = f0.height ?? 1.8;
+    const parts = clipRect(`fence${k}`, f0, "m");
+    // A cut fence keeps its direction along each piece left.
+    for (const r of parts) {
+      const f = parts.length === 1 && r === f0 ? f0 : {
+        ...f0,
+        x0: f0.x1 >= f0.x0 ? r.x0 : r.x1, x1: f0.x1 >= f0.x0 ? r.x1 : r.x0,
+        y0: f0.y1 >= f0.y0 ? r.y0 : r.y1, y1: f0.y1 >= f0.y0 ? r.y1 : r.y0,
+      };
+      fence(f, m, H);
+    }
+  });
+  function fence(f: NonNullable<HouseSpec["fences"]>[number], m: string, H: number) {
     if (!f.open) return box(m, f.x0, f.y0, -0.2, f.x1, f.y1, H, false, true);
     // An open rail: posts every 1.8 m and a top rail (what the car hits is still the whole run).
     const along = Math.abs(f.x1 - f.x0) >= Math.abs(f.y1 - f.y0), L = along ? f.x1 - f.x0 : f.y1 - f.y0;
@@ -333,9 +455,18 @@ export function buildSpecHouse(spec: HouseSpec, place: SpecPlacement, tag: strin
       const [ax, ay] = c[j], [bx, by] = c[(j + 1) % 4];
       poly(solidWalls, [W(ax, ay, -0.2), W(bx, by, -0.2), W(bx, by, H), W(ax, ay, H)], planar);
     }
-  });
-  for (const h of spec.hedges ?? []) box("hedge", h.x0, h.y0, -0.2, h.x1, h.y0 + (h.depth ?? 0.9), h.height ?? 1.2);
-  const trees: TreeSpot[] = (spec.trees ?? []).map((tr) => {
+  }
+  for (const [k, h] of (spec.hedges ?? []).entries()) {
+    for (const r of clipRect(`hedge${k}`, { x0: h.x0, y0: h.y0, x1: h.x1, y1: h.y0 + (h.depth ?? 0.9) }, "m")) box("hedge", r.x0, r.y0, -0.2, r.x1, r.y1, h.height ?? 1.2);
+  }
+  /** Ground things left out where they'd stand on the road, counted per kind. */
+  const keepOff = <T>(kind: string, list: T[] | undefined, ok: (t: T) => boolean): T[] => {
+    const all = list ?? [];
+    const kept = clear ? all.filter(ok) : all;
+    if (kept.length < all.length) clipped.push(`${all.length - kept.length} of ${all.length} ${kind} left off the road`);
+    return kept;
+  };
+  const trees: TreeSpot[] = keepOff("trees", spec.trees, (tr) => freeRound(tr.x, tr.y, 0.6)).map((tr) => {
     const p = W(tr.x, tr.y, 0);
     return { x: p[0], y: p[1], scale: Math.max(0.5, Math.min(1.2, tr.height / 7)), variant: 0 };
   });
@@ -346,10 +477,21 @@ export function buildSpecHouse(spec: HouseSpec, place: SpecPlacement, tag: strin
     poly(mesh(mat), pts, planar);
     poly(mesh(mat), [...pts].reverse(), planar);
   };
-  for (const [k, pv] of (spec.paving ?? []).entries()) {
-    poly(mesh(solid(`paving${k}`, hex(pv.colour, [156, 84, 64]), pv.kind ?? "brick")), [W(pv.x0, pv.y0, 0.03), W(pv.x1, pv.y0, 0.03), W(pv.x1, pv.y1, 0.03), W(pv.x0, pv.y1, 0.03)], planar);
+  for (const [k, pv0] of (spec.paving ?? []).entries()) {
+    const m = solid(`paving${k}`, hex(pv0.colour, [156, 84, 64]), pv0.kind ?? "brick");
+    for (const pv of clipRect(`paving${k}`, pv0, "m2")) {
+      // Wound the way the spec's own corners go, so it faces up either way round.
+      const flip = (pv0.x1 - pv0.x0) * (pv0.y1 - pv0.y0) < 0;
+      const [xa, xb] = flip && pv !== pv0 ? [pv.x1, pv.x0] : [pv.x0, pv.x1];
+      poly(mesh(m), [W(xa, pv.y0, 0.03), W(xb, pv.y0, 0.03), W(xb, pv.y1, 0.03), W(xa, pv.y1, 0.03)], planar);
+    }
   }
-  for (const tb of spec.tables ?? []) {
+  const tables = keepOff("tables", spec.tables, (tb) => {
+    const L = (tb.length ?? 1.8) / 2;
+    const [hx, hy] = tb.turned ? [0.75, L] : [L, 0.75];
+    return free(tb.x - hx, tb.y - hy) && free(tb.x + hx, tb.y - hy) && free(tb.x + hx, tb.y + hy) && free(tb.x - hx, tb.y + hy) && free(tb.x, tb.y);
+  });
+  for (const tb of tables) {
     const m = solid(`table_${(tb.colour ?? "#5a3d2b").slice(1)}`, hex(tb.colour, [90, 61, 43]), "timber");
     const L = (tb.length ?? 1.8) / 2;
     const at = (a: number, c: number): [number, number] => (tb.turned ? [tb.x + c, tb.y + a] : [tb.x + a, tb.y + c]);
@@ -361,7 +503,7 @@ export function buildSpecHouse(spec: HouseSpec, place: SpecPlacement, tag: strin
     for (const c of [-0.68, 0.68]) slab(-L, c - 0.13, L, c + 0.13, 0.42, 0.45);
     for (const a of [-L + 0.2, L - 0.2]) slab(a - 0.04, -0.75, a + 0.04, 0.75, 0, 0.72);
   }
-  for (const u of spec.umbrellas ?? []) {
+  for (const u of keepOff("umbrellas", spec.umbrellas, (u) => freeRound(u.x, u.y, (u.radius ?? 1.4) * 0.7))) {
     const r = u.radius ?? 1.4, h = u.height ?? 2.6, m = solid(`umbrella_${(u.colour ?? "#f2f0ea").slice(1)}`, hex(u.colour, [242, 240, 234]), "canvas");
     box(solid("pole", [70, 70, 72], "steel"), u.x - 0.025, u.y - 0.025, 0, u.x + 0.025, u.y + 0.025, h + 0.1);
     const apex = W(u.x, u.y, h + 0.1);
@@ -370,14 +512,14 @@ export function buildSpecHouse(spec: HouseSpec, place: SpecPlacement, tag: strin
       twoSided(m, [W(u.x + r * Math.cos(a0), u.y + r * Math.sin(a0), h - 0.3), W(u.x + r * Math.cos(a1), u.y + r * Math.sin(a1), h - 0.3), apex]);
     }
   }
-  for (const sl of spec.sails ?? []) {
+  for (const sl of keepOff("shade sails", spec.sails, (sl) => sl.pts.every(([x, y, z]) => z <= 1 || freeRound(x, y, 0.1)))) {
     const m = solid(`sail_${(sl.colour ?? "#8c9196").slice(1)}`, hex(sl.colour, [140, 145, 150]), "canvas");
     twoSided(m, sl.pts.map(([x, y, z]) => W(x, y, z)));
     for (const [x, y, z] of sl.pts) if (z > 1) box(solid("pole", [70, 70, 72], "steel"), x - 0.05, y - 0.05, 0, x + 0.05, y + 0.05, z, false, true);
   }
   // Flag cloth's back faces (for AC without CSP; flags.ts), by material.
   const flagBacks = new Map<string, MeshBuilder>();
-  for (const f of spec.flags ?? []) {
+  for (const f of keepOff("flags", spec.flags, (f) => free(f.x, f.y) && free(f.x + 0.75, f.y))) {
     const h = f.height ?? 4, m = solid(`flag_${(f.colour ?? "#f4f4f2").slice(1)}`, hex(f.colour, [244, 244, 242]), undefined, true);
     box(solid("pole", [70, 70, 72], "steel"), f.x - 0.02, f.y - 0.02, 0, f.x + 0.02, f.y + 0.02, h);
     // A feather: straight along the pole, the outer edge bowing out and rounding over the top. One
@@ -391,7 +533,11 @@ export function buildSpecHouse(spec: HouseSpec, place: SpecPlacement, tag: strin
     }, 3, 8, (u, v) => [u * width(1 - v) / w, v]);
   }
   const signs: SpecHouse["signs"] = [];
+  // Signs on posts stand on the ground; ones on a wall or slab go with it.
+  const standing = (sg: NonNullable<HouseSpec["signs"]>[number]) => !!sg.posts || sg.z0 < 0.3;
+  const signsKept = new Set(keepOff("signs", spec.signs, (sg) => !standing(sg) || (free(sg.x0, sg.y) && free(sg.x1, sg.y) && free((sg.x0 + sg.x1) / 2, sg.y))));
   for (const [k, sg] of (spec.signs ?? []).entries()) {
+    if (!signsKept.has(sg)) continue;
     const bg = hex(sg.colour, [28, 28, 30]), ink = hex(sg.ink, [245, 245, 242]);
     box(solid(`signboard${k}`, bg, "steel"), sg.x0, sg.y, sg.z0, sg.x1, sg.y + 0.08, sg.z1);
     if (sg.posts) for (const x of [sg.x0 + 0.05, sg.x1 - 0.05]) box(solid(`signboard${k}`, bg, "steel"), x - 0.06, sg.y + 0.01, 0, x + 0.06, sg.y + 0.07, sg.z1 + 0.05, false, true);
@@ -417,5 +563,5 @@ export function buildSpecHouse(spec: HouseSpec, place: SpecPlacement, tag: strin
   for (const [mat, mb] of flagBacks) if (mb.indices.length) nodes.push(mb.toKn5(`${FLAG_BACK_PREFIX}SPECHOUSE_${tag}_${i++}`, mat, { castShadows: false }));
   // What the car hits: the walls and fences, invisible.
   if (solidWalls.indices.length) nodes.push({ ...solidWalls.toKn5(`1WALL_SPECHOUSE_${tag}`, trim), renderable: false });
-  return { nodes, facades, roofs, solids, trees, footprints, signs };
+  return { nodes, facades, roofs, solids, trees, footprints, signs, clipped, overRoad };
 }

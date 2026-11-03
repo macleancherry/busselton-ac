@@ -135,12 +135,23 @@ export function planGraphStreets(g: Graph, o: GraphStreetOptions): { streets: Gr
     const { e, dense, width } = pc;
     const dcum = lengths(dense).map((v) => v + pc.s0);
     type State = "keep" | "route" | "ring" | "far";
-    const state: State[] = dense.map((p) => {
+    // Busselton fork: a divided road is in the area while either carriageway is (each would be, as
+    // the old side streets built them), not only its median: cut at the median, the carriageway
+    // further in stopped short of the area's edge.
+    const cwOff = pc.median !== undefined && !pc.half ? pc.median / 2 + (width - pc.median) / 4 : 0;
+    const inArea = (p: P2, k: number) => {
+      if (o.inArea(p)) return true;
+      if (!cwOff) return false;
+      const d = unit(sub(dense[Math.min(dense.length - 1, k + 1)], dense[Math.max(0, k - 1)]));
+      const l: P2 = [-d[1] * cwOff, d[0] * cwOff];
+      return o.inArea(add(p, l)) || o.inArea(sub(p, l));
+    };
+    const state: State[] = dense.map((p, k) => {
       if (o.rings.some((r) => dist(p, r.c) < r.r + r.w / 2 + o.vergeWidth + width / 2)) return "ring";
       const near = routeAt(p, o.corridor);
       // A divided road's other carriageway runs right beside the route: only where it really overlaps.
       if (near && near.dist < (pc.half ? near.width / 2 + width / 2 - 0.5 : near.width / 2 + o.vergeWidth + (width / 2) * 0.2 + 0.3)) return "route";
-      if (o.inArea(p)) return "keep";
+      if (inArea(p, k)) return "keep";
       return near && near.dist < o.corridor - 3 ? "keep" : "far";
     });
     for (let i = 0; i < dense.length;) {
@@ -210,6 +221,21 @@ export function planGraphStreets(g: Graph, o: GraphStreetOptions): { streets: Gr
     else merged.push(m);
   }
   return { streets, mouths: merged };
+}
+
+/**
+ * A street's carriageways as lines: itself, or for a divided road (a median) the two either side of
+ * the median, each its own width. For drawing (the street map): drawn as one band, a divided road
+ * painted its median as road and a round end half its whole width across, past where it stops.
+ */
+export function carriagewayLines<T extends P2>(st: { pts: T[]; width: number; median?: number }): { pts: P2[]; width: number }[] {
+  if (st.median === undefined || st.median <= 0 || st.pts.length < 2) return [{ pts: st.pts, width: st.width }];
+  const cw = (st.width - st.median) / 2, off = st.median / 2 + cw / 2, n = st.pts.length;
+  const side = (sg: 1 | -1) => st.pts.map((p, k) => {
+    const d = unit(sub(st.pts[Math.min(n - 1, k + 1)], st.pts[Math.max(0, k - 1)]));
+    return add(p, mul([-d[1], d[0]], sg * off));
+  });
+  return [{ pts: side(1), width: cw }, { pts: side(-1), width: cw }];
 }
 
 /** Streets that get a kerb and gutter (streetMesh.ts): sealed town streets, not lanes or service roads. */

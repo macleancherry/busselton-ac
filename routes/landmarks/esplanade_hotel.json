@@ -1107,14 +1107,6 @@
    "y1": -4.3,
    "colour": "#cfccc4",
    "kind": "concrete"
-  },
-  {
-   "x0": -10,
-   "y0": -9.6,
-   "x1": 62,
-   "y1": -7.6,
-   "colour": "#55575a",
-   "kind": "concrete"
   }
  ],
  "tables": [

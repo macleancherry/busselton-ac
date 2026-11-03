@@ -21,6 +21,8 @@ export interface NetworkStreetInput {
   inArea: (p: P2) => boolean;
   corridor: number;
   vergeWidth: number;
+  /** Bridges over no other road built as decks (bridges.ts); on unless false. */
+  bridgeDecks?: boolean;
 }
 
 export interface NetworkStreets {
@@ -56,7 +58,7 @@ export function nameLookup(names: { pts: P2[]; name: string }[], max = 8): (p: P
 }
 
 export function planNetworkStreets(input: NetworkStreetInput): NetworkStreets {
-  const { graph, duals } = networkGraph(input.lines, input.rings);
+  const { graph, duals } = networkGraph(input.lines, input.rings, { bridgeDecks: input.bridgeDecks });
   const nameAt = nameLookup(input.names);
   const { streets, mouths } = planGraphStreets(graph, {
     route: input.route, rings: input.builtRings, inArea: input.inArea, corridor: input.corridor, vergeWidth: input.vergeWidth, nameAt,

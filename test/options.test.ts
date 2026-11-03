@@ -64,7 +64,7 @@ const OPTIONAL = [
   "cspTrees", "rainHollows", "trackSounds", "gravelRoads", "unsealed", "zones", "pureTuning", "photoSea", "beachDetail",
   "farmland", "farmRoadsides", "wavingFlags", "jettyTrain", "swimJetties", "jettyKinds", "trafficLights", "poleClear", "padClear", "networkCore",
   "raceway", "treeMips", "shoreClear", "pathTraceClip", "courseMarks", "shopNamesOverpass",
-  "gridAt", "pits", "pitLane", "circuitKerbs", "gridPaint",
+  "gridAt", "pits", "pitLane", "circuitKerbs", "gridPaint", "bridgeDecks",
 ];
 
 const KNOWN = new Set([...Object.keys(REQUIRED), ...OPTIONAL]);
