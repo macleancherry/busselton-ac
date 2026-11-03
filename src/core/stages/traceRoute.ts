@@ -2,6 +2,7 @@
 // edges (faded out in noTrace zones), and the plan moved onto them. Silent on failure: the road
 // stays on the map's line.
 
+import { clipTraceAtOutlines } from "../buildingTraceClip";
 import { clipTraceAtPaths } from "../pathTraceClip";
 import { inRoundabout } from "../road";
 import { applyTrace, traceRoad, type RasterSampler, type TraceResult } from "../trace";
@@ -40,6 +41,14 @@ export async function traceRoute(ctx: BuildContext, rp: RoutePlan, progress: Pro
   }
   // Busselton fork: the traced edges stop short of the mapped paths beside the road (pathTraceClip.ts).
   if (opts.pathTraceClip !== false && sources.paths?.length) clipTraceAtPaths(samples, result, sources.paths.map((p) => ({ pts: ctx.line(p.pts), kind: p.kind })));
+  // Busselton fork: and short of the buildings beside it, landmarks' outlines and OSM footprints (buildingTraceClip.ts).
+  if (opts.buildingTraceClip !== false) {
+    const outlines = [
+      ...(opts.clears ?? []).flatMap((c) => c.outline ?? []),
+      ...(opts.buildings ? (sources.osm?.buildings ?? []).map((b) => b.ring) : []),
+    ].map((r) => ctx.line(r));
+    if (outlines.length) clipTraceAtOutlines(samples, result, outlines);
+  }
   // (applyTrace may move the samples while it asks: read them live.)
   const onRing = (i: number) => inRoundabout(plan, plan.samples[i].pos[0], plan.samples[i].pos[1], 0.5) !== undefined;
   applyTrace(plan, result, onRing);

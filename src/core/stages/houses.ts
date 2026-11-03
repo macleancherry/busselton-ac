@@ -57,6 +57,9 @@ export function buildHouses(ctx: BuildContext, g: Ground, bp: BuildingPlan, gm: 
 
   // With a horizon, shown is kept itself: what looks place and clears remove changes kept too (B2).
   const shown = opts.horizon > 0 ? bp.kept : bp.kept.filter((b) => b.ring.every(([x, y]) => g.inCover(x, y, 1)));
+  // Busselton fork: the buildings were kept off the road before networkCore's junction surfaces were
+  // laid: one whose walls reach into a junction (its eaves then over the road) goes now.
+  for (let i = shown.length - 1; i >= 0; i--) if (ringRoom(shown[i].ring, roadGap) < -WALL_IN) shown.splice(i, 1);
   const homes = shown.filter((b) => b.ring.length === 4 && b.roof !== "flat" && b.height <= 7.5);
   if (opts.houseStyle) {
     for (const b of homes) {
@@ -238,6 +241,28 @@ export function buildHouses(ctx: BuildContext, g: Ground, bp: BuildingPlan, gm: 
   return { shown, homes, houseTrees, specNodes, specLandmarks, housesLooked, shopfronts, shopMeshes, buildingGround, onBaseRing, groundForBuilding };
 }
 
+/** The least room from a front wall (its two corners) to the road edge, measured every `step` metres along it. */
+export function frontRoom(front: [Vec2, Vec2], roadEdge: (x: number, y: number) => number, step = 2): number {
+  const [a, c] = front;
+  const n = Math.max(1, Math.ceil(Math.hypot(c[0] - a[0], c[1] - a[1]) / step));
+  let room = Infinity;
+  for (let k = 0; k <= n; k++) room = Math.min(room, roadEdge(a[0] + ((c[0] - a[0]) * k) / n, a[1] + ((c[1] - a[1]) * k) / n));
+  return room;
+}
+
+/**
+ * A wall this far onto the asphalt takes the building out, metres: at 0 its eaves already reach
+ * over the junction's gutter and kerb, about 1 m into the road as driven (road_clear.ts).
+ */
+const WALL_IN = 0;
+
+/** The least room from a footprint's walls (every metre along them) to the road edge; negative on the road. */
+export function ringRoom(ring: Vec2[], roadEdge: (x: number, y: number) => number): number {
+  let room = Infinity;
+  for (let k = 0; k < ring.length; k++) room = Math.min(room, frontRoom([ring[k], ring[(k + 1) % ring.length]], roadEdge, 1));
+  return room;
+}
+
 /** S17: the clear circles take their buildings and trees, then the building meshes and front yards. */
 export function finishHouses(ctx: BuildContext, g: Ground, hs: Houses, bp: BuildingPlan): { houses: Kn5MeshNode[]; lots: Kn5MeshNode[] } {
   const { opts } = ctx;
@@ -245,6 +270,10 @@ export function finishHouses(ctx: BuildContext, g: Ground, hs: Houses, bp: Build
     for (const list of [hs.shown, hs.homes]) for (let i = list.length - 1; i >= 0; i--) if (ctx.cleared(...centroid(list[i].ring))) list.splice(i, 1);
     for (let i = hs.houseTrees.length - 1; i >= 0; i--) if (ctx.cleared(hs.houseTrees[i].x, hs.houseTrees[i].y, true)) hs.houseTrees.splice(i, 1);
   }
+  // A verandah or awning reaches out from the front wall by its setback less some room. The setback
+  // was measured from the wall's middle, before networkCore's junctions were built: measured again
+  // along the whole wall against the streets as built, so neither reaches over the road.
+  for (const b of hs.shown) if (b.front && (b.verandah || b.awning)) b.setback = Math.min(b.setback ?? Infinity, frontRoom(b.front, bp.roadEdge));
   // Front-yard and landmark trees off the water and the sand too (shoreClear.ts).
   const shore = g.shore;
   if (shore) for (let i = hs.houseTrees.length - 1; i >= 0; i--) if (shore.hitsAround(hs.houseTrees[i].x, hs.houseTrees[i].y, 1)) hs.houseTrees.splice(i, 1);

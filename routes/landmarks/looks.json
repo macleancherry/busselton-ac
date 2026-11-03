@@ -156,12 +156,12 @@
     },
     {
       "at": [
-        115.345288,
-        -33.651794
+        115.345294,
+        -33.651793
       ],
       "specFile": "routes/landmarks/the_tav.json",
       "name": "The Tav (Vasse Tavern)",
-      "facing": 256
+      "facing": 260
     },
     {
       "at": [

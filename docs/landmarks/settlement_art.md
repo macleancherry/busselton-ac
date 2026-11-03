@@ -23,7 +23,7 @@ Positions come from what the sources say, checked against the specs already in t
 
 | Figure | at [lng, lat] | Faces | Placed | How sure |
 | --- | --- | --- | --- | --- |
-| Whaler's Wife | 115.3436723, -33.6469034 | 345° (out to sea) | On the ArtGeo paving on Queen St, across from the courthouse | Fairly: a 2014 visitor put it "on Queen Street, across from the Court House, in front of the [ArtGeo] building" |
+| Whaler's Wife | 115.3436939, -33.6469034 | 345° (out to sea) | On the ArtGeo paving on Queen St, across from the courthouse (moved 2 m east on 3 Nov 2026, off the built street, between its kerb and ArtGeo's front) | Fairly: a 2014 visitor put it "on Queen Street, across from the Court House, in front of the [ArtGeo] building" |
 | John Garrett Bussell | 115.3436076, -33.6472672 | 76° (to Queen St) | In the courthouse forecourt between the main group and the police cottages | Fairly: the City's photo shows him in front of the limestone wall with "OLD COURTHOUSE" lettering, which faces Queen St across that forecourt |
 | Pioneer Woman | 115.3439529, -33.6476310 | 225° (to the corner) | Outside the south end of the Weld Theatre, on the Queen St / Adelaide St corner | Fairly: the Times said it would stand outside the Weld Theatre, and it was unveiled at that corner |
 | Spanish Settler | 115.3437986, -33.6472941 | 257° (to Queen St) | On the Saltwater frontage, 2.5 m off the glass | Not very: it was unveiled in 2017 at 7-9 Queen St, between the Weld Theatre and ArtGeo. That frontage is now Saltwater (opened May 2026), so it may have moved |

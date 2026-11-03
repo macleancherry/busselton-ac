@@ -130,8 +130,12 @@ export interface BuildOptions {
   buildingRadius: number;
   /** An area's own facade mix; absent = the usual mix. */
   houseStyle?: { facades: Record<string, number> };
-  /** Places cleared of generated houses (and trees unless trees: false). */
-  clears?: { at: LngLat; radius: number; trees?: boolean }[];
+  /**
+   * Places cleared of generated houses (and trees unless trees: false). Busselton fork: a landmark's
+   * clear carries its outline (lng/lat rings, scripts/polish/landmarks.ts --clears), which the
+   * route's traced edges keep clear of (buildingTraceClip.ts).
+   */
+  clears?: { at: LngLat; radius: number; trees?: boolean; outline?: LngLat[][] }[];
   paths: boolean;
   landmarks: boolean;
   streetSigns: boolean;
@@ -162,6 +166,13 @@ export interface BuildOptions {
   shoreClear?: boolean;
   /** Busselton fork: a traced road or street edge stops short of a mapped path running beside it (pathTraceClip.ts), so the trace can't take in the red shared path. On unless false. */
   pathTraceClip?: boolean;
+  /**
+   * Busselton fork: the route's traced edges stop short of buildings, landmarks' outlines (`clears`)
+   * and mapped OSM footprints (buildingTraceClip.ts), so the trace can't take in the footpath up to
+   * the shopfronts; and networkCore's streets narrow off the landmarks' outlines (streetOutlineClip.ts).
+   * On unless false.
+   */
+  buildingTraceClip?: boolean;
 
   // Road surface, markings, kerbs, parking
   roadSurface: "auto" | "asphalt" | "chipseal" | "photo";
@@ -230,7 +241,7 @@ export const OPTIONAL_OPTION_KEYS: readonly (keyof BuildOptions)[] = Object.free
   "origin", "area", "layout", "layoutDrives", "unsealed", "gravelRoads", "networkCore",
   "terrainLodFarTol", "photoSea", "beachDetail", "zones", "pureTuning", "rainHollows",
   "cspTrees", "houseStyle", "clears", "armco", "farmland", "farmRoadsides", "wavingFlags",
-  "jettyTrain", "swimJetties", "jettyKinds", "trackSounds", "poleClear", "raceway", "treeMips", "shoreClear", "pathTraceClip",
+  "jettyTrain", "swimJetties", "jettyKinds", "trackSounds", "poleClear", "raceway", "treeMips", "shoreClear", "pathTraceClip", "buildingTraceClip",
   "kerbside", "laneBayClear", "parkedBays", "padClear", "trafficLights", "shopNamesOverpass",
   "aiKeepLeft", "aiRings", "streetsValid", "challenges", "timeTrialSectors", "driftZones", "courseMarks",
   "gridAt", "pits", "pitLane", "circuitKerbs", "gridPaint", "bridgeDecks",

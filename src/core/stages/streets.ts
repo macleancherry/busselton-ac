@@ -8,6 +8,7 @@ import type { JunctionCore } from "../network/phase1";
 import { layoutDriveLines } from "../layoutDrives";
 import { applyPitWidths, pitLaneLine, PIT_CLASS } from "../pitRoad";
 import { planNetworkStreets, type NetworkStreets } from "../network/phase2";
+import { clipStreetsAtOutlines } from "../streetOutlineClip";
 import { LineIndex, planSideStreets, traceSideStreets, type Junction, type SideStreet, type StreetPlan } from "../sideStreets";
 import { displayOf, type RasterSampler } from "../trace";
 import type { BuildContext } from "./context";
@@ -67,6 +68,9 @@ export async function planStreets(ctx: BuildContext, rp: RoutePlan, tr: Traced, 
     bridgeDecks: opts.bridgeDecks,
   }) : null;
   if (net2) {
+    // Busselton fork: the streets' edges keep clear of the landmarks beside them (streetOutlineClip.ts).
+    const outlines = opts.buildingTraceClip !== false ? (opts.clears ?? []).flatMap((c) => c.outline ?? []).map((r) => ctx.line(r)) : [];
+    if (outlines.length) clipStreetsAtOutlines(net2.streets, outlines);
     streetPlan.streets = net2.streets as SideStreet[];
     streetPlan.junctions = net2.mouths;
   }

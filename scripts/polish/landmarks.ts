@@ -9,7 +9,8 @@
 //   npx tsx scripts/polish/landmarks.ts <route.json> <base.zip> --into
 //       The same, written into the base zip itself (what build-track.mjs does after a base build).
 //   npx tsx scripts/polish/landmarks.ts <route.json> --clears
-//       Prints the spots the base build must clear, as JSON (build-track.mjs reads it).
+//       Prints the spots the base build must clear, as JSON (build-track.mjs reads it), each with the
+//       landmark's outline on the map (lng/lat rings) when the route has a build.origin.
 //   npx tsx scripts/polish/landmarks.ts <route.json> --list
 //       Prints the landmarks' names and map positions, as JSON (for the automatic test's shots).
 //   npx tsx scripts/polish/landmarks.ts <route.json> <base.zip> --check
@@ -23,7 +24,7 @@
 //
 // Looks come from the route's "looks" files plus HOUSE_LOOKS (comma-separated), as for build-track.mjs.
 
-import { readFileSync, writeFileSync } from "node:fs";
+import { readFileSync, writeFileSync, writeSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { strFromU8, strToU8, unzipSync, zipSync } from "fflate";
@@ -32,7 +33,7 @@ import { LocalProjection, type LngLat } from "../../src/core/geo";
 import { readKn5, writeKn5 } from "../../src/core/kn5";
 import { surfaceHeight } from "../../src/core/layouts";
 import { landmarkGround } from "../../src/core/landmarkGround";
-import { LANDMARK_KEEP_OFF, landmarkClear, landmarkModel } from "../../src/core/landmarkLayer";
+import { LANDMARK_KEEP_OFF, landmarkClear, landmarkModel, landmarkOutline } from "../../src/core/landmarkLayer";
 import type { HouseSpec } from "../../src/core/specHouse";
 import { drawSignsOn } from "../../src/services/signs";
 import { demTiles } from "./demTiles";
@@ -52,7 +53,22 @@ const looks: Look[] = lookFiles.flatMap((f: string) => {
 const slugOf = (l: Look) => (l.specFile!.split("/").pop() ?? "landmark").replace(/\.json$/, "").replace(/[^A-Za-z0-9_]+/g, "_").toLowerCase();
 
 if (args.includes("--clears")) {
-  console.log(JSON.stringify(looks.map((l) => landmarkClear(l.at, l.spec!))));
+  // With the map fixed and the facing known, each clear carries the landmark's outline too: the
+  // base's traced road edges stop short of it (src/core/buildingTraceClip.ts).
+  const fixed = route.build?.origin ? new LocalProjection(route.build.origin) : null;
+  const text = JSON.stringify(looks.map((l) => {
+    const clear = landmarkClear(l.at, l.spec!);
+    if (!fixed || !Number.isFinite(l.facing)) return clear;
+    const toRoad: [number, number] = [Math.sin((l.facing! * Math.PI) / 180), Math.cos((l.facing! * Math.PI) / 180)];
+    const round = (v: number) => Math.round(v * 1e7) / 1e7;
+    const outline = landmarkOutline(l.spec!, { centre: fixed.toLocal(l.at), toRoad }).map((r) => r.map((p) => fixed.toLngLat(p).map(round)));
+    return { ...clear, outline };
+  })) + "\n";
+  // Written straight to the descriptor, all of it: console.log on a pipe is cut off by exit at 64 KB.
+  const bytes = Buffer.from(text);
+  for (let off = 0; off < bytes.length;) {
+    try { off += writeSync(1, bytes, off); } catch (e) { if ((e as NodeJS.ErrnoException).code !== "EAGAIN") throw e; }
+  }
   process.exit(0);
 }
 if (args.includes("--list")) {

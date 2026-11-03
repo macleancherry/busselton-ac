@@ -4,7 +4,7 @@
 // what stands there. See ROADMAP.md, "generate, freeze, polish".
 
 import type { HeightFn } from "./elevation";
-import type { LngLat } from "./geo";
+import type { LngLat, Vec2 } from "./geo";
 import type { Kn5Material, Kn5MeshNode, Kn5Model, Kn5Texture } from "./kn5";
 import { IDENTITY } from "./kn5";
 import { encodeDdsDxt1 } from "./dds";
@@ -53,6 +53,30 @@ export function landmarkReach(spec: HouseSpec): number {
   for (const f of spec.fences ?? []) pts.push([f.x0, f.y0], [f.x1, f.y1]);
   for (const s of spec.signs ?? []) pts.push([s.x0, s.y], [s.x1, s.y]);
   return Math.max(...pts.map(([x, y]) => Math.hypot(x - cx, y - cy))) + 1.5;
+}
+
+/**
+ * Busselton fork: what of a landmark the road must keep clear of, as rings on the map (local metres):
+ * its blocks, verandahs, awnings (however high: the footpath is under one) and walls standing on
+ * the ground (panels outside its blocks), as placed. The base's traced road edges stop short of them (buildingTraceClip.ts).
+ */
+export function landmarkOutline(spec: HouseSpec, place: Pick<SpecPlacement, "centre" | "toRoad">): Vec2[][] {
+  const main = spec.blocks.filter((b) => !b.outbuilding);
+  const cx = (Math.min(...main.map((b) => b.x0)) + Math.max(...main.map((b) => b.x1))) / 2;
+  const cy = (Math.min(...main.map((b) => b.y0)) + Math.max(...main.map((b) => b.y1))) / 2;
+  // The same frame buildSpecHouse places the spec in.
+  const o = place.toRoad, t: Vec2 = [-o[1], o[0]];
+  const W = (x: number, y: number): Vec2 => [place.centre[0] + t[0] * (x - cx) - o[0] * (y - cy), place.centre[1] + t[1] * (x - cx) - o[1] * (y - cy)];
+  const rect = (r: { x0: number; x1: number; y0: number; y1: number }): Vec2[] => [W(r.x0, r.y0), W(r.x1, r.y0), W(r.x1, r.y1), W(r.x0, r.y1)];
+  return [
+    ...spec.blocks.map(rect),
+    // A verandah's roof starts 0.2 m out from its front edge (specHouse.ts).
+    ...(spec.verandahs ?? []).map((v) => rect({ ...v, y0: v.y0 - 0.2 })),
+    // Every awning, however high: the footpath is under it, not the road.
+    ...(spec.awnings ?? []).map(rect),
+    // (Not the panels on a block's walls: the block has them.)
+    ...(spec.panels ?? []).filter((p) => (p.z0 ?? 0) < 0.5 && !spec.blocks.some((b) => p.x0 >= b.x0 - 0.5 && p.x1 <= b.x1 + 0.5 && p.y0 >= b.y0 - 0.5 && p.y1 <= b.y1 + 0.5)).map(rect),
+  ];
 }
 
 /** The base build's clear for a landmark: its spot, generated buildings and trees removed. */

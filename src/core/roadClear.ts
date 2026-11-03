@@ -149,19 +149,31 @@ export function rasterMesh(grid: PlanGrid, m: { positions: Float32Array; indices
   }
 }
 
-/** Each connected piece of a mesh (shared vertex indices): the middle of its lowest vertices (within 0.3 m of its lowest), local x, y, and that height. */
-export function trunksOf(m: { positions: Float32Array; indices: Uint16Array }): [number, number, number][] {
+/**
+ * Each connected piece of a mesh (shared vertices, or vertices at the same spot): the middle of its
+ * lowest vertices (within 0.3 m of its lowest), local x, y, and that height. Joining by spot as well
+ * puts a sprite's two faces (each with its own vertices) and a quad cut in two back together.
+ */
+export function trunksOf(m: { positions: ArrayLike<number>; indices: ArrayLike<number> }): [number, number, number][] {
   const n = m.positions.length / 3, parent = new Int32Array(n);
   for (let i = 0; i < n; i++) parent[i] = i;
   const find = (a: number): number => { while (parent[a] !== a) a = parent[a] = parent[parent[a]]; return a; };
+  const join = (a: number, b: number) => { a = find(a); b = find(b); if (a !== b) parent[a] = b; };
   const ix = m.indices;
   for (let t = 0; t + 2 < ix.length; t += 3) {
-    const a = find(ix[t]), b = find(ix[t + 1]), c = find(ix[t + 2]);
-    parent[a] = c; parent[b] = c;
+    join(ix[t], ix[t + 2]);
+    join(ix[t + 1], ix[t + 2]);
+  }
+  const spot = new Map<string, number>();
+  for (let v = 0; v < n; v++) {
+    const k = `${Math.round(m.positions[v * 3] * 1000)},${Math.round(m.positions[v * 3 + 1] * 1000)},${Math.round(m.positions[v * 3 + 2] * 1000)}`;
+    const w = spot.get(k);
+    if (w === undefined) spot.set(k, v);
+    else join(v, w);
   }
   const lo = new Map<number, number>();
   const used = new Uint8Array(n);
-  for (const v of ix) used[v] = 1;
+  for (let k = 0; k < ix.length; k++) used[ix[k]] = 1;
   const p = m.positions;
   for (let v = 0; v < n; v++) if (used[v]) { const r = find(v); lo.set(r, Math.min(lo.get(r) ?? Infinity, p[v * 3 + 1])); }
   const acc = new Map<number, [number, number, number]>();
@@ -174,6 +186,18 @@ export function trunksOf(m: { positions: Float32Array; indices: Uint16Array }): 
     acc.set(r, a);
   }
   return [...acc].map(([r, [x, y, k]]) => [x / k, y / k, lo.get(r)!]);
+}
+
+/** Two meshes as one (positions and indices only), under the first one's name. */
+function joinMeshes(a: Mesh, b: Mesh): Mesh {
+  const positions = new Float32Array(a.positions.length + b.positions.length);
+  positions.set(a.positions);
+  positions.set(b.positions, a.positions.length);
+  const off = a.positions.length / 3;
+  const indices = new Uint32Array(a.indices.length + b.indices.length);
+  indices.set(a.indices);
+  for (let i = 0; i < b.indices.length; i++) indices[a.indices.length + i] = b.indices[i] + off;
+  return { ...a, positions, indices } as unknown as Mesh;
 }
 
 /** A kn5 file's meshes with their top group (the root's child they're under). */
@@ -275,7 +299,19 @@ export function rasterise(files: Kn5File[], bounds?: [number, number, number, nu
   }
   const minDepth = (EDGE_IN / cell) * 10 + 10; // the cell's own half plus EDGE_IN
   const inner = (c: number) => D[c] >= minDepth && !Number.isNaN(planes.road[c]);
+  // A tree mesh split into area tiles (cull.ts: <name>_T<k>, by triangle) can have a sprite's two
+  // triangles in different tiles: each tile's half then looks like a trunk at the sprite's end.
+  // The tiles of one tree mesh are joined back into one before looking for trunks.
+  const treeTiles = new Map<string, { file: string; mesh: Mesh; group: string; role: ObstacleKind }>();
+  const joined: typeof roles = [];
   for (const r of roles) {
+    if (r.role !== "tree") { joined.push(r); continue; }
+    const key = `${r.file}:${r.mesh.name.replace(/_T\d+$/, "")}`;
+    const had = treeTiles.get(key);
+    if (!had) { const e = { ...r, role: "tree" as ObstacleKind }; treeTiles.set(key, e); joined.push(e); continue; }
+    had.mesh = joinMeshes(had.mesh, r.mesh);
+  }
+  for (const r of joined) {
     const kind = r.role && (OBSTACLE_KINDS as string[]).includes(r.role) ? (r.role as ObstacleKind) : null;
     if (!kind) continue;
     const k = OBSTACLE_KINDS.indexOf(kind) + 1;
