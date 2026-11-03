@@ -119,16 +119,16 @@
      -33.6459
     ],
     [
-     115.3505,
+     115.3575,
      -33.6459
     ],
     [
-     115.3505,
-     -33.6432
+     115.3575,
+     -33.6412
     ],
     [
      115.3489,
-     -33.6432
+     -33.6412
     ]
    ],
    [
@@ -150,7 +150,7 @@
     ]
    ]
   ],
-  "_areaNote": "The town centre and, since 30 Oct, the jetty precinct (Foreshore Pde, Jetty Way, the Visitor Centre, The Goose, the Hilton) as a second polygon: it was only horizon scenery before. A third small polygon takes in the Geographe Bay Yacht Club, just west of the town box. Since 3 Nov two more boxes take in the beach either side of the jetty precinct (west to the Marine Tce shore, east to the town box's edge): outside the area the shore was scenery ground that met the water in a dark step, seen in renders and likely from the foreshore roads."
+  "_areaNote": "The town centre and, since 30 Oct, the jetty precinct (Foreshore Pde, Jetty Way, the Visitor Centre, The Goose, the Hilton) as a second polygon: it was only horizon scenery before. A third small polygon takes in the Geographe Bay Yacht Club, just west of the town box. Since 3 Nov two more boxes take in the beach either side of the jetty precinct (west to the Marine Tce shore, east about 600 m past the Hilton): outside the area the shore was scenery ground that met the water in a dark step, seen in renders and likely from the foreshore roads."
  },
  "layout": {
   "id": "foreshore",
