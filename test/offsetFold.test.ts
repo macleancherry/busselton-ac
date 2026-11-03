@@ -4,7 +4,8 @@ import { buildAiLine, AI_MIN_RADIUS } from "../src/core/aiLine";
 import { easeFolds } from "../src/core/offsetFold";
 import { withDefaults } from "../src/core/options";
 import { frames } from "../src/core/polyline";
-import { planRoad } from "../src/core/road";
+import { planRoad, SegmentIndex } from "../src/core/road";
+import { buildWalls } from "../src/core/roadMesh";
 import { applyTrace, TRACE_MIN_RADIUS } from "../src/core/trace";
 
 /** West 100 m, a left turn onto south round a `r` m arc, then south 100 m; points every 2 m. */
@@ -59,6 +60,26 @@ describe("folds in the build", () => {
     // A trace that pulls the line 5.5 m into the bend all along (without the easing: a 1.4 m corner).
     applyTrace(plan, { offset: new Array(n).fill(5.5), width: new Array(n).fill(NaN), conf: new Array(n).fill(1), coverage: 1 }, () => false);
     expect(minRadius(plan.samples.map((s) => s.pos))).toBeGreaterThanOrEqual(TRACE_MIN_RADIUS * 0.999);
+  });
+
+  it("the corridor walls don't fold back over the road on the inside of a tight corner", () => {
+    const opts = withDefaults({ spacing: 2, lineSmoothing: 0.1, banking: false });
+    const plan = planRoad(corner(1), opts);
+    for (const s of plan.samples) s.width = 8;
+    const index = new SegmentIndex(plan);
+    const walls = buildWalls(plan, opts, () => 0, index);
+    let quads = 0;
+    for (const w of walls) {
+      const m = w as unknown as { positions: Float32Array | number[]; indices: Uint16Array | Uint32Array | number[] };
+      for (let t = 0; t < m.indices.length; t++) {
+        const v = m.indices[t] * 3;
+        // kn5 positions are AC coordinates: x east, z south.
+        const near = index.nearest(m.positions[v], -m.positions[v + 2], 20);
+        expect(near === null || near.dist >= 4 + 0.3 - 1e-6).toBe(true);
+      }
+      quads += m.indices.length;
+    }
+    expect(quads).toBeGreaterThan(0);
   });
 
   it("the keep-left AI line doesn't turn back on itself in a tight left turn", () => {

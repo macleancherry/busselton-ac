@@ -223,6 +223,9 @@ export function buildRoadMeshes(
   return { road, verge, openings };
 }
 
+/** Busselton fork: a corridor wall section closer than this to an asphalt edge, metres, is left out (it has folded over the road). */
+const WALL_ROAD_GAP = 0.3;
+
 /**
  * Invisible walls each side of the road. The wall pulls in where another
  * stretch of the same road passes close by (switchbacks) and on the inside
@@ -260,10 +263,27 @@ export function buildWalls(plan: RoadPlan, opts: BuildOptions, terrain: HeightFn
     return out;
   });
 
+  // Busselton fork: on the inside of a corner tighter than the road's half width (a junction turn),
+  // even the closest wall folds back across the road (Caves Road at Yallingup, retest 6: an invisible
+  // wall over the AI line). A wall point or the middle of a wall section over the road (within
+  // WALL_ROAD_GAP of an asphalt edge) drops the sections either side of it: a gap in the inside wall
+  // of a corner, where the outside wall and the corner itself keep cars in.
+  const overRoad = (x: number, y: number) => {
+    const near = index.nearest(x, y, 20);
+    return !!near && near.dist < index.at(near).width / 2 + WALL_ROAD_GAP;
+  };
+  const wallAt = (side: 0 | 1, i: number) => point(samples[i % n], offsets[i % n][side] * (side === 0 ? 1 : -1), 0);
+  const folded = [0, 1].map((side) => samples.map((_, i) => { const p = wallAt(side as 0 | 1, i); return overRoad(p[0], p[1]); }));
+
   const walls: Kn5MeshNode[] = [];
   for (const side of [0, 1] as const) {
     const sign = side === 0 ? 1 : -1;
     const last = plan.closed ? n : n - 1;
+    const crossesRoad = (i: number) => {
+      if (folded[side][i % n] || folded[side][(i + 1) % n]) return true;
+      const p = wallAt(side, i), q = wallAt(side, i + 1);
+      return overRoad((p[0] + q[0]) / 2, (p[1] + q[1]) / 2);
+    };
     for (let a = 0, ci = 0; a < last; a += CHUNK_SECTIONS, ci++) {
       const b = Math.min(last, a + CHUNK_SECTIONS);
       const wb = new MeshBuilder();
@@ -285,7 +305,7 @@ export function buildWalls(plan: RoadPlan, opts: BuildOptions, terrain: HeightFn
         return !!inRoundabout(plan, p[0], p[1], Math.max(opts.vergeWidth + 1, opts.wallOffset) + 4);
       };
       for (let r = 0; r < b - a; r++) {
-        if (nearRing(a + r) || nearRing(a + r + 1)) continue;
+        if (nearRing(a + r) || nearRing(a + r + 1) || crossesRoad(a + r)) continue;
         const p = r * 4, q = p + 4;
         // Both windings, so the wall collides from either side.
         wb.quad(p, q, q + 1, p + 1);
