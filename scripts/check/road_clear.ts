@@ -12,7 +12,8 @@
 //       it; and, as information only, OSM streets inside the route's area never built at all (from
 //       the build's cached map tiles: bridges, private roads and the like);
 //   (d) OSM shared paths (and footpaths) with no path ribbon, or with the ground over it, and why
-//       (a road or kerb within 1.6 m, ground steps under it, other).
+//       (a road or kerb within 1.6 m, ground steps under it, other). A shared path's ribbon counts
+//       up to PATH_SHIFT to one side of its line (the build moves it off kerbs and steps).
 // The map tiles are read from the download cache (out/cache, and SNAPSHOT or out/snapshots/*, in
 // this checkout or, from a git worktree, the main one; --cache dir,dir adds more), the same tiles
 // the build used; without them (c)'s OSM part and (d) are skipped.
@@ -30,7 +31,7 @@ import { unzipSync } from "fflate";
 import { Area, areaRings } from "../../src/core/area";
 import { LocalProjection, type LngLat, type Vec2 } from "../../src/core/geo";
 import { readKn5 } from "../../src/core/kn5";
-import { pathKind } from "../../src/core/paths";
+import { PATH_SHIFT, PATH_WIDTH, pathKind } from "../../src/core/paths";
 import { decodeOwnPng, encodePng } from "../../src/core/png";
 import {
   along, obstaclePieces, pathState, PlanGrid, rasterise, roadDistance, runsOf, streetGapPieces, streetMapCore, streetState, STREET_CLASSES,
@@ -190,7 +191,10 @@ for (const r of roads) {
     seenPath.add(c * 2 + (kind === "shared" ? 1 : 0));
     return true;
   });
-  const states = pts.map((p) => pathState(planes, p, 0.75));
+  // A shared path may be drawn up to PATH_SHIFT to one side (off a kerb or a step): its ribbon's
+  // near edge is then within PATH_SHIFT - half its width + 0.75 m of the mapped line.
+  const moved = kind === "shared" ? PATH_SHIFT.shared - PATH_WIDTH.shared / 2 + 0.75 : 0;
+  const states = pts.map((p) => pathState(planes, p, 0.75, moved));
   if (kind === "shared") pts.forEach((p, i) => {
     if (states[i] !== "missing") return;
     missingBy[roadDistance(planes, p, 1.6) <= 1.6 ? "road or kerb within 1.6 m" : stepsAt(pts, i) ? "ground steps under it" : "other"] += 0.5;

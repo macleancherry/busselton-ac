@@ -33,7 +33,11 @@ export const SAMPLE = 0.35;
  * dashed). The ribbon follows smaller steps: it's sampled finely across them (REFINE_STEP).
  */
 export const STEP_JUMP = 0.12;
-/** The same across the path: a step running along under it would come up through the ribbon between its vertices, so the old 6 cm stays. */
+/**
+ * The same across the path: a step running along under it would come up through the ribbon between
+ * its vertices, so the old 6 cm stays. A path that may move (PATH_SHIFT) moves off such a step
+ * instead of being cut there (flatAcross in shiftPath's test).
+ */
 export const STEP_ACROSS = 0.06;
 /** Where the ground bends along by more than this (metres, as STEP_JUMP), the path is sampled every REFINE_STEP metres there. */
 const REFINE_JUMP = 0.03;
@@ -47,6 +51,8 @@ const REFINE_STEP = 0.05;
 export const PATH_SHIFT: Record<PathLine["kind"], number> = { shared: 3, foot: 0 };
 const SHIFT_STEP = 0.5;
 const SHIFT_TAPER = 0.25;
+/** A move is held this far along either way before it eases out, metres (fewer bends, longer quads). */
+const SHIFT_HOLD = 6;
 /** Samples merged into one stretch of ribbon: at most this long, metres, ... */
 const MERGE_MAX = 15;
 /** ... with every sample between within this of the straight line sideways ... */
@@ -129,10 +135,16 @@ function bendAlong(run: { s: number; g: number[] }[], k: number, c: number): num
   return 2 * Math.abs(q.g[c] - (a.g[c] + (b.g[c] - a.g[c]) * f));
 }
 
+/** Whether the ground across a path (points left to right, evenly spaced) is free of steps (bends sharper than STEP_ACROSS). */
+export function flatAcross(g: number[]): boolean {
+  for (let c = 1; c < g.length - 1; c++) if (Math.abs(g[c - 1] - 2 * g[c] + g[c + 1]) > STEP_ACROSS) return false;
+  return true;
+}
+
 /** Whether the ground steps at sample k of a run: it bends sharply across, or along against its neighbours. */
 export function steps(run: { s: number; g: number[] }[], k: number): boolean {
   const g = run[k].g;
-  for (let c = 1; c < g.length - 1; c++) if (Math.abs(g[c - 1] - 2 * g[c] + g[c + 1]) > STEP_ACROSS) return true;
+  if (!flatAcross(g)) return true;
   if (k > 0 && k < run.length - 1) {
     for (let c = 0; c < g.length; c++) if (bendAlong(run, k, c) > STEP_JUMP) return true;
   }
@@ -252,7 +264,12 @@ export function buildPaths(
       }
       const along = alongOf(pts);
       // Moved sideways off the roads where it must be (shiftPath), then cut wherever it still isn't clear.
-      const placed = shiftPath(pts, along, normalsOf(pts), shift[kind], (p) => inCorridor(p[0], p[1]), (p) => clear(p[0], p[1], half, kind));
+      // A path that may move also moves off a step in the ground running along under it (the nature
+      // strip's outer edge, a kerb's back): there it can't be laid without the ground coming up
+      // through it, and a little to one side the ground is flat across (flatAcross).
+      const n0 = normalsOf(pts);
+      const placed = shiftPath(pts, along, n0, shift[kind], (p) => inCorridor(p[0], p[1]),
+        shift[kind] > 0 ? (p, i) => clear(p[0], p[1], half, kind) && flatAcross(across.map((c) => ground(p[0] + n0[i][0] * c, p[1] + n0[i][1] * c))) : (p) => clear(p[0], p[1], half, kind));
       const normals = normalsOf(placed.pts), placedAlong = alongOf(placed.pts);
       let run: Sample[] = [];
       for (let i = 0; i < placed.pts.length; i++) {
@@ -295,23 +312,24 @@ function normalsOf(pts: Vec2[]): Vec2[] {
 /**
  * Busselton fork: a path moved sideways off what it may not lie on. Each sample that isn't `clear`
  * looks for the smallest move, SHIFT_STEP at a time up to `max` metres either way, that is (inside
- * the corridor). The moves are then eased in and out along the path at SHIFT_TAPER (the larger of
+ * the corridor). The moves are then held SHIFT_HOLD either way and eased in and out along the
+ * path at SHIFT_TAPER (the larger of
  * the moves either way wins where both are wanted), so the path bends gently round a kerb instead
  * of stepping. Every sample is tested where it ends up: `ok` is false where it still isn't clear
  * (the path is cut there, as before). Samples outside the corridor are never moved.
  */
-export function shiftPath(pts: Vec2[], along: number[], normals: Vec2[], max: number, inCorridor: (p: Vec2) => boolean, clear: (p: Vec2) => boolean): { pts: Vec2[]; ok: boolean[]; off: number[] } {
+export function shiftPath(pts: Vec2[], along: number[], normals: Vec2[], max: number, inCorridor: (p: Vec2) => boolean, clear: (p: Vec2, i: number) => boolean): { pts: Vec2[]; ok: boolean[]; off: number[] } {
   const n = pts.length;
   const at = (i: number, o: number): Vec2 => [pts[i][0] + normals[i][0] * o, pts[i][1] + normals[i][1] * o];
   const inside = pts.map((p) => inCorridor(p));
-  const clear0 = pts.map((p, i) => inside[i] && clear(p));
+  const clear0 = pts.map((p, i) => inside[i] && clear(p, i));
   const want = new Array<number>(n).fill(0);
   let lastSign = 1;
   if (max > 0) {
     for (let i = 0; i < n; i++) {
       if (!inside[i] || clear0[i]) continue;
       for (let m = SHIFT_STEP; m <= max + 1e-9; m += SHIFT_STEP) {
-        const hit = [lastSign, -lastSign].find((sg) => { const q = at(i, sg * m); return inCorridor(q) && clear(q); });
+        const hit = [lastSign, -lastSign].find((sg) => { const q = at(i, sg * m); return inCorridor(q) && clear(q, i); });
         if (hit !== undefined) {
           want[i] = hit * m;
           lastSign = hit;
@@ -320,9 +338,16 @@ export function shiftPath(pts: Vec2[], along: number[], normals: Vec2[], max: nu
       }
     }
   }
-  // Eased envelopes of the moves wanted to the left (+) and to the right (-).
+  // Eased envelopes of the moves wanted to the left (+) and to the right (-): each move held for
+  // SHIFT_HOLD either way first, so a run of slightly different moves becomes one straight offset.
   const ease = (sign: 1 | -1) => {
-    const e = want.map((w) => Math.max(0, sign * w));
+    const w0 = want.map((w) => Math.max(0, sign * w));
+    const e = w0.slice();
+    for (let i = 0; i < n; i++) {
+      if (!w0[i]) continue;
+      for (let j = i - 1; j >= 0 && along[i] - along[j] <= SHIFT_HOLD; j--) e[j] = Math.max(e[j], w0[i]);
+      for (let j = i + 1; j < n && along[j] - along[i] <= SHIFT_HOLD; j++) e[j] = Math.max(e[j], w0[i]);
+    }
     for (let i = 1; i < n; i++) e[i] = Math.max(e[i], e[i - 1] - SHIFT_TAPER * (along[i] - along[i - 1]));
     for (let i = n - 2; i >= 0; i--) e[i] = Math.max(e[i], e[i + 1] - SHIFT_TAPER * (along[i + 1] - along[i]));
     return e;
@@ -330,7 +355,7 @@ export function shiftPath(pts: Vec2[], along: number[], normals: Vec2[], max: nu
   const L = ease(1), R = ease(-1);
   const off = L.map((l, i) => (l >= R[i] ? l : -R[i]));
   const out = off.map((o, i) => (o === 0 ? pts[i] : at(i, o)));
-  const ok = out.map((q, i) => inside[i] && (off[i] === 0 ? clear0[i] : off[i] === want[i] || (inCorridor(q) && clear(q))));
+  const ok = out.map((q, i) => inside[i] && (off[i] === 0 ? clear0[i] : off[i] === want[i] || (inCorridor(q) && clear(q, i))));
   return { pts: out, ok, off };
 }
 

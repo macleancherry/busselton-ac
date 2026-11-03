@@ -197,6 +197,8 @@ export interface Planes {
   roadKind: Uint8Array;
   kerb: Float32Array;
   path: Float32Array;
+  /** 1 where the path ribbon on top is a shared path's (1ROAD_PATH_SHARED...). */
+  pathShared: Uint8Array;
   ground: Float32Array;
   /** 1 + an OBSTACLE_KINDS index on inner road cells with an obstacle on them, else 0. */
   obstacle: Uint8Array;
@@ -238,7 +240,7 @@ export function rasterise(files: Kn5File[], bounds?: [number, number, number, nu
   const planes: Planes = {
     grid,
     road: new Float32Array(n).fill(NaN), roadKind: new Uint8Array(n), kerb: new Float32Array(n).fill(NaN),
-    path: new Float32Array(n).fill(NaN), ground: new Float32Array(n).fill(NaN),
+    path: new Float32Array(n).fill(NaN), pathShared: new Uint8Array(n), ground: new Float32Array(n).fill(NaN),
     obstacle: new Uint8Array(n), obstacleMesh: new Uint16Array(n), obstacleLow: new Float32Array(n).fill(NaN), names: [],
     depth: new Uint16Array(n),
   };
@@ -249,7 +251,10 @@ export function rasterise(files: Kn5File[], bounds?: [number, number, number, nu
       rasterMesh(grid, r.mesh, (c, h) => { if (!(planes.road[c] >= h)) { planes.road[c] = h; planes.roadKind[c] = k; } }, false);
     }
     else if (r.role === "kerb") rasterMesh(grid, r.mesh, top(planes.kerb), false);
-    else if (r.role === "path") rasterMesh(grid, r.mesh, top(planes.path), false);
+    else if (r.role === "path") {
+      const shared = /SHARED/.test(r.mesh.name) ? 1 : 0;
+      rasterMesh(grid, r.mesh, (c, h) => { if (!(planes.path[c] >= h)) { planes.path[c] = h; planes.pathShared[c] = shared; } }, false);
+    }
     else if (r.role === "ground") rasterMesh(grid, r.mesh, top(planes.ground), false);
   }
   // How deep into the road each cell is (3-4 chamfer, 10 a cell straight); inner road cells are
@@ -434,12 +439,15 @@ function medianAt(p: Planes, [x, y]: Vec2, dir: Vec2, f: (c: number) => boolean)
  * A path point: "ok" with a path ribbon within `r` showing over the ground, "road" where a road,
  * street or kerb covers it (paths are cut there on purpose), "buried" with a ribbon under the
  * ground, "missing" with none, "outside" where there's no built ground (past the corridor).
+ * `moved` (a shared path's points): a shared path's ribbon showing within this also counts, as the
+ * build moves a shared path up to PATH_SHIFT sideways off a kerb or a step (paths.ts shiftPath).
  */
-export function pathState(p: Planes, pt: Vec2, r: number): LineState {
+export function pathState(p: Planes, pt: Vec2, r: number, moved = 0): LineState {
   const c0 = p.grid.at(pt[0], pt[1]);
   if (c0 < 0) return "outside";
   const shows = (c: number) => !Number.isNaN(p.path[c]) && !(p.ground[c] > p.path[c] + BURIED) && !(p.road[c] > p.path[c]) && !(p.kerb[c] > p.path[c]);
   if (near(p.grid, pt, r, shows)) return "ok";
+  if (moved > r && near(p.grid, pt, moved, (c) => p.pathShared[c] === 1 && shows(c))) return "ok";
   if (!Number.isNaN(p.road[c0]) || !Number.isNaN(p.kerb[c0])) return "road";
   if (near(p.grid, pt, r, (c) => !Number.isNaN(p.path[c]))) return "buried";
   if (Number.isNaN(p.ground[c0])) return "outside";
