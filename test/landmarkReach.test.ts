@@ -2,7 +2,8 @@
 // corridor along the drive or a `build.area` patch. The capes' lighthouses and cottages stand
 // 100-250 m off the road's end, on landmark patches. Every spec landmark (a route's "looks") and
 // every layer's replaced circle (its "layers") must sit inside one of the route's area polygons, or
-// within EDGE metres of one, where the corridor or the patch's own ground still carries it.
+// within EDGE metres of one, where the corridor or the patch's own ground still carries it, or stand
+// beside the drive (within the corridor of the line through the route's pins).
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -61,7 +62,16 @@ describe("landmarks within the build's reach", () => {
       }
       let area: LngLat[][] = route.build?.area ?? [];
       if (area.length && typeof (area[0] as unknown as LngLat)[0] === "number") area = [area as unknown as LngLat[]];
+      // A landmark beside the drive itself is in the corridor: the pins' line stands in for the drive
+      // (pins sit on the road, mid-block), as an open ring of segments.
+      const pins: LngLat[] = route.pins ?? [];
+      const corridor = Number(route.build?.corridor ?? 60);
+      const onDrive = (p: LngLat) => {
+        for (let i = 1; i < pins.length; i++) if (distance(p, [pins[i - 1], pins[i]]) <= corridor) return true;
+        return false;
+      };
       const far = spots
+        .filter((s) => !onDrive(s.at))
         .map((s) => ({ ...s, d: Math.min(Infinity, ...area.map((ring) => distance(s.at, ring))) }))
         .filter((s) => s.d > EDGE)
         .map((s) => `${s.what} ${Number.isFinite(s.d) ? Math.round(s.d) + " m" : "(no area)"} outside`);

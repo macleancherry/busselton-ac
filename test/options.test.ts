@@ -80,7 +80,7 @@ describe("build options", () => {
   });
 
   it("has no defaults for optional fields", () => {
-    expect(OPTIONAL).toHaveLength(47);
+    expect(OPTIONAL).toHaveLength(48);
     for (const k of OPTIONAL) expect(Object.keys(DEFAULT_OPTIONS)).not.toContain(k);
     expect([...OPTIONAL_OPTION_KEYS].sort()).toEqual([...OPTIONAL].sort());
   });
