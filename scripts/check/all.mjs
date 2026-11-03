@@ -4,7 +4,7 @@
 //
 // Runs: check_build (spikes, heights), budget, layout_check and course_marks_check (when it has layouts), dump_surface then
 // surface_check and street_ground, path_ground, ground_check (placed things on the ground, parked cars
-// off the roads), shore_check (no trees on water, sand, groynes or jetties; nothing on water), parked_check (parked cars in bays, on asphalt, not overlapping), traffic_check and lane_bay_check (when it has traffic). Exits non-zero if any fails.
+// off the roads), shore_check (no trees on water, sand, groynes or jetties; nothing on water), parked_check (parked cars in bays, on asphalt, not overlapping), road_clear (nothing standing on the roads, no holes in the streets, the shared paths all there), traffic_check and lane_bay_check (when it has traffic). Exits non-zero if any fails.
 // The headline numbers (triangles, AI off the road per layout, tilt, edge steps, ground through
 // streets, traffic loose ends) go in the JSON, so scripts/upgrade/base.mjs can compare two builds.
 
@@ -79,6 +79,15 @@ results.push(r);
 summary.parkedOverlapping = num(r.text, /overlapping cars: (\d+)/);
 summary.parkedOffAsphalt = num(r.text, /cars off asphalt: (\d+)/);
 summary.parkedOutsideBays = num(r.text, /cars outside bays: (\d+)/);
+
+// Busselton fork: plan-view check of the roads and paths (road_clear.ts; overlay out/<slug>.roadclear.png).
+r = run("road clear", "npx", ["tsx", "scripts/check/road_clear.ts", `out/${slug}.zip`]);
+results.push(r);
+summary.onRoad = num(r.text, /things on the road \(1 m2 or more\): (\d+)/);
+summary.treesOnRoad = num(r.text, /trees on the road: (\d+)/);
+summary.streetHoles = num(r.text, /street holes [^:]*: (\d+)/);
+summary.streetsNeverBuilt = num(r.text, /OSM streets never built in the area: (\d+)/);
+summary.sharedPathGaps = num(r.text, /shared path gaps \(5 m or more\): (\d+)/);
 
 if (names.some((n) => n.endsWith("traffic.json"))) {
   r = run("traffic", "python3", ["-I", "scripts/check/traffic_check.py", `out/${slug}.zip`, `out/${slug}.surface.json`]);
