@@ -3,16 +3,15 @@
 // to a flat back. Panel van (paint behind the front doors) or commuter (windows all along); tradies
 // add roof bars.
 
-import { carNose, carTail, noseFaceMid, sideGlass } from "./body";
+import { carNose, carTail, headLamps, sideGlass, type Nose } from "./body";
 import { mirrors, roofBars } from "./extras";
 import {
-  dimensionsOf, glasshouse, numberPlate, PAINT_SLOT, Sil, towBar, VehicleBuilder, wheelCentre, wheels,
+  archOf, dimensionsOf, glasshouse, numberPlate, PAINT_SLOT, Sil, towBar, VehicleBuilder, wheels,
   type BaseSpec, type Dimensions, type VehicleMesh,
 } from "./vehicle";
 
 export interface VanSpec extends BaseSpec {
   sill: number;
-  bumperTop: number;
   bonnetFront: number;
   belt: number;
   windscreenBase: number;
@@ -25,12 +24,12 @@ export interface VanSpec extends BaseSpec {
   towBar: boolean;
 }
 
-/** About a HiAce LWB van: 5.27 x 1.95 x 1.99 m, 3.21 m wheelbase. */
+/** About a HiAce LWB van: 5.27 x 1.95 x 1.99 m, 3.21 m wheelbase, 215/70R16. */
 export const VAN_DEFAULTS: VanSpec = {
   length: 5.265, width: 1.95, height: 1.99, wheelbase: 3.21, frontOverhang: 0.93,
-  wheelRadius: 0.345, track: 1.67, tyreWidth: 0.225, sill: 0.33,
-  bumperTop: 0.62, bonnetFront: 0.98, belt: 1.12,
-  windscreenBase: 1.0, roofFront: 1.82, bPillar: 2.02,
+  wheelRadius: 0.355, track: 1.67, tyreWidth: 0.215, sill: 0.34,
+  bonnetFront: 1.02, belt: 1.14,
+  windscreenBase: 1.02, roofFront: 1.86, bPillar: 2.04,
   windows: false, roofBars: false, plates: true, towBar: false,
 };
 
@@ -50,14 +49,16 @@ export function buildVan(spec: Partial<VanSpec> = {}, lod: 0 | 1 = 0): VehicleMe
   const vb = new VehicleBuilder();
   const L = s.length, hw = s.width / 2, near = lod === 0;
   const fa = s.frontOverhang, ra = fa + s.wheelbase;
-  const archR = s.wheelRadius + 0.07, archH = wheelCentre(s.wheelRadius) + 0.04, segs = near ? 4 : 2;
+  const { archR, archH } = archOf(s, 0.04), segs = near ? 4 : 2;
   const glassEnd = L - 0.03, roofRear = L - 0.07, beltRear = s.belt + 0.02;
 
+  // A bold upright grille between slim lamps; tall tail lamps up the back corners.
   const sil = new Sil();
-  carNose(sil, { sill: s.sill, bumperTop: s.bumperTop, lampTop: s.bonnetFront, hw: hw - 0.02, rake: 0.2, round: 0.18 });
-  sil.add({ d: 0.58, h: (s.bonnetFront + s.belt) / 2 + 0.02, hw, inset: 0.08, drop: 0.04 }, { kind: "body" }, true); // the short bonnet's crown
-  sil.add({ d: s.windscreenBase, h: s.belt, hw, inset: 0.05, drop: 0.03 }, { kind: "body" }); // under the glasshouse (the whole box)
-  carTail(sil, { length: L, d: glassEnd, h: beltRear, bumperTop: s.bumperTop - 0.04, sill: s.sill, hw, round: 0.08 });
+  const nose: Nose = { sill: s.sill, lampTop: s.bonnetFront, hw: hw - 0.02, rake: 0.16, round: 0.2, lamp: 0.1, lip: 0.12, grille: 0.32, upper: "grille" };
+  carNose(sil, nose);
+  sil.add({ d: 0.55, h: (s.bonnetFront + s.belt) / 2 + 0.02, hw, inset: 0.07, drop: 0.07 }, { kind: "body" }, true); // the short bonnet's crown
+  sil.add({ d: s.windscreenBase, h: s.belt, hw, inset: 0.05, drop: 0.08 }, { kind: "body" }); // under the glasshouse (the whole box)
+  carTail(sil, { length: L, d: glassEnd, h: beltRear, bumperTop: 0.6, sill: s.sill, hw, round: 0.1, drop: 0.08, lamp: 0.4 });
   sil.arches(ra, fa, archH, archR, s.sill, segs, hw);
   sil.build(vb, L, near, s);
 
@@ -75,10 +76,11 @@ export function buildVan(spec: Partial<VanSpec> = {}, lod: 0 | 1 = 0): VehicleMe
 
   if (s.roofBars) roofBars(vb, L, s.roofFront + 0.3, roofRear - 0.1, roofHw - 0.02, s.height, 3, near);
   if (near) {
-    mirrors(vb, L, s.windscreenBase - 0.05, s.windscreenBase + 0.15, hw - 0.04, s.belt + 0.02, 0.2);
+    headLamps(vb, L, sil, nose, 0.16);
+    mirrors(vb, L, s.windscreenBase + 0.14, hw, s.belt + 0.02, 0.22, 0.17);
     if (s.plates) {
-      numberPlate(vb, L, sil, noseFaceMid(s), "front", near);
-      numberPlate(vb, L, sil, (beltRear + s.bumperTop - 0.04) / 2 - 0.05, "rear", near);
+      numberPlate(vb, L, sil, 0.53, "front", near);
+      numberPlate(vb, L, sil, 0.68, "rear", near);
     }
     if (s.towBar) towBar(vb, L, -L / 2 + 0.15, s.sill + 0.02);
   }

@@ -6,9 +6,18 @@
 
 import { SW, type VehicleBuilder } from "./vehicle";
 
-/** Door mirrors either side, from d0 to d1 back from the front, sticking out `out` past the body. */
-export function mirrors(vb: VehicleBuilder, len: number, d0: number, d1: number, hw: number, h: number, out = 0.17): void {
-  vb.boxPair([len / 2 - d1, len / 2 - d0], [hw - 0.07, hw + out], [h, h + 0.18], SW.TRIM, ["bottom", "inner"]);
+/**
+ * Door mirrors either side: a slim housing (black cap) on a short stalk from the door's front corner,
+ * its back edge `d` back from the front, reaching `out` past the body's side at `hw` (the widest, not
+ * the tucked-in belt, so daylight shows between housing and glass), its bottom at h. `tall` is the
+ * housing's height (cars 0.13, utes and vans 0.16).
+ */
+export function mirrors(vb: VehicleBuilder, len: number, d: number, hw: number, h: number, out = 0.2, tall = 0.13): void {
+  const f0 = len / 2 - d;
+  // Stalk: from inside the shoulder out to the housing, low and thin; only its top and front show.
+  vb.boxPair([f0 + 0.02, f0 + 0.08], [hw - 0.1, hw + 0.022], [h, h + 0.04], SW.TRIM, ["bottom", "inner", "outer", "back"]);
+  // Housing: 0.11 m deep.
+  vb.boxPair([f0, f0 + 0.11], [hw + 0.02, hw + out], [h + 0.02, h + 0.02 + tall], SW.TRIM, ["bottom", "inner"]);
 }
 
 /**
