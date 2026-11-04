@@ -38,8 +38,9 @@ summary.spikes = /no hairpin spikes/.test(r.text) ? 0 : 1;
 
 r = run("budget", "npx", ["tsx", "scripts/check/budget.ts", `out/${slug}.zip`]);
 results.push(r);
-summary.triangles = num(r.text, /triangles ([\d,]+)/);
-summary.drawCalls = num(r.text, /draw calls\) ([\d,]+)/);
+summary.triangles = num(r.text, /triangles (?:stored )?([\d,]+)/);
+summary.trianglesWorstView = num(r.text, /triangles at the worst viewpoint ([\d,]+)/);
+summary.drawCalls = num(r.text, /draw calls\) (?:stored )?([\d,]+)/);
 
 if (names.some((n) => /layout_[^/]+\.kn5$/.test(n))) {
   r = run("layouts", "npx", ["tsx", "scripts/check/layout_check.ts", `out/${slug}.zip`]);
