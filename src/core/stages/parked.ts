@@ -183,10 +183,12 @@ export function finishParked(
       const gz = ground(x, y), p = padTop?.(x, y) ?? null;
       return p === null ? gz : Math.max(gz, p);
     };
+    // Under a body: the car's ground or any physics surface at the top there (kerbs, islands), whichever is higher.
+    const underBody = (x: number, y: number) => Math.max(carGround(x, y), top(x, y) ?? -Infinity);
     // A local car also needs the ground clear under its body (a bigger body reaches over kerbs and islands).
     const even = (c: PlacedCar) => {
       const seat = carSeat(c, carGround);
-      return seat.sink <= TYRE_SINK + 1e-6 && (!c.model || bodyClear(c as PlacedCar & ModelFit, seat, carGround));
+      return seat.sink <= TYRE_SINK + 1e-6 && (!c.model || bodyClear(c as PlacedCar & ModelFit, seat, underBody));
     };
     parked = rescue(parked, even, local, swapped).filter((c) => {
       if (even(c)) return true;

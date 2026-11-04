@@ -314,14 +314,15 @@ export function assignModels<C extends { at: Vec2; dir: Vec2; paint: number; roo
 export const UNDER_CLEAR = 0.15;
 
 /**
- * Is the ground clear under a car's body (its length and width, every 0.5 m), at most UNDER_CLEAR
- * over the seat's plane? A body reaching over a kerb or a raised island has its sill in it.
+ * Is the ground clear under a car (its whole reach and mirror span: flares, steps and bars stick out
+ * past the body, every 25 cm), at most UNDER_CLEAR over the seat's plane? A body reaching over a kerb,
+ * a raised island or a steep pad has its sill in it.
  */
 export function bodyClear(car: ModelFit & { at: Vec2; dir: Vec2 }, seat: CarSeat, ground: HeightFn): boolean {
-  const [fx, fy] = car.dir, sx = -fy, sy = fx, d = car.model.dims;
-  const nf = Math.ceil(d.length / 0.5), ns = Math.ceil(d.width / 0.5);
+  const [fx, fy] = car.dir, sx = -fy, sy = fx, L = car.len, W = car.span;
+  const nf = Math.ceil(L / 0.25), ns = Math.ceil(W / 0.25);
   for (let i = 0; i <= nf; i++) for (let j = 0; j <= ns; j++) {
-    const f = -d.length / 2 + (d.length * i) / nf, s = -d.width / 2 + (d.width * j) / ns;
+    const f = -L / 2 + (L * i) / nf, s = -W / 2 + (W * j) / ns;
     const g = ground(car.at[0] + fx * f + sx * s, car.at[1] + fy * f + sy * s);
     if (g - (seat.z + seat.pitch * f + seat.roll * s) > UNDER_CLEAR) return false;
   }
