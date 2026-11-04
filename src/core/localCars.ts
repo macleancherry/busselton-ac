@@ -277,32 +277,55 @@ export function footprintPoints(at: Vec2, dir: Vec2, len: number, wid: number, s
 /**
  * A model for every car, in order: its pick, or the fallback where the pick would overlap a car
  * already given one or reach somewhere `blocked` (the fallback is inside the old 4.5 x 1.8 m car
- * the placement cleared, so it always stays).
+ * the placement cleared, so it always stays). Where the fallback still reaches a bigger car given
+ * its model before, that car falls back too: two fallbacks clear each other as the old cars did.
  */
 export function assignModels<C extends { at: Vec2; dir: Vec2; paint: number; room?: number; kerb?: boolean }>(
   cars: C[], slug: string, blocked?: (x: number, y: number, kerb: boolean) => boolean,
 ): { cars: (C & ModelFit)[]; fallback: number } {
   const out: (C & ModelFit)[] = [];
-  const grid = new Map<string, (C & ModelFit)[]>();
+  const grid = new Map<string, number[]>();
   let fallback = 0;
   for (const car of cars) {
     const p = pickCar(car.at, car.paint, slug, car.room ?? ROOM.noseIn);
     let m = withModel(car, p.body, p.variant, p.paint);
     const gx = Math.floor(car.at[0] / 8), gy = Math.floor(car.at[1] / 8);
-    const hits = (c: C & ModelFit) => {
+    const near = (c: C & ModelFit) => {
+      const list: number[] = [];
       for (let i = gx - 1; i <= gx + 1; i++) for (let j = gy - 1; j <= gy + 1; j++)
-        if ((grid.get(`${i},${j}`) ?? []).some((o) => footprintsOverlap(c, o))) return true;
-      return blocked ? footprintPoints(c.at, c.dir, c.len, c.wid, 0.75).some(([x, y]) => blocked(x, y, !!car.kerb)) : false;
+        for (const o of grid.get(`${i},${j}`) ?? []) if (footprintsOverlap(c, out[o])) list.push(o);
+      return list;
     };
+    const hits = (c: C & ModelFit) => near(c).length > 0 ||
+      (blocked ? footprintPoints(c.at, c.dir, c.len, c.wid, 0.75).some(([x, y]) => blocked(x, y, !!car.kerb)) : false);
     if (!isFallback(m) && hits(m)) {
       m = withModel(car, FALLBACK.body, FALLBACK.variant, p.paint);
       fallback++;
+      for (const o of near(m)) if (!isFallback(out[o])) { out[o] = asFallback(out[o]); fallback++; }
     }
-    out.push(m);
     const k = `${gx},${gy}`;
-    (grid.get(k) ?? grid.set(k, []).get(k)!).push(m);
+    (grid.get(k) ?? grid.set(k, []).get(k)!).push(out.length);
+    out.push(m);
   }
   return { cars: out, fallback };
+}
+
+/** How high the ground may come up under a car's body, over its seat, metres (sills are 25 to 35 cm up). */
+export const UNDER_CLEAR = 0.15;
+
+/**
+ * Is the ground clear under a car's body (its length and width, every 0.5 m), at most UNDER_CLEAR
+ * over the seat's plane? A body reaching over a kerb or a raised island has its sill in it.
+ */
+export function bodyClear(car: ModelFit & { at: Vec2; dir: Vec2 }, seat: CarSeat, ground: HeightFn): boolean {
+  const [fx, fy] = car.dir, sx = -fy, sy = fx, d = car.model.dims;
+  const nf = Math.ceil(d.length / 0.5), ns = Math.ceil(d.width / 0.5);
+  for (let i = 0; i <= nf; i++) for (let j = 0; j <= ns; j++) {
+    const f = -d.length / 2 + (d.length * i) / nf, s = -d.width / 2 + (d.width * j) / ns;
+    const g = ground(car.at[0] + fx * f + sx * s, car.at[1] + fy * f + sy * s);
+    if (g - (seat.z + seat.pitch * f + seat.roll * s) > UNDER_CLEAR) return false;
+  }
+  return true;
 }
 
 /* ---------------- meshes ---------------- */

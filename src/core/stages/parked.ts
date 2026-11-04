@@ -11,7 +11,7 @@ import { material } from "../materials";
 import { clearBays, feetNear } from "../padClear";
 import { buildParkedCars, carSeat, carTexture, TYRE_SINK } from "../parkedCars";
 import { ASPHALT, offAsphaltAt } from "../parkedCheck";
-import { asFallback, assignModels, buildLocalCars, countByBody, isFallback, type ModelFit } from "../localCars";
+import { asFallback, assignModels, bodyClear, buildLocalCars, countByBody, isFallback, type ModelFit } from "../localCars";
 import { clearParked, parkedConflict, ROUTE_ROAD } from "../parkedClear";
 import { buildBayPads, placeParked, type BayQuad, type PlaceResult, type PlacedCar } from "../parkedPlacement";
 import { outerRadius } from "../roundabout";
@@ -183,7 +183,11 @@ export function finishParked(
       const gz = ground(x, y), p = padTop?.(x, y) ?? null;
       return p === null ? gz : Math.max(gz, p);
     };
-    const even = (c: PlacedCar) => carSeat(c, carGround).sink <= TYRE_SINK + 1e-6;
+    // A local car also needs the ground clear under its body (a bigger body reaches over kerbs and islands).
+    const even = (c: PlacedCar) => {
+      const seat = carSeat(c, carGround);
+      return seat.sink <= TYRE_SINK + 1e-6 && (!c.model || bodyClear(c as PlacedCar & ModelFit, seat, carGround));
+    };
     parked = rescue(parked, even, local, swapped).filter((c) => {
       if (even(c)) return true;
       parkedDropped.uneven++;

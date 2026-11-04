@@ -3,7 +3,7 @@ import type { Vec2 } from "../src/core/geo";
 import { checkGround } from "../src/core/groundCheck";
 import { MAX_MESH_VERTICES, type Kn5MeshNode, type Kn5Node } from "../src/core/kn5";
 import {
-  assignModels, boxOf, buildLocalCars, carModel, CLUSTER, COLOURS, countByBody, FALLBACK, LOD0_OUT, LOD1_OUT, MIX, modelBoxes, pickCar,
+  assignModels, bodyClear, boxOf, buildLocalCars, footprintsOverlap, carModel, CLUSTER, COLOURS, countByBody, FALLBACK, LOD0_OUT, LOD1_OUT, MIX, modelBoxes, pickCar,
   reachOf, ROOM, VARIANT_MIX, wheelContacts, withModel,
 } from "../src/core/localCars";
 import { MeshBuilder } from "../src/core/mesh";
@@ -100,6 +100,17 @@ describe("local cars: sizes", () => {
     expect(seat.sink).toBeLessThan(1e-9);
   });
 
+  it("needs the ground clear under the body, not just under the wheels", () => {
+    const car = withModel({ at: [0, 0] as Vec2, dir: [1, 0] as Vec2, paint: 0 }, "ute", "plain");
+    const flat = () => 0;
+    expect(bodyClear(car, carSeat(car, flat), flat)).toBe(true);
+    // A kerb 15 cm high 1.2 m to the car's left: under the body (half width 0.95) but clear of the tyres (0.8).
+    const kerb = (_x: number, y: number) => (y > 0.85 ? 0.2 : 0);
+    const seat = carSeat(car, kerb);
+    expect(seat.sink).toBe(0);
+    expect(bodyClear(car, seat, kerb)).toBe(false);
+  });
+
   it("clears and overlaps by the model's own footprint", () => {
     const ute = withModel({ at: [0, 0] as Vec2, dir: [1, 0] as Vec2, paint: 0 }, "ute", "full");
     expect(carFootprint(ute.at, ute.dir, 0.5, ute.len, ute.wid).some(([x]) => x > 2.8)).toBe(true);
@@ -115,11 +126,14 @@ describe("local cars: sizes", () => {
 
 describe("local cars: in bays", () => {
   it("gives a car the fallback where its pick would reach a neighbour or somewhere blocked", () => {
-    // Parallel bays only 4.6 m apart: anything but the shortest cars would overlap.
-    const row = Array.from({ length: 30 }, (_, i) => ({ at: [i * 4.6, 0] as Vec2, dir: [1, 0] as Vec2, paint: 2, room: 6 }));
-    const { cars, fallback } = assignModels(row, "busselton");
-    expect(fallback).toBeGreaterThan(5);
-    for (let i = 1; i < cars.length; i++) expect(carsOverlap(cars[i - 1], cars[i], 0)).toBe(false);
+    // Parallel bays only 4.55 m apart (the old cars with 5 cm to spare): anything but the shortest
+    // cars would overlap, and a car given a big body first falls back when the next one can't fit.
+    for (const slug of ["busselton", "a", "b", "c"]) {
+      const row = Array.from({ length: 30 }, (_, i) => ({ at: [i * 4.55, 0] as Vec2, dir: [1, 0] as Vec2, paint: 2, room: 6 }));
+      const { cars, fallback } = assignModels(row, slug);
+      expect(fallback).toBeGreaterThan(5);
+      for (let i = 1; i < cars.length; i++) expect(footprintsOverlap(cars[i - 1], cars[i], 0), `${slug} ${i}`).toBe(false);
+    }
     // A wall 2.5 m in front of every nose: only cars shorter than 5 m stay as picked.
     const lone = Array.from({ length: 40 }, (_, i) => ({ at: [i * 10, 0] as Vec2, dir: [0, 1] as Vec2, paint: 2 }));
     const walled = assignModels(lone, "busselton", (_x, y) => y > 2.5);
