@@ -43,7 +43,7 @@ export const UTE_DEFAULTS: UteSpec = {
   length: 5.35, width: 1.9, height: 1.85, wheelbase: 3.2, frontOverhang: 0.92,
   wheelRadius: 0.395, track: 1.6, tyreWidth: 0.26, sill: 0.48,
   bonnetFront: 1.1, belt: 1.22,
-  windscreenBase: 1.82, cabBack: 3.92, roofFront: 2.5, roofRear: 3.84,
+  windscreenBase: 1.8, cabBack: 3.92, roofFront: 2.6, roofRear: 3.84,
   trayFloor: 0.88, trayRail: 1.22,
   flares: true, bullBar: false, snorkel: false, tray: "none", roofRack: false, towBar: false, plates: true, barSwatch: SW.TRIM,
 };
@@ -60,7 +60,7 @@ export const UTE_VARIANTS: Record<string, Partial<UteSpec>> = {
 
 /** The work utes' nose (dual cab and tray): a black lip, the bumper, a bold grille between slim lamps. */
 export function uteNose(sill: number, bonnetFront: number, hw: number): Nose {
-  return { sill, lampTop: bonnetFront, hw, rake: 0.1, round: 0.2, lamp: 0.11, lip: 0.12, grille: bonnetFront - 0.11 - (sill + 0.12) - 0.16, upper: "grille" };
+  return { sill, lampTop: bonnetFront, hw, rake: 0.12, round: 0.25, lamp: 0.11, lip: 0.12, grille: bonnetFront - 0.11 - (sill + 0.12) - 0.16, upper: "grille" };
 }
 
 export function uteDimensions(spec: Partial<UteSpec> = {}): Dimensions {

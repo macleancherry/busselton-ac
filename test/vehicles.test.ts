@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { BODIES, body } from "../src/core/vehicles/index";
 import { buildUte } from "../src/core/vehicles/ute";
+import { PAINT } from "../src/core/parkedCars";
 import {
-  atlasPixels, ATLAS_H, ATLAS_W, dimensionsOf, meshExtent, PAINT_SLOT, PLATE_H, PLATE_W, SW, swatchUv, type VehicleMesh,
+  archOf, atlasPixels, ATLAS_H, ATLAS_W, CAR_PAINT, dimensionsOf, meshExtent, PAINT_SLOT, PLATE_H, PLATE_W, SW, swatchUv, type V3, type VehicleMesh,
 } from "../src/core/vehicles/vehicle";
 import { onSwatch, rayCheck, roadWheels, tris, vert, VIEWS } from "./vehicleMesh";
 
@@ -135,6 +136,47 @@ describe.each(BODIES.map((b) => [b.id, b] as const))("local cars: %s", (_id, b) 
     expect(b.build({ ...b.variants.plain, plates: false } as never, 0).idx.length).toBe(m.idx.length - 12);
   });
 
+  it("has slim lamps: headlights wrapping the front corners and tail lamps the back, near", () => {
+    const m = plain(0), d = b.dimensions(b.variants.plain);
+    const ids = [...Array(m.pos.length / 3).keys()];
+    for (const [sw, sgn] of [[SW.HEAD, 1], [SW.TAIL, -1]] as const) {
+      const p = ids.filter((i) => onSwatch(m, i, sw)).map((i) => vert(m, i)).filter((q) => Math.sign(q[0]) === sgn);
+      expect(p.length, sw === SW.HEAD ? "headlights" : "tail lamps").toBeGreaterThan(0);
+      // Both sides, out to the corners (wrapping round; a tray's lamps sit just in from its edge), at the end of the body.
+      expect(Math.max(...p.map((q) => q[1]))).toBeGreaterThan(d.width / 2 - 0.08);
+      expect(Math.min(...p.map((q) => q[1]))).toBeLessThan(-d.width / 2 + 0.08);
+      expect(Math.max(...p.map((q) => sgn * q[0]))).toBeGreaterThan(d.length / 2 - 0.35);
+    }
+    // Headlights slim: no taller than 0.14 m.
+    const head = ids.filter((i) => onSwatch(m, i, SW.HEAD)).map((i) => vert(m, i)[2]);
+    expect(Math.max(...head) - Math.min(...head)).toBeLessThan(0.14);
+  });
+
+  it("hangs slim mirrors on stalks: black, clear of the body, no deeper than 0.12 m or taller than 0.2 m", () => {
+    const m = plain(0), d = b.dimensions(b.variants.plain);
+    const out = [...Array(m.pos.length / 3).keys()].map((i) => vert(m, i)).filter((q) => Math.abs(q[1]) > d.width / 2 + 0.04);
+    for (const sgn of [1, -1]) {
+      const q = out.filter((p) => Math.sign(p[1]) === sgn);
+      expect(q.length).toBeGreaterThan(0);
+      const f = q.map((p) => p[0]), h = q.map((p) => p[2]);
+      expect(Math.max(...f) - Math.min(...f)).toBeLessThanOrEqual(0.12);
+      expect(Math.max(...h) - Math.min(...h)).toBeLessThanOrEqual(0.2);
+      expect(Math.max(...q.map((p) => Math.abs(p[1])))).toBeLessThan(d.width / 2 + 0.26);
+    }
+  });
+
+  it("shuts the arches far as well: a ray across the car over a tyre never sees daylight", () => {
+    for (const lod of LODS) {
+      const m = plain(lod), d = b.dimensions(b.variants.plain);
+      const { archR, archH } = archOf(d, 0.03);
+      for (const f of [d.frontAxle, d.frontAxle - d.wheelbase]) {
+        if (b.id === "trayute" && f < 0) continue; // the tray ute's rear wheels are out in the open
+        // Just under the top of the tightest arch, above the tyre (LOD 1's tyre block is lower still).
+        expect(firstHit(m, [f, 5, archH + archR * 0.9], [0, -1, 0]), `${lod} ${f}`).toBeLessThan(d.width / 2 + 0.05);
+      }
+    }
+  });
+
   it("is the same every time (a bay's car never changes between builds)", () => {
     for (const [, v] of variants) expect(JSON.stringify(b.build(v, 0))).toBe(JSON.stringify(b.build(v, 0)));
   });
@@ -169,6 +211,22 @@ describe("local cars: shared extras", () => {
     }
   });
 
+  it("hangs the 4WD's spare clear of the bumper: nothing of the body behind its inner face", () => {
+    const b = body("wagon4wd");
+    for (const lod of [0, 1] as const) {
+      const m = b.build({ spare: true } as never, lod);
+      const ids = [...Array(m.pos.length / 3).keys()];
+      const spare = ids.filter((i) => onSwatch(m, i, SW.TYRE) && Math.abs(vert(m, i)[1]) < 0.45).map((i) => vert(m, i));
+      const lo = Math.min(...spare.map((p) => p[2])), hi = Math.max(...spare.map((p) => p[2]));
+      const inner = Math.max(...spare.map((p) => p[0]));
+      // Body (not the spare's cover, not the tow bar) in the spare's height range, within its width.
+      const behind = ids.filter((i) => !onSwatch(m, i, SW.TYRE) && !onSwatch(m, i, SW.CHROME)).map((i) => vert(m, i))
+        .filter((p) => Math.abs(p[1]) < 0.4 && p[2] > lo + 0.01 && p[2] < hi - 0.01 && p[0] < inner - 0.001 && p[0] > inner - 0.3);
+      // Only the spare's own black cover may sit behind its inner face.
+      expect(behind.every((p) => p[0] < inner - b.defaults.tyreWidth * 0.8), JSON.stringify(behind.slice(0, 3))).toBe(true);
+    }
+  });
+
   it("keeps the ute's ladder rack trimmed (two hoops, no long rails)", () => {
     const plainUte = tris(buildUte({}, 0)), rack = tris(buildUte({ tray: "rack" }, 0));
     expect(rack - plainUte).toBeLessThanOrEqual(48);
@@ -187,6 +245,15 @@ describe("local cars: shared extras", () => {
 });
 
 describe("local cars: atlas", () => {
+  it("has a car paint for every parked-car paint (paintFor's choice carries over), and dark blue-black glass", () => {
+    expect(CAR_PAINT.length).toBe(PAINT.length);
+    const px = atlasPixels(), at = (sw: number) => [...px.slice((8 * ATLAS_W + sw * 16 + 8) * 4, (8 * ATLAS_W + sw * 16 + 8) * 4 + 3)];
+    CAR_PAINT.forEach((c, i) => expect(at(i)).toEqual(c));
+    const [r, g, bl] = at(SW.GLASS);
+    expect(Math.max(r, g, bl)).toBeLessThan(40);
+    expect(bl).toBeGreaterThan(r);
+  });
+
   it("draws an atlas of the right size with the plate swatch white", () => {
     const px = atlasPixels();
     expect(px.length).toBe(ATLAS_W * ATLAS_H * 4);
@@ -201,3 +268,24 @@ describe("local cars: atlas", () => {
     expect(PAINT_SLOT).toBe(-1);
   });
 });
+
+/** How far along `dir` from `o` the first face is (Infinity: none), as the s of the hit for a ray along s. */
+function firstHit(m: VehicleMesh, o: V3, dir: V3): number {
+  let best = Infinity;
+  for (let t = 0; t < m.idx.length / 3; t++) {
+    const [a, p, c] = [0, 1, 2].map((k) => vert(m, m.idx[t * 3 + k]));
+    const e1: V3 = [p[0] - a[0], p[1] - a[1], p[2] - a[2]], e2: V3 = [c[0] - a[0], c[1] - a[1], c[2] - a[2]];
+    const pv: V3 = [dir[1] * e2[2] - dir[2] * e2[1], dir[2] * e2[0] - dir[0] * e2[2], dir[0] * e2[1] - dir[1] * e2[0]];
+    const det = e1[0] * pv[0] + e1[1] * pv[1] + e1[2] * pv[2];
+    if (Math.abs(det) < 1e-12) continue;
+    const tv: V3 = [o[0] - a[0], o[1] - a[1], o[2] - a[2]];
+    const u = (tv[0] * pv[0] + tv[1] * pv[1] + tv[2] * pv[2]) / det;
+    if (u < 0 || u > 1) continue;
+    const q: V3 = [tv[1] * e1[2] - tv[2] * e1[1], tv[2] * e1[0] - tv[0] * e1[2], tv[0] * e1[1] - tv[1] * e1[0]];
+    const v = (dir[0] * q[0] + dir[1] * q[1] + dir[2] * q[2]) / det;
+    if (v < 0 || u + v > 1) continue;
+    const d = (e2[0] * q[0] + e2[1] * q[1] + e2[2] * q[2]) / det;
+    if (d > 1e-6) best = Math.min(best, d);
+  }
+  return best === Infinity ? Infinity : Math.abs(o[1] + dir[1] * best);
+}

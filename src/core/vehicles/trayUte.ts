@@ -38,7 +38,7 @@ export interface TrayUteSpec extends BaseSpec {
 export const TRAY_UTE_DEFAULTS: TrayUteSpec = {
   length: 5.3, width: 1.86, height: 1.8, wheelbase: 3.09, frontOverhang: 0.93,
   wheelRadius: 0.39, track: 1.54, tyreWidth: 0.245, cabWidth: 1.84, sill: 0.48,
-  bonnetFront: 1.08, belt: 1.2, windscreenBase: 1.8, roofFront: 2.46, cab: "single",
+  bonnetFront: 1.08, belt: 1.2, windscreenBase: 1.78, roofFront: 2.54, cab: "single",
   trayBottom: 0.9, trayFloor: 1.0, trayRail: 1.28,
   flares: false, toolboxes: false, rack: false, bullBar: false, towBar: false, plates: true, barSwatch: SW.TRIM,
 };
