@@ -10,8 +10,10 @@ manufacturer models. Each body is built from a handful of published overall dime
 width, height, wheelbase), so it reads as "a Hilux-type ute" without being anyone's design. The
 generators are covered by the fork's licence like the rest of our code.
 
-Prototype on this branch: a dual-cab ute (`src/core/vehicles/ute.ts` over `src/core/vehicles/vehicle.ts`),
-282 triangles near and 86 far. Renders are in `out/local_cars/` (see the end).
+Phase 1 is done (4 Nov, `feat/local-cars-bodies`): all ten bodies in the table below, each with
+both LODs, named variants and a `dimensions` record, in `src/core/vehicles/` (registry in
+`index.ts`). 228 to 278 triangles near and 76 to 86 far, plain. Not in the build yet (phase 2).
+Renders are in `out/local_cars/` (see the end).
 
 ## How it works today
 
@@ -98,25 +100,55 @@ modelling. The building blocks in `src/core/vehicles/vehicle.ts`:
   headlights, the tailgate's are the tail lamps.
 - **Glasshouse.** Windscreen, roof and back face, and the sides split at stations into pillars
   (paint) and windows (glass), with tumblehome (narrower at the roof than at the belt).
-- **Parts.** An open tray (rails, liner, floor), wheels (8 sides with a drawn alloy face near,
-  plain blocks far), arch flares, mirrors, and boxes for the extras: bull bar, snorkel, sports
-  bar, canopy, ladder rack, roof rack. Later: alloy tray and toolboxes, spare wheel, tow bar,
-  number plates (plain white rectangles, never text).
-- **One atlas** (512 x 128): the 12 paints and 9 fixed swatches (glass, tyre, black trim, alloy,
-  headlight, tail lamp, tray liner, chrome, canvas) in the top row, and two drawn tiles (wheel
-  face, grille). Every car shares one material. Paint vertices are flagged in the template, so a
-  car's copy only rewrites those uvs: one template per model and LOD serves every colour.
+- **Parts.** An open tray (rails, liner, floor; alloy for the tray ute), wheels (8 sides with a
+  drawn alloy face near, plain blocks far; the polygon's flat bottom on the ground), dark wheel
+  wells behind the arches (near), arch flares, mirrors, and boxes for the extras (`extras.ts`):
+  bull bar, snorkel, sports bar, canopy, ladder rack (two hoops, no long rails: trimmed from 80 to
+  48 triangles), roof rack, roof rails, van roof bars, alloy tray with headboard and toolboxes,
+  spare wheel on the back door, tow bar, number plates (plain white 372 x 134 mm rectangles,
+  never text). Hidden faces of the extras (against the body, under a bar, tiny ends) are left out.
+- **One atlas** (512 x 128): the 12 paints and 11 fixed swatches (glass, tyre, black trim, rim,
+  headlight, tail lamp, tray liner, chrome, canvas, plate white, tray alloy) in the top row, and
+  two drawn tiles (wheel face, grille). Every car shares one material. Paint vertices are flagged
+  in the template, so a car's copy only rewrites those uvs: one template per model and LOD serves
+  every colour.
+- **Shared car pieces** (`body.ts`): the nose (lower lip, bumper face with the plate, the lamp
+  line, bonnet edge), the tail (tail panel with lamps at its corners, bumper, lip) and the
+  pillar stations, so a closed body is its numbers plus a few lines.
 
-Each body gets its own `<body>.ts` with defaults from published overall dimensions only (the ute's
+Each body has its own `<body>.ts` with defaults from published overall dimensions only (the ute's
 are a current Hilux or Ranger dual cab's length, width, height and wheelbase). Variants are spec
-flags, so "white Ranger with canopy, bull bar and snorkel" is one line.
+flags, so "white Ranger with canopy, bull bar and snorkel" is one line. Each file exports its
+spec, defaults, named variants (`plain` first, `full`, every extra that goes together, last), the
+builder (`spec, lod` to a template) and `<body>Dimensions(spec)`: length, width, height,
+wheelbase, track, front axle position and wheel radius, what phase 2 seats and collides by.
+`meshExtent(mesh)` gives the overall reach with extras (tow bar, spare, bull bar) for bay fits.
 
 ### LODs and triangles
 
-| LOD | Shown | Ute | Cap per body | What's left out |
-| --- | --- | --- | --- | --- |
-| 0 | 0 to 70 m | 282 tris (plain), 312 (sports bar), 354 (tradie: canopy, bull bar, snorkel, roof rack) | 300 plain, 400 with extras | |
-| 1 | 70 to 600 m | 86 tris (plain), 146 (tradie) | 100 plain, 160 with extras | rounding, lamps, mirrors, flares, pillars, wheel faces, tray inside |
+| LOD | Shown | Cap per body | What's left out |
+| --- | --- | --- | --- |
+| 0 | 0 to 70 m | 300 plain, 400 with extras | |
+| 1 | 70 to 600 m | 100 plain, 160 with extras | rounding, lamps, mirrors, flares, wheel wells, pillars, wheel faces, tray inside, plates, tow bar |
+
+Per body (`npx tsx scripts/cars/export_vehicles.ts` prints them; `test/vehicles.test.ts` holds the
+caps for every variant). Plain includes the number plates.
+
+| Body | LOD 0 plain | LOD 0 variants | LOD 0 full | LOD 1 plain | LOD 1 full |
+| --- | --- | --- | --- | --- | --- |
+| Dual-cab ute | 278 | sports bar 302, canopy + tow bar 290, tradie (canopy, bull bar, snorkel, roof rack) 304, ladder rack + bull bar + tow bar 368 | 396 (rack, bull bar, snorkel, roof rack, tow bar) | 86 | 152 |
+| Single or extra cab, alloy tray | 234 | extra cab 242, tradie (toolboxes, rack, tow bar) 310 | 348 (extra cab, toolboxes, rack, bull bar, tow bar) | 86 | 144 |
+| Large 4WD wagon | 272 | roof rails + tow bar 296, spare + tow bar 312 | 370 (bull bar, snorkel, roof rack, spare, tow bar) | 76 | 118 |
+| Medium SUV | 270 | roof rails 282 | 294 (rails, tow bar) | 76 | 88 |
+| Small SUV | 270 | | 294 (rails, tow bar) | 76 | 88 |
+| Small hatch | 230 | | 242 (tow bar) | 76 | 76 |
+| Sedan | 238 | long (older Commodore / Falcon) 238 | 250 (tow bar) | 80 | 80 |
+| Passenger ute | 244 | tonneau 228 | 256 (tow bar) | 80 | 80 |
+| Van | 228 | commuter (windows) 248, tradie (roof bars, tow bar) 270 | 290 (windows, roof bars, tow bar) | 80 | 102 |
+| Station wagon | 238 | roof rails 250 | 262 (rails, tow bar) | 76 | 88 |
+
+The ute grew from the prototype's 282 to 278 plain (plates and wheel wells added, hidden faces
+trimmed), and the fully loaded ute from 422 to 396 (the ladder rack trimmed to two hoops).
 
 Today's car is 44 triangles. 386 cars x (282 + 86) is about 142,000 stored triangles against
 about 17,000 now, which would take Busselton to roughly 1.52 million: **over budget.ts's 1.5
@@ -195,30 +227,47 @@ What's actually possible:
 | Phase | What | Effort |
 | --- | --- | --- |
 | 0 | This plan, the building blocks and the dual-cab ute prototype with renders (done on `feat/local-cars`) | done |
-| 1 | The rest of the set: wagon, medium/small SUV, hatch, sedan, van, single-cab alloy tray, passenger ute, station wagon. One spec each, renders and tests. Number plates, tow bar, spare wheel | 2 to 3 sessions (about 2 to 3 hours a body) |
+| 1 | The rest of the set: wagon, medium/small SUV, hatch, sedan, van, single-cab alloy tray, passenger ute, station wagon. One spec each, renders and tests. Number plates, tow bar, spare wheel (done on `feat/local-cars-bodies`, 4 Nov) | done |
 | 2 | Parked integration behind a `localCars` option: model and colour per bay, LOD meshes in 40 m clusters with lodIn/lodOut, per-model wheels for `carSeat`, collision boxes and check footprints, budget.ts LOD-aware count, render_diff before and after, one Busselton build through `all.mjs` | 1 to 2 sessions, plus a build and a workstation drive |
 | 3 | Context and towables: weights by landuse and zone, caravans and boat trailers in long bays and near ramps and caravan parks | 1 session |
 | 4 | Traffic planner cars: check the format on the workstation, then the converter, the share folder and the installer switch; traffic test | 1 session plus a workstation run |
 | 5 | Polish: night lamps (CSP emissive on the lamp swatches), two-tone and dirt variants, more extras (trailer hitch bike racks, kayaks on roof racks) | as wanted |
 
-## Prototype
+## The set: code, checks and renders
 
-- Code: `src/core/vehicles/vehicle.ts` (building blocks, atlas), `src/core/vehicles/ute.ts` (the
-  dual-cab ute spec and builder), `test/vehicles.test.ts`.
+- Code, `src/core/vehicles/`: `vehicle.ts` (building blocks, atlas, plates, tow bar, spare wheel,
+  dimensions), `extras.ts` (bull bar, snorkel, racks, rails, mirrors), `body.ts` (shared nose,
+  tail and pillar stations), one file per body (`ute.ts`, `trayUte.ts`, `wagon4wd.ts`, `suv.ts`
+  for both SUVs, `hatch.ts`, `sedan.ts`, `passengerUte.ts`, `van.ts`, `stationWagon.ts`) and
+  `index.ts` (`BODIES`: id, defaults, variants, builder, dimensions).
+- Tests, `test/vehicles.test.ts` (with `test/vehicleMesh.ts`), per body: triangle caps for every
+  variant at both LODs; a valid mesh with no slivers; the dimensions record matches the spec and
+  the mesh matches it (length, width without mirrors, height within a few cm); the four wheels on
+  the ground at the wheelbase and track; closed (a ray check from nine views, sides, front, back,
+  above and four high corners: what's seen first must be a face turned towards the viewer, which
+  catches holes and inside-out faces; at least 97.5% near, 94% far, where thin bars' hidden faces
+  and the arches are a pixel at 70 m); paint vertices flagged and only those on the paint slot;
+  plates front and back at the right size; the same mesh every time. Plus the shared extras (tow
+  bar out the back near only, the spare on the 4WD's door, the trimmed ladder rack).
 - Export and render:
 
   ```
   npx tsx scripts/cars/export_vehicles.ts <dir>
-  python3 scripts/cars/render_vehicles.py -- --dir <dir> --out <png> --cars ute_lod0[,boxy_car,...] --view front34|side|rear34|driver
+  python3 scripts/cars/lineup.py --dir <dir> --out <png> --view front34|side|rear34 [--cars ute_lod0,...]
+  python3 scripts/cars/render_vehicles.py -- --dir <dir> --out <png> --cars ute_lod0[,boxy_car,...] --view front34|side|rear34|driver [--zoom 1.5]
   ```
 
   (`python3` being Blender's bpy module, or `blender --background --python`.) The export writes
-  the ute's variants and today's boxy car (built by `buildParkedCars` itself), and prints each
-  triangle count.
-- Triangles: ute 282 (LOD 0), 86 (LOD 1); with sports bar 312; tradie (canopy, bull bar, snorkel,
-  roof rack) 354 and 146; blue ute with ladder rack and bull bar 422 (the rack is the costly part:
-  trim it in phase 1). Today's car: 44.
-- Renders (960 x 540, 16 samples, not committed): `out/local_cars/ute_front34.png`,
-  `ute_side.png`, `compare_side.png` and `compare_boxy_vs_ute.png` (today's car next to the ute and
-  the tradie ute), `ute_variants_rear34.png` (sports bar, canopy, ladder rack).
-- Not done yet: it isn't in the build. Nothing in `src/core/stages` uses it.
+  every body and variant at both LODs (`<body>_lod0.json`, `<body>_<variant>_lod1.json`, ...)
+  and today's boxy car (built by `buildParkedCars` itself), and prints the triangle counts.
+  `lineup.py` renders each car on its own and lays them out in a labelled grid; without `--cars`
+  it's every body's plain LOD 0 and the boxy car.
+- Renders (16 samples, not committed), `out/local_cars/`: `lineup_front34.png` and
+  `lineup_side.png` (every body, plain, LOD 0, and today's boxy car), `lineup_variants_rear34.png`
+  (the loaded variants: racks, canopy, bull bars, spare, tow bars, roof bars, tonneau, commuter
+  van), `lineup_lod1_front34.png` (the far versions).
+- Fixed on the way: the ute's rear arches poked 5 cm up through its tray floor (floor raised to
+  0.87 m), the tyres stood 3 cm off the ground (the octagon's flat now sits on it), the cab-to-tray
+  gap strip ran down across the rear arch, and the canopy had no front face where it shows
+  beside the cab.
+- Not done yet: it isn't in the build. Nothing in `src/core/stages` uses it (phase 2).
