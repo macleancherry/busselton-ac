@@ -28,6 +28,7 @@ import type { Vec2 } from "./geo";
 import type { KerbSlot } from "./kerbside";
 import { MAX_MESH_VERTICES, type Kn5MeshNode } from "./kn5";
 import { MeshBuilder } from "./mesh";
+import { ROOM } from "./localCars";
 import type { ParkedCar } from "./parkedCars";
 import { CAR_LENGTH, CAR_WIDTH, carFootprint } from "./parkedClear";
 import { pad } from "./roadMesh";
@@ -37,9 +38,13 @@ export interface PhotoCar extends ParkedCar {
   row?: "end" | "nose";
 }
 
-/** A car put in a bay: `kerb` when it's in a kerbside bay on a street (parkedClear.ts lets those stand on the street). */
+/**
+ * A car put in a bay: `kerb` when it's in a kerbside bay on a street (parkedClear.ts lets those stand
+ * on the street); `room`, the longest car the bay takes (localCars.ts ROOM).
+ */
 export interface PlacedCar extends ParkedCar {
   kerb?: boolean;
+  room?: number;
 }
 
 /** A car park aisle: its centreline and asphalt width. */
@@ -78,14 +83,16 @@ export interface PlaceResult {
 const dot = (a: Vec2, b: Vec2) => a[0] * b[0] + a[1] * b[1];
 
 /** Does a car's footprint (grown by `margin` on every side) overlap another's? Separating axes. */
-export function carsOverlap(a: { at: Vec2; dir: Vec2 }, b: { at: Vec2; dir: Vec2 }, margin = 0.05): boolean {
-  const hl = CAR_LENGTH / 2 + margin, hw = CAR_WIDTH / 2 + margin;
-  if (Math.hypot(a.at[0] - b.at[0], a.at[1] - b.at[1]) > 2 * Math.hypot(hl, hw)) return false;
-  const corners = (c: { at: Vec2; dir: Vec2 }): Vec2[] => {
+export function carsOverlap(a: { at: Vec2; dir: Vec2; len?: number; wid?: number }, b: { at: Vec2; dir: Vec2; len?: number; wid?: number }, margin = 0.05): boolean {
+  // Each car's own size when it has one (a local car's, or one read back from its box), else the old car's.
+  const half = (c: { len?: number; wid?: number }): [number, number] => [(c.len ?? CAR_LENGTH) / 2 + margin, (c.wid ?? CAR_WIDTH) / 2 + margin];
+  const [hla, hwa] = half(a), [hlb, hwb] = half(b);
+  if (Math.hypot(a.at[0] - b.at[0], a.at[1] - b.at[1]) > Math.hypot(hla, hwa) + Math.hypot(hlb, hwb)) return false;
+  const corners = (c: { at: Vec2; dir: Vec2 }, hl: number, hw: number): Vec2[] => {
     const l = Math.hypot(c.dir[0], c.dir[1]) || 1, f: Vec2 = [c.dir[0] / l, c.dir[1] / l], s: Vec2 = [-f[1], f[0]];
     return [[1, 1], [1, -1], [-1, -1], [-1, 1]].map(([i, j]) => [c.at[0] + f[0] * i * hl + s[0] * j * hw, c.at[1] + f[1] * i * hl + s[1] * j * hw] as Vec2);
   };
-  const p = corners(a), q = corners(b);
+  const p = corners(a, hla, hwa), q = corners(b, hlb, hwb);
   for (const ax of [a.dir, [-a.dir[1], a.dir[0]], b.dir, [-b.dir[1], b.dir[0]]] as Vec2[]) {
     const pa = p.map((v) => dot(v, ax)), qa = q.map((v) => dot(v, ax));
     if (Math.max(...pa) <= Math.min(...qa) || Math.max(...qa) <= Math.min(...pa)) return false;
@@ -207,7 +214,7 @@ export function placeParked(
   }
   for (const [k, car] of [...claims].sort((a, b) => a[0] - b[0])) {
     const sl = ctx.slots[k];
-    const placed: PlacedCar = { at: sl.at, dir: sl.dir, paint: car.paint, kerb: true };
+    const placed: PlacedCar = { at: sl.at, dir: sl.dir, paint: car.paint, kerb: true, room: sl.kind === "parallel" ? ROOM.kerbParallel : ROOM.kerbAngle };
     if (!clear(placed, true)) { dropped.blocked++; continue; }
     cars.push(placed);
   }
@@ -295,7 +302,7 @@ export function placeParked(
         for (const k of [...claim.keys()].sort((p, q) => p - q)) {
           const bay = bayAt(k), car = claim.get(k)!;
           const sg = dot(car.dir, carAxis) >= 0 ? 1 : -1;
-          const placed: PlacedCar = { at: bay.at, dir: [carAxis[0] * sg, carAxis[1] * sg], paint: car.paint };
+          const placed: PlacedCar = { at: bay.at, dir: [carAxis[0] * sg, carAxis[1] * sg], paint: car.paint, room: end ? ROOM.parkParallel : ROOM.noseIn };
           // Reaching into an aisle: a car the photo caught driving, or a guess that isn't a bay.
           if (inAisle(placed)) { dropped.aisle++; continue; }
           if (!clear(placed, false)) { dropped.blocked++; continue; }

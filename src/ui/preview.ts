@@ -171,7 +171,8 @@ export async function createPreview(
   const isIdentity = (t: number[]) => t.length === 16 && t.every((v, i) => v === IDENTITY[i]);
   const add = (node: Kn5Node, parent: THREE.Object3D) => {
     if (node.kind === "mesh") {
-      if (node.renderable !== false) parent.add(meshOf(node));
+      // Meshes only drawn from a distance on (a far LOD: local cars' LOD 1) would overlap their near LOD here.
+      if (node.renderable !== false && !(node.lodIn ?? 0)) parent.add(meshOf(node));
       return;
     }
     let into = parent;

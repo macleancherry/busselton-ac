@@ -64,7 +64,7 @@ const OPTIONAL = [
   "cspTrees", "rainHollows", "trackSounds", "gravelRoads", "unsealed", "zones", "pureTuning", "photoSea", "beachDetail",
   "farmland", "farmRoadsides", "wavingFlags", "jettyTrain", "swimJetties", "jettyKinds", "trafficLights", "poleClear", "padClear", "networkCore",
   "raceway", "treeMips", "shoreClear", "pathTraceClip", "courseMarks", "shopNamesOverpass",
-  "gridAt", "pits", "pitLane", "circuitKerbs", "gridPaint", "bridgeDecks", "buildingTraceClip",
+  "gridAt", "pits", "pitLane", "circuitKerbs", "gridPaint", "bridgeDecks", "buildingTraceClip", "localCars",
 ];
 
 const KNOWN = new Set([...Object.keys(REQUIRED), ...OPTIONAL]);
@@ -80,7 +80,7 @@ describe("build options", () => {
   });
 
   it("has no defaults for optional fields", () => {
-    expect(OPTIONAL).toHaveLength(50);
+    expect(OPTIONAL).toHaveLength(51);
     for (const k of OPTIONAL) expect(Object.keys(DEFAULT_OPTIONS)).not.toContain(k);
     expect([...OPTIONAL_OPTION_KEYS].sort()).toEqual([...OPTIONAL].sort());
   });

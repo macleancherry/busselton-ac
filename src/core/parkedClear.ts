@@ -18,16 +18,19 @@ export const CAR_LENGTH = 4.5, CAR_WIDTH = 1.8;
 /** Half a traffic lane: a car's footprint keeps at least this far off a lane's centreline. */
 export const LANE_HALF = 1.4;
 
-/** Points over a car's footprint, every `step` metres along and across, edges included. */
-export function carFootprint(at: Vec2, dir: Vec2, step = 0.5): Vec2[] {
+/**
+ * Points over a car's footprint, every `step` metres along and across, edges included. A local car
+ * (localCars.ts) passes its own length and width (reach and mirrors).
+ */
+export function carFootprint(at: Vec2, dir: Vec2, step = 0.5, len = CAR_LENGTH, wid = CAR_WIDTH): Vec2[] {
   const l = Math.hypot(dir[0], dir[1]) || 1;
   const fx = dir[0] / l, fy = dir[1] / l, sx = -fy, sy = fx;
-  const na = Math.ceil(CAR_LENGTH / step), nc = Math.ceil(CAR_WIDTH / step);
+  const na = Math.ceil(len / step), nc = Math.ceil(wid / step);
   const out: Vec2[] = [];
   for (let i = 0; i <= na; i++) {
-    const f = -CAR_LENGTH / 2 + (CAR_LENGTH * i) / na;
+    const f = -len / 2 + (len * i) / na;
     for (let j = 0; j <= nc; j++) {
-      const s = -CAR_WIDTH / 2 + (CAR_WIDTH * j) / nc;
+      const s = -wid / 2 + (wid * j) / nc;
       out.push([at[0] + fx * f + sx * s, at[1] + fy * f + sy * s]);
     }
   }
@@ -49,11 +52,13 @@ export interface RoadClearance {
  * Why a car can't stay, or null when it's clear. A car in a kerbside bay (`kerb`, parkedPlacement.ts)
  * stands on its street by design: for it the through-street test is left out (the lane test still holds).
  */
-export function parkedConflict(car: { at: Vec2; dir: Vec2; kerb?: boolean }, by: RoadClearance): "road" | "roundabout" | "lane" | null {
-  const pts = carFootprint(car.at, car.dir);
-  if (by.rings?.some((rb) => pts.some(([x, y]) => Math.hypot(x - rb.c[0], y - rb.c[1]) < rb.r))) return "roundabout";
+export function parkedConflict(car: { at: Vec2; dir: Vec2; kerb?: boolean; len?: number; wid?: number; span?: number }, by: RoadClearance): "road" | "roundabout" | "lane" | null {
+  const pts = carFootprint(car.at, car.dir, 0.5, car.len, car.wid);
+  // A local car's mirrors count over the route's road and rings (the ground check sees every vertex there), not over streets or lanes.
+  const wide = car.span !== undefined ? carFootprint(car.at, car.dir, 0.5, car.len, car.span) : pts;
+  if (by.rings?.some((rb) => wide.some(([x, y]) => Math.hypot(x - rb.c[0], y - rb.c[1]) < rb.r))) return "roundabout";
   const street = car.kerb ? undefined : by.street;
-  if (pts.some(([x, y]) => by.road(x, y) !== null || (street !== undefined && street(x, y) < 0))) return "road";
+  if (wide.some(([x, y]) => by.road(x, y) !== null) || (street !== undefined && pts.some(([x, y]) => street(x, y) < 0))) return "road";
   if (by.lane && pts.some(([x, y]) => by.lane!(x, y) < LANE_HALF)) return "lane";
   return null;
 }

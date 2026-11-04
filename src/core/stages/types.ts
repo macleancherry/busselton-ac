@@ -186,6 +186,8 @@ export interface TrackResult {
     parkedCars?: number;
     /** Parked cars the last pass dropped, by what they touched. */
     parkedDropped?: { road: number; roundabout: number; lane: number; offAsphalt?: number; uneven?: number };
+    /** With localCars: parked cars by body, and how many took the fallback (plain hatch) where their pick didn't fit. */
+    localCars?: { bodies: Record<string, number>; fallback: number };
     parkedBays?: { carPark: number; kerb: number; dropped: { aisle: number; noBay: number; blocked: number; overlap: number } };
     kerbside?: { bays: number; bikeLaneMetres: number; symbols: number };
     trafficLights?: { sites: number; poles: number; heads: number; working: number };

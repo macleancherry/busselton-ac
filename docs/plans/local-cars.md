@@ -17,6 +17,9 @@ both LODs, named variants and a `dimensions` record, in `src/core/vehicles/` (re
 The look pass (4 Nov, `feat/local-cars-look`) made them read as 2015 to 2025 cars rather than
 1990s ones: 278 to 336 triangles near and 84 to 98 far, plain (see "Current-car look" below).
 
+Phase 2 is done (4 Nov, `feat/local-cars-parked`): `localCars`, on unless false, in
+`src/core/localCars.ts` (see "Phase 2 as built" at the end).
+
 ## How it works today
 
 ### Parked cars
@@ -310,4 +313,42 @@ What's actually possible:
   now sits behind the rear-most body over its height), and at LOD 1 you could see daylight
   through both arches from the side (wheel wells far too; the tray ute's open rear wheel blocks
   got tops).
-- Not done yet: it isn't in the build. Nothing in `src/core/stages` uses it (phase 2).
+
+## Phase 2 as built (4 Nov)
+
+- **Option.** `localCars`, on unless false. Off, a build is byte-identical to before (the six
+  golden scenes, and a Busselton build compared file by file, bar networkCore's timing field).
+- **Picking** (`pickCar`): seed from the bay centre rounded to 0.5 m and the slug; body by `MIX`,
+  variant by `VARIANT_MIX`, paint by `COLOURS` (work: utes, tray utes, passenger utes, vans;
+  wagon: the 4WD; car: the rest), or the photo's when it's coloured (`paint` over 5). A model fits
+  when twice its longer end (tow bar and bull bar included) is within the bay's `room`: car park
+  nose-in 5.4 m, car park parallel 5.9, kerbside parallel 5.7, kerbside angle 5.4.
+- **Fallback.** Where a pick reaches a neighbour (mirror to mirror) or somewhere the placement
+  blocks, the car becomes a plain hatch (inside the old 4.5 x 1.8 m car, so it always stays); a
+  bigger neighbour that the hatch still reaches falls back too. Each later filter (road, lane, off
+  asphalt, uneven) gives a failing car one more go as the hatch before dropping it.
+- **Clears.** Streets and lanes by body length and width; the route's road and rings with the
+  mirrors. Uneven also needs the ground under the whole mesh footprint at most 15 cm over the
+  seat's plane (`bodyClear`: a steep bay pad came up through a sill).
+- **Seats** from each model's axles and track; **collision boxes** the body less 10 and 5 cm,
+  read back by `parkedCheck` (`modelBoxes`) for overlaps and tyre contacts (both ways round).
+- **Meshes.** `PARKED_CARS_NEAR_nnn` (0 to 70 m) and `PARKED_CARS_FAR_nnn` (70 to 600 m) per
+  40 m cluster, material `local_car`. The headless preview leaves out the far LOD.
+- **budget.ts** also counts triangles and meshes at the worst viewpoint (every 10 m along every
+  layout's AI line, meshes with a draw distance only in range). Limits unchanged.
+
+Busselton, from the 30 Oct snapshot:
+
+| | Before | After |
+| --- | --- | --- |
+| Parked cars | 338 | 338 (41 as the fallback hatch; 14 dropped uneven, as before) |
+| Triangles stored | 1,509,395 | 1,632,375 |
+| Triangles at the worst viewpoint | 1,504,221 | 1,518,101 |
+| Meshes stored | 3,194 | 3,375 |
+| Meshes drawn at the worst viewpoint | 3,104 | 3,132 |
+| kn5 | 162 MB | 173 MB |
+
+Cars by body: ute 74, tray ute 9, 4WD wagon 42, medium SUV 59, small SUV 13, hatch 79 (41
+fallbacks), sedan 28, passenger ute 8, van 12, station wagon 14. LOD 0 meshes hold 106,562
+triangles, LOD 1 31,290. Every check in `all.mjs` passes. Still to do: the workstation drive
+(LOD switch, collisions, colours under CSP, frame rate at the foreshore).
