@@ -1,15 +1,17 @@
-// Writes the local-cars prototypes (and today's boxy parked car, for comparison) as JSON meshes plus
-// their atlases, for scripts/cars/render_vehicles.py. Prints each one's triangle count.
+// Writes every local-cars body and variant at both LODs (and today's boxy parked car, for
+// comparison) as JSON meshes plus their atlases, for scripts/cars/render_vehicles.py. Prints each
+// one's triangle count.
 //
 //   npx tsx scripts/cars/export_vehicles.ts <out dir>
 //
-// Each <name>.json: { tris, texture, pos: [f, s, h ...], uv: [u, v ...] (v down), idx: [...] }.
+// Each <body>_<variant>_lod<n>.json (and <body>_lod<n>.json for the plain one):
+// { tris, texture, pos: [f, s, h ...], uv: [u, v ...] (v down), idx: [...], dims }.
 
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { buildParkedCars, carTexture, PAINT } from "../../src/core/parkedCars";
+import { BODIES } from "../../src/core/vehicles/index";
 import { atlasPng, swatchUv, type VehicleMesh } from "../../src/core/vehicles/vehicle";
-import { buildUte, type UteSpec } from "../../src/core/vehicles/ute";
 
 const out = process.argv[2] ?? "out/local_cars";
 mkdirSync(out, { recursive: true });
@@ -26,20 +28,27 @@ function painted(m: VehicleMesh, paint: number) {
   return { tris: m.idx.length / 3, texture: "atlas.png", pos: m.pos, uv, idx: m.idx };
 }
 
-const white = 0, silver = 2, blue = 7;
-const models: [string, Partial<UteSpec>, 0 | 1, number][] = [
-  ["ute_lod0", {}, 0, white],
-  ["ute_lod1", {}, 1, white],
-  ["ute_tradie_lod0", { bullBar: true, snorkel: true, tray: "canopy", flares: false, roofRack: true }, 0, white],
-  ["ute_tradie_lod1", { bullBar: true, snorkel: true, tray: "canopy", flares: false, roofRack: true }, 1, white],
-  ["ute_sports_lod0", { tray: "sportsBar" }, 0, silver],
-  ["ute_rack_lod0", { tray: "rack", bullBar: true, barSwatch: 0 }, 0, blue],
-];
-for (const [name, spec, lod, paint] of models) {
-  const m = painted(buildUte(spec, lod), paint);
-  writeFileSync(join(out, `${name}.json`), JSON.stringify(m));
-  console.log(`${name}: ${m.tris} triangles`);
+// A paint per body, so the lineup isn't all white (index into PAINT).
+const COLOUR: Record<string, number> = {
+  ute: 0, trayute: 0, wagon4wd: 11, suv: 7, suvsmall: 8, hatch: 3, sedan: 2, van: 1, passute: 9, stationwagon: 6,
+};
+
+const rows: string[] = [];
+for (const b of BODIES) {
+  const names = Object.keys(b.variants);
+  for (const v of names) {
+    const counts: number[] = [];
+    for (const lod of [0, 1] as const) {
+      const m = b.build(b.variants[v], lod);
+      const name = v === "plain" ? `${b.id}_lod${lod}` : `${b.id}_${v}_lod${lod}`;
+      const j = { ...painted(m, COLOUR[b.id] ?? 0), dims: b.dimensions(b.variants[v]) };
+      writeFileSync(join(out, `${name}.json`), JSON.stringify(j));
+      counts.push(j.tris);
+    }
+    rows.push(`${`${b.id} ${v}`.padEnd(24)} LOD0 ${String(counts[0]).padStart(4)}   LOD1 ${String(counts[1]).padStart(4)}`);
+  }
 }
+console.log(rows.join("\n"));
 
 // Today's car: one, at the origin facing east (f = x), white, on flat ground. kn5 positions are AC
 // (x east, y up, z south): f = x, s = -z, h = y.

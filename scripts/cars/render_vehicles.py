@@ -1,7 +1,9 @@
 """Renders the local-cars prototypes written by scripts/cars/export_vehicles.ts.
 
     python3 scripts/cars/render_vehicles.py -- --dir <export dir> --out <png> --cars ute_lod0[,boxy_car,...]
-        [--view front34|side|rear34|driver] [--samples 16] [--res 960x540] [--gap 2.6]
+        [--view front34|side|rear34|driver] [--samples 16] [--res 960x540] [--gap 2.6] [--zoom 1.0]
+
+For a sheet of every body, one per cell with labels, see lineup.py.
 
 Several cars stand side by side along s (left to right in the side view), each on its own spot.
 Runs with Blender's Python module (bpy) or `blender --background --python`.
@@ -26,6 +28,7 @@ def args():
     p.add_argument("--samples", type=int, default=16)
     p.add_argument("--res", default="960x540")
     p.add_argument("--gap", type=float, default=2.7)
+    p.add_argument("--zoom", type=float, default=1.0, help="scales the lens (1.4 frames one car closely)")
     return p.parse_args(argv)
 
 
@@ -122,6 +125,7 @@ def main():
         cam.data.lens = 45
         cam.location = (7.2 + width * 0.5, -6.0 - width * 0.4, 2.0)
         target = Vector((0, 0, 0.8))
+    cam.data.lens *= a.zoom
     cam.rotation_euler = (target - cam.location).to_track_quat("-Z", "Y").to_euler()
 
     w, h = (int(v) for v in a.res.split("x"))
