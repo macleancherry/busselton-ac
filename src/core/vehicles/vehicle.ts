@@ -22,13 +22,32 @@ export const SW = {
   GLASS: N, TYRE: N + 1, TRIM: N + 2, RIM: N + 3, HEAD: N + 4, TAIL: N + 5, LINER: N + 6, CHROME: N + 7, CANVAS: N + 8,
   PLATE: N + 9, ALLOY: N + 10,
 } as const;
+/**
+ * The local cars' paints, in PAINT's order (so `paintFor`'s choice carries over) but tuned for a
+ * car seen side on rather than from the air: whites a touch warm, the greys a hint cool, the
+ * colours a little deeper, so they read as metallic paint rather than flat primer.
+ */
+export const CAR_PAINT: [number, number, number][] = [
+  [234, 235, 232], // white
+  [242, 242, 238], // white (pearl)
+  [178, 182, 188], // silver
+  [106, 110, 117], // grey
+  [58, 61, 67], // gunmetal
+  [20, 21, 24], // black
+  [24, 36, 76], // navy
+  [32, 78, 156], // blue
+  [162, 20, 26], // red
+  [94, 18, 30], // maroon
+  [34, 70, 50], // green
+  [194, 178, 142], // beige
+];
 const EXTRA: [number, number, number][] = [
-  [22, 28, 34], // glass
+  [14, 20, 30], // glass: dark, a hint of blue
   [22, 22, 22], // tyre
   [38, 39, 41], // black plastic trim
   [150, 152, 156], // alloy rim
-  [132, 146, 160], // headlight (clear lens over a dark housing, as it reads by day)
-  [168, 24, 22], // tail light
+  [104, 122, 142], // headlight (a smoked lens over a dark housing with bright lamps, as it reads by day)
+  [176, 22, 24], // tail light
   [30, 30, 32], // tray liner
   [196, 198, 200], // chrome / alloy bar
   [92, 90, 82], // canvas, rubber mat
@@ -44,7 +63,7 @@ export const GRILLE_TILE: Tile = [64, 32, 64, 32];
 
 /** The atlas as RGBA: swatches 16 px across the top row, then the wheel face and grille tiles. */
 export function atlasPixels(): Uint8Array {
-  const sw = [...PAINT, ...EXTRA];
+  const sw = [...CAR_PAINT, ...EXTRA];
   return fill(ATLAS_W, ATLAS_H, (x, y) => {
     if (y < 16) return sw[Math.floor(x / 16)] ?? [128, 128, 128];
     const [wx, wy, ww, wh] = WHEEL_TILE;
@@ -192,7 +211,10 @@ export interface SilEdge {
 export function lowerBody(vb: VehicleBuilder, len: number, pts: SilPt[], edges: SilEdge[]): void {
   const n = pts.length;
   const f = (p: SilPt) => len / 2 - p.d;
-  const side = (p: SilPt, sgn: 1 | -1): V3 => [f(p) - (p.ds ?? 0), sgn * p.hw, p.h - (p.drop ?? 0)];
+  // The side is one flat panel at the widest half width (a narrower nose is a deeper rounding), so its
+  // triangles never fold and show a crease.
+  const sideHw = Math.max(...pts.map((p) => p.hw));
+  const side = (p: SilPt, sgn: 1 | -1): V3 => [f(p) - (p.ds ?? 0), sgn * sideHw, p.h - (p.drop ?? 0)];
   const inner = (p: SilPt, sgn: 1 | -1): V3 => [f(p), sgn * (p.hw - (p.inset ?? 0)), p.h];
   // Sides: earcut in (f, h).
   const flat = pts.flatMap((p) => [f(p) - (p.ds ?? 0), p.h - (p.drop ?? 0)]);
@@ -257,6 +279,39 @@ export function wheelWells(vb: VehicleBuilder, len: number, axles: number[], h: 
   for (const d of axles) {
     const f0 = len / 2 - d - r, f1 = len / 2 - d + r, top = h + r;
     for (const sgn of [1, -1]) vb.face([[f0, sgn * s, cut], [f1, sgn * s, cut], [f1, sgn * s, top], [f0, sgn * s, top]], SW.TRIM, [0, sgn, 0]);
+  }
+}
+
+/**
+ * An arch for a wheel: its radius and centre height, `gap` clear of the tyre at the sides and half
+ * as much again over the top (cars about 0.03, SUVs 0.04, utes and 4WDs 0.05).
+ */
+export function archOf(s: Pick<BaseSpec, "wheelRadius">, gap: number): { archR: number; archH: number } {
+  return { archR: s.wheelRadius + gap, archH: wheelCentre(s.wheelRadius) + gap * 0.5 };
+}
+
+/** Where an arch (centre d, height h, radius r) meets the sill at `cut`: its front and rear ends, distance back. */
+export function archEnds(d: number, h: number, r: number, cut: number): [number, number] {
+  const x = Math.sqrt(Math.max(0, r * r - (cut - h) * (cut - h)));
+  return [d - x, d + x];
+}
+
+/**
+ * Black cladding along the sill between the arches, both sides, just proud of the body: from the
+ * front arch's rear end to the rear arch's front end, `height` up from the sill. `out` sets how far
+ * proud; a deeper `under` turns it into a side step (a top face as well).
+ */
+export function sillCladding(vb: VehicleBuilder, len: number, d0: number, d1: number, sill: number, height: number, hw: number,
+  step?: { out: number; under: number }): void {
+  const f0 = len / 2 - d1, f1 = len / 2 - d0;
+  if (step) {
+    // A side step: a bar out from under the sill, its top and outer face.
+    vb.boxPair([f0, f1], [hw - step.under, hw + step.out], [sill - height, sill - height + 0.05], SW.TRIM, ["bottom", "inner", "front", "back"]);
+    return;
+  }
+  for (const sgn of [1, -1] as const) {
+    const s = sgn * (hw + 0.01);
+    vb.face([[f0, s, sill], [f1, s, sill], [f1, s, sill + height], [f0, s, sill + height]], SW.TRIM, [0, sgn, 0]);
   }
 }
 
@@ -351,24 +406,26 @@ export function openTray(vb: VehicleBuilder, len: number, d0: number, d1: number
  * drawn from the wheel tile. Four sides give a plain block, for far LODs. The polygon's flat bottom
  * sits on the ground (h = 0), so the tyre stands on it rather than 3 cm above.
  */
-export function wheel(vb: VehicleBuilder, f: number, s: number, r: number, w: number, sides: number, withFace: boolean): void {
+export function wheel(vb: VehicleBuilder, f: number, s: number, r: number, w: number, sides: number, withFace: boolean, open = false): void {
   const sgn = Math.sign(s) || 1, so = s + (sgn * w) / 2, si = s - (sgn * w) / 2;
   if (sides === 4) {
-    // A block like today's boxy car: outer face, front and back (top and bottom are never seen).
+    // A block like today's boxy car: outer face, front and back (top and bottom are never seen, unless
+    // the wheel is out in the open, under a tray).
     const a = r * 0.85, lo = 0, hi = r * 1.62;
     vb.face([[f - a, so, lo], [f + a, so, lo], [f + a, so, hi], [f - a, so, hi]], SW.TYRE, [0, sgn, 0]);
+    if (open) vb.face([[f - a, so, hi], [f + a, so, hi], [f + a, si, hi], [f - a, si, hi]], SW.TYRE, [0, 0, 1]);
     vb.face([[f + a, so, lo], [f + a, si, lo], [f + a, si, hi], [f + a, so, hi]], SW.TYRE, [1, 0, 0]);
     vb.face([[f - a, so, lo], [f - a, si, lo], [f - a, si, hi], [f - a, so, hi]], SW.TYRE, [-1, 0, 0]);
     return;
   }
   const c = wheelCentre(r, sides); // the bottom flat on the ground
   const ring = (sv: number) => [...Array(sides).keys()].map((k): V3 => {
-    const a = (Math.PI * 2 * (k + 0.5)) / sides;
+    const a = wheelAngle(k, sides);
     return [f + r * Math.cos(a), sv, c + r * Math.sin(a)];
   });
   const o = ring(so), i = ring(si);
   for (let k = 0; k < sides; k++) {
-    const k2 = (k + 1) % sides, a = (Math.PI * 2 * (k + 1)) / sides;
+    const k2 = (k + 1) % sides, a = (wheelAngle(k, sides) + wheelAngle(k2, sides) + (k2 === 0 ? Math.PI * 2 : 0)) / 2;
     if (o[k][2] < 0.005 && o[k2][2] < 0.005) continue; // flat on the ground: never seen
     if (o[k][2] > c + r * 0.9 && o[k2][2] > c + r * 0.9) continue; // the top, up in the arch: never seen
     vb.face([o[k], o[k2], i[k2], i[k]], SW.TYRE, [Math.cos(a), 0, Math.sin(a)]);
@@ -376,7 +433,7 @@ export function wheel(vb: VehicleBuilder, f: number, s: number, r: number, w: nu
   if (withFace) {
     const [tx, ty, tw, th] = WHEEL_TILE;
     const uvs = [...Array(sides).keys()].map((k): [number, number] => {
-      const a = (Math.PI * 2 * (k + 0.5)) / sides;
+      const a = wheelAngle(k, sides);
       return [(tx + tw / 2 + (tw / 2) * Math.cos(a)) / ATLAS_W, (ty + th / 2 - (th / 2) * Math.sin(a)) / ATLAS_H];
     });
     vb.face(o, uvs, [0, sgn, 0]);
@@ -385,8 +442,16 @@ export function wheel(vb: VehicleBuilder, f: number, s: number, r: number, w: nu
   }
 }
 
+/** Angle of a wheel polygon's k-th corner: placed so one side lies flat along the bottom (and, sides even, the top). */
+function wheelAngle(k: number, sides: number): number {
+  return -Math.PI / 2 + Math.PI / sides + (Math.PI * 2 * k) / sides;
+}
+
+/** Sides of a near wheel: ten read as round at parking distance; far wheels are blocks. */
+export const WHEEL_SIDES = 10;
+
 /** Height of a wheel's centre above the ground (the polygon's flat bottom on the ground). */
-export function wheelCentre(r: number, sides = 8): number {
+export function wheelCentre(r: number, sides = WHEEL_SIDES): number {
   return r * Math.cos(Math.PI / sides);
 }
 
@@ -463,11 +528,14 @@ export class Sil {
 
   private wells?: { axles: number[]; h: number; r: number; cut: number };
 
-  /** Draw it as the lower body, and near, the wheel wells behind its arches (just inside the spec's tyres). */
+  /**
+   * Draw it as the lower body, and the wheel wells behind its arches (just inside the spec's tyres),
+   * far as well: without them you see daylight through both arches from the side.
+   */
   build(vb: VehicleBuilder, len: number, near: boolean, spec?: BaseSpec): void {
     const { pts, edges } = this.forLod(near);
     lowerBody(vb, len, pts, edges);
-    if (near && this.wells && spec) {
+    if (this.wells && spec) {
       const w = this.wells;
       wheelWells(vb, len, w.axles, w.h, w.r, w.cut, spec.track / 2 - spec.tyreWidth / 2 - 0.02);
     }
@@ -504,10 +572,12 @@ export class Sil {
   }
 }
 
-/** The four wheels: 8 sides with a drawn face near, plain blocks far. */
-export function wheels(vb: VehicleBuilder, s: BaseSpec, near: boolean): void {
+/** The four wheels: WHEEL_SIDES sides with a drawn face near, plain blocks far. */
+export function wheels(vb: VehicleBuilder, s: BaseSpec, near: boolean, openRear = false): void {
   const tr = s.track / 2, fa = s.frontOverhang;
-  for (const d of [fa, fa + s.wheelbase]) for (const side of [tr, -tr]) wheel(vb, s.length / 2 - d, side, s.wheelRadius, s.tyreWidth, near ? 8 : 4, near);
+  for (const d of [fa, fa + s.wheelbase]) {
+    for (const side of [tr, -tr]) wheel(vb, s.length / 2 - d, side, s.wheelRadius, s.tyreWidth, near ? WHEEL_SIDES : 4, near, openRear && d > fa);
+  }
 }
 
 /** Australian plate size, metres. */
@@ -518,11 +588,20 @@ export const PLATE_W = 0.372, PLATE_H = 0.134;
  * the silhouette's middle (or `s` to one side), following the face's slope, just proud of it.
  */
 export function numberPlate(vb: VehicleBuilder, len: number, sil: Sil, h: number, end: "front" | "rear", near: boolean, s = 0): void {
-  const h0 = h - PLATE_H / 2, h1 = h + PLATE_H / 2, sgn = end === "front" ? 1 : -1;
-  const f = (hh: number) => len / 2 - sil.surfaceAt(hh, end, len, near) + sgn * 0.012;
-  const fa = f(h0), fb = f(h1), w = PLATE_W / 2;
+  endPanel(vb, len, sil, h - PLATE_H / 2, h + PLATE_H / 2, s - PLATE_W / 2, s + PLATE_W / 2, end, near, SW.PLATE, 0.012);
+}
+
+/**
+ * A flat panel on the front or rear face of the silhouette's middle part, from h0 to h1 and s0 to
+ * s1, following the face's slope, `proud` off it (a plate, a lamp's inner part).
+ */
+export function endPanel(vb: VehicleBuilder, len: number, sil: Sil, h0: number, h1: number, s0: number, s1: number,
+  end: "front" | "rear", near: boolean, swatch: number, proud = 0.006): void {
+  const sgn = end === "front" ? 1 : -1;
+  const f = (hh: number) => len / 2 - sil.surfaceAt(hh, end, len, near) + sgn * proud;
+  const fa = f(h0), fb = f(h1);
   if (!Number.isFinite(fa) || !Number.isFinite(fb)) return;
-  vb.face([[fa, s + w, h0], [fa, s - w, h0], [fb, s - w, h1], [fb, s + w, h1]], SW.PLATE, [sgn, 0, 0]);
+  vb.face([[fa, s1, h0], [fa, s0, h0], [fb, s0, h1], [fb, s1, h1]], swatch, [sgn, 0, 0]);
 }
 
 /** A plate on a flat upright face at f (a tray's back, a bar), facing forward (+1) or back (-1). */

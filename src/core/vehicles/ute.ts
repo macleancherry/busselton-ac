@@ -2,9 +2,10 @@
 // from a few proportions, no badges or copied shapes (docs/plans/local-cars.md). The other bodies
 // follow the same silhouette + glasshouse + parts pattern.
 
+import { carNose, headLamps, type Nose } from "./body";
 import { bullBar, ladderRack, mirrors, roofRack, snorkel, sportsBar } from "./extras";
 import {
-  archFlares, dimensionsOf, glasshouse, numberPlate, openTray, PAINT_SLOT, Sil, SW, towBar, VehicleBuilder, wheelCentre, wheels,
+  archEnds, archFlares, archOf, dimensionsOf, glasshouse, numberPlate, openTray, PAINT_SLOT, Sil, sillCladding, SW, towBar, VehicleBuilder, wheels,
   type BaseSpec, type Dimensions, type VehicleMesh,
 } from "./vehicle";
 
@@ -22,7 +23,7 @@ export interface UteSpec extends BaseSpec {
   /** Tray floor height (inside; above the rear arches' tops), rail height. */
   trayFloor: number;
   trayRail: number;
-  /** Black wheel-arch flares (SR5 / XLT / Wildtrak look). */
+  /** Black wheel-arch flares and side steps (SR5 / XLT / Wildtrak look). */
   flares: boolean;
   /** Accessories, the WA staples. */
   bullBar: boolean;
@@ -37,13 +38,13 @@ export interface UteSpec extends BaseSpec {
   barSwatch: number;
 }
 
-/** About a current Hilux / Ranger dual cab, from published dimensions only. */
+/** Between a current Hilux and Ranger dual cab (5.33 to 5.37 x 1.86 to 1.92 x 1.82 to 1.88 m, 3.09 to 3.27 m wheelbase), 265/60R18. */
 export const UTE_DEFAULTS: UteSpec = {
-  length: 5.33, width: 1.86, height: 1.82, wheelbase: 3.09, frontOverhang: 0.93,
-  wheelRadius: 0.385, track: 1.56, tyreWidth: 0.26, sill: 0.5,
-  bonnetFront: 1.0, belt: 1.13,
-  windscreenBase: 1.8, cabBack: 3.9, roofFront: 2.5, roofRear: 3.82,
-  trayFloor: 0.87, trayRail: 1.17,
+  length: 5.35, width: 1.9, height: 1.85, wheelbase: 3.2, frontOverhang: 0.92,
+  wheelRadius: 0.395, track: 1.6, tyreWidth: 0.26, sill: 0.48,
+  bonnetFront: 1.1, belt: 1.22,
+  windscreenBase: 1.82, cabBack: 3.92, roofFront: 2.5, roofRear: 3.84,
+  trayFloor: 0.88, trayRail: 1.22,
   flares: true, bullBar: false, snorkel: false, tray: "none", roofRack: false, towBar: false, plates: true, barSwatch: SW.TRIM,
 };
 
@@ -57,6 +58,11 @@ export const UTE_VARIANTS: Record<string, Partial<UteSpec>> = {
   full: { tray: "rack", bullBar: true, snorkel: true, roofRack: true, towBar: true },
 };
 
+/** The work utes' nose (dual cab and tray): a black lip, the bumper, a bold grille between slim lamps. */
+export function uteNose(sill: number, bonnetFront: number, hw: number): Nose {
+  return { sill, lampTop: bonnetFront, hw, rake: 0.1, round: 0.2, lamp: 0.11, lip: 0.12, grille: bonnetFront - 0.11 - (sill + 0.12) - 0.16, upper: "grille" };
+}
+
 export function uteDimensions(spec: Partial<UteSpec> = {}): Dimensions {
   return dimensionsOf({ ...UTE_DEFAULTS, ...spec });
 }
@@ -67,20 +73,19 @@ export function buildUte(spec: Partial<UteSpec> = {}, lod: 0 | 1 = 0): VehicleMe
   const vb = new VehicleBuilder();
   const L = s.length, hw = s.width / 2, near = lod === 0;
   const fa = s.frontOverhang, ra = fa + s.wheelbase;
-  const archR = s.wheelRadius + 0.085, archH = wheelCentre(s.wheelRadius) + 0.02, segs = near ? 4 : 2;
+  const { archR, archH } = archOf(s, 0.05), segs = near ? 4 : 2;
   const nose = hw - 0.035;
   const canopy = s.tray === "canopy";
 
-  // Silhouette, front bumper round the top to the rear bumper and back along the bottom.
+  // Silhouette, front bumper round the top to the rear bumper and back along the bottom: a black lip,
+  // the bumper (the plate), a bold upright grille between slim lamps, the bonnet, a shoulder.
   const sil = new Sil();
-  sil.add({ d: 0.06, h: s.sill, hw: nose, inset: 0.12, ds: 0.1 }, { kind: "body", mid: SW.TRIM, corner: SW.TRIM }); // lower bumper
-  sil.add({ d: 0.0, h: s.sill + 0.17, hw: nose, inset: 0.16, ds: 0.12 }, { kind: "body" }, true); // bumper face
-  sil.add({ d: 0.02, h: s.bonnetFront - 0.19, hw: nose, inset: 0.2, ds: 0.13 }, { kind: "body", mid: "grille", corner: SW.HEAD }); // grille, lamps at the corners
-  sil.add({ d: 0.1, h: s.bonnetFront, hw: nose, inset: 0.2, drop: 0.03, ds: 0.1 }, { kind: "body" }); // bonnet front half
-  sil.add({ d: 0.95, h: (s.bonnetFront + s.belt) / 2 + 0.01, hw, inset: 0.07, drop: 0.04 }, { kind: "body" }); // bonnet rear half
-  sil.add({ d: s.windscreenBase, h: s.belt, hw, inset: 0.06, drop: 0.03 }, { kind: "body" }); // under the cab
+  const noseSpec = uteNose(s.sill, s.bonnetFront, nose);
+  carNose(sil, noseSpec);
+  sil.add({ d: 0.95, h: (s.bonnetFront + s.belt) / 2 + 0.01, hw, inset: 0.06, drop: 0.08 }, { kind: "body" }); // bonnet rear half
+  sil.add({ d: s.windscreenBase, h: s.belt, hw, inset: 0.06, drop: 0.11 }, { kind: "body" }); // under the cab: the shoulder
   sil.add({ d: s.cabBack, h: s.trayRail, hw }, { kind: canopy ? "body" : "skip" }); // the tray (openTray), or a lid under a canopy
-  sil.add({ d: L - 0.03, h: s.trayRail, hw, inset: 0.09, ds: -0.03 }, { kind: "body", corner: SW.TAIL }); // tailgate, tail lamps at the corners
+  sil.add({ d: L - 0.03, h: s.trayRail, hw, inset: 0.1, ds: -0.03 }, { kind: "body", corner: SW.TAIL }); // tailgate, tail lamps at the corners
   sil.add({ d: L, h: s.sill + 0.28, hw, inset: 0.06, ds: -0.04 }, { kind: "body", mid: SW.TRIM, corner: SW.TRIM }); // rear step bumper
   sil.add({ d: L - 0.04, h: s.sill + 0.05, hw }, { kind: "skip" });
   sil.add({ d: ra + archR + 0.4, h: s.sill, hw }, { kind: "skip" });
@@ -95,8 +100,10 @@ export function buildUte(spec: Partial<UteSpec> = {}, lod: 0 | 1 = 0): VehicleMe
         [fc - 0.02, sgn * (hw + 0.004), s.trayRail], [fc + 0.02, sgn * (hw + 0.004), s.trayRail]], SW.TRIM, [0, sgn, 0]);    }
   }
   if (s.flares && near) {
-    archFlares(vb, L, fa, archH, archR, s.sill, segs, hw);
-    archFlares(vb, L, ra, archH, archR, s.sill, segs, hw);
+    const fw = 0.07;
+    archFlares(vb, L, fa, archH, archR, s.sill, segs, hw, fw);
+    archFlares(vb, L, ra, archH, archR, s.sill, segs, hw, fw);
+    sillCladding(vb, L, archEnds(fa, archH, archR, s.sill)[1] + fw, archEnds(ra, archH, archR, s.sill)[0] - fw, s.sill, 0.1, hw, { out: 0.015, under: 0.14 });
   }
 
   // Cab: A pillar, front door glass, B pillar, rear door glass, C pillar.
@@ -108,7 +115,7 @@ export function buildUte(spec: Partial<UteSpec> = {}, lod: 0 | 1 = 0): VehicleMe
     lines: near
       ? [{ base: ws, top: rf }, { base: ws + 0.12, top: rf + 0.06 }, { base: bp - 0.05, top: bp - 0.03 }, { base: bp + 0.06, top: bp + 0.06 }, { base: cb - 0.2, top: rr - 0.1 }, { base: cb, top: rr }]
       : [{ base: ws, top: rf }, { base: cb, top: rr }],
-    panels: near ? [PAINT_SLOT, SW.GLASS, PAINT_SLOT, SW.GLASS, PAINT_SLOT] : [SW.GLASS],
+    panels: near ? [PAINT_SLOT, SW.GLASS, SW.TRIM, SW.GLASS, PAINT_SLOT] : [SW.GLASS],
     rearPaint: near ? 0.22 : 0,
   });
 
@@ -137,9 +144,10 @@ export function buildUte(spec: Partial<UteSpec> = {}, lod: 0 | 1 = 0): VehicleMe
   else if (s.tray === "rack") ladderRack(vb, L, cb + 0.2, L - 0.15, hw, s.trayRail, s.height + 0.08, s.barSwatch, near);
 
   // Mirrors (near only), plates, bull bar, snorkel, roof rack, tow bar.
-  if (near) mirrors(vb, L, ws + 0.08, ws + 0.22, hw, s.belt + 0.05);
+  if (near) mirrors(vb, L, ws + 0.2, hw, s.belt + 0.02, 0.23, 0.17);
+  if (near) headLamps(vb, L, sil, noseSpec, 0.16);
   if (s.plates && near) {
-    numberPlate(vb, L, sil, s.sill + 0.12, "front", near);
+    numberPlate(vb, L, sil, 0.69, "front", near);
     numberPlate(vb, L, sil, s.sill + 0.17, "rear", near);
   }
   if (s.bullBar) bullBar(vb, L, nose, s.sill - 0.02, s.bonnetFront + 0.06, s.barSwatch, near);

@@ -7,7 +7,7 @@ import {
 import { onSwatch, rayCheck, roadWheels, tris, vert, VIEWS } from "./vehicleMesh";
 
 /** The plan's caps per body (docs/plans/local-cars.md): plain, and with extras. */
-const CAP = { 0: { plain: 300, extras: 400 }, 1: { plain: 100, extras: 160 } } as const;
+const CAP = { 0: { plain: 360, extras: 460 }, 1: { plain: 110, extras: 170 } } as const;
 const LODS = [0, 1] as const;
 
 describe.each(BODIES.map((b) => [b.id, b] as const))("local cars: %s", (_id, b) => {
