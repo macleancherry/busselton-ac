@@ -7,6 +7,7 @@
 
 import type { HeightFn } from "./elevation";
 import type { Vec2 } from "./geo";
+import type { CarModel } from "./localCars";
 import { MAX_MESH_VERTICES, type Kn5MeshNode } from "./kn5";
 import { MeshBuilder, type Vec3 } from "./mesh";
 import { encodePng } from "./png";
@@ -21,6 +22,15 @@ export interface ParkedCar {
   dir: Vec2;
   /** Paint: index into PAINT. */
   paint: number;
+  /**
+   * With localCars (localCars.ts): the body and variant, its footprint for clears (reach and body
+   * width, metres; `span` mirror to mirror) and where its tyres touch, both ways round.
+   */
+  model?: CarModel;
+  len?: number;
+  wid?: number;
+  span?: number;
+  wheels?: [number, number][];
 }
 
 /** Common car colours in Australia, roughly how they look from above (sRGB 0-255). */
@@ -153,6 +163,7 @@ export const MAX_LIFT = 0.06;
  * says how deep the deepest tyre still goes (track.ts leaves out a car with one over TYRE_SINK).
  */
 export function carSeat(car: ParkedCar, ground: HeightFn): CarSeat {
+  if (car.model) return modelSeat(car, car.model, ground);
   const [fx, fy] = car.dir;
   const g = WHEELS.map(([f, s]) => ground(car.at[0] + fx * f - fy * s, car.at[1] + fy * f + fx * s));
   const F = WHEELS[0][0], S = WHEELS[0][1];
@@ -170,6 +181,28 @@ export function carSeat(car: ParkedCar, ground: HeightFn): CarSeat {
   const tyres = lift > 0 && lift <= MAX_LIFT ? lo + lift : lo;
   const sink = hi - tyres;
   return { z: tyres - 0.02, pitch, roll, sink: Math.max(0, sink) };
+}
+
+/**
+ * carSeat for a local car (localCars.ts): the same, with its own tyres (the wheelbase, its front axle
+ * and track), and its wheels standing right on the base (z). A round tyre's run is half its radius
+ * either way: its flat bottom and the first facets, which are still within a few centimetres of the
+ * ground (the old wheel blocks were flat for their whole length).
+ */
+function modelSeat(car: ParkedCar, m: CarModel, ground: HeightFn): CarSeat {
+  const [fx, fy] = car.dir;
+  const d = m.dims, f1 = d.frontAxle, f2 = d.frontAxle - d.wheelbase, S = d.track / 2, run = d.wheelRadius / 2;
+  const wheels: [number, number][] = [[f1, S], [f1, -S], [f2, S], [f2, -S]];
+  const at = (f: number, s: number) => ground(car.at[0] + fx * f - fy * s, car.at[1] + fy * f + fx * s);
+  const g = wheels.map(([f, s]) => at(f, s));
+  const clamp = (v: number) => Math.max(-MAX_TILT, Math.min(MAX_TILT, v));
+  const pitch = clamp((g[0] + g[1] - g[2] - g[3]) / (2 * (f1 - f2))), roll = clamp((g[0] - g[1] + g[2] - g[3]) / (4 * S));
+  const rest = wheels.map(([f, s], k) => g[k] - pitch * f - roll * s);
+  const ends = wheels.flatMap(([f, s]) => [-run, run].map((df) => at(f + df, s) - pitch * (f + df) - roll * s));
+  const lo = Math.min(...rest), hi = Math.max(...rest, ...ends);
+  const lift = hi - TYRE_SINK - lo;
+  const tyres = lift > 0 && lift <= MAX_LIFT ? lo + lift : lo;
+  return { z: tyres, pitch, roll, sink: Math.max(0, hi - tyres) };
 }
 
 /** Visual cars (PARKED_CARS) and their invisible collision boxes (1WALL_CAR), on `ground` (sceneGround.ts). */

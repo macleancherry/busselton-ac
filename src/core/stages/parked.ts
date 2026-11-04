@@ -11,11 +11,13 @@ import { material } from "../materials";
 import { clearBays, feetNear } from "../padClear";
 import { buildParkedCars, carSeat, carTexture, TYRE_SINK } from "../parkedCars";
 import { ASPHALT, offAsphaltAt } from "../parkedCheck";
-import { clearParked, ROUTE_ROAD } from "../parkedClear";
+import { asFallback, assignModels, buildLocalCars, countByBody, isFallback, type ModelFit } from "../localCars";
+import { clearParked, parkedConflict, ROUTE_ROAD } from "../parkedClear";
 import { buildBayPads, placeParked, type BayQuad, type PlaceResult, type PlacedCar } from "../parkedPlacement";
 import { outerRadius } from "../roundabout";
 import { PHYSICS_GROUND, topSurface } from "../sceneGround";
 import { LineIndex } from "../sideStreets";
+import { atlasPng } from "../vehicles/vehicle";
 import type { BuildContext } from "./context";
 import type { Ground } from "./ground";
 import type { GroundMeshes } from "./groundMeshes";
@@ -37,6 +39,8 @@ export interface ParkedFirst {
   bayQuads: BayQuad[];
   /** Through streets (no aisles or driveways). */
   through: LineIndex;
+  /** With localCars: cars given the fallback model where their pick didn't fit. */
+  fallback?: number;
 }
 
 /** S16: the photo's cars in bays (or, with parkedBays false, the old filter). Reads `shown` before the clears (B3). */
@@ -46,22 +50,27 @@ export function placeParkedFirst(ctx: BuildContext, rp: RoutePlan, g: Ground, st
   const streetCentres = new LineIndex(img.streetLines.map((pts) => ({ pts, width: 0 })));
   const through = new LineIndex(st.streetPlan.streets.filter((s) => !NO_TRAFFIC_SERVICE.test(s.service ?? "")));
   const inShown = (x: number, y: number) => hs.shown.some((b) => pointInRing(x, y, b.ring));
+  const local = opts.localCars !== false;
   if (opts.parkedBays !== false) {
+    const blocked = (x: number, y: number, kerb: boolean) => {
+      if (!g.inCover(x, y, 5)) return true;
+      const n = index.nearest(x, y, 30);
+      if (n && n.dist < index.at(n).width / 2 + 0.3) return true;
+      if (plan.roundabouts.some((rb) => Math.hypot(x - rb.c[0], y - rb.c[1]) < outerRadius(rb) + 0.5)) return true;
+      if (!kerb && through.clearance(x, y) < 0.2) return true;
+      return inShown(x, y);
+    };
     const placed = placeParked(img.parkedSpots, {
       aisles: img.parkingLines.length
         ? (sources.streets?.lines ?? []).filter((l) => l.service === "parking_aisle").map((l) => ({ pts: ctx.line(l.pts), width: 6 }))
         : [],
       slots: (rn.kerbside?.slots ?? []).filter((s) => s.street !== 0),
-      blocked: (x, y, kerb) => {
-        if (!g.inCover(x, y, 5)) return true;
-        const n = index.nearest(x, y, 30);
-        if (n && n.dist < index.at(n).width / 2 + 0.3) return true;
-        if (plan.roundabouts.some((rb) => Math.hypot(x - rb.c[0], y - rb.c[1]) < outerRadius(rb) + 0.5)) return true;
-        if (!kerb && through.clearance(x, y) < 0.2) return true;
-        return inShown(x, y);
-      },
+      blocked,
     });
-    return { placed, parked: placed.cars, bayQuads: placed.bays, through };
+    if (!local) return { placed, parked: placed.cars, bayQuads: placed.bays, through };
+    // Local cars: a model for each bay, the fallback where the pick reaches somewhere blocked or into a neighbour.
+    const m = assignModels(placed.cars, ctx.slug, blocked);
+    return { placed, parked: m.cars, bayQuads: placed.bays, through, fallback: m.fallback };
   }
   const parked = img.parkedSpots.filter((c) => {
     const [x, y] = c.at;
@@ -72,7 +81,9 @@ export function placeParkedFirst(ctx: BuildContext, rp: RoutePlan, g: Ground, st
     if (plan.roundabouts.some((rb) => Math.hypot(x - rb.c[0], y - rb.c[1]) < outerRadius(rb) + 2.5)) return false;
     return !inShown(x, y);
   });
-  return { placed: null, parked, bayQuads: [], through };
+  if (!local) return { placed: null, parked, bayQuads: [], through };
+  const m = assignModels(parked, ctx.slug);
+  return { placed: null, parked: m.cars, bayQuads: [], through, fallback: m.fallback };
 }
 
 /** Distance to the nearest traffic lane's centreline (traffic.json's lanes, AC points back to local). */
@@ -108,6 +119,23 @@ function laneDistance(trafficText: string): (x: number, y: number) => number {
 export interface ParkedFinal {
   parked: PlacedCar[];
   parkedDropped: NonNullable<TrackResult["stats"]["parkedDropped"]>;
+  /** With localCars: cars by body, and how many took the fallback model. */
+  localCars?: NonNullable<TrackResult["stats"]["localCars"]>;
+}
+
+/**
+ * With localCars, a car that fails `ok` as its model gets one more go as the fallback model (plain
+ * hatch, inside the old car's footprint) before the filter drops it.
+ */
+function rescue<C extends PlacedCar>(cars: C[], ok: (c: C) => boolean, local: boolean, counter: { n: number }): C[] {
+  if (!local) return cars;
+  return cars.map((c) => {
+    if (!c.model || isFallback(c) || ok(c)) return c;
+    const f = asFallback(c);
+    if (!ok(f)) return c;
+    counter.n++;
+    return f;
+  });
 }
 
 /** S19.2-4: mutates the model (appends the pads and the cars' groups) and the registry (the car texture). */
@@ -116,13 +144,15 @@ export function finishParked(
 ): ParkedFinal {
   const ground = gm.ground;
   const group = (name: string, children: Kn5MeshNode[] | Kn5GroupNode[]): Kn5GroupNode => ({ kind: "node", name, transform: IDENTITY, children });
-  const cleared = clearParked(p1.parked, {
+  const local = ctx.opts.localCars !== false, swapped = { n: p1.fallback ?? 0 };
+  const clearance = {
     // The route's road, networkCore's junctions on it included (not side streets: a gravel one is 1UNSEALED too).
     road: topSurface([...rm.roadMeshes.road, ...gm.kerbsClear.nodes, ...gm.ringsClear.nodes, ...rn.netNodes], ROUTE_ROAD),
-    street: (x, y) => p1.through.clearance(x, y),
+    street: (x: number, y: number) => p1.through.clearance(x, y),
     rings: rp.plan.roundabouts.map((rb) => ({ c: rb.c, r: outerRadius(rb) })),
     ...(tf ? { lane: laneDistance(tf.trafficText) } : {}),
-  });
+  };
+  const cleared = clearParked(rescue(p1.parked, (c) => parkedConflict(c, clearance) === null, local, swapped), clearance);
   let parked = cleared.kept;
   const parkedDropped = { ...cleared.dropped, offAsphalt: 0, uneven: 0 };
   if (parked.length) {
@@ -144,7 +174,7 @@ export function finishParked(
       return gz === null ? e : e === null ? gz : Math.max(gz, e);
     };
     const asphalt = topSurface([...asphaltBuilt, ...pads], ASPHALT);
-    parked = parked.filter((c) => {
+    parked = rescue(parked, (c) => offAsphaltAt(c, top, asphalt) === null, local, swapped).filter((c) => {
       if (offAsphaltAt(c, top, asphalt) === null) return true;
       parkedDropped.offAsphalt++;
       return false;
@@ -153,11 +183,20 @@ export function finishParked(
       const gz = ground(x, y), p = padTop?.(x, y) ?? null;
       return p === null ? gz : Math.max(gz, p);
     };
-    parked = parked.filter((c) => {
-      if (carSeat(c, carGround).sink <= TYRE_SINK + 1e-6) return true;
+    const even = (c: PlacedCar) => carSeat(c, carGround).sink <= TYRE_SINK + 1e-6;
+    parked = rescue(parked, even, local, swapped).filter((c) => {
+      if (even(c)) return true;
       parkedDropped.uneven++;
       return false;
     });
+    if (local) {
+      // LOD meshes in 40 m clusters with their own draw distances: not through cullable's tiles.
+      const lc = buildLocalCars(parked as (PlacedCar & ModelFit)[], carGround);
+      model.root.children.push(group("PARKED_CARS", lc.visual));
+      model.root.children.push(group("PARKED_CAR_WALLS", lc.walls));
+      reg.scenery("local_car.png", atlasPng(), material("local_car", "local_car.png", { ambient: 0.45, diffuse: 0.55, specular: 0.5, exp: 40 }));
+      return { parked, parkedDropped, localCars: { bodies: countByBody(parked), fallback: swapped.n } };
+    }
     const meshes = buildParkedCars(parked, carGround);
     model.root.children.push(...cullable([group("PARKED_CARS", meshes.filter((m) => !m.name.startsWith("1WALL")))]));
     model.root.children.push(group("PARKED_CAR_WALLS", meshes.filter((m) => m.name.startsWith("1WALL"))));

@@ -307,6 +307,7 @@ Section 7. `railsClear = keepOffRoute(rails.rails, onRoad)`; fences, farm, lots 
 2. Parked within 1.8 m of a traffic lane (lanes from trafficText, AC points mapped back `[x, −z]`) dropped.
 3. `clearParked(parked, {road: topSurface([road, kerbsClear, ringsClear], ROUTE_ROAD), street: through-street clearance, rings, lane})` → `parkedDropped = {...dropped, offAsphalt: 0, uneven: 0}`.
 4. With cars left: `padClear !== false` and bays → `clearBays(bayQuads, parked, feetNear(model.root.children, bayQuads, ground))`, adding drops to `placed.dropped.blocked`. Pads `buildBayPads(bayQuads, ground, bayHeight(ground, topSurface(asphaltBuilt, BAY_ASPHALT)))` appended to the root as a **second** `CARPARKS` group (B7). Off-asphalt filter (`offAsphaltAt` with top = max(ground.mesh, islands/pads PHYSICS_GROUND), asphalt = asphaltBuilt + pads by ASPHALT). Uneven filter (`carSeat(c, carGround).sink ≤ TYRE_SINK + 1e-6`, carGround = max(ground, pad top)). `buildParkedCars(parked, carGround)`: non-`1WALL` meshes → `cullable([group PARKED_CARS])`, `1WALL` meshes → group `PARKED_CAR_WALLS`. Texture parked_car.png, material parked_car.
+   With `localCars !== false` (localCars.ts): S16 gives each placed car a model (`assignModels(cars, slug, blocked)`: its pick for the bay, or the plain hatch where the pick reaches a neighbour or somewhere blocked); here each filter (clearParked, off asphalt, uneven) first gives a car that fails as its model one more go as the plain hatch; then `buildLocalCars(parked, carGround)`: visual meshes PARKED_CARS_NEAR_nnn (lodIn 0, lodOut 70) and PARKED_CARS_FAR_nnn (70 to 600) per 40 m cluster in group `PARKED_CARS` (not through cullable), the boxes in `PARKED_CAR_WALLS`. Texture local_car.png, material local_car; stats `localCars` (cars by body, fallbacks). Off, the build is byte-identical to before.
 5. **CSP trees** (`cspTrees`): all = treesKept + houseTrees; model of a tree = `t.model ?? t.variant`; used = distinct valid models in first-seen order; `${slug}/extension/trees/<MODEL>.bin` per used model, `trees.txt` = `treeList` of trees with a used model, `pos: toAc(x, y, ground − 0.1)`, angle `cspTreeAngle(x, y)`, size scale.
 
 ### S20. Files, result, stats (old 1994–2166), progress #9 and #10
@@ -490,7 +491,7 @@ Passed whole to submodules too (planRoad, terrain, scenery…): only what `track
 | raceDress, sponsors, wavingFlags | S14, S15, files | wavingFlags absent = on |
 | streetSigns, landmarks | S14 | |
 | houseStyle | S15 | |
-| parkedBays, padClear | S16, S19 | absent = on |
+| parkedBays, padClear, localCars | S16, S19 | absent = on |
 | traffic, trafficZones, trafficSetting | S19, files | |
 | aiKeepLeft | S20 | passed as is |
 | rainHollows, trackSounds, pureTuning, jettyTrain | files | rainHollows absent = off; pureTuning, jettyTrain absent = on |

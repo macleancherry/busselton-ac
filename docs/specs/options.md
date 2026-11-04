@@ -141,6 +141,7 @@ Layouts: `layouts.ts` builds each extra layout with `withDefaults({ ...route.bui
 | `parkedCars` | boolean | `true` | | | track.ts:703 |
 | `parkedBays` | boolean | — | | **on** unless `false` | track.ts:1714 |
 | `padClear` | boolean | — | | **on** unless `false` | track.ts:1941 |
+| `localCars` | boolean | — | | **on** unless `false`: the parked cars as local car models, a body, variant and paint per bay, two LODs in 40 m clusters (localCars.ts, docs/plans/local-cars.md) *(added 4 Nov)* | stages/parked.ts |
 | `trafficLights` | boolean | — | | **on** unless `false` | track.ts:1427; services/pipeline.ts:76 (signals query) |
 | `shopNamesOverpass` | boolean | — | | **on** unless `false`: shop, cafe, pub and hotel names from their own Overpass query, for shop signs *(added 2 Nov)* | services/osm.ts, pipeline.ts; shops.ts |
 
@@ -184,7 +185,7 @@ Routes on 31 Oct 2026 (routes/ and routes/private/) set these `build` fields: or
 - **`carParkIslands`**: deleted with `findIslands`/`buildIslands` (31 Oct).
 - **`raceDress` and `sponsors`**: deleted with race dressing (31 Oct).
 - Pure tuning numbers no UI, preset or route sets (`chunkSize`, `demZoom`, `horizonZoom`, `terrainBlend`, `terrainLodNear`, `maxTrees`, `runUp`, `runOff`, `buildingRadius`, `spacing`, `defaultWidth`, `crown`): could become module constants, but several are used by tests to shape fixtures. Recommend keeping them as options.
-- The "on unless false" switches (`gravelRoads`, `photoSea`, `pureTuning`, `wavingFlags`, `jettyTrain`, `swimJetties`, `poleClear`, `padClear`, `parkedBays`, `laneBayClear`, `trafficLights`, `driftZones`) are escape hatches for regressions; keep.
+- The "on unless false" switches (`gravelRoads`, `photoSea`, `pureTuning`, `wavingFlags`, `jettyTrain`, `swimJetties`, `poleClear`, `padClear`, `parkedBays`, `laneBayClear`, `trafficLights`, `driftZones`, `localCars`) are escape hatches for regressions; keep.
 
 ## Tests to write
 

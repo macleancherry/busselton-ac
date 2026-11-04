@@ -2,15 +2,18 @@
 // runs it on a build's zip.)
 //
 // Cars are read back from their collision boxes (1WALL_CAR_*: one box a car, 4.4 x 1.75 m, its
-// footprint and base). Three things fail a build:
+// footprint and base; with localCars each body's own size, localCars.ts boxOf, which also says
+// where its tyres are). Three things fail a build:
 //   - overlapping: two cars' boxes overlap (by more than 2 cm), cars driven into each other;
-//   - off asphalt: a wheel (the four contact points, parkedCars.ts WHEELS) or the middle isn't on an
+//   - off asphalt: a wheel (the four contact points, parkedCars.ts WHEELS, or a local car's own tyres
+//     both ways round, as a box doesn't say which end is the front) or the middle isn't on an
 //     asphalt physics surface at the top: the route or a street (gutters included) or a car park bay's
 //     pad. Grass, kerbs, paths, gravel and no surface at all count as off;
 //   - outside bays: the car's middle is neither over a car park bay's pad (1STREET_CARPARK) nor within
 //     4 m of kerbside bay paint (KERBSIDE_*: parallel bays' T-marks are 6 m apart, angle bays' lines 2.6).
 import type { Vec2 } from "./geo";
 import type { Kn5Node } from "./kn5";
+import { modelBoxes, wheelsBothWays } from "./localCars";
 import { carsOverlap } from "./parkedPlacement";
 import { PHYSICS_GROUND, topSurface, type SurfaceFn } from "./sceneGround";
 import { SURFACE_GROUPS, groupsOf } from "./groundCheck";
@@ -27,6 +30,10 @@ export interface CheckedCar {
   at: Vec2;
   dir: Vec2;
   base: number;
+  /** A local car's box length and width, and its tyre contacts both ways round (absent for the old car). */
+  len?: number;
+  wid?: number;
+  wheels?: [number, number][];
 }
 
 export interface ParkedReport {
@@ -45,6 +52,7 @@ const meshesIn = (nodes: Kn5Node[]): Extract<Kn5Node, { kind: "mesh" }>[] =>
 /** The parked cars in a model, from their collision boxes (welded to the millimetre, one connected box a car). */
 export function carsFromWalls(root: Kn5Node): CheckedCar[] {
   const out: CheckedCar[] = [];
+  const models = modelBoxes();
   for (const m of meshesIn([root]).filter((n) => /^1WALL_CAR/.test(n.name))) {
     const p = m.positions, key = new Map<string, number>(), X: number[] = [], Y: number[] = [], H: number[] = [];
     const ids: number[] = [];
@@ -71,21 +79,25 @@ export function carsFromWalls(root: Kn5Node): CheckedCar[] {
       // From one corner the other three are the short edge, the long edge and the diagonal: the long axis is the middle one.
       const c0 = bottom[0];
       const edges = bottom.slice(1).map((j) => ({ j, d: Math.hypot(X[j] - X[c0], Y[j] - Y[c0]) })).sort((a, b) => a.d - b.d);
-      const e = edges[edges.length - 2];
-      out.push({ at: [cx, cy], dir: [(X[e.j] - X[c0]) / e.d, (Y[e.j] - Y[c0]) / e.d], base: lo });
+      const e = edges[edges.length - 2], w = edges[0].d;
+      const car: CheckedCar = { at: [cx, cy], dir: [(X[e.j] - X[c0]) / e.d, (Y[e.j] - Y[c0]) / e.d], base: lo };
+      const model = models.find((b) => Math.abs(b.length - e.d) < 0.01 && Math.abs(b.width - w) < 0.01);
+      if (model) Object.assign(car, { len: e.d, wid: w, wheels: wheelsBothWays(model.dims) });
+      out.push(car);
     }
   }
   return out;
 }
 
-/** The four wheel contacts and the middle of a car (parkedCars.ts WHEELS). */
-export function wheelPoints(c: { at: Vec2; dir: Vec2 }): Vec2[] {
+/** The wheel contacts and the middle of a car (parkedCars.ts WHEELS, or a local car's `wheels`). */
+export function wheelPoints(c: { at: Vec2; dir: Vec2; wheels?: [number, number][] }): Vec2[] {
   const [fx, fy] = c.dir, sx = -fy, sy = fx;
-  return [[0, 0], [1.4, 0.74], [1.4, -0.74], [-1.4, 0.74], [-1.4, -0.74]].map(([f, s]) => [c.at[0] + fx * f + sx * s, c.at[1] + fy * f + sy * s] as Vec2);
+  const pts = c.wheels ? [[0, 0], ...c.wheels] : [[0, 0], [1.4, 0.74], [1.4, -0.74], [-1.4, 0.74], [-1.4, -0.74]];
+  return pts.map(([f, s]) => [c.at[0] + fx * f + sx * s, c.at[1] + fy * f + sy * s] as Vec2);
 }
 
 /** The first of a car's wheel contacts and middle that isn't on asphalt at the top (`top`: every physics surface), or null. */
-export function offAsphaltAt(c: { at: Vec2; dir: Vec2 }, top: SurfaceFn, asphalt: SurfaceFn): Vec2 | null {
+export function offAsphaltAt(c: { at: Vec2; dir: Vec2; wheels?: [number, number][] }, top: SurfaceFn, asphalt: SurfaceFn): Vec2 | null {
   for (const [x, y] of wheelPoints(c)) {
     const h = top(x, y), a = asphalt(x, y);
     if (h !== null && a !== null && a >= h - 0.005) continue;
@@ -126,7 +138,11 @@ export function checkParked(root: Kn5Node): ParkedReport {
   cars.forEach((c, i) => {
     const gx = Math.floor(c.at[0] / 8), gy = Math.floor(c.at[1] / 8);
     for (let a = gx - 1; a <= gx + 1; a++) for (let b = gy - 1; b <= gy + 1; b++)
-      for (const j of grid.get(`${a},${b}`) ?? []) if (carsOverlap(c, cars[j], -0.07)) report.overlapping.push({ a: ac(c), b: ac(cars[j]) });
+      for (const j of grid.get(`${a},${b}`) ?? []) {
+        // A local car's box is its body less 10 and 5 cm: overlapping by more than 2 cm counts.
+        const hit = c.len !== undefined || cars[j].len !== undefined ? carsOverlap(c, cars[j], -0.01) : carsOverlap(c, cars[j], -0.07);
+        if (hit) report.overlapping.push({ a: ac(c), b: ac(cars[j]) });
+      }
     const k = `${gx},${gy}`;
     (grid.get(k) ?? grid.set(k, []).get(k)!).push(i);
   });

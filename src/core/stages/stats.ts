@@ -71,6 +71,7 @@ export function buildStats(ctx: BuildContext, model: Kn5Model, a: StatsInput, re
     carsPainted: img.carsPainted,
     parkedCars: pf.parked.length,
     parkedDropped: pf.parkedDropped,
+    ...(pf.localCars ? { localCars: pf.localCars } : {}),
     parkedBays: p1.placed ? {
       carPark: pf.parked.filter((c) => !c.kerb).length,
       kerb: pf.parked.filter((c) => c.kerb).length,

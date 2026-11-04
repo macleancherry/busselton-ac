@@ -110,7 +110,7 @@ describe("parked cars along streets", () => {
 
   it("puts a car in the nearest painted bay it lines up with, parallel to the kerb", () => {
     const r = placeParked([car(8.6, 4.4, [-0.98, 0.2], { paint: 8 })], { aisles: [], slots, blocked: free });
-    expect(r.cars).toEqual([{ at: [9, 4.9], dir: [1, 0], paint: 8, kerb: true }]);
+    expect(r.cars).toEqual([{ at: [9, 4.9], dir: [1, 0], paint: 8, kerb: true, room: 5.7 }]);
   });
 
   it("drops a nose-in row along a street with parallel bays, and cars where nothing's painted", () => {

@@ -196,6 +196,11 @@ export interface BuildOptions {
   parkedBays?: boolean;
   /** On unless false. */
   padClear?: boolean;
+  /**
+   * Busselton fork: the parked cars as local car models (localCars.ts, docs/plans/local-cars.md):
+   * a body, variant and paint per bay from the local mix, two LODs in 40 m clusters. On unless false.
+   */
+  localCars?: boolean;
   /** On unless false. */
   trafficLights?: boolean;
   /**
@@ -244,7 +249,7 @@ export const OPTIONAL_OPTION_KEYS: readonly (keyof BuildOptions)[] = Object.free
   "terrainLodFarTol", "photoSea", "beachDetail", "zones", "pureTuning", "rainHollows",
   "cspTrees", "houseStyle", "clears", "armco", "farmland", "farmRoadsides", "wavingFlags",
   "jettyTrain", "swimJetties", "jettyKinds", "trackSounds", "poleClear", "raceway", "treeMips", "shoreClear", "pathTraceClip", "buildingTraceClip",
-  "kerbside", "laneBayClear", "parkedBays", "padClear", "trafficLights", "shopNamesOverpass",
+  "kerbside", "laneBayClear", "parkedBays", "padClear", "localCars", "trafficLights", "shopNamesOverpass",
   "aiKeepLeft", "aiRings", "streetsValid", "challenges", "timeTrialSectors", "driftZones", "courseMarks",
   "gridAt", "pits", "pitLane", "circuitKerbs", "gridPaint", "bridgeDecks",
 ] as const);

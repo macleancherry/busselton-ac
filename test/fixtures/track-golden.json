@@ -285,7 +285,7 @@
  },
  "c": {
   "files": {
-   "golden_coast/golden_coast.kn5": "13a91447cb3037d81070ae28ac249262de9b9c2c35b5c407375bfdd7c8c8ee9d",
+   "golden_coast/golden_coast.kn5": "e4c8e5cff27ae48b4da98ad98671e2da55d7e6ea3c5addbfbec53d80a4410c5e",
    "golden_coast/main/ai/fast_lane.ai": "419d3d18f96a1c50965214554766aaced3d81fa04ee637d49d237e4440dc3dd6",
    "golden_coast/main/data/ideal_line.ai": "419d3d18f96a1c50965214554766aaced3d81fa04ee637d49d237e4440dc3dd6",
    "golden_coast/main/ai/pit_lane.ai": "647bbae093f1573de8e5643729790665042f205164a17bc5aefbdc285a0bba6d",
@@ -322,10 +322,10 @@
    "maxElevation": 6.153963342077988,
    "climb": 4.421575411406893,
    "meanWidth": 10.185365236482925,
-   "vertices": 207660,
-   "triangles": 151757,
+   "vertices": 218342,
+   "triangles": 156803,
    "terrainChunks": 8,
-   "kn5Bytes": 28776090,
+   "kn5Bytes": 29278275,
    "trees": 984,
    "buildings": 41,
    "buildingsDetected": 9,
@@ -344,6 +344,21 @@
     "lane": 0,
     "offAsphalt": 0,
     "uneven": 0
+   },
+   "localCars": {
+    "bodies": {
+     "ute": 3,
+     "trayute": 0,
+     "wagon4wd": 0,
+     "suv": 4,
+     "suvsmall": 1,
+     "hatch": 1,
+     "sedan": 3,
+     "passute": 1,
+     "van": 1,
+     "stationwagon": 0
+    },
+    "fallback": 1
    },
    "parkedBays": {
     "carPark": 14,
@@ -388,7 +403,7 @@
  },
  "d": {
   "files": {
-   "golden_town/golden_town.kn5": "df3ba39707538b828b93790f8b9d95a9299ccaae4c8c3671a90971299f8313c9",
+   "golden_town/golden_town.kn5": "75fa39a1022544b585281dbfb0356fc43b12c2109c6303ad35e93f12cea203ea",
    "golden_town/main/ai/fast_lane.ai": "d8310c94cd00d5bc49aa83097a6f7d0931c983977dd5e3d4354fe3dece77ac48",
    "golden_town/main/data/ideal_line.ai": "d8310c94cd00d5bc49aa83097a6f7d0931c983977dd5e3d4354fe3dece77ac48",
    "golden_town/main/ai/pit_lane.ai": "d8b398daae5572dacdb77b122640a7a9b0c390fe8d7faa6548591a35dace49b9",
@@ -425,10 +440,10 @@
    "maxElevation": 6.153899000176602,
    "climb": 4.42152062467026,
    "meanWidth": 7.443703201423855,
-   "vertices": 288059,
-   "triangles": 254114,
+   "vertices": 304855,
+   "triangles": 262060,
    "terrainChunks": 8,
-   "kn5Bytes": 33379384,
+   "kn5Bytes": 34168444,
    "trees": 986,
    "buildings": 42,
    "buildingsDetected": 9,
@@ -440,17 +455,32 @@
    "kerbMetres": 1786,
    "poles": 4,
    "carsPainted": 36,
-   "parkedCars": 21,
+   "parkedCars": 22,
    "parkedDropped": {
     "road": 0,
     "roundabout": 0,
-    "lane": 1,
+    "lane": 0,
     "offAsphalt": 0,
     "uneven": 0
    },
+   "localCars": {
+    "bodies": {
+     "ute": 4,
+     "trayute": 0,
+     "wagon4wd": 4,
+     "suv": 2,
+     "suvsmall": 2,
+     "hatch": 9,
+     "sedan": 1,
+     "passute": 0,
+     "van": 0,
+     "stationwagon": 0
+    },
+    "fallback": 6
+   },
    "parkedBays": {
     "carPark": 14,
-    "kerb": 7,
+    "kerb": 8,
     "dropped": {
      "aisle": 0,
      "noBay": 0,
@@ -493,7 +523,7 @@
    "Done 1"
   ],
   "houses": 36,
-  "parked": 21
+  "parked": 22
  },
  "f": {
   "files": {
