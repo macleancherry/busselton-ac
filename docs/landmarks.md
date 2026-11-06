@@ -73,6 +73,16 @@ Where they came from and what's next: [docs/plans/tourism-places.md](plans/touri
 | Cape Leeuwin keepers' cottages and waterwheel | Cape Leeuwin | ✅ ([cottages](landmarks/cape_leeuwin_cottages.md), [waterwheel](landmarks/cape_leeuwin_waterwheel.md)) |
 | Caves House Hotel and the Yallingup General Store | Caves Road, Dunsborough to Yallingup | ✅ ([Caves House](landmarks/caves_house.md), [store](landmarks/yallingup_store.md)) |
 
+## Dunsborough (Busselton to Dunsborough)
+
+The drive stays on Caves Road, south of the town centre, so only the edge of town is in its 70 m corridor (`routes/landmarks/busselton_to_dunsborough_looks.json`).
+
+| Landmark | Where | Status |
+| --- | --- | --- |
+| Dunsborough Tavern | 2 Dunsborough Place, by the Dunn Bay Road roundabout | ✅ ([description](landmarks/dunsborough_tavern.md)); mostly past the corridor, on the terrain's height |
+| Dunsborough Bakery | Dunn Bay Road, about 220 m north of the drive | ⬜ outside the built area |
+| Dunsborough Centrepoint (Coles) | 55-57 Dunn Bay Road, 110 to 230 m north of the drive | ⬜ outside the built area |
+
 ## The whole map (private)
 
 Listed in `routes/private/landmarks/README.md`.
