@@ -5,7 +5,7 @@ Checks the fixes for retest 6's problems. The workstation tests and reports; it 
 ## Builds
 
 In the share's `builds\` (Mac copies them in; installs now take the zip by exact name):
-- `busselton.zip`: the accepted base of 3 Nov evening. Road core on by default, pit boxes in a row off the road with their own pit lane, invisible walls clear of every layout's AI line, nothing standing on the road. Replaces both `busselton.zip` and `busselton_roadcore.zip` (delete the road-core one).
+- `busselton.zip`: the accepted base of 3 Nov evening. Road core on by default, pit boxes in a row off the road with their own pit lane, invisible walls clear of every layout's AI line, nothing standing on the road, and the parked cars are now real local cars (utes, 4WDs, SUVs, hatches and so on) instead of boxes. Replaces both `busselton.zip` and `busselton_roadcore.zip` (delete the road-core one).
 - `caves_road_yallingup.zip` and `collie_motorplex.zip`: rebuilt on the same code.
 
 Before testing: `git pull`, `scripts\windows\rig-install.ps1 -PublishKit`, then `scripts\windows\install-track.ps1 -All`. Check that `busselton.zip` goes on and any `busselton_roadcore.zip` is listed as skipped.
@@ -26,10 +26,13 @@ Before testing: `git pull`, `scripts\windows\rig-install.ps1 -PublishKit`, then 
 7. **Collie:** short and long, one run each; no off-road at the short layout's southern link (about 484 m).
 8. **Frame rate:** the `frame rate:` line for free roam `-Cars 15`. Retest 6 was 35 to 40 fps on every track at 4K with 4x MSAA, so it's the settings, not the track; just confirm the new build isn't slower.
 
+9. **Local cars (parked):** in the free roam solo run's screenshots, the parked cars should be real car shapes sitting on their wheels in the bays, none floating, sunk or overlapping. Note any car the test car hits (the log's contacts) and whether it behaves like a solid object. Compare the free roam `frame rate:` line with item 8.
+
 Expected and harmless: `NO POSITION DATA FOUND` and the app-icon warnings.
 
 ## Mac's drive
 
 - The road core is now the base: roundabouts and junctions should feel smooth, with no steps or lips.
 - The red shared path along the foreshore should be there almost all the way (a few short gaps of 5 to 10 m are known).
+- The parked cars: real local cars now. Say if any look wrong up close, or if you see them pop when they switch to the cheaper version at about 70 m.
 - The Tav sits 1.5 m further from Queen St than the aerial fit, so its corner keeps off the road. Say if it looks wrong.
