@@ -17,8 +17,16 @@
 // must flow (no kinks, no flicks), and data/ai_hints.ini, sections [HINT_n] with START and END as
 // fractions of the AI line (0 at its first point, 1 at the end of the lap) and VALUE scaling how hard
 // the AI drives there (1 normal, 0.5 a lot slower). It has no idea of giving way: cars arriving
-// together at a ring touch. So the rings get their own, lower hint from RING_HINT_BEFORE metres before
+// together at a ring touch. So the rings get their own hint from RING_HINT_BEFORE metres before
 // the ring to its exit, and the stored speeds and radii are the line's own, capped on the ring.
+//
+// The hint scales AC's own speed, and on a ring that's already the grip limit for its radius (about
+// 36 km/h round a 10 m ring). Retest 7 (6 Nov): with the rings at 0.35 (the lowest of all hints, under
+// the 50 zone's 0.5) the AI went round at 10 to 15 km/h, a queue formed behind the first car, and AC,
+// taking cars that crawl for several seconds as stuck, sent each in turn back to its pit box, where
+// it stayed: all six cars in town after one lap, every car on free roam, every time at a ring or a
+// square corner. So a ring's or tight corner's hint sets the pace there (it replaces the street's,
+// aiLine.ts aiHintsIni): RING_HINT of the grip limit, a steady 25 km/h or so that keeps a queue moving.
 
 import type { AiPoint } from "./aiSpline";
 import type { Circle } from "./roundabout";
@@ -32,10 +40,10 @@ export interface WorldRing { c: Vec2; rOut: number; rIn?: number }
 export const RING_SPEED = 7;
 /** Braking into a ring, m/s^2: gentle, so a queue doesn't concertina. */
 const RING_BRAKE = 3;
-/** The rings' hint VALUE: the AI's pace there. Lower than any street's speed-limit hint. */
-export const RING_HINT = 0.35;
+/** The rings' hint VALUE: the AI's pace there, in place of the street's (it's already the grip limit). */
+export const RING_HINT = 0.7;
 /** The ring hint starts this far before the ring's outer edge, metres along the line. */
-export const RING_HINT_BEFORE = 40;
+export const RING_HINT_BEFORE = 15;
 /** ...and ends this far past it on the way out. */
 const RING_HINT_AFTER = 5;
 
@@ -160,10 +168,10 @@ export function retimeAi(ai: AiPoint[], closed: boolean, rings: WorldRing[] = []
 /** A street corner tighter than this (metres, the line's own radius) gets TIGHT_HINT... */
 export const TIGHT_RADIUS = 10;
 /** ...from TIGHT_HINT_BEFORE metres before it to RING_HINT_AFTER after. */
-export const TIGHT_HINT = 0.4;
-const TIGHT_HINT_BEFORE = 30;
+export const TIGHT_HINT = 0.7;
+const TIGHT_HINT_BEFORE = 15;
 
-/** Lowers `out` to `value` over each run of `flag`, from `before` metres ahead of the run to `after` past it. */
+/** Sets `out` to `value` (the lower where two runs overlap) over each run of `flag`, from `before` metres ahead of the run to `after` past it. */
 function markRuns(ai: AiPoint[], flag: boolean[], before: number, after: number, value: number, closed: boolean, out: number[]): void {
   const n = ai.length;
   const total = ai[n - 1].distance + ai[n - 1].length;
@@ -179,7 +187,7 @@ function markRuns(ai: AiPoint[], flag: boolean[], before: number, after: number,
       const inside = closed && total > 0
         ? ((p.distance - s0) % total + total) % total <= s1 - s0
         : p.distance >= s0 && p.distance <= s1;
-      if (inside && value < out[m]) out[m] = value;
+      if (inside && value < out[m]) out[m] = value; // out starts at 1 (none)
     });
   }
 }

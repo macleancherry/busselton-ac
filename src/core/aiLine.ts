@@ -154,7 +154,9 @@ export function buildAiLine(plan: RoadPlan, lineOpts: AiLineOptions = {}): AiPoi
  * limit in km/h at a distance along the line), town streets: VALUE scales the AI's pace, so a
  * 50 zone gets 0.5, a 60 zone 0.6, and 90 and up nothing. The lower of the two wins. `openEnd`: a
  * point-to-point line, slowed to a crawl over its last 50 m. `extra`: a value per point (1 for
- * none) that also counts, e.g. the roundabouts' (aiRings.ts ringHintValues).
+ * none) that replaces the others where it's under 1: the roundabouts' and square corners' pace
+ * (aiRings.ts ringHintValues), where AC's own speed is already the grip limit and the street's
+ * hint on top of it made the AI crawl until AC took it for stuck (retest 7).
  */
 export function aiHintsIni(points: AiPoint[], limitAt?: (distance: number) => number | undefined, openEnd = false, extra?: number[]): string {
   const total = points.length ? points[points.length - 1].distance + points[points.length - 1].length : 0;
@@ -176,7 +178,7 @@ export function aiHintsIni(points: AiPoint[], limitAt?: (distance: number) => nu
       if (limit && limit < 90) value[j] = Math.min(value[j], Math.max(0.45, Math.round(limit / 10) / 10));
     });
   }
-  if (extra) points.forEach((_, j) => { if (extra[j] !== undefined && extra[j] < value[j]) value[j] = extra[j]; });
+  if (extra) points.forEach((_, j) => { if (extra[j] !== undefined && extra[j] < 1) value[j] = extra[j]; });
   // Point to point: crawl over the last 50 m (the run-off past the finish), so the AI stops at the
   // end of the road instead of driving off it.
   if (openEnd) points.forEach((p, j) => { if (p.distance > total - 50) value[j] = Math.min(value[j], 0.15); });

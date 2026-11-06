@@ -69,12 +69,12 @@ describe("AI line through roundabouts (retest 4)", () => {
     for (const p of near) expect(p.speed).toBeLessThanOrEqual(RING_SPEED + 1e-6);
     const before = ai.find((p) => p.position[2] < 0 && Math.hypot(p.position[0], p.position[2]) > 11 + 25)!;
     expect(before.speed).toBeLessThan(15);
-    // The hint: RING_HINT from 40 m before the ring.
+    // The hint: RING_HINT from RING_HINT_BEFORE before the ring.
     const hints = new TextDecoder().decode(f["t/run/data/ai_hints.ini"]);
     expect(hints).toContain(`VALUE=${RING_HINT}`);
     const total = ai[ai.length - 1].distance + ai[ai.length - 1].length;
     const first = ai.findIndex((p) => Math.hypot(p.position[0], p.position[2]) < 11);
-    const start = Number(/START=([\d.]+)\nEND=[\d.]+\nVALUE=0.35/.exec(hints)![1]) * total;
+    const start = Number(new RegExp(`START=([\\d.]+)\\nEND=[\\d.]+\\nVALUE=${RING_HINT}\\n`).exec(hints)![1]) * total;
     expect(start).toBeCloseTo(ai[first].distance - RING_HINT_BEFORE, -1);
   });
 
@@ -123,16 +123,16 @@ describe("AI line through roundabouts (retest 4)", () => {
     retimeAi(loop, true);
     const rings = [{ c: [R, 0] as Vec2, rOut: 8 }];
     const v = ringHintValues(loop, rings, true);
-    // On the ring (points either side of 0) and 40 m before it (from about point 400 - 4 - 20).
+    // On the ring (points either side of 0) and 15 m before it (from about point 400 - 4 - 7).
     expect(v[0]).toBe(RING_HINT);
     expect(v[n - 3]).toBe(RING_HINT);
-    expect(v[n - 22]).toBe(RING_HINT);
-    expect(v[n - 30]).toBe(1);
+    expect(v[n - 9]).toBe(RING_HINT);
+    expect(v[n - 16]).toBe(1);
     expect(v[200]).toBe(1);
     const ini = aiHintsIni(loop, undefined, false, v);
     expect(ini).toContain("START=0.00000");
     expect(ini).toContain("END=1.00000");
-    // A square corner (radius ~5 m) on an open line: TIGHT_HINT from 30 m before it.
+    // A square corner (radius ~5 m) on an open line: TIGHT_HINT from 15 m before it.
     const corner: AiPoint[] = [];
     for (let x = -100; x < -5; x += 2) corner.push(pt(x, 0));
     for (let k = 0; k <= 4; k++) { const a = -Math.PI / 2 + (k / 4) * (Math.PI / 2); corner.push(pt(-5 + 5 * Math.cos(a), 5 + 5 * Math.sin(a))); }
@@ -142,7 +142,8 @@ describe("AI line through roundabouts (retest 4)", () => {
     const firstTight = corner.findIndex((p) => p.radius < 10);
     expect(firstTight).toBeGreaterThan(0);
     expect(cv[firstTight]).toBe(TIGHT_HINT);
-    expect(cv[corner.findIndex((p) => p.position[0] >= corner[firstTight].position[0] - 25)]).toBe(TIGHT_HINT);
+    expect(cv[corner.findIndex((p) => p.position[0] >= corner[firstTight].position[0] - 12)]).toBe(TIGHT_HINT);
+    expect(cv[corner.findIndex((p) => p.position[0] >= corner[firstTight].position[0] - 25)]).toBe(1);
     expect(cv[0]).toBe(1);
   });
 });

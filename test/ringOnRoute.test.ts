@@ -189,4 +189,12 @@ describe("AI hints", () => {
     expect(values(aiHintsIni(line, () => 100, true))).toContain(0.15);
     expect(values(aiHintsIni(line, () => 100))).not.toContain(0.15);
   });
+
+  it("lets a ring's pace replace the street's (retest 7: 0.35 under a 50 zone made the AI crawl)", () => {
+    const extra = line.map((_, i) => (i >= 48 && i <= 52 ? 0.7 : 1));
+    const ini = aiHintsIni(line, () => 50, false, extra);
+    expect(values(ini)).toContain(0.7);
+    expect(values(ini)).toContain(0.5);
+    expect(Math.min(...values(ini))).toBe(0.5);
+  });
 });
