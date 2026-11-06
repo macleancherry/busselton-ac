@@ -85,6 +85,8 @@ describe("routeSummary", () => {
     expect(routeSummary(r(299), false).error).toBe("Make the road at least 300 m long.");
     expect(routeSummary(r(300), false).error).toBe("");
     expect(routeSummary(r(30_000), true).error).toBe("");
+    expect(routeSummary(r(45_500), false, 50_000).error).toBe("");
+    expect(routeSummary(r(50_100), false, 50_000).error).toBe("That's 50.1 km. Browser builds are limited to 50 km: move the pins closer.");
   });
 
   it("names the first U-turn, lat first, only when nothing else is wrong", () => {

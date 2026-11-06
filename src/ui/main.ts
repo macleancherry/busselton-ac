@@ -17,6 +17,8 @@ export interface RouteInput {
   pins: LngLat[];
   loop: boolean;
   ways?: { ids: number[]; reverse: boolean };
+  /** The route's own length cap in km (build.maxRouteKm), over the default 30. */
+  maxKm?: number;
 }
 
 export interface BuildInput {
@@ -67,7 +69,7 @@ async function routePins(input: RouteInput): Promise<RouteSummary> {
     current = null;
     return { distance: 0, kind: input.loop ? "Circuit" : "A to B", lengthText: "", error: `Couldn't route between those pins: ${message(e)}`, note: "" };
   }
-  const summary = routeSummary(r, input.loop);
+  const summary = routeSummary(r, input.loop, input.maxKm ? input.maxKm * 1000 : undefined);
   // The place name for ui_track.json, awaited so the build always has this route's.
   let placeMeta: BuildJob["placeMeta"] = {};
   try {
