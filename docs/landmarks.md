@@ -72,6 +72,7 @@ Where they came from and what's next: [docs/plans/tourism-places.md](plans/touri
 | Cape Leeuwin lighthouse | Cape Leeuwin | ✅ Blender layer ([description](landmarks/cape_leeuwin_lighthouse.md)) |
 | Cape Leeuwin keepers' cottages and waterwheel | Cape Leeuwin | ✅ ([cottages](landmarks/cape_leeuwin_cottages.md), [waterwheel](landmarks/cape_leeuwin_waterwheel.md)) |
 | Caves House Hotel and the Yallingup General Store | Caves Road, Dunsborough to Yallingup | ✅ ([Caves House](landmarks/caves_house.md), [store](landmarks/yallingup_store.md)) |
+| CaveWorks and the Lake Cave visitor centre (two specs) | Caves Road Boranup | ✅ 7 Nov ([description](landmarks/lake_cave_caveworks.md)); on a landmark patch, needs a base build |
 
 ## The whole map (private)
 
@@ -80,3 +81,9 @@ Listed in `routes/private/landmarks/README.md`.
 ## The South West, still to do
 
 Ngilgi Cave's entrance, Sugarloaf Rock, Meelup, the surf car parks at Yallingup and Surfers Point, wineries and cellar doors along Caves Road, Augusta's town centre.
+
+Checked 7 Nov and left out, because no track's drive can see them:
+
+- **Ngilgi Cave visitor building** (115.03443,-33.64228): 440 m north of Caves Road at Yallingup, through solid bush. It needs a track up Yallingup Caves Road.
+- **Bootleg Brewery**, Wilyabrup (115.05511,-33.75678): 2.3 km east of Caves Road.
+- **Leeuwin Estate** (115.06699,-34.01407): 6 km from the nearest track (Margaret River's south end, and the Boranup track's north end).
