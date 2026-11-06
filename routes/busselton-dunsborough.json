@@ -45,6 +45,35 @@
   "origin": [
    115.17,
    -33.641
-  ]
- }
+  ],
+  "area": [
+   [
+    [
+     115.10622,
+     -33.61676
+    ],
+    [
+     115.10686,
+     -33.61647
+    ],
+    [
+     115.10724,
+     -33.61706
+    ],
+    [
+     115.10735,
+     -33.61765
+    ],
+    [
+     115.10615,
+     -33.61745
+    ]
+   ]
+  ],
+  "streetsValid": false,
+  "_areaNote": "Landmark patches: small areas joining the road to landmarks that stand beyond the 70 m corridor, so they get detailed terrain (and their own streets) to stand on instead of the horizon mesh. streetsValid stays off so side streets along the road still count as off track, as without an area. One patch from Caves Road at the Dunn Bay Road roundabout to the Dunsborough Tavern."
+ },
+ "looks": [
+  "routes/landmarks/busselton_to_dunsborough_looks.json"
+ ]
 }
