@@ -154,6 +154,17 @@ function Get-BusseltonGeometryKey([string]$dir) {
   return ((($bytes | ForEach-Object { $_.ToString("x2") }) -join "").Substring(0, 16))
 }
 
+# Copies files by their bytes, not with Copy-Item: the copy takes its folder's own settings. A file
+# under Windows' file encryption (EFS) keeps it through Copy-Item, which then fails with "The
+# specified file could not be encrypted" where encryption isn't allowed (the AC track folder under
+# Program Files): retest 7, 6 Nov 2026, on a bake kept in %LOCALAPPDATA%. Reading it back as the same
+# user is fine, so the bytes come out plain.
+function Copy-BusseltonPlain([System.IO.FileInfo[]]$files, [string]$destDir) {
+  foreach ($f in $files) {
+    [System.IO.File]::WriteAllBytes((Join-Path $destDir $f.Name), [System.IO.File]::ReadAllBytes($f.FullName))
+  }
+}
+
 # Keeps the track folder's bake under its geometry key in every store. Returns the key, or $null
 # when there's no bake. $key saves computing it again when the caller has it.
 function Save-BusseltonVao([string]$dir, [string]$slug, [string]$key = "") {
@@ -166,7 +177,7 @@ function Save-BusseltonVao([string]$dir, [string]$slug, [string]$key = "") {
     try {
       $d = Join-Path $store "$slug\$key"
       New-Item -ItemType Directory -Force -Path $d -ErrorAction Stop | Out-Null
-      $patches | Copy-Item -Destination $d -Force -ErrorAction Stop
+      Copy-BusseltonPlain $patches $d
       $info = @("; An AO bake kept per build (share.ps1 Save-BusseltonVao).", "track=$slug", "key=$key",
         "saved=$((Get-Date).ToString('yyyy-MM-dd HH:mm:ss'))", "build_zip=$($from['zip'])", "polish_zip=$($from['polish_zip'])")
       Set-Content -LiteralPath (Join-Path $d "bake.txt") -Value $info -Encoding ASCII -ErrorAction Stop
@@ -178,7 +189,7 @@ function Save-BusseltonVao([string]$dir, [string]$slug, [string]$key = "") {
 }
 
 # Copies the bake kept for the track folder's geometry into it. Returns where it came from, or $null
-# when no store has one.
+# when no store has one or none could be copied (a failed copy never stops an install).
 function Restore-BusseltonVao([string]$dir, [string]$slug) {
   $stores = @(Get-BusseltonVaoStores | Where-Object { Test-Path -LiteralPath (Join-Path $_ $slug) })
   if (-not $stores.Count) { return $null }
@@ -188,8 +199,12 @@ function Restore-BusseltonVao([string]$dir, [string]$slug) {
     $d = Join-Path $store "$slug\$key"
     $p = @(Get-ChildItem -LiteralPath $d -Filter *.vao-patch -File -ErrorAction SilentlyContinue)
     if ($p.Count) {
-      $p | Copy-Item -Destination $dir -Force
-      return $d
+      try {
+        Copy-BusseltonPlain $p $dir
+        return $d
+      } catch {
+        Write-Host "  (couldn't put the AO bake back from ${d}: $($_.Exception.Message))" -ForegroundColor Yellow
+      }
     }
   }
   return $null

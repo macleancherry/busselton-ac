@@ -89,7 +89,9 @@ param(
   [switch]$Rain,
   # AI opponents: N other cars, a race session of -Laps laps instead of a solo practice.
   [int]$Cars = 0,
-  [int]$Laps = 3
+  [int]$Laps = 3,
+  # Don't run again when most screenshots come out black (set on that second run itself).
+  [switch]$NoRetry
 )
 $ErrorActionPreference = "Stop"
 $inv = [Globalization.CultureInfo]::InvariantCulture
@@ -299,6 +301,7 @@ Copy-Item $raceIni $used -Force
 # 3. Drive: AC quits itself when the run ends; this waits a little longer, then closes it.
 $started = Get-Date
 $blackShots = 0
+$blackKept = 0
 $what = @()
 if ($Time) { $what += "at $Time" }
 if ($Cars -gt 0) { $what += "with $Cars AI cars" }
@@ -456,6 +459,7 @@ public static class BtClick {
             Start-Sleep -Milliseconds 500
           } else {
             Add-Content $clickLog "  $($shotFile.Name) is black after 3 tries: kept"
+            $blackKept++
           }
         }
         Start-Sleep -Milliseconds 300
@@ -549,3 +553,17 @@ if ($Rain) {
 if ($Cars -gt 0) { Write-Host "  AI cars: $Cars; contacts logged: $contacts; their off-road events: $offOthers; stops of 10 s or more: $stuckAll" }
 Write-Host "  results:   $dest"
 Write-Host "  zip:       $zipOut"
+
+# Most screenshots black even after the retries: run it again once. Retests 6 and 7 both had one
+# such run, each the first solo run straight after a race with AI cars (36 of 37 black in town solo,
+# retest 7), with AC in front at every F8 and every other run fine; a second go is the cheapest cure.
+# The first run's folder stays, with a note saying why it was run again.
+if (-not $NoRetry -and $shotsTaken -ge 4 -and $blackKept * 2 -gt $shotsTaken) {
+  Set-Content -LiteralPath (Join-Path $dest "black-shots-rerun.txt") -Encoding ASCII -Value "$blackKept of $shotsTaken screenshots were black after 3 tries each, so run-test.ps1 ran this again (-SkipInstall -NoRetry); use the next folder's shots."
+  Write-Host ""
+  Write-Host "$blackKept of $shotsTaken screenshots came out black: running it again once for its screenshots ..." -ForegroundColor Yellow
+  $again = @{} + $PSBoundParameters
+  $again["SkipInstall"] = $true
+  $again["NoRetry"] = $true
+  & $PSCommandPath @again
+}
