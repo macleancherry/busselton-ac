@@ -1,0 +1,122 @@
+{
+ "note": "Bussell Highway landmarks (Busselton to Margaret River drive) built from their own spec (src/core/specHouse.ts), loaded by any route that lists this file in \"looks\". \"at\" is the middle of each building's blocks (outbuildings left out), or of its cows for a herd with no blocks. \"facing\" is the compass bearing the front faces; the cow herds use 180, so their spec x is east and y north. Cowaramup's cows: docs/landmarks/cowaramup_cows.md.",
+ "houses": [
+  {
+   "at": [
+    115.102829,
+    -33.851551
+   ],
+   "specFile": "routes/landmarks/candy_cow.json",
+   "name": "Candy Cow",
+   "facing": 245
+  },
+  {
+   "at": [
+    115.102427,
+    -33.851569
+   ],
+   "specFile": "routes/landmarks/cowaramup_cows_wine_centre.json",
+   "name": "Cowaramup cow: Wine Centre lawn",
+   "facing": 180
+  },
+  {
+   "at": [
+    115.102628,
+    -33.851282
+   ],
+   "specFile": "routes/landmarks/cowaramup_cows_moon_haven.json",
+   "name": "Cowaramup cows: Moon Haven garden",
+   "facing": 180
+  },
+  {
+   "at": [
+    115.10265,
+    -33.851367
+   ],
+   "specFile": "routes/landmarks/cowaramup_cows_moon_haven_fence.json",
+   "name": "Cowaramup cow: Moon Haven fence",
+   "facing": 180
+  },
+  {
+   "at": [
+    115.102793,
+    -33.851133
+   ],
+   "specFile": "routes/landmarks/cowaramup_cows_east_footpath.json",
+   "name": "Cowaramup cows: east footpath",
+   "facing": 180
+  },
+  {
+   "at": [
+    115.103098,
+    -33.850804
+   ],
+   "specFile": "routes/landmarks/cowaramup_cows_agencies.json",
+   "name": "Cowaramup cow: Cowaramup Agencies",
+   "facing": 180
+  },
+  {
+   "at": [
+    115.102731,
+    -33.850931
+   ],
+   "specFile": "routes/landmarks/cowaramup_cows_general_store.json",
+   "name": "Cowaramup cows: general store",
+   "facing": 180
+  },
+  {
+   "at": [
+    115.10295,
+    -33.85068
+   ],
+   "specFile": "routes/landmarks/cowaramup_cows_cowtown_cafe.json",
+   "name": "Cowaramup cow: Cowtown Cafe",
+   "facing": 180
+  },
+  {
+   "at": [
+    115.103132,
+    -33.850536
+   ],
+   "specFile": "routes/landmarks/cowaramup_cows_bakery.json",
+   "name": "Cowaramup cow: French Bakery",
+   "facing": 180
+  },
+  {
+   "at": [
+    115.103279,
+    -33.850685
+   ],
+   "specFile": "routes/landmarks/cowaramup_cows_hall_rd_garden.json",
+   "name": "Cowaramup cows: car park garden",
+   "facing": 180
+  },
+  {
+   "at": [
+    115.10352,
+    -33.85045
+   ],
+   "specFile": "routes/landmarks/cowaramup_cows_tennis_garden.json",
+   "name": "Cowaramup cow: tennis court garden",
+   "facing": 180
+  },
+  {
+   "at": [
+    115.10372,
+    -33.85032
+   ],
+   "specFile": "routes/landmarks/cowaramup_cows_tennis_sign.json",
+   "name": "Cowaramup cow: tennis club sign",
+   "facing": 180
+  },
+  {
+   "at": [
+    115.101616,
+    -33.851629
+   ],
+   "specFile": "routes/landmarks/cowaramup_cows_park.json",
+   "name": "Cowaramup cows: park",
+   "facing": 180
+  }
+ ]
+}

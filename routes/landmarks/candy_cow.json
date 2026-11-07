@@ -1,0 +1,268 @@
+{
+ "note": "Candy Cow, Shop 3 on the corner of Bottrill St and Bussell Hwy, Cowaramup: the fudge and sweets shop in the timber shop complex on the east side of Bottrill St, just off the highway, with MuKau Giftware & Gallery (Shop 2) in its north end. From the Landgate aerial (Oct 2026) and 2019 street photos from Bussell Hwy (Mapillary, reference only). The north end (MuKau): brown weatherboard with a steep gable to the Bottrill St junction and the highway, white rendered shopfront under a grey skillion verandah. Candy Cow: cream walls under a long low grey gable, a verandah along Bottrill St, then a small hipped south block. A wing with solar panels behind (outbuilding). A cow and a calf statue on its verandah (the town's herd). Name in plain lettering, no logo or mural. Metres: x left to right as seen from Bottrill St (north to south), y back (east) from the verandah line.",
+ "wallHeight": 3.3,
+ "setback": 5,
+ "road": {
+  "width": 8,
+  "verge": 0.5
+ },
+ "lawn": "#7f8c4e",
+ "sunFrom": [
+  -0.5,
+  -0.7,
+  1.0
+ ],
+ "cameras": {
+  "street": {
+   "eye": [
+    -14,
+    -18,
+    1.6
+   ],
+   "look": [
+    6,
+    3,
+    3
+   ],
+   "lens": 22
+  },
+  "aerial": {
+   "eye": [
+    -16,
+    -34,
+    26
+   ],
+   "look": [
+    10,
+    6,
+    1
+   ],
+   "lens": 30
+  }
+ },
+ "walls": {
+  "kind": "render",
+  "colour": "#e6d9b0"
+ },
+ "finishes": {
+  "brown": {
+   "kind": "weatherboard",
+   "colour": "#7b4a2e"
+  },
+  "white": {
+   "kind": "render",
+   "colour": "#efebe0"
+  }
+ },
+ "trim": "#efebe0",
+ "roof": {
+  "pitch": 22,
+  "colour": "#8e9396",
+  "eaves": 0.4
+ },
+ "blocks": [
+  {
+   "name": "mukau",
+   "x0": 0.0,
+   "x1": 8.2,
+   "y0": 0.4,
+   "y1": 6.7,
+   "roof": "gable",
+   "pitch": 40,
+   "wallHeight": 3.6,
+   "walls": "brown"
+  },
+  {
+   "name": "candy_cow",
+   "x0": 8.2,
+   "x1": 15.5,
+   "y0": 0.4,
+   "y1": 6.5,
+   "roof": "gable",
+   "pitch": 22
+  },
+  {
+   "name": "south",
+   "x0": 15.5,
+   "x1": 19.9,
+   "y0": 0.4,
+   "y1": 6.2,
+   "roof": "hip",
+   "pitch": 25
+  },
+  {
+   "name": "rear_wing",
+   "x0": 8.8,
+   "x1": 16.1,
+   "y0": 6.5,
+   "y1": 13.8,
+   "roof": "gable",
+   "pitch": 22,
+   "wallHeight": 3.2,
+   "outbuilding": true
+  }
+ ],
+ "panels": [
+  {
+   "x0": -0.1,
+   "x1": 0.0,
+   "y0": 0.4,
+   "y1": 6.7,
+   "z0": 0.0,
+   "z1": 3.0,
+   "walls": "white"
+  },
+  {
+   "x0": 0.0,
+   "x1": 8.2,
+   "y0": 0.3,
+   "y1": 0.4,
+   "z0": 0.0,
+   "z1": 3.0,
+   "walls": "white"
+  }
+ ],
+ "awnings": [
+  {
+   "x0": -2.2,
+   "x1": 0.0,
+   "y0": 0.4,
+   "y1": 6.7,
+   "z": 2.8,
+   "thickness": 0.15,
+   "colour": "#8e9396"
+  }
+ ],
+ "verandahs": [
+  {
+   "x0": 8.2,
+   "x1": 19.9,
+   "y0": -1.2,
+   "y1": 0.4,
+   "wallHeight": 3.3,
+   "height": 2.7,
+   "deckHeight": 0.02,
+   "posts": [
+    8.4,
+    12.0,
+    15.6,
+    19.7
+   ]
+  }
+ ],
+ "doors": [
+  {
+   "type": "front",
+   "x0": 11.4,
+   "x1": 12.6,
+   "y": 0.4,
+   "height": 2.2,
+   "z0": 0.05,
+   "colour": "#5a3a2a"
+  },
+  {
+   "type": "front",
+   "x0": 3.6,
+   "x1": 4.6,
+   "y": 0.3,
+   "height": 2.2,
+   "z0": 0.05,
+   "colour": "#5a3a2a"
+  }
+ ],
+ "windows": [
+  {
+   "facing": "front",
+   "wall": 0.4,
+   "at": 9.9,
+   "width": 1.8,
+   "height": 1.6,
+   "sill": 0.6
+  },
+  {
+   "facing": "front",
+   "wall": 0.4,
+   "at": 14.0,
+   "width": 1.8,
+   "height": 1.6,
+   "sill": 0.6
+  },
+  {
+   "facing": "front",
+   "wall": 0.4,
+   "at": 17.7,
+   "width": 1.6,
+   "height": 1.5,
+   "sill": 0.7
+  },
+  {
+   "facing": "front",
+   "wall": 0.3,
+   "at": 1.8,
+   "width": 1.8,
+   "height": 1.6,
+   "sill": 0.6
+  },
+  {
+   "facing": "front",
+   "wall": 0.3,
+   "at": 6.4,
+   "width": 1.8,
+   "height": 1.6,
+   "sill": 0.6
+  },
+  {
+   "facing": "left",
+   "wall": -0.1,
+   "at": 2.2,
+   "width": 2.0,
+   "height": 1.8,
+   "sill": 0.5
+  },
+  {
+   "facing": "left",
+   "wall": -0.1,
+   "at": 5.0,
+   "width": 1.6,
+   "height": 1.8,
+   "sill": 0.5
+  }
+ ],
+ "paving": [
+  {
+   "x0": -2.2,
+   "y0": -1.6,
+   "x1": 20.5,
+   "y1": 0.4,
+   "colour": "#9a5a48",
+   "kind": "brick"
+  }
+ ],
+ "signs": [
+  {
+   "x0": 10.2,
+   "x1": 15.0,
+   "y": -1.32,
+   "z0": 2.72,
+   "z1": 3.2,
+   "text": "CANDY COW",
+   "colour": "#5a2a2e",
+   "ink": "#f3ead6"
+  }
+ ],
+ "cows": [
+  {
+   "x": 9.4,
+   "y": -0.6,
+   "heading": 270,
+   "seed": 7
+  },
+  {
+   "x": 10.9,
+   "y": -0.55,
+   "heading": 250,
+   "calf": true,
+   "seed": 11
+  }
+ ]
+}
