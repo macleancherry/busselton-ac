@@ -23,6 +23,8 @@
 // the spec (routes/landmarks/<slug>.json) or its look's position.
 //
 // Looks come from the route's "looks" files plus HOUSE_LOOKS (comma-separated), as for build-track.mjs.
+// A look's "floor" (metres on the map) stands the landmark at that height instead of on the ground
+// under it: a building on a jetty deck, which isn't physics ground.
 
 import { readFileSync, writeFileSync, writeSync } from "node:fs";
 import { dirname, resolve } from "node:path";
@@ -44,7 +46,7 @@ const flag = (n: string) => { const i = args.indexOf(n); return i >= 0 ? args[i 
 const [routePath, zipPath] = args.filter((a, i) => !a.startsWith("--") && !(i > 0 && ["--only", "--out"].includes(args[i - 1])));
 const route = JSON.parse(readFileSync(resolve(root, routePath), "utf8"));
 
-interface Look { at: LngLat; specFile?: string; spec?: HouseSpec; name?: string; facing?: number }
+interface Look { at: LngLat; specFile?: string; spec?: HouseSpec; name?: string; facing?: number; floor?: number }
 const lookFiles = [...(route.looks ?? []), ...(process.env.HOUSE_LOOKS ? process.env.HOUSE_LOOKS.split(",") : [])];
 const looks: Look[] = lookFiles.flatMap((f: string) => {
   const l = JSON.parse(readFileSync(resolve(root, f.trim()), "utf8"));
@@ -116,7 +118,8 @@ for (const l of looks) {
   const toRoad: [number, number] = Number.isFinite(l.facing)
     ? [Math.sin((l.facing! * Math.PI) / 180), Math.cos((l.facing! * Math.PI) / 180)]
     : toNearestRoad(x, y);
-  const lm = landmarkModel(l.spec!, { centre: [x, y], toRoad, z: ground(x, y) + 0.05 }, name, ground, { drawSigns, detailShaders: route.build?.detailShaders !== false, blocked });
+  const base = Number.isFinite(l.floor) ? l.floor! : ground(x, y);
+  const lm = landmarkModel(l.spec!, { centre: [x, y], toRoad, z: base + 0.05 }, name, ground, { drawSigns, detailShaders: route.build?.detailShaders !== false, blocked });
   for (const c of lm.clipped) console.warn(`lm_${name}.kn5: ${c}`);
   for (const o of lm.overRoad) {
     const line = `lm_${name}.kn5: BUILDING ON THE ROAD: ${o.part}, ${o.area} m2 (fix ${l.specFile} or its look's position)`;
@@ -126,7 +129,7 @@ for (const l of looks) {
   if (checking) continue;
   out[`${slug}/lm_${name}.kn5`] = writeKn5(lm.model);
   built.push(`lm_${name}.kn5`);
-  console.log(`lm_${name}.kn5: ${lm.triangles} triangles, ${lm.model.materials.length} materials, ground ${ground(x, y).toFixed(2)} m (${ground.source(x, y)})${Number.isFinite(l.facing) ? `, facing ${l.facing}` : ", facing its nearest road"}`);
+  console.log(`lm_${name}.kn5: ${lm.triangles} triangles, ${lm.model.materials.length} materials, ${Number.isFinite(l.floor) ? `floor ${l.floor} m` : `ground ${ground(x, y).toFixed(2)} m (${ground.source(x, y)})`}${Number.isFinite(l.facing) ? `, facing ${l.facing}` : ", facing its nearest road"}`);
 }
 
 if (checking) {

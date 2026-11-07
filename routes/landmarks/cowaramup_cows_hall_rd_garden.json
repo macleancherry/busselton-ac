@@ -1,0 +1,19 @@
+{
+ "note": "Cowaramup's life-size fibreglass Friesian cow statues (Cowaramup Lions Club herd, 2012): two cows in the garden beds at the car park entrance by Hall Rd, east side. Plain black and white cows, no ear tags or sponsor names. Positions from 2019 street photos (Mapillary, reference only) placed on the Landgate aerial (Oct 2026), about 3 m. No blocks: the herd is the landmark, its look's facing is 180 so spec x is east, y north and each heading is the real bearing. docs/landmarks/cowaramup_cows.md.",
+ "blocks": [],
+ "cows": [
+  {
+   "x": -1.76,
+   "y": -1.72,
+   "heading": 300,
+   "seed": 12
+  },
+  {
+   "x": 1.76,
+   "y": 1.72,
+   "heading": 250,
+   "pose": "grazing",
+   "seed": 25
+  }
+ ]
+}

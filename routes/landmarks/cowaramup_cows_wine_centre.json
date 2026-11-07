@@ -1,0 +1,12 @@
+{
+ "note": "Cowaramup's life-size fibreglass Friesian cow statues (Cowaramup Lions Club herd, 2012): on the lawn at the Bottrill St corner, beside the Margaret River Regional Wine Centre sign, east of Bussell Hwy. Plain black and white cows, no ear tags or sponsor names. Positions from 2019 street photos (Mapillary, reference only) placed on the Landgate aerial (Oct 2026), about 3 m. No blocks: the herd is the landmark, its look's facing is 180 so spec x is east, y north and each heading is the real bearing. docs/landmarks/cowaramup_cows.md.",
+ "blocks": [],
+ "cows": [
+  {
+   "x": 0.0,
+   "y": 0.0,
+   "heading": 130,
+   "seed": 24
+  }
+ ]
+}

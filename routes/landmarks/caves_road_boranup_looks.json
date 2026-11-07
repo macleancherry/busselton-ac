@@ -1,0 +1,23 @@
+{
+ "note": "Landmarks built from their own spec (src/core/specHouse.ts), for the route that lists this file in \"looks\". \"at\" is the middle of each landmark's main blocks (outbuildings left out). \"facing\" is the compass bearing the front faces.",
+ "houses": [
+  {
+   "at": [
+    115.029428,
+    -34.079013
+   ],
+   "specFile": "routes/landmarks/lake_cave_caveworks.json",
+   "name": "CaveWorks and Lake Cave visitor centre",
+   "facing": 245
+  },
+  {
+   "at": [
+    115.029241,
+    -34.078929
+   ],
+   "specFile": "routes/landmarks/lake_cave_caveworks_wing.json",
+   "name": "Lake Cave tearooms wing",
+   "facing": 214
+  }
+ ]
+}

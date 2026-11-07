@@ -46,6 +46,39 @@
    115.065,
    -34.128
   ],
-  "farmRoadsides": false
- }
+  "farmRoadsides": false,
+  "area": [
+   [
+    [
+     115.0286,
+     -34.0782
+    ],
+    [
+     115.0302,
+     -34.0781
+    ],
+    [
+     115.0309,
+     -34.0787
+    ],
+    [
+     115.0307,
+     -34.0797
+    ],
+    [
+     115.0296,
+     -34.0801
+    ],
+    [
+     115.0286,
+     -34.0798
+    ]
+   ]
+  ],
+  "streetsValid": false,
+  "_areaNote": "Landmark patch: a small area joining the road to CaveWorks and the Lake Cave visitor centre, which stand just beyond the 70 m corridor, so they get detailed terrain (and the car park loop) to stand on instead of the horizon mesh, which sits about 3 m below the corridor ground there. streetsValid stays off so side streets along the road still count as off track, as without an area. Same as the Yallingup patch in routes/caves-road.json."
+ },
+ "looks": [
+  "routes/landmarks/caves_road_boranup_looks.json"
+ ]
 }

@@ -1,0 +1,14 @@
+{
+ "note": "Landmarks built from their own spec (src/core/specHouse.ts), for the route that lists this file in \"looks\". \"at\" is the middle of each landmark's main blocks (outbuildings left out). \"facing\" is the compass bearing the front faces.",
+ "houses": [
+  {
+   "at": [
+    115.106715,
+    -33.616895
+   ],
+   "specFile": "routes/landmarks/dunsborough_tavern.json",
+   "name": "Dunsborough Tavern",
+   "facing": 62
+  }
+ ]
+}

@@ -1,0 +1,615 @@
+{
+ "note": "Dunsborough Tavern, 2 Dunsborough Place, Dunsborough, from the Landgate aerial (Nov 2026) and visitor photos of the beer garden. A big single-storey pub of red face brick, about 54 m by 52 m: a wide hip-roofed main hall with two hipped front wings, a hipped back wing towards Caves Road, all pale grey (Surfmist-like) metal roofs; a brick corner tower with a brown pyramid roof and a glazed lantern over the beer garden; dark timber verandah posts; a square hipped entry porch on the car park side. The beer garden (artificial turf, brick paths, pine tables, white umbrellas, teal and white shade sails) is in front of the hall, facing Dunsborough Place and the car park. Plain lettering, no logo. Metres: x left (south-east, Caves Road end) to right (north-west) as seen from the car park in front (north-east), y back (south-west).",
+ "wallHeight": 3.6,
+ "setback": 8.0,
+ "road": {
+  "width": 7.0,
+  "verge": 2.0
+ },
+ "lawn": "#8a8a55",
+ "sunFrom": [
+  0.4,
+  -0.8,
+  1.0
+ ],
+ "cameras": {
+  "street": {
+   "eye": [
+    -14,
+    -38,
+    1.6
+   ],
+   "look": [
+    -12,
+    10,
+    4
+   ],
+   "lens": 22
+  },
+  "aerial": {
+   "eye": [
+    -62,
+    -52,
+    40
+   ],
+   "look": [
+    -10,
+    18,
+    2
+   ],
+   "lens": 24
+  }
+ },
+ "walls": {
+  "kind": "brick",
+  "colour": "#9c4d3a"
+ },
+ "finishes": {
+  "lantern": {
+   "kind": "render",
+   "colour": "#3f5a46"
+  },
+  "clad": {
+   "kind": "cladding",
+   "colour": "#c4c8c6"
+  },
+  "plant": {
+   "kind": "render",
+   "colour": "#a9acaa"
+  }
+ },
+ "trim": "#4a3a2e",
+ "roof": {
+  "pitch": 22,
+  "colour": "#d4d5ca",
+  "eaves": 0.6
+ },
+ "blocks": [
+  {
+   "name": "main_hall",
+   "x0": -28.5,
+   "x1": 17.0,
+   "y0": 9.5,
+   "y1": 27.5,
+   "roof": "hip"
+  },
+  {
+   "name": "front_left",
+   "x0": -10.0,
+   "x1": -2.0,
+   "y0": 0.5,
+   "y1": 10.0,
+   "roof": "hip",
+   "pitch": 25
+  },
+  {
+   "name": "front_right",
+   "x0": -2.0,
+   "x1": 17.0,
+   "y0": 0.0,
+   "y1": 10.0,
+   "roof": "hip",
+   "pitch": 25
+  },
+  {
+   "name": "entry",
+   "x0": 8.5,
+   "x1": 15.0,
+   "y0": -8.0,
+   "y1": 0.2,
+   "roof": "hip",
+   "pitch": 30,
+   "wallHeight": 3.2
+  },
+  {
+   "name": "tower",
+   "x0": -37.0,
+   "x1": -28.5,
+   "y0": 1.5,
+   "y1": 9.5,
+   "roof": "hip",
+   "wallHeight": 3.4,
+   "roofColour": "#8e5c48"
+  },
+  {
+   "name": "lantern",
+   "x0": -34.8,
+   "x1": -30.7,
+   "y0": 3.5,
+   "y1": 7.5,
+   "roof": "hip",
+   "pitch": 35,
+   "wallHeight": 6.2,
+   "walls": "lantern",
+   "eaves": 0.4,
+   "roofColour": "#8e5c48"
+  },
+  {
+   "name": "back_wing",
+   "x0": -32.0,
+   "x1": -3.0,
+   "y0": 26.5,
+   "y1": 44.5,
+   "roof": "hip"
+  },
+  {
+   "name": "side_store",
+   "x0": -37.0,
+   "x1": -30.5,
+   "y0": 14.5,
+   "y1": 24.5,
+   "roof": "none",
+   "wallHeight": 3.4,
+   "walls": "clad",
+   "outbuilding": true
+  },
+  {
+   "name": "plant_deck",
+   "x0": -3.0,
+   "x1": 17.0,
+   "y0": 27.5,
+   "y1": 30.5,
+   "roof": "none",
+   "wallHeight": 3.0,
+   "walls": "plant",
+   "outbuilding": true
+  },
+  {
+   "name": "gazebo",
+   "x0": -36.0,
+   "x1": -31.0,
+   "y0": 39.5,
+   "y1": 44.5,
+   "roof": "hip",
+   "pitch": 30,
+   "wallHeight": 2.6,
+   "outbuilding": true
+  }
+ ],
+ "verandahs": [
+  {
+   "x0": -28.3,
+   "x1": -10.2,
+   "y0": 7.0,
+   "y1": 9.5,
+   "wallHeight": 3.6,
+   "height": 2.9,
+   "deckHeight": 0.1,
+   "posts": [
+    -28.1,
+    -24.5,
+    -20.9,
+    -17.3,
+    -13.7,
+    -10.4
+   ]
+  }
+ ],
+ "doors": [
+  {
+   "type": "front",
+   "x0": 10.6,
+   "x1": 12.9,
+   "y": -8.0,
+   "height": 2.4,
+   "z0": 0.05,
+   "colour": "#2e3236"
+  },
+  {
+   "type": "front",
+   "x0": -7.0,
+   "x1": -5.0,
+   "y": 0.5,
+   "height": 2.4,
+   "z0": 0.05,
+   "colour": "#2e3236"
+  },
+  {
+   "type": "front",
+   "x0": -20.0,
+   "x1": -18.2,
+   "y": 9.5,
+   "height": 2.4,
+   "z0": 0.05,
+   "colour": "#2e3236"
+  }
+ ],
+ "windows": [
+  {
+   "facing": "front",
+   "wall": 0.0,
+   "at": 1.0,
+   "width": 2.4,
+   "height": 1.6,
+   "sill": 0.7
+  },
+  {
+   "facing": "front",
+   "wall": 0.0,
+   "at": 5.5,
+   "width": 2.4,
+   "height": 1.6,
+   "sill": 0.7
+  },
+  {
+   "facing": "front",
+   "wall": 0.0,
+   "at": 16.0,
+   "width": 1.2,
+   "height": 1.6,
+   "sill": 0.7
+  },
+  {
+   "facing": "front",
+   "wall": 0.5,
+   "at": -8.6,
+   "width": 1.6,
+   "height": 1.6,
+   "sill": 0.7
+  },
+  {
+   "facing": "front",
+   "wall": 0.5,
+   "at": -3.4,
+   "width": 1.6,
+   "height": 1.6,
+   "sill": 0.7
+  },
+  {
+   "facing": "front",
+   "wall": 9.5,
+   "at": -26.3,
+   "width": 2.2,
+   "height": 1.9,
+   "sill": 0.4
+  },
+  {
+   "facing": "front",
+   "wall": 9.5,
+   "at": -22.7,
+   "width": 2.2,
+   "height": 1.9,
+   "sill": 0.4
+  },
+  {
+   "facing": "front",
+   "wall": 9.5,
+   "at": -15.5,
+   "width": 2.2,
+   "height": 1.9,
+   "sill": 0.4
+  },
+  {
+   "facing": "front",
+   "wall": 9.5,
+   "at": -12.0,
+   "width": 2.2,
+   "height": 1.9,
+   "sill": 0.4
+  },
+  {
+   "facing": "front",
+   "wall": 1.5,
+   "at": -32.75,
+   "width": 2.6,
+   "height": 1.8,
+   "sill": 0.6
+  },
+  {
+   "facing": "front",
+   "wall": 3.5,
+   "at": -32.75,
+   "width": 3.2,
+   "height": 1.3,
+   "sill": 4.6
+  },
+  {
+   "facing": "back",
+   "wall": 7.5,
+   "at": -32.75,
+   "width": 3.2,
+   "height": 1.3,
+   "sill": 4.6
+  },
+  {
+   "facing": "left",
+   "wall": -34.8,
+   "at": 5.5,
+   "width": 3.2,
+   "height": 1.3,
+   "sill": 4.6
+  },
+  {
+   "facing": "right",
+   "wall": -30.7,
+   "at": 5.5,
+   "width": 3.2,
+   "height": 1.3,
+   "sill": 4.6
+  },
+  {
+   "facing": "left",
+   "wall": -37.0,
+   "at": 5.5,
+   "width": 2.4,
+   "height": 1.8,
+   "sill": 0.6
+  },
+  {
+   "facing": "left",
+   "wall": -32.0,
+   "at": 31.0,
+   "width": 1.6,
+   "height": 1.4,
+   "sill": 0.9
+  },
+  {
+   "facing": "left",
+   "wall": -32.0,
+   "at": 36.0,
+   "width": 1.6,
+   "height": 1.4,
+   "sill": 0.9
+  },
+  {
+   "facing": "left",
+   "wall": -32.0,
+   "at": 40.5,
+   "width": 1.6,
+   "height": 1.4,
+   "sill": 0.9
+  },
+  {
+   "facing": "back",
+   "wall": 44.5,
+   "at": -27.0,
+   "width": 1.6,
+   "height": 1.4,
+   "sill": 0.9
+  },
+  {
+   "facing": "back",
+   "wall": 44.5,
+   "at": -21.0,
+   "width": 1.6,
+   "height": 1.4,
+   "sill": 0.9
+  },
+  {
+   "facing": "back",
+   "wall": 44.5,
+   "at": -15.0,
+   "width": 1.6,
+   "height": 1.4,
+   "sill": 0.9
+  },
+  {
+   "facing": "back",
+   "wall": 44.5,
+   "at": -9.0,
+   "width": 1.6,
+   "height": 1.4,
+   "sill": 0.9
+  },
+  {
+   "facing": "front",
+   "wall": -8.0,
+   "at": 9.5,
+   "width": 1.0,
+   "height": 1.6,
+   "sill": 0.7
+  },
+  {
+   "facing": "front",
+   "wall": -8.0,
+   "at": 14.0,
+   "width": 1.0,
+   "height": 1.6,
+   "sill": 0.7
+  }
+ ],
+ "paving": [
+  {
+   "x0": -10.0,
+   "y0": -8.5,
+   "x1": 17.0,
+   "y1": 0.0,
+   "colour": "#a66a55",
+   "kind": "brick"
+  },
+  {
+   "x0": -41.0,
+   "y0": -8.5,
+   "x1": -10.0,
+   "y1": -6.5,
+   "colour": "#a66a55",
+   "kind": "brick"
+  },
+  {
+   "x0": -41.0,
+   "y0": -6.5,
+   "x1": -38.0,
+   "y1": 7.0,
+   "colour": "#a66a55",
+   "kind": "brick"
+  },
+  {
+   "x0": -38.0,
+   "y0": -6.5,
+   "x1": -10.0,
+   "y1": 1.5,
+   "colour": "#6f7d4a",
+   "kind": "concrete"
+  },
+  {
+   "x0": -28.5,
+   "y0": 1.5,
+   "x1": -10.0,
+   "y1": 7.0,
+   "colour": "#a66a55",
+   "kind": "brick"
+  }
+ ],
+ "tables": [
+  {
+   "x": -34.0,
+   "y": -3.5,
+   "length": 2.0,
+   "colour": "#b98d5e"
+  },
+  {
+   "x": -29.0,
+   "y": -3.5,
+   "length": 2.0,
+   "colour": "#b98d5e"
+  },
+  {
+   "x": -24.0,
+   "y": -3.5,
+   "length": 2.0,
+   "colour": "#b98d5e"
+  },
+  {
+   "x": -19.0,
+   "y": -3.5,
+   "length": 2.0,
+   "colour": "#b98d5e"
+  },
+  {
+   "x": -14.0,
+   "y": -3.5,
+   "length": 2.0,
+   "colour": "#b98d5e"
+  },
+  {
+   "x": -29.0,
+   "y": 4.0,
+   "length": 2.0,
+   "colour": "#b98d5e"
+  },
+  {
+   "x": -24.0,
+   "y": 4.0,
+   "length": 2.0,
+   "colour": "#b98d5e"
+  },
+  {
+   "x": -19.0,
+   "y": 4.0,
+   "length": 2.0,
+   "colour": "#b98d5e"
+  },
+  {
+   "x": -14.0,
+   "y": 4.0,
+   "length": 2.0,
+   "colour": "#b98d5e"
+  }
+ ],
+ "umbrellas": [
+  {
+   "x": -34.0,
+   "y": -3.5,
+   "radius": 1.6,
+   "height": 2.6,
+   "colour": "#efefe8"
+  },
+  {
+   "x": -14.0,
+   "y": -3.5,
+   "radius": 1.6,
+   "height": 2.6,
+   "colour": "#efefe8"
+  },
+  {
+   "x": -14.0,
+   "y": 4.0,
+   "radius": 1.6,
+   "height": 2.6,
+   "colour": "#efefe8"
+  }
+ ],
+ "sails": [
+  {
+   "pts": [
+    [
+     -27.0,
+     6.0,
+     3.4
+    ],
+    [
+     -16.5,
+     6.0,
+     3.3
+    ],
+    [
+     -16.5,
+     0.5,
+     2.8
+    ],
+    [
+     -27.0,
+     0.5,
+     3.0
+    ]
+   ],
+   "colour": "#f0efe9"
+  },
+  {
+   "pts": [
+    [
+     -27.0,
+     -0.5,
+     3.1
+    ],
+    [
+     -17.0,
+     -0.5,
+     2.9
+    ],
+    [
+     -21.5,
+     -6.0,
+     3.5
+    ]
+   ],
+   "colour": "#3f8f8f"
+  }
+ ],
+ "signs": [
+  {
+   "x0": -0.5,
+   "x1": 7.5,
+   "y": -0.14,
+   "z0": 2.6,
+   "z1": 3.3,
+   "text": "DUNSBOROUGH TAVERN",
+   "colour": "#2f3a36",
+   "ink": "#f2efe6"
+  },
+  {
+   "x0": 9.0,
+   "x1": 14.5,
+   "y": -8.14,
+   "z0": 2.45,
+   "z1": 2.95,
+   "text": "DUNSBOROUGH TAVERN",
+   "colour": "#2f3a36",
+   "ink": "#f2efe6"
+  }
+ ],
+ "trees": [
+  {
+   "x": -41,
+   "y": 48,
+   "height": 11,
+   "spread": 8.5
+  },
+  {
+   "x": -27,
+   "y": 49,
+   "height": 11,
+   "spread": 8.5
+  }
+ ]
+}

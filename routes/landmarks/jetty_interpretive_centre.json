@@ -1,0 +1,472 @@
+{
+ "note": "Busselton Jetty Interpretive Centre, the four gabled boatsheds on the jetty deck about 50 m out from the beach, from docs/landmarks/jetty_interpretive_centre.md (Landgate aerial, OSM outline, Commons and web photos). Blue weatherboard, white trim, light corrugated roofs, steep gables facing the walkway and the sea; the shore shed has a navy lower wall with the name in plain lettering; a flat white verandah on posts runs along the walkway side of the other three. It stands on the jetty deck: its look sets floor 3.85 (the deck height the base builds). Sized to the OSM outline (26.7 x 11.2 m) so the base's generic sheds (src/core/jetty.ts) stay hidden inside it. Metres: x left to right as seen from the shore end (walkway side to sea side), y back from the shore-facing wall (north-westward along the jetty).",
+ "wallHeight": 3.0,
+ "setback": 3,
+ "road": {
+  "width": 6,
+  "verge": 0.5
+ },
+ "lawn": "#c9b98f",
+ "sunFrom": [
+  0.5,
+  -0.8,
+  1.2
+ ],
+ "cameras": {
+  "street": {
+   "eye": [
+    -14,
+    -16,
+    1.7
+   ],
+   "look": [
+    5,
+    10,
+    3.5
+   ],
+   "lens": 22
+  },
+  "aerial": {
+   "eye": [
+    -30,
+    -38,
+    28
+   ],
+   "look": [
+    5,
+    13,
+    2
+   ],
+   "lens": 30
+  }
+ },
+ "walls": {
+  "kind": "weatherboard",
+  "colour": "#5580b8"
+ },
+ "finishes": {
+  "navy": {
+   "kind": "weatherboard",
+   "colour": "#1d3a76"
+  },
+  "white": {
+   "kind": "render",
+   "colour": "#f2f2ee"
+  },
+  "yellow": {
+   "kind": "render",
+   "colour": "#e2b84c"
+  }
+ },
+ "trim": "#f2f2ee",
+ "roof": {
+  "pitch": 48,
+  "colour": "#e6e6e2",
+  "eaves": 0.3
+ },
+ "blocks": [
+  {
+   "name": "shed4_interpretive",
+   "x0": 0,
+   "x1": 11.2,
+   "y0": 0,
+   "y1": 6.675,
+   "roof": "gable",
+   "eaves": 0.3
+  },
+  {
+   "name": "shed3",
+   "x0": 0,
+   "x1": 11.2,
+   "y0": 6.675,
+   "y1": 13.35,
+   "roof": "gable",
+   "eaves": 0.3
+  },
+  {
+   "name": "shed2",
+   "x0": 0,
+   "x1": 11.2,
+   "y0": 13.35,
+   "y1": 20.025,
+   "roof": "gable",
+   "eaves": 0.3
+  },
+  {
+   "name": "shed1",
+   "x0": 0,
+   "x1": 11.2,
+   "y0": 20.025,
+   "y1": 26.7,
+   "roof": "gable",
+   "eaves": 0.3
+  }
+ ],
+ "panels": [
+  {
+   "x0": 0,
+   "x1": 11.2,
+   "y0": -0.06,
+   "y1": 0,
+   "z0": 0,
+   "z1": 3.0,
+   "walls": "navy"
+  },
+  {
+   "x0": -0.06,
+   "x1": 0,
+   "y0": 0,
+   "y1": 6.675,
+   "z0": 0,
+   "z1": 3.0,
+   "walls": "navy"
+  },
+  {
+   "x0": -2.95,
+   "x1": -2.83,
+   "y0": 6.94,
+   "y1": 7.06,
+   "z0": 0,
+   "z1": 2.45,
+   "walls": "white"
+  },
+  {
+   "x0": -2.95,
+   "x1": -2.83,
+   "y0": 10.24,
+   "y1": 10.360000000000001,
+   "z0": 0,
+   "z1": 2.45,
+   "walls": "white"
+  },
+  {
+   "x0": -2.95,
+   "x1": -2.83,
+   "y0": 13.54,
+   "y1": 13.66,
+   "z0": 0,
+   "z1": 2.45,
+   "walls": "white"
+  },
+  {
+   "x0": -2.95,
+   "x1": -2.83,
+   "y0": 16.84,
+   "y1": 16.959999999999997,
+   "z0": 0,
+   "z1": 2.45,
+   "walls": "white"
+  },
+  {
+   "x0": -2.95,
+   "x1": -2.83,
+   "y0": 20.14,
+   "y1": 20.259999999999998,
+   "z0": 0,
+   "z1": 2.45,
+   "walls": "white"
+  },
+  {
+   "x0": -2.95,
+   "x1": -2.83,
+   "y0": 23.44,
+   "y1": 23.56,
+   "z0": 0,
+   "z1": 2.45,
+   "walls": "white"
+  },
+  {
+   "x0": -2.95,
+   "x1": -2.83,
+   "y0": 26.44,
+   "y1": 26.56,
+   "z0": 0,
+   "z1": 2.45,
+   "walls": "white"
+  },
+  {
+   "x0": -0.06,
+   "x1": 0,
+   "y0": 6.675,
+   "y1": 26.7,
+   "z0": 2.7,
+   "z1": 3.0,
+   "walls": "yellow"
+  },
+  {
+   "x0": -0.06,
+   "x1": 0,
+   "y0": 9.0,
+   "y1": 11.0,
+   "z0": 0,
+   "z1": 2.45,
+   "walls": "yellow"
+  }
+ ],
+ "awnings": [
+  {
+   "x0": -3.0,
+   "x1": 0,
+   "y0": 6.675,
+   "y1": 26.7,
+   "z": 2.75,
+   "thickness": 0.3,
+   "colour": "#f2f2ee"
+  }
+ ],
+ "windows": [
+  {
+   "facing": "front",
+   "wall": -0.06,
+   "at": 4.2,
+   "width": 0.8,
+   "height": 1.2,
+   "sill": 1.0
+  },
+  {
+   "facing": "front",
+   "wall": -0.06,
+   "at": 5.4,
+   "width": 0.8,
+   "height": 1.2,
+   "sill": 1.0
+  },
+  {
+   "facing": "front",
+   "wall": -0.06,
+   "at": 6.6,
+   "width": 0.8,
+   "height": 1.2,
+   "sill": 1.0
+  },
+  {
+   "facing": "front",
+   "wall": -0.06,
+   "at": 7.8,
+   "width": 0.8,
+   "height": 1.2,
+   "sill": 1.0
+  },
+  {
+   "facing": "front",
+   "wall": -0.06,
+   "at": 9.0,
+   "width": 0.8,
+   "height": 1.2,
+   "sill": 1.0
+  },
+  {
+   "facing": "left",
+   "wall": -0.06,
+   "at": 1.7,
+   "width": 0.9,
+   "height": 1.0,
+   "sill": 1.0
+  },
+  {
+   "facing": "left",
+   "wall": -0.06,
+   "at": 5.3,
+   "width": 0.9,
+   "height": 1.0,
+   "sill": 1.0
+  },
+  {
+   "facing": "left",
+   "wall": -0.06,
+   "at": 3.5,
+   "width": 1.0,
+   "height": 2.05,
+   "sill": 0.05
+  },
+  {
+   "facing": "left",
+   "wall": -0.06,
+   "at": 7.9,
+   "width": 0.9,
+   "height": 1.0,
+   "sill": 1.0
+  },
+  {
+   "facing": "left",
+   "wall": -0.06,
+   "at": 12.2,
+   "width": 0.9,
+   "height": 1.0,
+   "sill": 1.0
+  },
+  {
+   "facing": "left",
+   "wall": -0.06,
+   "at": 10.0,
+   "width": 1.6,
+   "height": 2.1,
+   "sill": 0.05
+  },
+  {
+   "facing": "left",
+   "wall": 0,
+   "at": 14.9,
+   "width": 0.9,
+   "height": 0.9,
+   "sill": 1.1
+  },
+  {
+   "facing": "left",
+   "wall": 0,
+   "at": 16.7,
+   "width": 0.9,
+   "height": 0.9,
+   "sill": 1.1
+  },
+  {
+   "facing": "left",
+   "wall": 0,
+   "at": 18.5,
+   "width": 0.9,
+   "height": 0.9,
+   "sill": 1.1
+  },
+  {
+   "facing": "left",
+   "wall": 0,
+   "at": 21.6,
+   "width": 0.9,
+   "height": 0.9,
+   "sill": 1.1
+  },
+  {
+   "facing": "left",
+   "wall": 0,
+   "at": 23.4,
+   "width": 0.9,
+   "height": 0.9,
+   "sill": 1.1
+  },
+  {
+   "facing": "left",
+   "wall": 0,
+   "at": 25.2,
+   "width": 0.9,
+   "height": 0.9,
+   "sill": 1.1
+  },
+  {
+   "facing": "left",
+   "wall": 0,
+   "at": 16.7,
+   "width": 0.7,
+   "height": 0.7,
+   "sill": 4.3
+  },
+  {
+   "facing": "left",
+   "wall": 0,
+   "at": 10.0,
+   "width": 0.7,
+   "height": 0.7,
+   "sill": 4.3
+  },
+  {
+   "facing": "right",
+   "wall": 11.2,
+   "at": 2.0,
+   "width": 1.0,
+   "height": 1.0,
+   "sill": 1.1
+  },
+  {
+   "facing": "right",
+   "wall": 11.2,
+   "at": 4.7,
+   "width": 1.0,
+   "height": 1.0,
+   "sill": 1.1
+  },
+  {
+   "facing": "right",
+   "wall": 11.2,
+   "at": 8.7,
+   "width": 1.0,
+   "height": 1.0,
+   "sill": 1.1
+  },
+  {
+   "facing": "right",
+   "wall": 11.2,
+   "at": 11.4,
+   "width": 1.0,
+   "height": 1.0,
+   "sill": 1.1
+  },
+  {
+   "facing": "right",
+   "wall": 11.2,
+   "at": 15.4,
+   "width": 1.0,
+   "height": 1.0,
+   "sill": 1.1
+  },
+  {
+   "facing": "right",
+   "wall": 11.2,
+   "at": 18.0,
+   "width": 1.0,
+   "height": 1.0,
+   "sill": 1.1
+  },
+  {
+   "facing": "right",
+   "wall": 11.2,
+   "at": 22.0,
+   "width": 1.0,
+   "height": 1.0,
+   "sill": 1.1
+  },
+  {
+   "facing": "right",
+   "wall": 11.2,
+   "at": 24.7,
+   "width": 1.0,
+   "height": 1.0,
+   "sill": 1.1
+  },
+  {
+   "facing": "back",
+   "wall": 26.7,
+   "at": 2.6,
+   "width": 1.4,
+   "height": 1.0,
+   "sill": 1.1
+  },
+  {
+   "facing": "back",
+   "wall": 26.7,
+   "at": 5.6,
+   "width": 1.4,
+   "height": 1.0,
+   "sill": 1.1
+  },
+  {
+   "facing": "back",
+   "wall": 26.7,
+   "at": 8.6,
+   "width": 1.4,
+   "height": 1.0,
+   "sill": 1.1
+  }
+ ],
+ "doors": [],
+ "signs": [
+  {
+   "x0": 3.6,
+   "x1": 9.6,
+   "y": -0.16,
+   "z0": 2.3,
+   "z1": 2.85,
+   "text": "BUSSELTON JETTY",
+   "colour": "#1d3a76",
+   "ink": "#f4f4f2"
+  }
+ ]
+}

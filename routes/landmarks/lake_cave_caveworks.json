@@ -1,0 +1,375 @@
+{
+ "note": "CaveWorks and the Lake Cave visitor centre, Lake Cave Road off Caves Road, Forest Grove (south of Margaret River), run by the Margaret River Busselton Tourism Association. From the Landgate aerial (Nov 2026) and a 2014 photo of the entry: a low, pale-roofed building of coursed limestone in the karri forest beside the Lake Cave doline. A tall exhibition hall (gable, solar panels, a glazed band under the eaves) runs east-north-east towards Caves Road; a lower shop and ticketing arm runs west-south-west to the entry, a glazed wall facing the forecourt and car park under a curved canopy of pale sheeting on dark navy steel (a flat slab here); a lower strip and a skewed wing on the south-east side. The tearoom wing to the north-west is a separate spec (lake_cave_caveworks_wing.json) because it is set at 64 degrees to this one. Limestone skirts go down 1.2 m because the backdrop ground falls about 1.5 m to the north-east across the site. Metres: x left (north-north-west) to right (south-south-east) as seen from the car park end, y back (east-north-east) from the entry wall.",
+ "wallHeight": 3.8,
+ "setback": 14.0,
+ "road": {
+  "width": 6.0,
+  "verge": 1.0
+ },
+ "lawn": "#6f6a48",
+ "sunFrom": [
+  0.4,
+  0.8,
+  1.0
+ ],
+ "cameras": {
+  "street": {
+   "eye": [
+    4,
+    -16,
+    1.6
+   ],
+   "look": [
+    4,
+    12,
+    3
+   ],
+   "lens": 24
+  },
+  "aerial": {
+   "eye": [
+    -40,
+    -30,
+    40
+   ],
+   "look": [
+    4,
+    20,
+    2
+   ],
+   "lens": 24
+  }
+ },
+ "walls": {
+  "kind": "brick",
+  "colour": "#d8c8a2"
+ },
+ "finishes": {
+  "lime": {
+   "kind": "brick",
+   "colour": "#cfbe96"
+  },
+  "glass": {
+   "kind": "render",
+   "colour": "#2c3a40"
+  },
+  "frame": {
+   "kind": "cladding",
+   "colour": "#26303c"
+  }
+ },
+ "trim": "#26303c",
+ "roof": {
+  "pitch": 10,
+  "colour": "#e4e2d5",
+  "eaves": 0.5
+ },
+ "blocks": [
+  {
+   "name": "hall",
+   "x0": -6.25,
+   "x1": 6.25,
+   "y0": 22.15,
+   "y1": 44.05,
+   "roof": "gable",
+   "pitch": 12,
+   "wallHeight": 4.6
+  },
+  {
+   "name": "shop_arm",
+   "x0": -1.25,
+   "x1": 8.1,
+   "y0": 5.0,
+   "y1": 22.4,
+   "roof": "gable",
+   "pitch": 10
+  },
+  {
+   "name": "low_strip",
+   "x0": 6.25,
+   "x1": 9.7,
+   "y0": 15.65,
+   "y1": 43.15,
+   "roof": "hip",
+   "pitch": 6,
+   "wallHeight": 3.3
+  },
+  {
+   "name": "se_wing",
+   "x0": 8.0,
+   "x1": 15.0,
+   "y0": 19.75,
+   "y1": 29.75,
+   "roof": "hip",
+   "pitch": 8,
+   "wallHeight": 3.6
+  }
+ ],
+ "panels": [
+  {
+   "x0": 0.2,
+   "x1": 7.6,
+   "y0": 4.94,
+   "y1": 5.02,
+   "z0": 0.2,
+   "z1": 3.6,
+   "walls": "glass"
+  },
+  {
+   "x0": -6.33,
+   "x1": -6.23,
+   "y0": 23.0,
+   "y1": 43.2,
+   "z0": 3.2,
+   "z1": 4.4,
+   "walls": "glass"
+  },
+  {
+   "x0": 6.23,
+   "x1": 6.33,
+   "y0": 43.2,
+   "y1": 44.0,
+   "z0": 3.4,
+   "z1": 4.4,
+   "walls": "glass"
+  },
+  {
+   "x0": -5.4,
+   "x1": 5.4,
+   "y0": 44.03,
+   "y1": 44.13,
+   "z0": 3.2,
+   "z1": 4.4,
+   "walls": "glass"
+  },
+  {
+   "x0": -6.33,
+   "x1": -6.2,
+   "y0": 22.15,
+   "y1": 44.05,
+   "z0": -1.2,
+   "z1": 0.15,
+   "walls": "lime"
+  },
+  {
+   "x0": -6.25,
+   "x1": 6.25,
+   "y0": 44.0,
+   "y1": 44.13,
+   "z0": -1.2,
+   "z1": 0.15,
+   "walls": "lime"
+  },
+  {
+   "x0": 6.25,
+   "x1": 9.7,
+   "y0": 43.1,
+   "y1": 43.23,
+   "z0": -1.2,
+   "z1": 0.15,
+   "walls": "lime"
+  },
+  {
+   "x0": 9.65,
+   "x1": 9.78,
+   "y0": 29.75,
+   "y1": 43.15,
+   "z0": -1.2,
+   "z1": 0.15,
+   "walls": "lime"
+  },
+  {
+   "x0": 14.95,
+   "x1": 15.08,
+   "y0": 19.75,
+   "y1": 29.75,
+   "z0": -1.2,
+   "z1": 0.15,
+   "walls": "lime"
+  },
+  {
+   "x0": 9.7,
+   "x1": 15.0,
+   "y0": 29.7,
+   "y1": 29.83,
+   "z0": -1.2,
+   "z1": 0.15,
+   "walls": "lime"
+  },
+  {
+   "x0": 9.7,
+   "x1": 15.0,
+   "y0": 19.67,
+   "y1": 19.8,
+   "z0": -1.2,
+   "z1": 0.15,
+   "walls": "lime"
+  },
+  {
+   "x0": 8.1,
+   "x1": 9.7,
+   "y0": 15.57,
+   "y1": 15.7,
+   "z0": -1.2,
+   "z1": 0.15,
+   "walls": "lime"
+  },
+  {
+   "x0": 9.65,
+   "x1": 9.78,
+   "y0": 15.65,
+   "y1": 19.75,
+   "z0": -1.2,
+   "z1": 0.15,
+   "walls": "lime"
+  },
+  {
+   "x0": 8.05,
+   "x1": 8.18,
+   "y0": 5.0,
+   "y1": 15.65,
+   "z0": -1.2,
+   "z1": 0.15,
+   "walls": "lime"
+  },
+  {
+   "x0": -1.25,
+   "x1": 8.1,
+   "y0": 4.92,
+   "y1": 5.05,
+   "z0": -1.2,
+   "z1": 0.15,
+   "walls": "lime"
+  },
+  {
+   "x0": -1.33,
+   "x1": -1.2,
+   "y0": 5.0,
+   "y1": 22.15,
+   "z0": -1.2,
+   "z1": 0.15,
+   "walls": "lime"
+  },
+  {
+   "x0": -6.25,
+   "x1": -1.25,
+   "y0": 22.07,
+   "y1": 22.2,
+   "z0": -1.2,
+   "z1": 0.15,
+   "walls": "lime"
+  }
+ ],
+ "awnings": [
+  {
+   "x0": -0.6,
+   "x1": 8.0,
+   "y0": 0.0,
+   "y1": 5.0,
+   "z": 4.1,
+   "thickness": 0.35,
+   "colour": "#d9dcda",
+   "posts": [
+    -0.4,
+    2.4,
+    5.2,
+    7.8
+   ]
+  }
+ ],
+ "doors": [
+  {
+   "type": "front",
+   "x0": 3.0,
+   "x1": 4.8,
+   "y": 5.0,
+   "height": 2.5,
+   "z0": 0.1,
+   "colour": "#26303c"
+  }
+ ],
+ "windows": [
+  {
+   "facing": "left",
+   "wall": -1.25,
+   "at": 8.0,
+   "width": 1.6,
+   "height": 1.4,
+   "sill": 1.0
+  },
+  {
+   "facing": "left",
+   "wall": -1.25,
+   "at": 13.0,
+   "width": 1.6,
+   "height": 1.4,
+   "sill": 1.0
+  },
+  {
+   "facing": "right",
+   "wall": 15.0,
+   "at": 22.5,
+   "width": 1.6,
+   "height": 1.4,
+   "sill": 1.0
+  },
+  {
+   "facing": "right",
+   "wall": 15.0,
+   "at": 27.0,
+   "width": 1.6,
+   "height": 1.4,
+   "sill": 1.0
+  },
+  {
+   "facing": "right",
+   "wall": 9.7,
+   "at": 34.0,
+   "width": 1.4,
+   "height": 1.3,
+   "sill": 1.0
+  },
+  {
+   "facing": "right",
+   "wall": 9.7,
+   "at": 39.0,
+   "width": 1.4,
+   "height": 1.3,
+   "sill": 1.0
+  }
+ ],
+ "signs": [
+  {
+   "x0": -3.2,
+   "x1": -1.6,
+   "y": -1.0,
+   "z0": 0.4,
+   "z1": 1.5,
+   "text": "LAKE CAVE",
+   "colour": "#1f4f8a",
+   "ink": "#f4f1e8",
+   "posts": true,
+   "back": true
+  }
+ ],
+ "trees": [
+  {
+   "x": -8,
+   "y": -10,
+   "height": 24,
+   "spread": 11
+  },
+  {
+   "x": 14,
+   "y": -8,
+   "height": 20,
+   "spread": 9
+  },
+  {
+   "x": 20,
+   "y": 10,
+   "height": 26,
+   "spread": 12
+  }
+ ]
+}

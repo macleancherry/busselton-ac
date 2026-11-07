@@ -43,6 +43,9 @@ In the accepted base of 2 Nov: 37 spec landmarks (listed in `routes/landmarks/lo
 | 29 | Settlement Art Project bronzes | Round the courthouse precinct | ✅ 2 Nov, Blender layer ([description](landmarks/settlement_art.md)); 3 of 6 positions are guesses |
 | 30 | Shelter Brewing Co | Foreshore Pde, behind the Visitor Centre | ✅ 2 Nov, Blender layer ([description](landmarks/shelter_brewing.md)) |
 | 31 | Origins Market | South of the built area | ⬜ only if the map grows south |
+| 32 | Busselton Jetty Interpretive Centre (the four boatsheds) | On the jetty deck, 50 m out | ✅ 7 Nov, stands on the deck with its look's `floor` ([description](landmarks/jetty_interpretive_centre.md)) |
+| 33 | Underwater Observatory (detailed) | End of the jetty, 1.8 km out | ⬜ the base's plain drum and round pavilion stand there; the aerial shows a gabled pavilion and a white shelter instead; no exterior photos yet |
+| 34 | Busselton Health Campus, Geographe Leisure Centre, Bunnings | West Busselton and Strelly St | ⬜ outside the built area (0.9 to 1.2 km west or south of it) |
 
 Where they came from and what's next: [docs/plans/tourism-places.md](plans/tourism-places.md).
 
@@ -81,6 +84,17 @@ Spec landmarks in `routes/landmarks/vasse_looks.json`, for a drive down Bussell 
 | Cape Leeuwin lighthouse | Cape Leeuwin | ✅ Blender layer ([description](landmarks/cape_leeuwin_lighthouse.md)) |
 | Cape Leeuwin keepers' cottages and waterwheel | Cape Leeuwin | ✅ ([cottages](landmarks/cape_leeuwin_cottages.md), [waterwheel](landmarks/cape_leeuwin_waterwheel.md)) |
 | Caves House Hotel and the Yallingup General Store | Caves Road, Dunsborough to Yallingup | ✅ ([Caves House](landmarks/caves_house.md), [store](landmarks/yallingup_store.md)) |
+| CaveWorks and the Lake Cave visitor centre (two specs) | Caves Road Boranup | ✅ 7 Nov ([description](landmarks/lake_cave_caveworks.md)); on a landmark patch, needs a base build |
+
+## Dunsborough (Busselton to Dunsborough)
+
+The drive stays on Caves Road, south of the town centre, so only the edge of town is in its 70 m corridor (`routes/landmarks/busselton_to_dunsborough_looks.json`).
+
+| Landmark | Where | Status |
+| --- | --- | --- |
+| Dunsborough Tavern | 2 Dunsborough Place, by the Dunn Bay Road roundabout | ✅ ([description](landmarks/dunsborough_tavern.md)); mostly past the corridor, on the terrain's height |
+| Dunsborough Bakery | Dunn Bay Road, about 220 m north of the drive | ⬜ outside the built area |
+| Dunsborough Centrepoint (Coles) | 55-57 Dunn Bay Road, 110 to 230 m north of the drive | ⬜ outside the built area |
 
 ## The whole map (private)
 
@@ -89,3 +103,9 @@ Listed in `routes/private/landmarks/README.md`.
 ## The South West, still to do
 
 Ngilgi Cave's entrance, Sugarloaf Rock, Meelup, the surf car parks at Yallingup and Surfers Point, wineries and cellar doors along Caves Road, Augusta's town centre.
+
+Checked 7 Nov and left out, because no track's drive can see them:
+
+- **Ngilgi Cave visitor building** (115.03443,-33.64228): 440 m north of Caves Road at Yallingup, through solid bush. It needs a track up Yallingup Caves Road.
+- **Bootleg Brewery**, Wilyabrup (115.05511,-33.75678): 2.3 km east of Caves Road.
+- **Leeuwin Estate** (115.06699,-34.01407): 6 km from the nearest track (Margaret River's south end, and the Boranup track's north end).

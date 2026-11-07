@@ -1,0 +1,28 @@
+{
+ "name": "Cowaramup",
+ "_note": "Cowaramup's main street: Bussell Highway through town, from the BP at the south end north past the shops, the Bottrill St corner (Candy Cow) and the tennis courts to the edge of town. Point to point, about 1.2 km, with a small area round the shops so Bottrill St, Hall Rd and the car parks are drivable. Town settings. A test bed for the Cowaramup landmarks (routes/landmarks/bussell_highway_looks.json): the cow statues and Candy Cow.",
+ "loop": false,
+ "preset": "town",
+ "pins": [
+  [115.09965, -33.85590],
+  [115.10200, -33.85175],
+  [115.10420, -33.84915],
+  [115.10520, -33.84650]
+ ],
+ "build": {
+  "origin": [115.1028, -33.8510],
+  "traceGuard": false,
+  "corridor": 60,
+  "area": [
+   [
+    [115.1005, -33.8535],
+    [115.1050, -33.8535],
+    [115.1050, -33.8488],
+    [115.1005, -33.8488]
+   ]
+  ]
+ },
+ "looks": [
+  "routes/landmarks/bussell_highway_looks.json"
+ ]
+}
