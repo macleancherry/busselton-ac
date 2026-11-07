@@ -49,8 +49,8 @@ describe("headlessOptions", () => {
 
   it("maps imagery levels and banking", () => {
     const at = (imagery: string) => headlessOptions("x", { imagery });
-    expect([at("ultra"), at("high"), at("standard"), at("off")].map((o) => [o.imageryZoom, o.textureSize, o.trees])).toEqual([
-      [20, 2048, 1], [19, 1024, 1], [18, 512, 1], [0, 512, 0],
+    expect([at("ultra"), at("high"), at("standard"), at("low"), at("off")].map((o) => [o.imageryZoom, o.textureSize, o.trees])).toEqual([
+      [20, 2048, 1], [19, 1024, 1], [18, 512, 1], [17, 512, 1], [0, 512, 0],
     ]);
     expect(headlessOptions("x", { banking: false }).banking).toBe(false);
     expect(headlessOptions("x", { banking: 1 }).banking).toBe(true);
@@ -85,6 +85,8 @@ describe("routeSummary", () => {
     expect(routeSummary(r(299), false).error).toBe("Make the road at least 300 m long.");
     expect(routeSummary(r(300), false).error).toBe("");
     expect(routeSummary(r(30_000), true).error).toBe("");
+    expect(routeSummary(r(45_500), false, 50_000).error).toBe("");
+    expect(routeSummary(r(50_100), false, 50_000).error).toBe("That's 50.1 km. Browser builds are limited to 50 km: move the pins closer.");
   });
 
   it("names the first U-turn, lat first, only when nothing else is wrong", () => {

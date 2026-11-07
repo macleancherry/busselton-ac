@@ -9,6 +9,9 @@ const IMAGERY_LEVELS: Record<string, { imageryZoom: number; textureSize: number 
   ultra: { imageryZoom: 20, textureSize: 2048 },
   high: { imageryZoom: 19, textureSize: 1024 },
   standard: { imageryZoom: 18, textureSize: 512 },
+  // Long country drives: a quarter of standard's photo pixels. The 45 km Bussell Highway run ran the
+  // build page out of memory at standard, 63% through the imagery (7 Nov 2026).
+  low: { imageryZoom: 17, textureSize: 512 },
   off: { imageryZoom: 0, textureSize: 512 },
 };
 
@@ -79,11 +82,13 @@ export function lengthText(metres: number): string {
   return metres >= 1000 ? `${(metres / 1000).toFixed(2)} km` : `${Math.round(metres)} m`;
 }
 
-/** What a routed road says about itself: its length, and why it can't be built, if it can't. */
-export function routeSummary(r: { distance: number; uturns: LngLat[]; trimmed: LngLat[] }, loop: boolean): RouteSummary {
+/** What a routed road says about itself: its length, and why it can't be built, if it can't. `maxM`
+ * is the length cap: MAX_ROUTE_M unless the route lifts it (build.maxRouteKm, Mac's call per route:
+ * the Bussell Highway run, 45 km, built for the rig, 7 Nov 2026). */
+export function routeSummary(r: { distance: number; uturns: LngLat[]; trimmed: LngLat[] }, loop: boolean, maxM = MAX_ROUTE_M): RouteSummary {
   let error = "";
-  if (r.distance > MAX_ROUTE_M) {
-    error = `That's ${(r.distance / 1000).toFixed(1)} km. Browser builds are limited to ${MAX_ROUTE_M / 1000} km: move the pins closer.`;
+  if (r.distance > maxM) {
+    error = `That's ${(r.distance / 1000).toFixed(1)} km. Browser builds are limited to ${maxM / 1000} km: move the pins closer.`;
   } else if (r.distance < MIN_ROUTE_M) {
     error = `Make the road at least ${MIN_ROUTE_M} m long.`;
   } else if (r.uturns.length) {

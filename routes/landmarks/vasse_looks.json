@@ -1,0 +1,14 @@
+{
+ "note": "Vasse landmarks built from their own spec (src/core/specHouse.ts), for the route that lists this file in \"looks\". \"at\" is the middle of each landmark's main blocks. \"facing\" is the compass bearing the front faces.",
+ "houses": [
+  {
+   "at": [
+    115.249441,
+    -33.672686
+   ],
+   "specFile": "routes/landmarks/vasse_farmers_market.json",
+   "name": "Vasse Village by Bunbury Farmers Market",
+   "facing": 117
+  }
+ ]
+}

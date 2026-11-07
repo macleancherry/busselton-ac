@@ -49,6 +49,15 @@ In the accepted base of 2 Nov: 37 spec landmarks (listed in `routes/landmarks/lo
 
 Where they came from and what's next: [docs/plans/tourism-places.md](plans/tourism-places.md).
 
+## Vasse (Bussell Highway)
+
+Spec landmarks in `routes/landmarks/vasse_looks.json`, for a drive down Bussell Hwy through Vasse.
+
+| Landmark | Where | Status |
+| --- | --- | --- |
+| Vasse Village by Bunbury Farmers Market | 4 Orchard Place, beside Bussell Hwy west of the Busselton Bypass West Rotary | ✅ 7 Nov ([description](landmarks/vasse_farmers_market.md)); one photo, front face inferred |
+| Busselton Bypass West Rotary (the "Vasse Roundabout") | Bussell Hwy, Busselton Bypass, Vasse Hwy | Nothing to build: native shrubs and gravel, no sign or sculpture ([notes](landmarks/vasse_farmers_market.md#unsure)) |
+
 ## Margaret River (main street)
 
 9 spec landmarks (`routes/landmarks/margaret_river_looks.json`) and one Blender layer. Audit: [docs/plans/margaret-river-places.md](plans/margaret-river-places.md).

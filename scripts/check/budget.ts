@@ -20,7 +20,16 @@ import { readKn5, type Kn5Node } from "../../src/core/kn5";
 // Triangles are cheap for the 4060 (AC culls per mesh); draw calls are what AC's single-threaded DX11
 // renderer feels, so meshes keep the tight limit. Triangles raised from 1.5M to 2M on 3 Nov 2026
 // (Mac's question: big community maps carry far more); to be set from retest 6's frame rates.
-const LIMITS = { triangles: 2_000_000, meshes: 4000, textureMB: 1500, kn5MB: 600 };
+const WORKSTATION = { triangles: 2_000_000, meshes: 4000, textureMB: 1500, kn5MB: 600 };
+// A route can say it's for the gaming rig only (build.budget: "rig", RTX 5080, 16 GB): Mac's call per
+// route, for drives too long for the 4060 (the 45 km Bussell Highway run, 7 Nov 2026). build-track.mjs
+// copies it into out/<slug>.stats.json, read here; --rig forces it.
+const RIG = { triangles: 4_500_000, meshes: 8000, textureMB: 3000, kn5MB: 1200 };
+const statsFile = process.argv[2].replace(/\.zip$/, ".stats.json");
+let tier = process.argv.includes("--rig") ? "rig" : "workstation";
+try { if (JSON.parse(readFileSync(statsFile, "utf8")).budget === "rig") tier = "rig"; } catch { /* no stats: the workstation's */ }
+const LIMITS = tier === "rig" ? RIG : WORKSTATION;
+console.log(`budget: ${tier === "rig" ? "gaming rig only (RTX 5080)" : "workstation (RTX 4060)"}`);
 
 const files = unzipSync(new Uint8Array(readFileSync(process.argv[2])));
 // The world kn5 (<slug>/<slug>.kn5), not a layout's dummies or a layer.

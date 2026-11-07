@@ -226,7 +226,7 @@ try {
   const routeTimeout = spec.ways ? 240_000 : 60_000;
   let routeTimer;
   const routed = await Promise.race([
-    page.evaluate((i) => window.__app.route(i), { pins: spec.pins, loop: !!spec.loop, ways }),
+    page.evaluate((i) => window.__app.route(i), { pins: spec.pins, loop: !!spec.loop, ways, maxKm: spec.build?.maxRouteKm }),
     new Promise((_, fail) => { routeTimer = setTimeout(() => fail(new Error(`routing took longer than ${routeTimeout / 1000} s`)), routeTimeout); }),
   ]).finally(() => clearTimeout(routeTimer));
   if (routed.error) throw new Error(routed.error);
@@ -435,7 +435,7 @@ try {
   for (const h of used.values()) hostCount[h] = (hostCount[h] ?? 0) + 1;
   writeFileSync(join(out, `${slug}.inputs.json`), JSON.stringify({ route: basename(routeFile), built: new Date().toISOString(), snapshot: snapshot ? basename(snapshot) : null, hosts: hostCount, keys: [...used.keys()].sort() }, null, 1));
   if (snapshot && snapMissing) log(`WARNING: ${snapMissing} downloads weren't in the snapshot (refresh it with SNAPSHOT_FILL=1 if that's intended)`);
-  writeFileSync(join(out, `${slug}.stats.json`), JSON.stringify({ route: basename(routeFile), stats }, null, 2));
+  writeFileSync(join(out, `${slug}.stats.json`), JSON.stringify({ route: basename(routeFile), ...(spec.build?.budget ? { budget: spec.build.budget } : {}), stats }, null, 2));
   if (process.env.SHOTS) {
     // Each shot is a lap fraction, or "lng:lat:lookLng:lookLat:height" for a fixed view.
     // SHOTS=auto: the same views on every build of a track, for before/after comparisons

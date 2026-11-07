@@ -1,0 +1,335 @@
+{
+ "note": "Vasse Village by Bunbury Farmers Market, the big single-storey market hall beside Bussell Hwy just west of the Busselton Bypass West Rotary (opened 5 Dec 2024), from docs/landmarks/vasse_farmers_market.md (Landgate aerial, OSM outline, the opening-day photo). A black parapet box with copper-brown capping, base band and pilasters; on the street front a rust-steel relief of an orchard and river, the framed Vasse Village sign standing above the parapet, a screen and a poster. Green roof behind the parapet; shade sails over the alfresco on the left. Metres: x left to right as seen from the street in front (south-west to north-east), y back (north-west) from the front wall.",
+ "wallHeight": 8.0,
+ "setback": 4.0,
+ "road": {
+  "width": 8,
+  "verge": 1.5
+ },
+ "lawn": "#8a8a5a",
+ "sunFrom": [
+  0.4,
+  -0.8,
+  1.2
+ ],
+ "cameras": {
+  "street": {
+   "eye": [
+    6,
+    -16,
+    1.6
+   ],
+   "look": [
+    24,
+    4,
+    5
+   ],
+   "lens": 22
+  },
+  "aerial": {
+   "eye": [
+    80,
+    -50,
+    45
+   ],
+   "look": [
+    25,
+    30,
+    4
+   ],
+   "lens": 30
+  }
+ },
+ "walls": {
+  "kind": "panel",
+  "colour": "#24262a"
+ },
+ "finishes": {
+  "copper": {
+   "kind": "render",
+   "colour": "#8c5a3e"
+  },
+  "rust": {
+   "kind": "render",
+   "colour": "#8a5634"
+  },
+  "river": {
+   "kind": "render",
+   "colour": "#e8edf1"
+  },
+  "screen": {
+   "kind": "render",
+   "colour": "#4f7a3c"
+  },
+  "poster": {
+   "kind": "render",
+   "colour": "#e6e1d4"
+  },
+  "roofdeck": {
+   "kind": "corrugated",
+   "colour": "#3a6e5e"
+  }
+ },
+ "trim": "#8c5a3e",
+ "roof": {
+  "pitch": 5,
+  "colour": "#4b4c46",
+  "eaves": 0
+ },
+ "blocks": [
+  {
+   "name": "hall",
+   "x0": 0,
+   "x1": 50,
+   "y0": 0,
+   "y1": 73,
+   "roof": "none"
+  }
+ ],
+ "panels": [
+  {
+   "x0": 0.3,
+   "x1": 49.7,
+   "y0": 0.3,
+   "y1": 72.7,
+   "z0": 7.3,
+   "z1": 7.4,
+   "walls": "roofdeck"
+  },
+  {
+   "x0": -0.05,
+   "x1": 50.05,
+   "y0": -0.3,
+   "y1": 0,
+   "z0": 7.6,
+   "z1": 8.05,
+   "walls": "copper"
+  },
+  {
+   "x0": -0.3,
+   "x1": 0,
+   "y0": 0,
+   "y1": 73,
+   "z0": 7.6,
+   "z1": 8.05,
+   "walls": "copper"
+  },
+  {
+   "x0": 50,
+   "x1": 50.3,
+   "y0": 0,
+   "y1": 73,
+   "z0": 7.6,
+   "z1": 8.05,
+   "walls": "copper"
+  },
+  {
+   "x0": -0.05,
+   "x1": 50.05,
+   "y0": 73,
+   "y1": 73.3,
+   "z0": 7.6,
+   "z1": 8.05,
+   "walls": "copper"
+  },
+  {
+   "x0": 0,
+   "x1": 50,
+   "y0": -0.25,
+   "y1": 0,
+   "z0": 0,
+   "z1": 0.5,
+   "walls": "copper"
+  },
+  {
+   "x0": 0,
+   "x1": 0.9,
+   "y0": -0.35,
+   "y1": 0,
+   "z0": 0,
+   "z1": 7.6,
+   "walls": "copper"
+  },
+  {
+   "x0": 33.0,
+   "x1": 33.8,
+   "y0": -0.35,
+   "y1": 0,
+   "z0": 0,
+   "z1": 7.6,
+   "walls": "copper"
+  },
+  {
+   "x0": 49.1,
+   "x1": 50.0,
+   "y0": -0.35,
+   "y1": 0,
+   "z0": 0,
+   "z1": 7.6,
+   "walls": "copper"
+  },
+  {
+   "x0": 2.5,
+   "x1": 19.5,
+   "y0": -0.3,
+   "y1": 0,
+   "z0": 1.3,
+   "z1": 6.6,
+   "walls": "rust"
+  },
+  {
+   "x0": 4.5,
+   "x1": 14.5,
+   "y0": -0.4,
+   "y1": -0.3,
+   "z0": 2.0,
+   "z1": 2.9,
+   "walls": "river"
+  },
+  {
+   "x0": 2.8,
+   "x1": 5.2,
+   "y0": -0.9,
+   "y1": -0.3,
+   "z0": 1.3,
+   "z1": 3.6,
+   "walls": "rust"
+  },
+  {
+   "x0": 14.9,
+   "x1": 23.1,
+   "y0": -0.5,
+   "y1": 0,
+   "z0": 6.5,
+   "z1": 9.6,
+   "walls": "copper"
+  },
+  {
+   "x0": 24.0,
+   "x1": 31.5,
+   "y0": -0.3,
+   "y1": 0,
+   "z0": 1.6,
+   "z1": 5.2,
+   "walls": "screen"
+  },
+  {
+   "x0": 36.0,
+   "x1": 41.5,
+   "y0": -0.25,
+   "y1": 0,
+   "z0": 2.0,
+   "z1": 5.6,
+   "walls": "poster"
+  }
+ ],
+ "signs": [
+  {
+   "x0": 15.2,
+   "x1": 22.8,
+   "y": -0.6,
+   "z0": 7.9,
+   "z1": 9.3,
+   "text": "Vasse Village",
+   "colour": "#2b2e30",
+   "ink": "#f2f2ee"
+  },
+  {
+   "x0": 15.2,
+   "x1": 22.8,
+   "y": -0.6,
+   "z0": 6.8,
+   "z1": 7.7,
+   "text": "BUNBURY FARMERS MARKET",
+   "colour": "#2b2e30",
+   "ink": "#74b843"
+  },
+  {
+   "x0": 24.0,
+   "x1": 31.5,
+   "y": -0.4,
+   "z0": 5.2,
+   "z1": 6.4,
+   "text": "SUPPORTS LOCAL GROWERS",
+   "colour": "#cf2230",
+   "ink": "#ffffff"
+  },
+  {
+   "x0": 36.0,
+   "x1": 41.5,
+   "y": -0.35,
+   "z0": 5.6,
+   "z1": 6.6,
+   "text": "100% MARKET MADE",
+   "colour": "#2f6b3b",
+   "ink": "#ffffff"
+  }
+ ],
+ "sails": [
+  {
+   "pts": [
+    [
+     -3,
+     5,
+     4.2
+    ],
+    [
+     -12,
+     4,
+     3.0
+    ],
+    [
+     -10,
+     13,
+     4.0
+    ]
+   ],
+   "colour": "#ddcdad"
+  },
+  {
+   "pts": [
+    [
+     -3,
+     14,
+     4.2
+    ],
+    [
+     -13,
+     12,
+     3.2
+    ],
+    [
+     -11,
+     22,
+     4.2
+    ],
+    [
+     -3,
+     22,
+     3.4
+    ]
+   ],
+   "colour": "#ddcdad"
+  },
+  {
+   "pts": [
+    [
+     -4,
+     24,
+     4.0
+    ],
+    [
+     -15,
+     21,
+     3.0
+    ],
+    [
+     -12,
+     30,
+     4.0
+    ]
+   ],
+   "colour": "#ddcdad"
+  }
+ ]
+}
