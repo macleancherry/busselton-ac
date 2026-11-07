@@ -64,6 +64,74 @@ export interface HouseSpec {
    * back of the cabinet or slab the sign is mounted on).
    */
   signs?: { x0: number; x1: number; y: number; z0: number; z1: number; text?: string; colour?: string; ink?: string; posts?: boolean; back?: boolean; backY?: number }[];
+  /** Life-size black and white (Friesian) cow statues standing in the yard: see SpecCow. */
+  cows?: SpecCow[];
+}
+
+/**
+ * Busselton fork: a life-size cow statue (plain black and white Friesian), at (x, y) on the ground.
+ * `heading` is the way its head points, degrees like a compass on the spec: 0 is +y (back, away
+ * from the street), 90 is +x. (With the look's facing 180, spec x is east and y north, so it's the
+ * real bearing.) `pose`: standing (default), grazing (head down) or lying (legs folded, head up).
+ * `calf`: about 0.62 times the size, no udder. `seed` changes the patches.
+ */
+export interface SpecCow {
+  x: number;
+  y: number;
+  heading?: number;
+  pose?: "standing" | "grazing" | "lying";
+  calf?: boolean;
+  seed?: number;
+}
+
+/**
+ * The spec point a house is centred on: the middle of its blocks (outbuildings left out), or of
+ * its cows when it has no blocks (a herd of statues on its own).
+ */
+export function specCentre(spec: HouseSpec): [number, number] {
+  const main = spec.blocks.filter((b) => !b.outbuilding);
+  if (main.length) return [(Math.min(...main.map((b) => b.x0)) + Math.max(...main.map((b) => b.x1))) / 2, (Math.min(...main.map((b) => b.y0)) + Math.max(...main.map((b) => b.y1))) / 2];
+  const cows = spec.cows ?? [];
+  if (!cows.length) throw new Error("a spec needs a block (not an outbuilding) or a cow");
+  return [(Math.min(...cows.map((c) => c.x)) + Math.max(...cows.map((c) => c.x))) / 2, (Math.min(...cows.map((c) => c.y)) + Math.max(...cows.map((c) => c.y))) / 2];
+}
+
+/** How far a cow reaches from its spot, metres (nose to tail is about 2.4 m on an adult). */
+export const cowReach = (c: SpecCow) => (c.calf ? 0.62 : 1) * 1.35;
+
+/** One rounded part of a cow: centre (u forward, v left, w up, metres) and half sizes along u, v, w. */
+type CowPart = { at: [number, number, number]; ext: [number, number, number]; kind: "coat" | "head" | "leg" | "pink" | "black"; seg?: [number, number] };
+
+/** A cow's parts, adult size, by pose (cow-local metres, ground at w = 0). */
+export function cowParts(pose: SpecCow["pose"] = "standing", calf = false): CowPart[] {
+  const parts: CowPart[] = [];
+  if (pose === "lying") {
+    parts.push({ at: [0, 0, 0.42], ext: [0.85, 0.36, 0.33], kind: "coat", seg: [12, 8] });
+    parts.push({ at: [0.78, 0, 0.62], ext: [0.28, 0.17, 0.26], kind: "coat" });
+    parts.push({ at: [1.02, 0, 0.78], ext: [0.27, 0.13, 0.15], kind: "head" });
+    for (const s of [1, -1]) parts.push({ at: [0.9, s * 0.15, 0.93], ext: [0.04, 0.09, 0.04], kind: "head", seg: [4, 3] });
+    // Front legs tucked under the chest, hind legs folded out to one side.
+    for (const s of [1, -1]) parts.push({ at: [0.5, s * 0.2, 0.1], ext: [0.3, 0.09, 0.09], kind: "leg" });
+    parts.push({ at: [-0.45, 0.36, 0.12], ext: [0.34, 0.12, 0.11], kind: "leg" });
+    parts.push({ at: [-0.95, 0.25, 0.06], ext: [0.32, 0.04, 0.04], kind: "black", seg: [4, 3] });
+  } else {
+    const graze = pose === "grazing";
+    parts.push({ at: [0, 0, 1.05], ext: [0.85, 0.33, 0.36], kind: "coat", seg: [12, 8] });
+    parts.push(graze ? { at: [0.92, 0, 0.78], ext: [0.24, 0.17, 0.36], kind: "coat" } : { at: [0.88, 0, 1.22], ext: [0.3, 0.17, 0.26], kind: "coat" });
+    const head: [number, number, number] = graze ? [1.15, 0, 0.36] : [1.2, 0, 1.3];
+    parts.push({ at: head, ext: graze ? [0.15, 0.13, 0.27] : [0.27, 0.13, 0.16], kind: "head" });
+    for (const s of [1, -1]) parts.push({ at: graze ? [1.12, s * 0.17, 0.55] : [1.07, s * 0.16, 1.4], ext: [0.04, 0.09, 0.04], kind: "head", seg: [4, 3] });
+    for (const u of [0.62, -0.6]) for (const s of [1, -1]) parts.push({ at: [u, s * 0.19, 0.4], ext: [0.1, 0.1, 0.42], kind: "leg", seg: [6, 4] });
+    if (!calf) parts.push({ at: [-0.45, 0, 0.68], ext: [0.17, 0.15, 0.12], kind: "pink", seg: [6, 4] });
+    parts.push({ at: [-0.88, 0, 0.78], ext: [0.04, 0.04, 0.36], kind: "black", seg: [4, 3] });
+  }
+  return parts;
+}
+
+/** Smooth blotches for a Friesian coat: a few crossed waves, -1..1 (deterministic). */
+function blotch(u: number, v: number, w: number, seed: number): number {
+  const s = seed * 1.618;
+  return (Math.sin(2.9 * u + s) * Math.sin(3.4 * w + 0.7 * s) + Math.sin(4.3 * v + 2.2 * u + 2.3 * s) * 0.6 + Math.sin(5.1 * w - 3.7 * u + 0.4 * s) * 0.4) / 2;
 }
 
 type RGB = [number, number, number];
@@ -186,10 +254,8 @@ const PERIOD = 4, STOREY = 3; // the "blank" facade layout: 4 m along by 3 m up
 export function buildSpecHouse(spec: HouseSpec, place: SpecPlacement, tag: string, clear?: SpecClear): SpecHouse {
   const H0 = spec.wallHeight ?? 2.7;
   const pitchDeg = spec.roof?.pitch ?? 24, eaves0 = spec.roof?.eaves ?? 0.45;
-  // Centre on the house proper (outbuildings left out).
-  const main = spec.blocks.filter((b) => !b.outbuilding);
-  const cx = (Math.min(...main.map((b) => b.x0)) + Math.max(...main.map((b) => b.x1))) / 2;
-  const cy = (Math.min(...main.map((b) => b.y0)) + Math.max(...main.map((b) => b.y1))) / 2;
+  // Centre on the house proper (outbuildings left out), or the herd when there's no house.
+  const [cx, cy] = specCentre(spec);
   const o = place.toRoad, t: Vec2 = [-o[1], o[0]];
   const W = (x: number, y: number, z: number): Vec3 => [
     place.centre[0] + t[0] * (x - cx) - o[0] * (y - cy),
@@ -555,6 +621,72 @@ export function buildSpecHouse(spec: HouseSpec, place: SpecPlacement, tag: strin
       }
     }
     if (sg.back && sg.backY !== undefined) box(solid(`signboard${k}`, bg, "steel"), sg.x0, sg.backY, sg.z0, sg.x1, sg.backY + 0.08, sg.z1);
+  }
+
+  // Cow statues: rounded parts with smooth normals, each face white, black or pink (Friesian
+  // blotches), a box round each body to hit.
+  const cows = keepOff("cows", spec.cows, (c) => freeRound(c.x, c.y, cowReach(c)));
+  if (cows.length) {
+    const coat = { white: solid("cow_white", [238, 237, 232]), black: solid("cow_black", [28, 27, 27]), pink: solid("cow_pink", [222, 168, 160]) };
+    const sp = (e: number, v: number) => Math.sign(v) * Math.abs(v) ** e;
+    const origin = W(0, 0, 0);
+    /** A spec-frame vector as a world direction. */
+    const dir = (dx: number, dy: number, dz: number): Vec3 => {
+      const p = W(dx, dy, dz);
+      return [p[0] - origin[0], p[1] - origin[1], p[2] - origin[2]];
+    };
+    for (const c of cows) {
+      const k = c.calf ? 0.62 : 1, h = ((c.heading ?? 0) * Math.PI) / 180, seed = c.seed ?? c.x * 7.3 + c.y * 3.1;
+      const f: Vec2 = [Math.sin(h), Math.cos(h)], l: Vec2 = [-f[1], f[0]];
+      // Cow-local (u forward, v left, w up) to spec, then the world.
+      const at = (u: number, v: number, w: number): Vec3 => W(c.x + (u * f[0] + v * l[0]) * k, c.y + (u * f[1] + v * l[1]) * k, w * k);
+      for (const part of cowParts(c.pose, c.calf)) {
+        const [a, b, cc] = part.ext, [nu, nv] = part.seg ?? [8, 5], e = part.seg?.[0] === 12 ? 0.6 : 0.75;
+        const local = (i: number, j: number): [number, number, number] => {
+          const th = (i / nu) * 2 * Math.PI, ph = -Math.PI / 2 + (j / nv) * Math.PI, r = sp(e, Math.cos(ph));
+          return [a * sp(e, Math.sin(ph)), b * r * sp(e, Math.cos(th)), cc * r * sp(e, Math.sin(th))];
+        };
+        for (let j = 0; j < nv; j++) for (let i = 0; i < nu; i++) {
+          const q = [local(i, j), local(i + 1, j), local(i + 1, j + 1), local(i, j + 1)];
+          const m = q.reduce((s, p) => [s[0] + p[0] / 4, s[1] + p[1] / 4, s[2] + p[2] / 4], [0, 0, 0]);
+          const gu = part.at[0] + m[0], gv = part.at[1] + m[1], gw = part.at[2] + m[2];
+          let mat = coat.white;
+          if (part.kind === "black") mat = coat.black;
+          else if (part.kind === "pink") mat = coat.pink;
+          else if (part.kind === "head") mat = m[0] > 0.6 * a && m[2] < 0 && a > 0.1 ? coat.pink : blotch(gu, gv, gw, seed) > -0.35 || Math.abs(m[1]) > 0.06 ? coat.black : coat.white;
+          else if (part.kind === "leg") mat = c.pose !== "lying" && gw < 0.3 ? (gw < 0.06 ? coat.black : coat.white) : blotch(gu, gv, gw, seed) > 0 ? coat.black : coat.white;
+          else mat = blotch(gu, gv, gw, seed) > 0 ? coat.black : coat.white;
+          const mb = mesh(mat);
+          const pts = q.map(([u, v, w]) => at(part.at[0] + u, part.at[1] + v, part.at[2] + w));
+          const ns = q.map(([u, v, w]) => {
+            const n = dir(...((): [number, number, number] => {
+              const lu = u / (a * a), lv = v / (b * b), lw = w / (cc * cc);
+              return [lu * f[0] + lv * l[0], lu * f[1] + lv * l[1], lw];
+            })());
+            const len = Math.hypot(...n) || 1;
+            return n.map((x) => x / len) as Vec3;
+          });
+          // Wind each face so it looks out (the way its smooth normals point).
+          const e1 = [pts[2][0] - pts[0][0], pts[2][1] - pts[0][1], pts[2][2] - pts[0][2]], e2 = [pts[3][0] - pts[1][0], pts[3][1] - pts[1][1], pts[3][2] - pts[1][2]];
+          const fn = [e1[1] * e2[2] - e1[2] * e2[1], e1[2] * e2[0] - e1[0] * e2[2], e1[0] * e2[1] - e1[1] * e2[0]];
+          const avg = ns.reduce((s, n) => [s[0] + n[0], s[1] + n[1], s[2] + n[2]], [0, 0, 0]);
+          const order = fn[0] * avg[0] + fn[1] * avg[1] + fn[2] * avg[2] >= 0 ? [0, 1, 2, 3] : [3, 2, 1, 0];
+          const i0 = mb.vertexCount;
+          order.forEach((o2, kk) => {
+            mb.vertex(pts[o2], kk === 1 || kk === 2 ? 1 : 0, kk >= 2 ? 1 : 0);
+            mb.normals!.push(...ns[o2]);
+          });
+          mb.tri(i0, i0 + 1, i0 + 2);
+          mb.tri(i0, i0 + 2, i0 + 3);
+        }
+      }
+      // What a car hits: a box round the body.
+      const top = c.pose === "lying" ? 0.8 : 1.45, cn: [number, number][] = [[1.1, 0.36], [-0.95, 0.36], [-0.95, -0.36], [1.1, -0.36]];
+      for (let q = 0; q < 4; q++) {
+        const [au, av] = cn[q], [bu, bv] = cn[(q + 1) % 4];
+        poly(solidWalls, [at(au, av, -0.2 / k), at(bu, bv, -0.2 / k), at(bu, bv, top), at(au, av, top)], planar);
+      }
+    }
   }
 
   const nodes: Kn5MeshNode[] = [];

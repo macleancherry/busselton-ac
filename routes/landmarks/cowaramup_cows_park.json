@@ -1,0 +1,27 @@
+{
+ "note": "Cowaramup's life-size fibreglass Friesian cow statues (Cowaramup Lions Club herd, 2012): a cow and two calves on the park lawn west of Bussell Hwy, north of Memorial Drive. Plain black and white cows, no ear tags or sponsor names. Positions from 2019 street photos (Mapillary, reference only) placed on the Landgate aerial (Oct 2026), about 3 m. No blocks: the herd is the landmark, its look's facing is 180 so spec x is east, y north and each heading is the real bearing. docs/landmarks/cowaramup_cows.md.",
+ "blocks": [],
+ "cows": [
+  {
+   "x": 2.82,
+   "y": -2.11,
+   "heading": 200,
+   "seed": 42
+  },
+  {
+   "x": -0.51,
+   "y": 2.11,
+   "heading": 150,
+   "calf": true,
+   "seed": 5
+  },
+  {
+   "x": -2.82,
+   "y": -1.22,
+   "heading": 60,
+   "pose": "grazing",
+   "calf": true,
+   "seed": 18
+  }
+ ]
+}

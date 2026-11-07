@@ -9,7 +9,7 @@ import type { Kn5Material, Kn5MeshNode, Kn5Model, Kn5Texture } from "./kn5";
 import { IDENTITY } from "./kn5";
 import { encodeDdsDxt1 } from "./dds";
 import { decodeOwnPng, encodePng } from "./png";
-import { buildSpecHouse, type HouseSpec, type OverRoad, type SpecPlacement } from "./specHouse";
+import { buildSpecHouse, cowReach, specCentre, type HouseSpec, type OverRoad, type SpecPlacement } from "./specHouse";
 import { ROOF_COLOURS, facadeTexture, roofTexture } from "./buildingStyles";
 import { normalFromHeight, solidTexture, windowTexture } from "./textures";
 import { hedgeTexture } from "./houseTextures";
@@ -41,9 +41,7 @@ export interface LandmarkModel {
 
 /** How far the landmark's spec reaches from its centre (blocks, yard, fences), metres: the spot the base clears. */
 export function landmarkReach(spec: HouseSpec): number {
-  const main = spec.blocks.filter((b) => !b.outbuilding);
-  const cx = (Math.min(...main.map((b) => b.x0)) + Math.max(...main.map((b) => b.x1))) / 2;
-  const cy = (Math.min(...main.map((b) => b.y0)) + Math.max(...main.map((b) => b.y1))) / 2;
+  const [cx, cy] = specCentre(spec);
   const pts: [number, number][] = [];
   const rect = (r: { x0: number; x1: number; y0: number; y1: number }) => pts.push([r.x0, r.y0], [r.x1, r.y1], [r.x0, r.y1], [r.x1, r.y0]);
   spec.blocks.forEach(rect);
@@ -52,6 +50,8 @@ export function landmarkReach(spec: HouseSpec): number {
   (spec.awnings ?? []).forEach(rect);
   for (const f of spec.fences ?? []) pts.push([f.x0, f.y0], [f.x1, f.y1]);
   for (const s of spec.signs ?? []) pts.push([s.x0, s.y], [s.x1, s.y]);
+  // A cow reaches its own length round its spot (whichever way it faces).
+  for (const c of spec.cows ?? []) for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) pts.push([c.x + dx * cowReach(c), c.y + dy * cowReach(c)]);
   return Math.max(...pts.map(([x, y]) => Math.hypot(x - cx, y - cy))) + 1.5;
 }
 
@@ -61,9 +61,7 @@ export function landmarkReach(spec: HouseSpec): number {
  * the ground (panels outside its blocks), as placed. The base's traced road edges stop short of them (buildingTraceClip.ts).
  */
 export function landmarkOutline(spec: HouseSpec, place: Pick<SpecPlacement, "centre" | "toRoad">): Vec2[][] {
-  const main = spec.blocks.filter((b) => !b.outbuilding);
-  const cx = (Math.min(...main.map((b) => b.x0)) + Math.max(...main.map((b) => b.x1))) / 2;
-  const cy = (Math.min(...main.map((b) => b.y0)) + Math.max(...main.map((b) => b.y1))) / 2;
+  const [cx, cy] = specCentre(spec);
   // The same frame buildSpecHouse places the spec in.
   const o = place.toRoad, t: Vec2 = [-o[1], o[0]];
   const W = (x: number, y: number): Vec2 => [place.centre[0] + t[0] * (x - cx) - o[0] * (y - cy), place.centre[1] + t[1] * (x - cx) - o[1] * (y - cy)];
