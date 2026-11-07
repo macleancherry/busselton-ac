@@ -1,5 +1,5 @@
 {
-  "note": "Landmarks built from their own spec (src/core/specHouse.ts), loaded by any route that lists this file in \"looks\". \"at\" is the middle of each building's blocks (outbuildings left out). \"facing\" is the compass bearing the front faces (else it faces the nearest road).",
+  "note": "Landmarks built from their own spec (src/core/specHouse.ts), loaded by any route that lists this file in \"looks\". \"at\" is the middle of each building's blocks (outbuildings left out). \"facing\" is the compass bearing the front faces (else it faces the nearest road). \"floor\", when set, is the height the landmark stands on (metres on the map, e.g. a jetty deck) in place of the ground under it.",
   "houses": [
     {
       "at": [
@@ -333,6 +333,16 @@
       "specFile": "routes/landmarks/signal_park.json",
       "name": "Signal Park toilets",
       "facing": 159
+    },
+    {
+      "at": [
+        115.344678,
+        -33.643905
+      ],
+      "specFile": "routes/landmarks/jetty_interpretive_centre.json",
+      "name": "Busselton Jetty Interpretive Centre",
+      "facing": 147,
+      "floor": 3.85
     }
   ]
 }
