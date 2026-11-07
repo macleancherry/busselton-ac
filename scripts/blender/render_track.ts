@@ -103,7 +103,7 @@ for (const s of specs) {
       const facing = Number.isFinite(l.facing) ? bearingDir(l.facing!) : toNearestRoad(x, y);
       const spot = streetSpot([x, y], facing, reach, roads, line);
       if (!spot) { console.log(`${name}: no road in front of it within 90 m, skipped`); continue; }
-      const tall = Math.max(...spec.blocks.filter((b) => !b.outbuilding).map((b) => b.wallHeight ?? spec.wallHeight ?? 3.2));
+      const tall = Math.max(1.5, ...spec.blocks.filter((b) => !b.outbuilding).map((b) => b.wallHeight ?? spec.wallHeight ?? 3.2));
       const g = groundAt(x, y);
       views.push({
         name, kind: "street",
