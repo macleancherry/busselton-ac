@@ -49,8 +49,8 @@ describe("headlessOptions", () => {
 
   it("maps imagery levels and banking", () => {
     const at = (imagery: string) => headlessOptions("x", { imagery });
-    expect([at("ultra"), at("high"), at("standard"), at("off")].map((o) => [o.imageryZoom, o.textureSize, o.trees])).toEqual([
-      [20, 2048, 1], [19, 1024, 1], [18, 512, 1], [0, 512, 0],
+    expect([at("ultra"), at("high"), at("standard"), at("low"), at("off")].map((o) => [o.imageryZoom, o.textureSize, o.trees])).toEqual([
+      [20, 2048, 1], [19, 1024, 1], [18, 512, 1], [17, 512, 1], [0, 512, 0],
     ]);
     expect(headlessOptions("x", { banking: false }).banking).toBe(false);
     expect(headlessOptions("x", { banking: 1 }).banking).toBe(true);

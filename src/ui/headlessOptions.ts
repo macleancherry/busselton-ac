@@ -9,6 +9,9 @@ const IMAGERY_LEVELS: Record<string, { imageryZoom: number; textureSize: number 
   ultra: { imageryZoom: 20, textureSize: 2048 },
   high: { imageryZoom: 19, textureSize: 1024 },
   standard: { imageryZoom: 18, textureSize: 512 },
+  // Long country drives: a quarter of standard's photo pixels. The 45 km Bussell Highway run ran the
+  // build page out of memory at standard, 63% through the imagery (7 Nov 2026).
+  low: { imageryZoom: 17, textureSize: 512 },
   off: { imageryZoom: 0, textureSize: 512 },
 };
 
