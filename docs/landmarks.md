@@ -43,6 +43,9 @@ In the accepted base of 2 Nov: 37 spec landmarks (listed in `routes/landmarks/lo
 | 29 | Settlement Art Project bronzes | Round the courthouse precinct | ✅ 2 Nov, Blender layer ([description](landmarks/settlement_art.md)); 3 of 6 positions are guesses |
 | 30 | Shelter Brewing Co | Foreshore Pde, behind the Visitor Centre | ✅ 2 Nov, Blender layer ([description](landmarks/shelter_brewing.md)) |
 | 31 | Origins Market | South of the built area | ⬜ only if the map grows south |
+| 32 | Busselton Jetty Interpretive Centre (the four boatsheds) | On the jetty deck, 50 m out | ✅ 7 Nov, stands on the deck with its look's `floor` ([description](landmarks/jetty_interpretive_centre.md)) |
+| 33 | Underwater Observatory (detailed) | End of the jetty, 1.8 km out | ⬜ the base's plain drum and round pavilion stand there; the aerial shows a gabled pavilion and a white shelter instead; no exterior photos yet |
+| 34 | Busselton Health Campus, Geographe Leisure Centre, Bunnings | West Busselton and Strelly St | ⬜ outside the built area (0.9 to 1.2 km west or south of it) |
 
 Where they came from and what's next: [docs/plans/tourism-places.md](plans/tourism-places.md).
 
